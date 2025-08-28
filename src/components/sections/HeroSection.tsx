@@ -1,9 +1,21 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Github, Zap, Shield, Code } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-image.jpg";
 
 export const HeroSection = () => {
+  const navigate = useNavigate();
+
+  const handleGetStarted = () => {
+    // For now, show alert about Supabase requirement
+    alert("GitHub authentication requires Supabase integration. Please connect Supabase first!");
+  };
+
+  const handleViewDocs = () => {
+    navigate("/docs");
+  };
+
   return (
     <section className="min-h-screen flex items-center justify-center bg-gradient-hero relative overflow-hidden">
       {/* Background decoration */}
@@ -47,11 +59,11 @@ export const HeroSection = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" className="bg-gradient-primary hover:shadow-primary transition-all duration-300">
+              <Button size="lg" className="bg-gradient-primary hover:shadow-primary transition-all duration-300" onClick={handleGetStarted}>
                 <Github className="w-5 h-5 mr-2" />
                 Get Started with GitHub
               </Button>
-              <Button variant="outline" size="lg">
+              <Button variant="outline" size="lg" onClick={handleViewDocs}>
                 View Documentation
               </Button>
             </div>
