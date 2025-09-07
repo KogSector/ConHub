@@ -1,19 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Github, Zap, Shield, Code } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-image.jpg";
 
 export const HeroSection = () => {
-  const navigate = useNavigate();
-
   const handleGetStarted = () => {
     // For now, show alert about Supabase requirement
     alert("GitHub authentication requires Supabase integration. Please connect Supabase first!");
   };
 
   const handleViewDocs = () => {
-    navigate("/docs");
+    window.location.href = "/docs";
   };
 
   return (
@@ -87,8 +84,8 @@ export const HeroSection = () => {
           {/* Right Column - Hero Image */}
           <div className="relative">
             <div className="relative rounded-2xl overflow-hidden shadow-glow">
-              <img 
-                src={heroImage} 
+              <img
+                src={heroImage}
                 alt="GitSync Pro Dashboard showing connected repositories and AI agents"
                 className="w-full h-auto object-cover"
               />

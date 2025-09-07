@@ -7,15 +7,12 @@ import {
   BookOpen, 
   Github, 
   Bot, 
-  Settings, 
   Shield, 
   Zap,
   Play,
   FileText,
   Code,
-  Users,
-  Globe,
-  Database
+  Users
 } from "lucide-react";
 
 const Documentation = () => {

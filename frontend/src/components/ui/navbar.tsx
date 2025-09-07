@@ -1,11 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Github, Menu, X } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const navigate = useNavigate();
 
   const handleAuthClick = () => {
     // For now, show alert about Supabase requirement
