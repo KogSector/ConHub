@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
-import { Check, Github } from "lucide-react";
+import { Check, GitBranch } from "lucide-react";
 
 export default function Pricing() {
   const plans = [
@@ -130,7 +130,6 @@ export default function Pricing() {
                       }`}
                       variant={plan.popular ? 'default' : 'outline'}
                     >
-                      <Github className="w-4 h-4 mr-2" />
                       {plan.name === 'Free' ? 'Get Started Free' : 
                        plan.name === 'Enterprise' ? 'Contact Sales' : 
                        'Start Free Trial'}

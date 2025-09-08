@@ -5,14 +5,14 @@ import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 import { 
   BookOpen, 
-  Github, 
   Bot, 
   Shield, 
   Zap,
   Play,
   FileText,
   Code,
-  Users
+  Users,
+  GitBranch
 } from "lucide-react";
 
 export default function Documentation() {
@@ -31,7 +31,7 @@ export default function Documentation() {
     },
     {
       title: "Repository Management",
-      icon: Github,
+      icon: GitBranch,
       badge: "Core",
       articles: [
         "Connecting Public Repositories",
@@ -145,8 +145,8 @@ export default function Documentation() {
                     <span>5-Minute Setup</span>
                   </Button>
                   <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-                    <Github className="w-6 h-6 text-primary" />
-                    <span>Connect GitHub</span>
+                    <GitBranch className="w-6 h-6 text-primary" />
+                    <span>Connect Repository</span>
                   </Button>
                   <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
                     <Bot className="w-6 h-6 text-primary" />
@@ -216,9 +216,9 @@ export default function Documentation() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
                 {
-                  title: "Setting up GitHub OAuth",
-                  description: "Step-by-step guide to connecting your GitHub account securely",
-                  icon: Github,
+                  title: "Setting up Repository OAuth",
+                  description: "Step-by-step guide to connecting your repositories securely",
+                  icon: GitBranch,
                   readTime: "5 min read"
                 },
                 {

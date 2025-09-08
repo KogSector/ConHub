@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Github, Twitter, Mail } from "lucide-react";
+import { Twitter, Mail, GitBranch } from "lucide-react";
 
 export const Footer = () => {
   return (
@@ -9,9 +9,6 @@ export const Footer = () => {
           {/* Brand */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Github className="w-5 h-5 text-primary-foreground" />
-              </div>
               <span className="text-xl font-bold text-foreground">ConHub</span>
             </div>
             <p className="text-muted-foreground max-w-xs">
@@ -19,7 +16,7 @@ export const Footer = () => {
             </p>
             <div className="flex space-x-3">
               <Button variant="ghost" size="sm">
-                <Github className="w-4 h-4" />
+                <GitBranch className="w-4 h-4" />
               </Button>
               <Button variant="ghost" size="sm">
                 <Twitter className="w-4 h-4" />

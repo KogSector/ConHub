@@ -3,14 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   BookOpen, 
-  Github, 
   Bot, 
   Settings, 
   Shield, 
   Zap,
   ArrowRight,
   Play,
-  FileText
+  FileText,
+  GitBranch
 } from "lucide-react";
 
 const docSections = [
@@ -22,7 +22,7 @@ const docSections = [
     badge: "Beginner"
   },
   {
-    icon: Github,
+    icon: GitBranch,
     title: "Repository Management",
     description: "Learn how to connect, organize, and manage multiple repositories with advanced permissions.",
     topics: ["Public/Private repos", "Organization access", "Branch management", "Webhooks"],
@@ -128,8 +128,8 @@ export const DocsSection = () => {
               <span>5-Minute Setup</span>
             </Button>
             <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-              <Github className="w-6 h-6 text-primary" />
-              <span>Connect GitHub</span>
+              <GitBranch className="w-6 h-6 text-primary" />
+              <span>Connect Repository</span>
             </Button>
             <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
               <Bot className="w-6 h-6 text-primary" />

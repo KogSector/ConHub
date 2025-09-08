@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Github, Zap, Shield, Code } from "lucide-react";
+import { Zap, Shield, Code, GitBranch } from "lucide-react";
 import Image from "next/image";
 
 
@@ -60,7 +60,6 @@ export const HeroSection = () => {
 
             <div className="flex flex-col sm:flex-row gap-4">
               <Button size="lg" className="bg-primary hover:bg-primary/90 transition-all duration-300" onClick={handleGetStarted}>
-                <Github className="w-5 h-5 mr-2" />
                 Get Started
               </Button>
               <Button variant="outline" size="lg" onClick={handleViewDocs}>
@@ -108,7 +107,7 @@ export const HeroSection = () => {
             
             <div className="absolute -bottom-4 -left-4 bg-card border border-border rounded-lg p-3 shadow-card">
               <div className="flex items-center gap-2 text-sm">
-                <Github className="w-4 h-4 text-primary" />
+                <GitBranch className="w-4 h-4 text-primary" />
                 <span className="text-muted-foreground">12 repos synced</span>
               </div>
             </div>

@@ -2,14 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Github, 
   Bot, 
   Plus, 
   Settings, 
   Activity,
   Code,
   Network,
-  Shield
+  Shield,
+  GitBranch
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -20,9 +20,6 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Github className="w-5 h-5 text-primary-foreground" />
-              </div>
               <h1 className="text-2xl font-bold text-foreground">ConHub</h1>
             </div>
             <div className="flex items-center space-x-3">
@@ -47,7 +44,7 @@ export default function Dashboard() {
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Connected Repositories
               </CardTitle>
-              <Github className="w-4 h-4 text-primary" />
+              <GitBranch className="w-4 h-4 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">12</div>
@@ -204,7 +201,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-                <Github className="w-6 h-6 text-primary" />
+                <GitBranch className="w-6 h-6 text-primary" />
                 <span>Connect Repository</span>
               </Button>
               <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">

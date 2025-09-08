@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from "@/components/ui/button";
-import { Github, Menu, X } from "lucide-react";
+import { Menu, X, GitBranch } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -19,9 +19,6 @@ export const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Github className="w-5 h-5 text-primary-foreground" />
-            </div>
             <span className="text-xl font-bold text-foreground">ConHub</span>
           </Link>
 
@@ -37,7 +34,7 @@ export const Navbar = () => {
               Pricing
             </Link>
             <Button variant="outline" size="sm" onClick={handleAuthClick}>
-              <Github className="w-4 h-4 mr-2" />
+              <GitBranch className="w-4 h-4 mr-2" />
               Sign In
             </Button>
           </div>
@@ -68,7 +65,7 @@ export const Navbar = () => {
                 Pricing
               </Link>
               <Button variant="outline" size="sm" className="w-fit" onClick={handleAuthClick}>
-                <Github className="w-4 h-4 mr-2" />
+                <GitBranch className="w-4 h-4 mr-2" />
                 Sign In
               </Button>
             </div>
