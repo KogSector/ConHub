@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'ConHub',
-  description: 'A full-stack application with Next.js frontend and Rust Actix backend',
+  description: 'Unify your repositories with AI for better microservices development',
 }
 
 export default function RootLayout({

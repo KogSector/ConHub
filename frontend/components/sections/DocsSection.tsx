@@ -38,7 +38,7 @@ const docSections = [
   {
     icon: Settings,
     title: "Configuration",
-    description: "Customize GitSync Pro to match your workflow with advanced configuration options.",
+    description: "Customize ConHub to match your workflow with advanced configuration options.",
     topics: ["Context filters", "Access controls", "Webhooks", "API settings"],
     badge: "Config"
   },
@@ -52,7 +52,7 @@ const docSections = [
   {
     icon: Zap,
     title: "API Reference",
-    description: "Complete API documentation for integrating GitSync Pro into your custom workflows.",
+    description: "Complete API documentation for integrating ConHub into your custom workflows.",
     topics: ["Authentication", "Endpoints", "Webhooks", "SDKs"],
     badge: "Developer"
   }
@@ -72,7 +72,7 @@ export const DocsSection = () => {
             <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> Documentation</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Everything you need to master GitSync Pro, from basic setup to advanced configurations and API integration.
+            Everything you need to master ConHub, from basic setup to advanced configurations and API integration.
           </p>
         </div>
 

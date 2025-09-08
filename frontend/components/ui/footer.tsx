@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Github, Twitter, Mail, Heart } from "lucide-react";
+import { Github, Twitter, Mail } from "lucide-react";
 
 export const Footer = () => {
   return (
@@ -12,7 +12,7 @@ export const Footer = () => {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <Github className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold text-foreground">GitSync Pro</span>
+              <span className="text-xl font-bold text-foreground">ConHub</span>
             </div>
             <p className="text-muted-foreground max-w-xs">
               Unify your repositories with AI for better microservices development.
@@ -90,12 +90,7 @@ export const Footer = () => {
 
         <div className="border-t border-border mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
           <div className="text-sm text-muted-foreground">
-            © 2024 GitSync Pro. All rights reserved.
-          </div>
-          <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-            <span>Built with</span>
-            <Heart className="w-4 h-4 text-red-500 fill-current" />
-            <span>for developers</span>
+            © 2024 ConHub. All rights reserved.
           </div>
         </div>
       </div>

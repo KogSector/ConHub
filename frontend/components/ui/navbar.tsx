@@ -22,7 +22,7 @@ export const Navbar = () => {
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <Github className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-foreground">GitSync Pro</span>
+            <span className="text-xl font-bold text-foreground">ConHub</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -38,7 +38,7 @@ export const Navbar = () => {
             </Link>
             <Button variant="outline" size="sm" onClick={handleAuthClick}>
               <Github className="w-4 h-4 mr-2" />
-              Sign in with GitHub
+              Sign In
             </Button>
           </div>
 
@@ -69,7 +69,7 @@ export const Navbar = () => {
               </Link>
               <Button variant="outline" size="sm" className="w-fit" onClick={handleAuthClick}>
                 <Github className="w-4 h-4 mr-2" />
-                Sign in with GitHub
+                Sign In
               </Button>
             </div>
           </div>

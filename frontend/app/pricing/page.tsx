@@ -150,7 +150,7 @@ export default function Pricing() {
                 Frequently Asked Questions
               </h2>
               <p className="text-muted-foreground">
-                Everything you need to know about GitSync Pro pricing
+                Everything you need to know about ConHub pricing
               </p>
             </div>
             

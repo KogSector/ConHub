@@ -109,7 +109,7 @@ export default function Documentation() {
                 <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> Documentation</span>
               </h1>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Everything you need to master GitSync Pro, from basic setup to advanced integrations.
+                Everything you need to master ConHub, from basic setup to advanced integrations.
               </p>
               
               {/* Search Bar */}
@@ -223,7 +223,7 @@ export default function Documentation() {
                 },
                 {
                   title: "Configuring Amazon Q",
-                  description: "Complete setup guide for Amazon Q integration with GitSync Pro",
+                  description: "Complete setup guide for Amazon Q integration with ConHub",
                   icon: Bot,
                   readTime: "8 min read"
                 },
@@ -235,7 +235,7 @@ export default function Documentation() {
                 },
                 {
                   title: "API Authentication",
-                  description: "Working with GitSync Pro APIs and authentication tokens",
+                  description: "Working with ConHub APIs and authentication tokens",
                   icon: Code,
                   readTime: "6 min read"
                 },
@@ -247,7 +247,7 @@ export default function Documentation() {
                 },
                 {
                   title: "Team Setup Guide",
-                  description: "Setting up GitSync Pro for your development team",
+                  description: "Setting up ConHub for your development team",
                   icon: Users,
                   readTime: "12 min read"
                 }

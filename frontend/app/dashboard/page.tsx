@@ -23,7 +23,7 @@ export default function Dashboard() {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <Github className="w-5 h-5 text-primary-foreground" />
               </div>
-              <h1 className="text-2xl font-bold text-foreground">GitSync Pro</h1>
+              <h1 className="text-2xl font-bold text-foreground">ConHub</h1>
             </div>
             <div className="flex items-center space-x-3">
               <Button variant="outline" size="sm">
