@@ -80,7 +80,7 @@ export const FeaturesSection = () => {
           </Badge>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground">
             Everything you need for 
-            <span className="bg-gradient-primary bg-clip-text text-transparent"> unified development</span>
+            <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> unified development</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Connect your repositories, integrate AI agents, and supercharge your microservices development workflow.
@@ -89,7 +89,7 @@ export const FeaturesSection = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((feature, index) => (
-            <Card key={index} className="bg-gradient-card border-border hover:shadow-card transition-all duration-300 group">
+            <Card key={index} className="bg-card border-border hover:shadow-card transition-all duration-300 group">
               <CardHeader>
                 <div className="flex items-center justify-between mb-2">
                   <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center group-hover:bg-primary/20 transition-colors">

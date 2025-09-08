@@ -17,7 +17,7 @@ export const HeroSection = () => {
   };
 
   return (
-    <section className="min-h-screen flex items-center justify-center bg-gradient-hero relative overflow-hidden">
+    <section className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
       <div className="absolute top-1/4 -left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
@@ -35,7 +35,7 @@ export const HeroSection = () => {
             <div className="space-y-4">
               <h1 className="text-4xl md:text-6xl font-bold text-foreground leading-tight">
                 Unify Your 
-                <span className="bg-gradient-primary bg-clip-text text-transparent"> Repositories</span>
+                <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> Repositories</span>
                 {" "}with AI
               </h1>
               <p className="text-xl text-muted-foreground leading-relaxed max-w-lg">
@@ -59,7 +59,7 @@ export const HeroSection = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" className="bg-gradient-primary hover:shadow-primary transition-all duration-300" onClick={handleGetStarted}>
+              <Button size="lg" className="bg-primary hover:bg-primary/90 transition-all duration-300" onClick={handleGetStarted}>
                 <Github className="w-5 h-5 mr-2" />
                 Get Started with GitHub
               </Button>

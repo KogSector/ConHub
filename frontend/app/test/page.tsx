@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -15,7 +15,7 @@ export default function ApiTestPage() {
   const [status, setStatus] = useState<string>('Not tested')
   const [isLoading, setIsLoading] = useState(false)
 
-  const testConnection = async () => {
+  const testConnection = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await testApi()
@@ -25,12 +25,12 @@ export default function ApiTestPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     // Test connection on page load
     testConnection()
-  }, [])
+  }, [testConnection])
 
   return (
     <div className="min-h-screen bg-background p-8">

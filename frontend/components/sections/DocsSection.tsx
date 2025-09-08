@@ -69,7 +69,7 @@ export const DocsSection = () => {
           </Badge>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground">
             Complete 
-            <span className="bg-gradient-primary bg-clip-text text-transparent"> Documentation</span>
+            <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> Documentation</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Everything you need to master GitSync Pro, from basic setup to advanced configurations and API integration.
@@ -116,7 +116,7 @@ export const DocsSection = () => {
         </div>
 
         {/* Quick Links */}
-        <div className="bg-gradient-card rounded-2xl p-8 border border-border">
+        <div className="bg-card rounded-2xl p-8 border border-border">
           <div className="text-center space-y-4 mb-8">
             <h3 className="text-2xl font-bold text-foreground">Quick Access</h3>
             <p className="text-muted-foreground">Jump directly to the most common documentation sections</p>

@@ -97,7 +97,7 @@ export default function Documentation() {
       
       <main className="pt-16">
         {/* Hero Section */}
-        <section className="py-24 bg-gradient-hero">
+        <section className="py-24 bg-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center space-y-6">
               <Badge variant="secondary" className="w-fit mx-auto">
@@ -106,7 +106,7 @@ export default function Documentation() {
               </Badge>
               <h1 className="text-4xl md:text-5xl font-bold text-foreground">
                 Complete 
-                <span className="bg-gradient-primary bg-clip-text text-transparent"> Documentation</span>
+                <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> Documentation</span>
               </h1>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
                 Everything you need to master GitSync Pro, from basic setup to advanced integrations.
@@ -132,7 +132,7 @@ export default function Documentation() {
         {/* Quick Links */}
         <section className="py-16 -mt-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <Card className="bg-gradient-card border-border shadow-card">
+            <Card className="bg-card border-border shadow-card">
               <CardHeader>
                 <CardTitle className="text-center text-xl font-semibold text-foreground">
                   Quick Start

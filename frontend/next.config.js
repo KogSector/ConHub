@@ -2,7 +2,7 @@
 const nextConfig = {
   output: 'standalone',
   experimental: {
-    appDir: true,
+    // appDir is now default in Next.js 14 and this option is deprecated
   },
   // Disable static optimization for now
   trailingSlash: false,

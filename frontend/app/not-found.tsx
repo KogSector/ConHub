@@ -8,7 +8,7 @@ import { Home, ArrowLeft } from "lucide-react"
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <Card className="w-full max-w-md bg-gradient-card border-border">
+      <Card className="w-full max-w-md bg-card border-border">
         <CardContent className="p-8 text-center space-y-6">
           <div className="space-y-2">
             <h1 className="text-6xl font-bold text-primary">404</h1>

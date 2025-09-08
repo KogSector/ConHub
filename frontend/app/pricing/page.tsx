@@ -63,14 +63,14 @@ export default function Pricing() {
       
       <main className="pt-16">
         {/* Hero Section */}
-        <section className="py-24 bg-gradient-hero">
+        <section className="py-24 bg-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <Badge variant="secondary" className="w-fit mx-auto mb-4">
               Simple Pricing
             </Badge>
             <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
               Choose Your 
-              <span className="bg-gradient-primary bg-clip-text text-transparent"> Plan</span>
+              <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> Plan</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Start free, scale as you grow. No hidden fees, no surprises.
@@ -85,12 +85,12 @@ export default function Pricing() {
               {plans.map((plan, index) => (
                 <Card 
                   key={index} 
-                  className={`relative bg-gradient-card border-border ${
+                  className={`relative bg-card border-border ${
                     plan.popular ? 'ring-2 ring-primary shadow-primary' : ''
                   }`}
                 >
                   {plan.popular && (
-                    <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-primary">
+                    <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary">
                       Most Popular
                     </Badge>
                   )}
@@ -125,7 +125,7 @@ export default function Pricing() {
                     <Button 
                       className={`w-full ${
                         plan.popular 
-                          ? 'bg-gradient-primary hover:shadow-primary' 
+                          ? 'bg-primary hover:bg-primary/90' 
                           : ''
                       }`}
                       variant={plan.popular ? 'default' : 'outline'}
