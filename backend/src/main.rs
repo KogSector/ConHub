@@ -2,6 +2,17 @@ use actix_web::{web, App, HttpResponse, HttpServer, Result};
 use actix_cors::Cors;
 use serde_json::json;
 
+async fn index() -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "Welcome to ConHub Backend API",
+        "version": "1.0.0",
+        "endpoints": {
+            "health": "/health",
+            "api_docs": "Coming soon..."
+        }
+    })))
+}
+
 async fn health() -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().json(json!({
         "status": "ok",
@@ -21,6 +32,7 @@ async fn main() -> std::io::Result<()> {
             
         App::new()
             .wrap(cors)
+            .route("/", web::get().to(index))
             .route("/health", web::get().to(health))
     })
     .bind("127.0.0.1:3001")?
