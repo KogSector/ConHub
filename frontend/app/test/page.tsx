@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { AuthStatus } from '@/components/auth/AuthStatus'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,38 +35,45 @@ export default function ApiTestPage() {
 
   return (
     <div className="min-h-screen bg-background p-8">
-      <div className="max-w-2xl mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle>API Connection Test</CardTitle>
-            <CardDescription>
-              Testing connection between Next.js frontend and Rust Actix backend
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 bg-muted rounded-lg">
-              <p className="font-mono text-sm">
-                Frontend: http://localhost:3000
-              </p>
-              <p className="font-mono text-sm">
-                Backend: http://localhost:3001
-              </p>
-            </div>
-            
-            <div className="space-y-2">
-              <p className="font-semibold">Connection Status:</p>
-              <p className="text-sm">{status}</p>
-            </div>
+      <div className="max-w-6xl mx-auto">
+        <div className="grid gap-8 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>API Connection Test</CardTitle>
+              <CardDescription>
+                Testing connection between Next.js frontend and Rust Actix backend
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="font-mono text-sm">
+                  Frontend: http://localhost:3000
+                </p>
+                <p className="font-mono text-sm">
+                  Backend: http://localhost:3001
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <p className="font-semibold">Connection Status:</p>
+                <p className="text-sm">{status}</p>
+              </div>
 
-            <Button 
-              onClick={testConnection} 
-              disabled={isLoading}
-              className="w-full"
-            >
-              {isLoading ? 'Testing...' : 'Test Connection'}
-            </Button>
-          </CardContent>
-        </Card>
+              <Button 
+                onClick={testConnection} 
+                disabled={isLoading}
+                className="w-full"
+              >
+                {isLoading ? 'Testing...' : 'Test Connection'}
+              </Button>
+            </CardContent>
+          </Card>
+          
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Auth0 Authentication Test</h2>
+            <AuthStatus />
+          </div>
+        </div>
       </div>
     </div>
   )

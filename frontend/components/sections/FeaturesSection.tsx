@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Github, 
+  GitBranch, 
   Brain, 
   Shield, 
   Zap, 
@@ -9,14 +9,15 @@ import {
   Code2,
   Lock,
   Workflow,
-  Bot
+  Bot,
+  Star
 } from "lucide-react";
 
 const features = [
   {
-    icon: Github,
+    icon: GitBranch,
     title: "Multi-Repository Connection",
-    description: "Connect unlimited public and private GitHub repositories with seamless OAuth integration.",
+    description: "Connect unlimited public and private repositories with seamless OAuth integration.",
     badge: "Core Feature"
   },
   {
@@ -75,7 +76,7 @@ export const FeaturesSection = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center space-y-4 mb-16">
           <Badge variant="secondary" className="w-fit mx-auto">
-            <Zap className="w-3 h-3 mr-1" />
+            <Star className="w-3 h-3 mr-1" />
             Features
           </Badge>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground">

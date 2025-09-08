@@ -1,3 +1,5 @@
+'use client'
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,12 +9,12 @@ import {
   BookOpen, 
   Bot, 
   Shield, 
-  Zap,
   Play,
   FileText,
   Code,
   Users,
-  GitBranch
+  GitBranch,
+  Target
 } from "lucide-react";
 
 export default function Documentation() {
@@ -95,7 +97,7 @@ export default function Documentation() {
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      <main className="pt-16">
+      <main className="pt-20">
         {/* Hero Section */}
         <section className="py-24 bg-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -191,9 +193,26 @@ export default function Documentation() {
                         </li>
                       ))}
                     </ul>
-                    <Button variant="ghost" size="sm" className="w-full group-hover:bg-primary/10 transition-colors">
+                    <button 
+                      className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 w-full bg-transparent border-0 text-white transition-all duration-300 focus-visible:outline-none"
+                      style={{
+                        color: 'white',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.boxShadow = '0 0 20px rgba(251, 146, 60, 0.8)';
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.backgroundColor = 'rgba(251, 146, 60, 0.1)';
+                        e.currentTarget.style.color = 'white';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.boxShadow = 'none';
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = 'white';
+                      }}
+                    >
                       View All Articles
-                    </Button>
+                    </button>
                   </CardContent>
                 </Card>
               ))}
@@ -242,7 +261,7 @@ export default function Documentation() {
                 {
                   title: "Context Optimization",
                   description: "Optimizing AI context sharing for better results",
-                  icon: Zap,
+                  icon: Target,
                   readTime: "7 min read"
                 },
                 {

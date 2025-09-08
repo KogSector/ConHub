@@ -2,14 +2,20 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Zap, Shield, Code, GitBranch } from "lucide-react";
+import { Shield, Code, GitBranch, Brain, TestTube2 } from "lucide-react";
 import Image from "next/image";
+import { useAuth } from "@/hooks/use-auth";
 
 
 export const HeroSection = () => {
+  const { isAuthenticated, login } = useAuth();
+  
   const handleGetStarted = () => {
-    // For now, show alert about Supabase requirement
-    alert("GitHub authentication requires Supabase integration. Please connect Supabase first!");
+    if (isAuthenticated) {
+      window.location.href = '/dashboard';
+    } else {
+      login();
+    }
   };
 
   const handleViewDocs = () => {
@@ -23,12 +29,12 @@ export const HeroSection = () => {
       <div className="absolute top-1/4 -left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
       <div className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Column - Content */}
           <div className="space-y-8">
             <Badge variant="secondary" className="w-fit">
-              <Zap className="w-3 h-3 mr-1" />
+              <TestTube2 className="w-3 h-3 mr-1" />
               Now in Beta
             </Badge>
             
@@ -39,7 +45,7 @@ export const HeroSection = () => {
                 {" "}with AI
               </h1>
               <p className="text-xl text-muted-foreground leading-relaxed max-w-lg">
-                Connect multiple GitHub repositories and let AI agents access complete context across your entire microservices architecture. Code smarter, not harder.
+                Connect multiple repositories and let AI agents access complete context across your entire microservices architecture. Code smarter, not harder.
               </p>
             </div>
 
@@ -53,7 +59,7 @@ export const HeroSection = () => {
                 <span>Multi-repo context</span>
               </div>
               <div className="flex items-center gap-1">
-                <Zap className="w-4 h-4 text-primary-glow" />
+                <Brain className="w-4 h-4 text-primary-glow" />
                 <span>AI powered</span>
               </div>
             </div>

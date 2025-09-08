@@ -1,5 +1,106 @@
 # ConHub
 
+Unify your repositories with AI for better microservices development.
+
+## Quick Start
+
+### Prerequisites
+- **Node.js** (v18 or higher)
+- **Rust** and **Cargo**
+- **Git**
+
+### Installation & Setup
+
+1. **Clone the repository:**
+   ```bash
+   git clone <your-repo-url>
+   cd ConHub
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   # Install frontend dependencies
+   cd frontend && npm install && cd ..
+   
+   # Install workspace dependencies (for running both services)
+   npm install
+   ```
+
+3. **Configure Auth0:**
+   - Copy `frontend/.env.example` to `frontend/.env.local`
+   - Update the Auth0 configuration with your credentials
+
+### Development
+
+**🚀 Start ConHub (One Command)**
+
+```bash
+npm start
+```
+
+This automatically starts both services:
+- ✅ **Backend API** on port 3001
+- ✅ **Frontend** on port 3000  
+- ✅ **Auto-reload** on file changes
+- ✅ **Cross-platform** (Windows, Mac, Linux)
+
+**Individual Services** (if needed):
+```bash
+# Backend only
+npm run dev:backend
+
+# Frontend only  
+npm run dev:frontend
+```
+
+### Services
+
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:3001
+
+### Port Configuration
+
+The services are pre-configured to use specific ports:
+- **Frontend (Next.js)**: Port 3000
+- **Backend (Rust/Actix)**: Port 3001
+
+No manual port management needed - everything runs on its designated port automatically!
+
+### Auth0 Setup
+
+1. Create an Auth0 account at https://auth0.com
+2. Create a new application (Single Page Application)
+3. Configure your application settings:
+   - Allowed Callback URLs: `http://localhost:3000`
+   - Allowed Logout URLs: `http://localhost:3000`
+   - Allowed Web Origins: `http://localhost:3000`
+4. Update `frontend/.env.local` with your Auth0 credentials
+
+### Available Scripts
+
+- `npm start` - Start the complete ConHub application (frontend + backend)
+- `npm run dev` - Same as start (alias for development)
+- `npm run dev:frontend` - Start only frontend on port 3000
+- `npm run dev:backend` - Start only backend on port 3001
+- `npm run build` - Build both services for production
+- `npm run install:all` - Install all dependencies
+
+## Project Structure
+
+```
+ConHub/
+├── frontend/          # Next.js frontend (Port 3000)
+├── backend/           # Rust backend (Port 3001)
+└── package.json       # Workspace configuration
+```
+
+## Tech Stack
+
+- **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS, Auth0
+- **Backend**: Rust, Actix Web
+- **Authentication**: Auth0
+- **Styling**: Tailwind CSS, shadcn/ui components
+
 A full-stack application with Next.js frontend and Rust Actix backend.
 
 ## Project Structure

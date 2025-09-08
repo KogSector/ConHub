@@ -1,3 +1,5 @@
+'use client'
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,11 +8,15 @@ import {
   Bot, 
   Settings, 
   Shield, 
-  Zap,
   ArrowRight,
   Play,
   FileText,
-  GitBranch
+  GitBranch,
+  Database,
+  Cloud,
+  Server,
+  Webhook,
+  Globe
 } from "lucide-react";
 
 const docSections = [
@@ -50,7 +56,7 @@ const docSections = [
     badge: "Security"
   },
   {
-    icon: Zap,
+    icon: Webhook,
     title: "API Reference",
     description: "Complete API documentation for integrating ConHub into your custom workflows.",
     topics: ["Authentication", "Endpoints", "Webhooks", "SDKs"],
@@ -78,7 +84,7 @@ export const DocsSection = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           {docSections.map((section, index) => (
-            <Card key={index} className="bg-card border-border hover:shadow-card transition-all duration-300 group cursor-pointer">
+            <Card key={index} className="bg-card border-border hover:shadow-card transition-all duration-300 group cursor-pointer flex flex-col h-full">
               <CardHeader>
                 <div className="flex items-center justify-between mb-2">
                   <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center group-hover:bg-primary/20 transition-colors">
@@ -92,11 +98,11 @@ export const DocsSection = () => {
                   {section.title}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 flex-grow flex flex-col">
                 <p className="text-muted-foreground leading-relaxed">
                   {section.description}
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-2 flex-grow">
                   <div className="text-sm font-medium text-foreground">Topics covered:</div>
                   <div className="flex flex-wrap gap-1">
                     {section.topics.map((topic, i) => (
@@ -106,10 +112,27 @@ export const DocsSection = () => {
                     ))}
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" className="w-full group-hover:bg-primary/10 transition-colors">
+                <button 
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 w-full bg-transparent border-0 text-white transition-all duration-300 focus-visible:outline-none"
+                  style={{
+                    color: 'white',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = '0 0 20px rgba(251, 146, 60, 0.8)';
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                    e.currentTarget.style.backgroundColor = 'rgba(251, 146, 60, 0.1)';
+                    e.currentTarget.style.color = 'white';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = 'white';
+                  }}
+                >
                   Read Documentation
                   <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
+                </button>
               </CardContent>
             </Card>
           ))}
