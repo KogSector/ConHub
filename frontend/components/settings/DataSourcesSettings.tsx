@@ -4,10 +4,6 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { CompanyLogo } from "@/components/ui/company-logo";
 import { 
-  Github, 
-  FileText, 
-  HardDrive, 
-  Globe, 
   Plus,
   Settings,
   CheckCircle,
@@ -20,15 +16,15 @@ export function DataSourcesSettings() {
       id: "github",
       name: "GitHub",
       description: "Connect your GitHub repositories",
-      icon: Github,
+      fallbackIcon: "github",
       connected: true,
       accounts: 2
     },
     {
       id: "bitbucket",
-      name: "BitBucket", 
-      description: "Connect your BitBucket repositories",
-      icon: Github, // Using Github icon as placeholder
+      name: "Bitbucket", 
+      description: "Connect your Bitbucket repositories",
+      fallbackIcon: "bitbucket",
       connected: false,
       accounts: 0
     },
@@ -36,7 +32,7 @@ export function DataSourcesSettings() {
       id: "google-drive",
       name: "Google Drive",
       description: "Access files from Google Drive",
-      icon: HardDrive,
+      fallbackIcon: "google-drive",
       connected: true,
       accounts: 1
     },
@@ -44,7 +40,7 @@ export function DataSourcesSettings() {
       id: "dropbox",
       name: "Dropbox",
       description: "Access files from Dropbox",
-      icon: HardDrive,
+      fallbackIcon: "dropbox",
       connected: false,
       accounts: 0
     },
@@ -52,7 +48,7 @@ export function DataSourcesSettings() {
       id: "confluence",
       name: "Confluence",
       description: "Connect to Confluence spaces",
-      icon: FileText,
+      fallbackIcon: "confluence",
       connected: false,
       accounts: 0
     },
@@ -60,7 +56,7 @@ export function DataSourcesSettings() {
       id: "notion",
       name: "Notion",
       description: "Access Notion databases and pages",
-      icon: FileText,
+      fallbackIcon: "notion",
       connected: true,
       accounts: 1
     },
@@ -68,7 +64,7 @@ export function DataSourcesSettings() {
       id: "web-crawler",
       name: "Web Crawler",
       description: "Crawl and index web pages",
-      icon: Globe,
+      fallbackIcon: "web-crawler",
       connected: false,
       accounts: 0
     }
@@ -85,7 +81,6 @@ export function DataSourcesSettings() {
 
       <div className="grid gap-4">
         {dataSources.map((source) => {
-          const IconComponent = source.icon;
           return (
             <Card key={source.id} className="bg-card border-border">
               <CardHeader className="pb-3">
@@ -96,8 +91,8 @@ export function DataSourcesSettings() {
                         company={source.name}
                         className="w-5 h-5"
                         size={20}
-                      /> 
-                      <IconComponent className="w-5 h-5 text-foreground" />
+                        fallbackIconName={source.fallbackIcon}
+                      />
                     </div>
                     <div className="flex-1">
                       <CardTitle className="text-base font-medium text-foreground">
