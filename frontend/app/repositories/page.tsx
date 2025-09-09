@@ -163,49 +163,47 @@ export default function RepositoriesPage() {
           <div className="grid gap-4">
             {repositories.map((repo) => (
               <Card key={repo.id} className="bg-card border-border hover:bg-accent/5 transition-colors">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <h3 className="text-lg font-semibold text-foreground">{repo.name}</h3>
-                        <Badge 
-                          variant={repo.status === 'active' ? 'default' : 'secondary'}
-                          className={repo.status === 'active' ? 'bg-green-100 text-green-800 border-green-200' : ''}
-                        >
-                          {repo.status}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{repo.description}</p>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <div className="flex items-center space-x-1">
-                          <div className={`w-3 h-3 rounded-full ${languageColors[repo.language as keyof typeof languageColors] || 'bg-gray-500'}`}></div>
-                          <span>{repo.language}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <Star className="w-3 h-3" />
-                          <span>{repo.stars}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <GitFork className="w-3 h-3" />
-                          <span>{repo.forks}</span>
-                        </div>
-                        <span>Updated {repo.lastUpdated}</span>
-                      </div>
+                <div className="flex flex-col px-6 py-4 gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-muted rounded-lg flex-shrink-0">
+                      <GitBranch className="w-5 h-5 text-foreground" />
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={repo.url} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="w-4 h-4 mr-1" />
-                          View on GitHub
-                        </Link>
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Settings className="w-4 h-4 mr-1" />
-                        Configure
-                      </Button>
-                    </div>
+                    <span className="font-semibold text-base text-foreground truncate">{repo.name}</span>
                   </div>
-                </CardHeader>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${
+                      repo.status === 'active' ? 'bg-green-500 shadow-lg shadow-green-500/50' : 'bg-gray-400'
+                    }`}></div>
+                    <p className="text-xs text-muted-foreground truncate max-w-xs">{repo.description}</p>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <div className={`w-2 h-2 rounded-full ${languageColors[repo.language as keyof typeof languageColors] || 'bg-gray-500'}`}></div>
+                      <span>{repo.language}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-3 h-3" />
+                      <span>{repo.stars}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <GitFork className="w-3 h-3" />
+                      <span>{repo.forks}</span>
+                    </div>
+                    <span>Updated {repo.lastUpdated}</span>
+                  </div>
+                  <div className="flex items-center gap-2 ml-auto">
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={repo.url} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="w-4 h-4 mr-1" />
+                        View on GitHub
+                      </Link>
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Settings className="w-4 h-4 mr-1" />
+                      Configure
+                    </Button>
+                  </div>
+                </div>
               </Card>
             ))}
           </div>

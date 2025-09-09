@@ -167,23 +167,26 @@ export default function Documentation() {
         {/* Documentation Sections */}
         <section className="py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex flex-col gap-6">
               {sections.map((section, index) => (
                 <Card key={index} className="bg-card border-border hover:shadow-card transition-all duration-300 group">
-                  <CardHeader>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                        <section.icon className="w-6 h-6 text-primary" />
+                  <div className="flex flex-col px-6 py-4 gap-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                          <section.icon className="w-6 h-6 text-primary" />
+                        </div>
+                        <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+                          {section.title}
+                        </CardTitle>
                       </div>
-                      <Badge variant="outline" className="text-xs">
-                        {section.badge}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500 shadow-lg shadow-green-500/50"></div>
+                        <Badge variant="outline" className="text-xs">
+                          {section.badge}
+                        </Badge>
+                      </div>
                     </div>
-                    <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
-                      {section.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
                     <ul className="space-y-2">
                       {section.articles.map((article, i) => (
                         <li key={i}>
@@ -213,7 +216,7 @@ export default function Documentation() {
                     >
                       View All Articles
                     </button>
-                  </CardContent>
+                  </div>
                 </Card>
               ))}
             </div>

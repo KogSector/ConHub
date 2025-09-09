@@ -203,21 +203,26 @@ export default function Dashboard() {
               ].map((source, index) => {
                 const IconComponent = source.icon;
                 return (
-                  <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border">
-                    <div className="flex items-center space-x-3">
-                      <IconComponent className="w-5 h-5 text-primary" />
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium text-foreground">{source.name}</span>
-                          {source.private && <Badge variant="secondary" className="text-xs">Private</Badge>}
-                          <Badge variant="outline" className="text-xs capitalize">{source.type}</Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Status: {source.status}
-                        </div>
+                  <div key={index} className="flex flex-col p-3 rounded-lg bg-muted/20 border border-border gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <IconComponent className="w-5 h-5 text-primary" />
+                        <span className="font-medium text-foreground">{source.name}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {source.private && <Badge variant="secondary" className="text-xs">Private</Badge>}
+                        <Badge variant="outline" className="text-xs capitalize">{source.type}</Badge>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        source.status === 'active' || source.status === 'syncing' ? 'bg-green-500 shadow-lg shadow-green-500/50' : 'bg-gray-400'
+                      }`}></div>
+                      <div className="text-sm text-muted-foreground">
+                        Status: {source.status}
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" className="ml-auto">
                       <Settings className="w-4 h-4" />
                     </Button>
                   </div>
@@ -247,25 +252,20 @@ export default function Dashboard() {
                 { name: "Cline", status: "connected", requests: "634" },
                 { name: "Custom Agent", status: "pending", requests: "0" },
               ].map((agent, index) => (
-                <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border">
-                  <div className="flex items-center space-x-3">
-                    <Bot className="w-5 h-5 text-accent" />
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-medium text-foreground">{agent.name}</span>
-                        <Badge 
-                          variant={agent.status === "connected" ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {agent.status}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {agent.requests} requests today
-                      </div>
+                <div key={index} className="flex flex-col p-3 rounded-lg bg-muted/20 border border-border gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Bot className="w-5 h-5 text-accent" />
+                      <span className="font-medium text-foreground">{agent.name}</span>
                     </div>
+                    <div className={`w-2 h-2 rounded-full ${
+                      agent.status === 'connected' ? 'bg-blue-500 shadow-lg shadow-blue-500/50' : 'bg-gray-400'
+                    }`}></div>
                   </div>
-                  <Button variant="ghost" size="sm">
+                  <div className="text-sm text-muted-foreground">
+                    {agent.requests} requests today
+                  </div>
+                  <Button variant="ghost" size="sm" className="ml-auto">
                     <Settings className="w-4 h-4" />
                   </Button>
                 </div>

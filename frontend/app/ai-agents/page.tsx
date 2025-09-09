@@ -58,12 +58,13 @@ export default function AIAgentsPage() {
     }
   ];
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800 border-green-200';
-      case 'paused': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'inactive': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'Code Analysis': return 'bg-green-500 shadow-lg shadow-green-500/50';
+      case 'Documentation': return 'bg-green-500 shadow-lg shadow-green-500/50';
+      case 'Security': return 'bg-green-500 shadow-lg shadow-green-500/50';
+      case 'Performance': return 'bg-green-500 shadow-lg shadow-green-500/50';
+      default: return 'bg-gray-400';
     }
   };
 
@@ -191,69 +192,26 @@ export default function AIAgentsPage() {
               const TypeIcon = getTypeIcon(agent.type);
               return (
                 <Card key={agent.id} className="bg-card border-border hover:bg-accent/5 transition-colors">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-muted rounded-lg">
-                            <TypeIcon className="w-5 h-5 text-foreground" />
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-semibold text-foreground">{agent.name}</h3>
-                            <p className="text-sm text-muted-foreground">{agent.description}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-4">
-                          <Badge variant="outline" className="text-xs">
-                            {agent.type}
-                          </Badge>
-                          <Badge 
-                            variant="secondary"
-                            className={getStatusColor(agent.status)}
-                          >
-                            {agent.status}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            Model: {agent.model}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center space-x-6 text-sm text-muted-foreground">
-                          <span>Last run: {agent.lastRun}</span>
-                          <span>Total runs: {agent.totalRuns.toLocaleString()}</span>
-                          <span>Success rate: {agent.successRate}%</span>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs text-muted-foreground">Connected to:</span>
-                          {agent.repositories.map((repo, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {repo}
-                            </Badge>
-                          ))}
-                        </div>
+                  <div className="flex flex-col px-6 py-4 gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-muted rounded-lg flex-shrink-0">
+                        <TypeIcon className="w-5 h-5 text-foreground" />
                       </div>
-
-                      <div className="flex items-center space-x-2">
-                        {agent.status === 'active' ? (
-                          <Button variant="outline" size="sm">
-                            <Pause className="w-4 h-4 mr-1" />
-                            Pause
-                          </Button>
-                        ) : (
-                          <Button variant="outline" size="sm">
-                            <Play className="w-4 h-4 mr-1" />
-                            Start
-                          </Button>
-                        )}
-                        <Button variant="outline" size="sm">
-                          <Settings className="w-4 h-4 mr-1" />
-                          Configure
-                        </Button>
-                      </div>
+                      <span className="font-semibold text-base text-foreground truncate">{agent.name}</span>
                     </div>
-                  </CardHeader>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        agent.status === 'active' ? 'bg-blue-500 shadow-lg shadow-blue-500/50' : 'bg-gray-400'
+                      }`}></div>
+                      <p className="text-xs text-muted-foreground truncate max-w-xs">{agent.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${getTypeColor(agent.type)}`}></div>
+                      <span className="text-xs text-muted-foreground">{agent.totalRuns.toLocaleString()} requests today</span>
+                      <span className="text-xs text-muted-foreground">Model: {agent.model}</span>
+                    </div>
+                    <Button variant="ghost" size="icon" className="ml-auto"><Settings className="w-4 h-4" /></Button>
+                  </div>
                 </Card>
               );
             })}
