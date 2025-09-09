@@ -2,12 +2,20 @@
 
 import { Auth0Provider } from '@auth0/auth0-react'
 import { ReactNode } from 'react'
+import { isLoginEnabled } from '@/lib/feature-toggles'
 
 interface Auth0ProviderWrapperProps {
   children: ReactNode
 }
 
 export default function Auth0ProviderWrapper({ children }: Auth0ProviderWrapperProps) {
+  const loginEnabled = isLoginEnabled()
+  
+  // If login is disabled, just return children without Auth0Provider
+  if (!loginEnabled) {
+    return <>{children}</>
+  }
+  
   const domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN
   const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID
   const redirectUri = typeof window !== 'undefined' ? window.location.origin : ''

@@ -11,9 +11,14 @@ const nextConfig = {
   generateBuildId: async () => {
     return 'build-' + Date.now()
   },
-  // Load .env from root directory
+  // Load .env from root directory (excluding NODE_ENV which Next.js manages automatically)
   env: {
-    ...require('dotenv').config({ path: path.resolve(__dirname, '../.env') }).parsed
+    ...(function() {
+      const envVars = require('dotenv').config({ path: path.resolve(__dirname, '../.env') }).parsed || {};
+      // Remove NODE_ENV as Next.js doesn't allow it to be explicitly set
+      delete envVars.NODE_ENV;
+      return envVars;
+    })()
   }
 }
 

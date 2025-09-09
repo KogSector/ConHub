@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ProfileAvatar } from "@/components/ui/profile-avatar";
+import { Footer } from "@/components/ui/footer";
 import { 
   Bot, 
   Plus, 
@@ -17,26 +19,44 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b border-border bg-card/50 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-20">
             <div className="flex items-center space-x-3">
-              <h1 className="text-2xl font-bold text-foreground">ConHub</h1>
+              <h1 className="text-3xl md:text-4xl font-bold font-orbitron bg-gradient-to-r from-primary via-primary-glow to-accent bg-clip-text text-transparent">ConHub</h1>
             </div>
-            <div className="flex items-center space-x-3">
-              <Button variant="outline" size="sm">
-                <Settings className="w-4 h-4 mr-2" />
-                Settings
-              </Button>
-              <Button size="sm">
-                <Plus className="w-4 h-4 mr-2" />
-                Connect Repository
-              </Button>
+            <div className="flex items-center">
+              <ProfileAvatar />
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Quick Actions */}
+        <div className="mb-8 text-center">
+          <h2 className="text-2xl font-semibold text-foreground mb-6">Quick Actions</h2>
+          <div className="max-w-2xl mx-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <Button size="lg" className="px-6 py-4 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
+                <GitBranch className="w-6 h-6" />
+                <span>Connect Repository</span>
+              </Button>
+              <Button size="lg" className="px-6 py-4 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
+                <Bot className="w-6 h-6" />
+                <span>Add AI Agents</span>
+              </Button>
+              <Button size="lg" className="px-6 py-4 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
+                <Code className="w-6 h-6" />
+                <span>Upload Documents</span>
+              </Button>
+              <Button size="lg" className="px-6 py-4 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
+                <Network className="w-6 h-6" />
+                <span>Configure RAG</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+
         {/* Stats Overview */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
           <Card className="bg-card border-border">
@@ -190,36 +210,8 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Quick Actions */}
-        <Card className="bg-card border-border mt-8">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-foreground">
-              Quick Actions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-                <GitBranch className="w-6 h-6 text-primary" />
-                <span>Connect Repository</span>
-              </Button>
-              <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-                <Bot className="w-6 h-6 text-accent" />
-                <span>Add AI Agent</span>
-              </Button>
-              <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-                <Network className="w-6 h-6 text-primary-glow" />
-                <span>View Context Flow</span>
-              </Button>
-              <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-                <Shield className="w-6 h-6 text-accent" />
-                <span>Security Settings</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
+      <Footer />
     </div>
   );
 }

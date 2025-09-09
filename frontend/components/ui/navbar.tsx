@@ -1,23 +1,20 @@
 'use client'
 
 import { Button } from "@/components/ui/button";
-import { Menu, X, GitBranch, User, LogOut } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { isLoginEnabled } from "@/lib/feature-toggles";
 
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, isAuthenticated, isLoading, login, logout } = useAuth();
 
   const handleAuthClick = () => {
-    if (isAuthenticated) {
+    if (!isLoginEnabled()) {
+      window.location.href = '/dashboard';
+    } else if (isAuthenticated) {
       logout();
     } else {
       login();
@@ -48,25 +45,6 @@ export const Navbar = () => {
               <Button variant="outline" size="sm" disabled>
                 Loading...
               </Button>
-            ) : isAuthenticated ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex items-center space-x-2">
-                    <User className="w-4 h-4" />
-                    <span>{user?.name || user?.email || 'User'}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => window.location.href = '/dashboard'}>
-                    <User className="w-4 h-4 mr-2" />
-                    Dashboard
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={logout}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             ) : (
               <Button variant="outline" size="sm" onClick={handleAuthClick}>
                 Sign In
@@ -103,17 +81,6 @@ export const Navbar = () => {
                 <Button variant="outline" size="sm" className="w-fit" disabled>
                   Loading...
                 </Button>
-              ) : isAuthenticated ? (
-                <div className="flex flex-col space-y-2">
-                  <Button variant="outline" size="sm" className="w-fit" onClick={() => window.location.href = '/dashboard'}>
-                    <User className="w-4 h-4 mr-2" />
-                    Dashboard
-                  </Button>
-                  <Button variant="outline" size="sm" className="w-fit" onClick={logout}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign Out
-                  </Button>
-                </div>
               ) : (
                 <Button variant="outline" size="sm" className="w-fit" onClick={handleAuthClick}>
                   Sign In

@@ -4,9 +4,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { isLoginEnabled } from "@/lib/feature-toggles";
 
 export const AuthStatus = () => {
   const { user, isAuthenticated, isLoading, login, logout } = useAuth();
+  const loginEnabled = isLoginEnabled();
 
   if (isLoading) {
     return (
@@ -24,10 +26,16 @@ export const AuthStatus = () => {
         <CardTitle>Authentication Status</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {!loginEnabled && (
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">Development Mode: Authentication bypassed</p>
+          </div>
+        )}
+        
         <div className="flex items-center justify-between">
           <span>Status:</span>
           <Badge variant={isAuthenticated ? "default" : "secondary"}>
-            {isAuthenticated ? "Authenticated" : "Not Authenticated"}
+            {isAuthenticated ? (loginEnabled ? "Authenticated" : "Dev Mode") : "Not Authenticated"}
           </Badge>
         </div>
         
@@ -55,13 +63,19 @@ export const AuthStatus = () => {
         )}
         
         <div className="pt-4">
-          {isAuthenticated ? (
-            <Button onClick={logout} variant="outline" className="w-full">
-              Sign Out
-            </Button>
+          {loginEnabled ? (
+            isAuthenticated ? (
+              <Button onClick={logout} variant="outline" className="w-full">
+                Sign Out
+              </Button>
+            ) : (
+              <Button onClick={login} className="w-full">
+                Sign In with Auth0
+              </Button>
+            )
           ) : (
-            <Button onClick={login} className="w-full">
-              Sign In with Auth0
+            <Button disabled className="w-full">
+              Authentication Disabled
             </Button>
           )}
         </div>
