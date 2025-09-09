@@ -13,7 +13,7 @@ export default function Pricing() {
       period: "forever",
       description: "Perfect for individual developers and small projects",
       features: [
-        "Up to 3 repositories",
+        "Up to 3 sources (repos/docs/URLs)",
         "2 AI agent connections",
         "Basic context sharing",
         "Community support",
@@ -27,7 +27,7 @@ export default function Pricing() {
       period: "per month",
       description: "Ideal for growing teams and multiple projects",
       features: [
-        "Unlimited repositories",
+        "Unlimited sources",
         "Unlimited AI agents",
         "Advanced context routing",
         "Priority support",
@@ -73,7 +73,7 @@ export default function Pricing() {
               <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> Plan</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Start free, scale as you grow. No hidden fees, no surprises.
+              Connect your repositories, docs, and URLs. Start free, scale as you grow. No hidden fees, no surprises.
             </p>
           </div>
         </section>

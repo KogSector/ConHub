@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Code, GitBranch, Brain, TestTube2 } from "lucide-react";
+import { Shield, Code, GitBranch, Brain, TestTube2, Database, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -41,26 +41,30 @@ export const HeroSection = () => {
             <div className="space-y-4">
               <h1 className="text-4xl md:text-6xl font-bold text-foreground leading-tight">
                 Unify Your 
-                <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> Repositories</span>
+                <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> Knowledge</span>
                 {" "}with AI
               </h1>
               <p className="text-xl text-muted-foreground leading-relaxed max-w-lg">
-                Connect multiple repositories and let AI agents access complete context across your entire microservices architecture. Code smarter, not harder.
+                Connect repositories, docs, and URLs. Let AI agents access complete context across your entire development ecosystem. Code smarter, not harder.
               </p>
             </div>
 
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Shield className="w-4 h-4 text-accent" />
                 <span>Secure by design</span>
               </div>
               <div className="flex items-center gap-1">
                 <Code className="w-4 h-4 text-primary" />
-                <span>Multi-repo context</span>
+                <span>Multi-source context</span>
               </div>
               <div className="flex items-center gap-1">
                 <Brain className="w-4 h-4 text-primary-glow" />
                 <span>AI powered</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Database className="w-4 h-4 text-accent" />
+                <span>RAG enabled</span>
               </div>
             </div>
 
@@ -76,7 +80,7 @@ export const HeroSection = () => {
             <div className="flex items-center gap-8 text-sm text-muted-foreground">
               <div>
                 <div className="font-semibold text-foreground">1000+</div>
-                <div>Repositories connected</div>
+                <div>Sources connected</div>
               </div>
               <div>
                 <div className="font-semibold text-foreground">50+</div>
@@ -94,7 +98,7 @@ export const HeroSection = () => {
             <div className="relative rounded-2xl overflow-hidden shadow-glow">
               <Image
                 src="/assets/hero-image.jpg"
-                alt="ConHub Dashboard showing connected repositories and AI agents"
+                alt="ConHub Dashboard showing connected sources and AI agents"
                 className="w-full h-auto object-cover"
                 width={600}
                 height={400}
@@ -113,8 +117,8 @@ export const HeroSection = () => {
             
             <div className="absolute -bottom-4 -left-4 bg-card border border-border rounded-lg p-3 shadow-card">
               <div className="flex items-center gap-2 text-sm">
-                <GitBranch className="w-4 h-4 text-primary" />
-                <span className="text-muted-foreground">12 repos synced</span>
+                <RefreshCw className="w-4 h-4 text-primary" />
+                <span className="text-muted-foreground">12 sources synced</span>
               </div>
             </div>
           </div>

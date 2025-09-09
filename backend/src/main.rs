@@ -4,7 +4,7 @@ use serde_json::json;
 
 async fn index() -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().json(json!({
-        "message": "Welcome to ConHub Backend API",
+        "message": "Welcome to ConHub Backend API - Unify repositories, docs, and URLs with AI",
         "version": "1.0.0",
         "endpoints": {
             "health": "/health",
@@ -16,7 +16,7 @@ async fn index() -> Result<HttpResponse> {
 async fn health() -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().json(json!({
         "status": "ok",
-        "service": "ConHub Backend"
+        "service": "ConHub Backend - Multi-source AI Context Platform"
     })))
 }
 

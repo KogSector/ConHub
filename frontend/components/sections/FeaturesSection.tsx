@@ -10,26 +10,53 @@ import {
   Lock,
   Workflow,
   Bot,
-  Star
+  Star,
+  FileText,
+  Globe,
+  Database
 } from "lucide-react";
 
 const features = [
   {
-    icon: GitBranch,
-    title: "Multi-Repository Connection",
-    description: "Connect unlimited public and private repositories with seamless OAuth integration.",
+    icon: Network,
+    title: "Multi-Source Connection",
+    description: "Connect repositories, documents, and URLs with seamless integration across all your knowledge sources.",
     badge: "Core Feature"
   },
   {
-    icon: Brain,
+    icon: GitBranch,
+    title: "Repository Integration",
+    description: "Connect unlimited public and private repositories with seamless OAuth integration.",
+    badge: "Git"
+  },
+  {
+    icon: FileText,
+    title: "Document Management",
+    description: "Upload and sync documentation, specs, and knowledge base articles for complete context.",
+    badge: "Docs"
+  },
+  {
+    icon: Globe,
+    title: "URL Monitoring",
+    description: "Connect external documentation, wikis, and web resources to keep context up-to-date.",
+    badge: "Web"
+  },
+  {
+    icon: Bot,
     title: "AI Agent Integration", 
     description: "Connect Amazon Q, GitHub Copilot, Cline, and other AI coding assistants to access full context.",
     badge: "AI Powered"
   },
   {
-    icon: Network,
-    title: "Cross-Repo Context",
-    description: "AI agents get complete context across all connected repositories for better microservices development.",
+    icon: Database,
+    title: "RAG Architecture",
+    description: "Retrieval-Augmented Generation provides AI agents with real-time access to your latest code and docs.",
+    badge: "Smart Retrieval"
+  },
+  {
+    icon: Brain,
+    title: "Unified Context",
+    description: "AI agents get complete context across repositories, docs, and URLs for comprehensive understanding.",
     badge: "Smart"
   },
   {
@@ -38,12 +65,7 @@ const features = [
     description: "Row-level security, encrypted data flow, and granular access controls protect your code.",
     badge: "Secure"
   },
-  {
-    icon: Zap,
-    title: "Lightning Fast",
-    description: "Optimized backend with advanced data structures for instant repository synchronization.",
-    badge: "Performance"
-  },
+
   {
     icon: Lock,
     title: "Privacy First",
@@ -63,9 +85,9 @@ const features = [
     badge: "UX"
   },
   {
-    icon: Bot,
+    icon: Zap,
     title: "Smart Routing",
-    description: "Intelligent context routing ensures AI agents get the most relevant code and documentation.",
+    description: "Intelligent context routing ensures AI agents get the most relevant information from all sources.",
     badge: "Intelligent"
   }
 ];
@@ -84,7 +106,7 @@ export const FeaturesSection = () => {
             <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> unified development</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Connect your repositories, integrate AI agents, and supercharge your microservices development workflow.
+            Connect repositories, docs, and URLs. Integrate AI agents and supercharge your development workflow with unified context.
           </p>
         </div>
 

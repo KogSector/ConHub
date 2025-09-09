@@ -23,15 +23,15 @@ const docSections = [
   {
     icon: Play,
     title: "Getting Started",
-    description: "Quick setup guide to connect your first repository and AI agent in under 5 minutes.",
-    topics: ["Account setup", "GitHub OAuth", "First repository", "AI agent connection"],
+    description: "Quick setup guide to connect your first sources (repos, docs, URLs) and AI agent in under 5 minutes.",
+    topics: ["Account setup", "GitHub OAuth", "First sources", "AI agent connection"],
     badge: "Beginner"
   },
   {
     icon: GitBranch,
-    title: "Repository Management",
-    description: "Learn how to connect, organize, and manage multiple repositories with advanced permissions.",
-    topics: ["Public/Private repos", "Organization access", "Branch management", "Webhooks"],
+    title: "Source Management",
+    description: "Learn how to connect, organize, and manage repositories, documents, and URLs with advanced permissions.",
+    topics: ["Repositories", "Documents", "URLs", "Access controls"],
     badge: "Core"
   },
   {
@@ -78,7 +78,7 @@ export const DocsSection = () => {
             <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> Documentation</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Everything you need to master ConHub, from basic setup to advanced configurations and API integration.
+            Everything you need to master ConHub, from connecting your first sources to advanced AI agent configurations.
           </p>
         </div>
 
@@ -151,8 +151,8 @@ export const DocsSection = () => {
               <span>5-Minute Setup</span>
             </Button>
             <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-              <GitBranch className="w-6 h-6 text-primary" />
-              <span>Connect Repository</span>
+              <Globe className="w-6 h-6 text-primary" />
+              <span>Connect Sources</span>
             </Button>
             <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
               <Bot className="w-6 h-6 text-primary" />

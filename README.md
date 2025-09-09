@@ -1,6 +1,6 @@
 # ConHub
 
-Unify your repositories with AI for better microservices development.
+Unify your repositories, docs, and URLs with AI for better development workflows.
 
 ## Quick Start
 
@@ -101,7 +101,7 @@ ConHub/
 - **Authentication**: Auth0
 - **Styling**: Tailwind CSS, shadcn/ui components
 
-A full-stack application with Next.js frontend and Rust Actix backend.
+A full-stack application that connects multiple knowledge sources (repositories, documents, URLs) with AI agents for enhanced development context.
 
 ## Project Structure
 
@@ -142,14 +142,15 @@ Visit http://localhost:3000/test to test the connection between frontend and bac
 
 ## Features
 
-- ✅ Next.js App Router
-- ✅ TypeScript support
-- ✅ Tailwind CSS styling
-- ✅ shadcn/ui components
+- ✅ Multi-source connectivity (Git repos, docs, URLs)
+- ✅ AI agent integration
+- ✅ RAG (Retrieval-Augmented Generation) architecture
+- ✅ Next.js App Router with TypeScript
+- ✅ Tailwind CSS styling with shadcn/ui
 - ✅ Rust Actix backend
-- ✅ CORS configuration
-- ✅ Environment variables
-- ✅ API client utilities
+- ✅ Secure authentication with Auth0
+- ✅ Real-time sync and indexing
+- ✅ Context-aware AI responses
 
 ## Ports
 

@@ -12,7 +12,11 @@ import {
   Code,
   Network,
   Shield,
-  GitBranch
+  GitBranch,
+  FileText,
+  Link as LinkIcon,
+  Globe,
+  BookOpen
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -39,134 +43,182 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Quick Actions */}
-        <div className="mb-8 text-center">
-          <h2 className="text-2xl font-semibold text-foreground mb-6">Quick Actions</h2>
-          <div className="max-w-2xl mx-auto">
+        {/* Main Dashboard Layout - 2 Columns */}
+        <div className="grid lg:grid-cols-2 gap-12 mb-8">
+          {/* Left Column - Quick Actions */}
+          <div>
+            <h2 className="text-2xl font-semibold text-foreground mb-6">Quick Actions</h2>
             <div className="grid grid-cols-2 gap-4">
-              <Button size="lg" className="px-6 py-4 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
-                <GitBranch className="w-6 h-6" />
-                <span>Connect Repository</span>
-              </Button>
-              <Button size="lg" className="px-6 py-4 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
-                <Bot className="w-6 h-6" />
-                <span>Add AI Agents</span>
-              </Button>
-              <Button size="lg" className="px-6 py-4 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
-                <Code className="w-6 h-6" />
-                <span>Upload Documents</span>
-              </Button>
-              <Button size="lg" className="px-6 py-4 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
-                <Network className="w-6 h-6" />
-                <span>Configure RAG</span>
-              </Button>
+                <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
+                  <GitBranch className="w-6 h-6" />
+                  <span>Connect Repository</span>
+                </Button>
+                <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
+                  <FileText className="w-6 h-6" />
+                  <span>Add Documents</span>
+                </Button>
+                <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
+                  <LinkIcon className="w-6 h-6" />
+                  <span>Add URLs</span>
+                </Button>
+                <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
+                  <Bot className="w-6 h-6" />
+                  <span>Add AI Agents</span>
+                </Button>
+                <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
+                  <Network className="w-6 h-6" />
+                  <span>Configure RAG</span>
+                </Button>
+                <Link href="/docs">
+                  <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors w-full">
+                    <BookOpen className="w-6 h-6" />
+                    <span>View Documentation</span>
+                  </Button>
+                </Link>
             </div>
+          </div>
+
+          {/* Right Column - Stats Overview */}
+          <div>
+            <h2 className="text-2xl font-semibold text-foreground mb-6">Overview</h2>
+            <div className="grid grid-cols-2 gap-4">
+                <Card className="bg-card border-border">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Repositories
+                    </CardTitle>
+                    <GitBranch className="w-4 h-4 text-primary" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-foreground">12</div>
+                    <p className="text-xs text-muted-foreground">
+                      +2 from last week
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-card border-border">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Documents
+                    </CardTitle>
+                    <FileText className="w-4 h-4 text-primary" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-foreground">47</div>
+                    <p className="text-xs text-muted-foreground">
+                      +8 from last week
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-card border-border">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      URLs
+                    </CardTitle>
+                    <Globe className="w-4 h-4 text-primary" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-foreground">23</div>
+                    <p className="text-xs text-muted-foreground">
+                      +5 from last week
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-card border-border">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      AI Agents
+                    </CardTitle>
+                    <Bot className="w-4 h-4 text-accent" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-foreground">5</div>
+                    <p className="text-xs text-muted-foreground">
+                      All active
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-card border-border">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Context Requests
+                    </CardTitle>
+                    <Activity className="w-4 h-4 text-primary-glow" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-foreground">1,247</div>
+                    <p className="text-xs text-muted-foreground">
+                      +12% from yesterday
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-card border-border">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Security Score
+                    </CardTitle>
+                    <Shield className="w-4 h-4 text-accent" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-foreground">98%</div>
+                    <p className="text-xs text-muted-foreground">
+                      Excellent
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
           </div>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Connected Repositories
-              </CardTitle>
-              <GitBranch className="w-4 h-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">12</div>
-              <p className="text-xs text-muted-foreground">
-                +2 from last week
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                AI Agents
-              </CardTitle>
-              <Bot className="w-4 h-4 text-accent" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">5</div>
-              <p className="text-xs text-muted-foreground">
-                All active
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Context Requests
-              </CardTitle>
-              <Activity className="w-4 h-4 text-primary-glow" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">1,247</div>
-              <p className="text-xs text-muted-foreground">
-                +12% from yesterday
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Security Score
-              </CardTitle>
-              <Shield className="w-4 h-4 text-accent" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">98%</div>
-              <p className="text-xs text-muted-foreground">
-                Excellent
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Connected Repositories */}
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Connected Sources */}
           <Card className="bg-card border-border">
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle className="text-lg font-semibold text-foreground">
-                  Connected Repositories
+                  Connected Sources
                 </CardTitle>
                 <Button variant="outline" size="sm">
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Repository
+                  Add Source
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Repository Items */}
+              {/* Source Items */}
               {[
-                { name: "frontend-app", status: "active", private: false },
-                { name: "api-gateway", status: "active", private: true },
-                { name: "user-service", status: "syncing", private: true },
-                { name: "payment-service", status: "active", private: true },
-              ].map((repo, index) => (
-                <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border">
-                  <div className="flex items-center space-x-3">
-                    <Code className="w-5 h-5 text-primary" />
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-medium text-foreground">{repo.name}</span>
-                        {repo.private && <Badge variant="secondary" className="text-xs">Private</Badge>}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Status: {repo.status}
+                { name: "frontend-app", type: "repository", status: "active", private: false, icon: GitBranch },
+                { name: "API Documentation", type: "document", status: "active", private: false, icon: FileText },
+                { name: "Confluence Wiki", type: "url", status: "syncing", private: true, icon: Globe },
+                { name: "user-service", type: "repository", status: "active", private: true, icon: GitBranch },
+              ].map((source, index) => {
+                const IconComponent = source.icon;
+                return (
+                  <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border">
+                    <div className="flex items-center space-x-3">
+                      <IconComponent className="w-5 h-5 text-primary" />
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium text-foreground">{source.name}</span>
+                          {source.private && <Badge variant="secondary" className="text-xs">Private</Badge>}
+                          <Badge variant="outline" className="text-xs capitalize">{source.type}</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Status: {source.status}
+                        </div>
                       </div>
                     </div>
+                    <Button variant="ghost" size="sm">
+                      <Settings className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="sm">
-                    <Settings className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
 
@@ -214,6 +266,43 @@ export default function Dashboard() {
                   </Button>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+
+          {/* Recent Activity */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Recent Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {[
+                { action: "Added API docs", source: "Swagger UI", time: "2 hours ago", type: "document" },
+                { action: "Synced repository", source: "payment-service", time: "4 hours ago", type: "repository" },
+                { action: "Connected URL", source: "Team Wiki", time: "1 day ago", type: "url" },
+                { action: "Agent query", source: "GitHub Copilot", time: "2 days ago", type: "agent" },
+              ].map((activity, index) => {
+                const getIcon = (type: string) => {
+                  switch (type) {
+                    case 'document': return FileText;
+                    case 'repository': return GitBranch;
+                    case 'url': return Globe;
+                    case 'agent': return Bot;
+                    default: return Activity;
+                  }
+                };
+                const IconComponent = getIcon(activity.type);
+                return (
+                  <div key={index} className="flex items-center space-x-3 p-3 rounded-lg bg-muted/20 border border-border">
+                    <IconComponent className="w-4 h-4 text-primary" />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-foreground">{activity.action}</div>
+                      <div className="text-xs text-muted-foreground">{activity.source} • {activity.time}</div>
+                    </div>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         </div>
