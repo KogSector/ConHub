@@ -1,3 +1,5 @@
+const path = require('path')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
@@ -8,6 +10,10 @@ const nextConfig = {
   trailingSlash: false,
   generateBuildId: async () => {
     return 'build-' + Date.now()
+  },
+  // Load .env from root directory
+  env: {
+    ...require('dotenv').config({ path: path.resolve(__dirname, '../.env') }).parsed
   }
 }
 
