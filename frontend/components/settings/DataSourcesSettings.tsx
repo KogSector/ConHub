@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { CompanyLogo } from "@/components/ui/company-logo";
 import { 
   Github, 
   FileText, 
@@ -91,6 +92,11 @@ export function DataSourcesSettings() {
                 <div className="flex flex-col space-y-4">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-muted rounded-lg">
+                      <CompanyLogo 
+                        company={source.name}
+                        className="w-5 h-5"
+                        size={20}
+                      /> 
                       <IconComponent className="w-5 h-5 text-foreground" />
                     </div>
                     <div className="flex-1">
