@@ -2,8 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ProfileSettings,
-  RepositorySettings,
-  AIAgentSettings,
+  DataSourcesSettings,
   NotificationSettings,
   SecuritySettings,
   BillingSettings,
@@ -41,10 +40,9 @@ export default function SettingsPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 bg-muted">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 bg-muted">
             <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="repositories">Repositories</TabsTrigger>
-            <TabsTrigger value="ai-agents">AI Agents</TabsTrigger>
+            <TabsTrigger value="data-sources">Data Sources</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
@@ -56,12 +54,8 @@ export default function SettingsPage() {
             <ProfileSettings />
           </TabsContent>
 
-          <TabsContent value="repositories" className="space-y-6">
-            <RepositorySettings />
-          </TabsContent>
-
-          <TabsContent value="ai-agents" className="space-y-6">
-            <AIAgentSettings />
+          <TabsContent value="data-sources" className="space-y-6">
+            <DataSourcesSettings />
           </TabsContent>
 
           <TabsContent value="notifications" className="space-y-6">

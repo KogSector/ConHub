@@ -48,11 +48,13 @@ export default function Dashboard() {
           {/* Left Column - Quick Actions */}
           <div>
             <h2 className="text-2xl font-semibold text-foreground mb-6">Quick Actions</h2>
-            <div className="grid grid-cols-2 gap-4">
-                <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
-                  <GitBranch className="w-6 h-6" />
-                  <span>Connect Repository</span>
-                </Button>
+            <div className="grid grid-cols-2 gap-4 mt-7">
+                <Link href="/repositories">
+                  <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors w-full">
+                    <GitBranch className="w-6 h-6" />
+                    <span>Connect Repository</span>
+                  </Button>
+                </Link>
                 <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
                   <FileText className="w-6 h-6" />
                   <span>Add Documents</span>
@@ -61,10 +63,12 @@ export default function Dashboard() {
                   <LinkIcon className="w-6 h-6" />
                   <span>Add URLs</span>
                 </Button>
-                <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
-                  <Bot className="w-6 h-6" />
-                  <span>Add AI Agents</span>
-                </Button>
+                <Link href="/ai-agents">
+                  <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors w-full">
+                    <Bot className="w-6 h-6" />
+                    <span>Manage AI Agents</span>
+                  </Button>
+                </Link>
                 <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
                   <Network className="w-6 h-6" />
                   <span>Configure RAG</span>

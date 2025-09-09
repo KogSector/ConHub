@@ -1,6 +1,5 @@
 export { ProfileSettings } from './ProfileSettings';
-export { RepositorySettings } from './RepositorySettings';
-export { AIAgentSettings } from './AIAgentSettings';
+export { DataSourcesSettings } from './DataSourcesSettings';
 export { NotificationSettings } from './NotificationSettings';
 export { SecuritySettings } from './SecuritySettings';
 export { BillingSettings } from './BillingSettings';
