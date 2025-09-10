@@ -2,48 +2,28 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { 
-  Github, 
-  FileText, 
-  HardDrive, 
-  Globe 
-} from "lucide-react";
 
 interface CompanyLogoProps {
   company: string;
   className?: string;
   size?: number;
-  fallbackIconName?: string;
 }
-
-const iconMap = {
-  "github": Github,
-  "bitbucket": Github,
-  "google-drive": HardDrive,
-  "dropbox": HardDrive,
-  "confluence": FileText,
-  "notion": FileText,
-  "web-crawler": Globe
-};
 
 export function CompanyLogo({ 
   company, 
   className = "w-5 h-5",
-  size = 20,
-  fallbackIconName
+  size = 20
 }: CompanyLogoProps) {
   const [hasError, setHasError] = useState(false);
   const logoPath = `/logos/${company.toLowerCase().replace(/\s+/g, '-')}.png`;
   
-  if (hasError && fallbackIconName) {
-    const FallbackIcon = iconMap[fallbackIconName as keyof typeof iconMap];
-    if (FallbackIcon) {
-      return <FallbackIcon className={`${className} text-foreground`} />;
-    }
-  }
-  
   if (hasError) {
-    return null; // No fallback icon provided
+    // Simple fallback with first letter of company name
+    return (
+      <div className={`${className} bg-primary/10 border border-primary/20 rounded-md flex items-center justify-center text-xs font-semibold text-primary`}>
+        {company.charAt(0).toUpperCase()}
+      </div>
+    );
   }
   
   return (

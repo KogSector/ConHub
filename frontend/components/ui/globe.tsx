@@ -45,7 +45,7 @@ export const Globe: FC<GlobeProps> = ({
 		return () => {
 			globe.destroy();
 		};
-	}, []);
+	}, [width, height]);
 
 	return (
 		<canvas

@@ -53,10 +53,6 @@ All colors MUST be HSL.
     --shadow-card: 0 8px 30px -8px hsl(220 13% 5% / 0.4);
     --shadow-glow: 0 0 40px hsl(213 94% 78% / 0.2);
 
-    /* Animation variables */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-
     /* Sidebar variables for consistency */
     --sidebar-background: 220 13% 12%;
     --sidebar-foreground: 220 9% 95%;

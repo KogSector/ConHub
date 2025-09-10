@@ -77,10 +77,6 @@ export default {
 				'card': 'var(--shadow-card)', 
 				'glow': 'var(--shadow-glow)'
 			},
-			transitionTimingFunction: {
-				'smooth': 'var(--transition-smooth)',
-				'bounce': 'var(--transition-bounce)'
-			},
 			keyframes: {
 				'accordion-down': {
 					from: {

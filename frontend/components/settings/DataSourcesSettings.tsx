@@ -1,6 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { CompanyLogo } from "@/components/ui/company-logo";
 import { 
@@ -16,7 +15,6 @@ export function DataSourcesSettings() {
       id: "github",
       name: "GitHub",
       description: "Connect your GitHub repositories",
-      fallbackIcon: "github",
       connected: true,
       accounts: 2
     },
@@ -24,7 +22,6 @@ export function DataSourcesSettings() {
       id: "bitbucket",
       name: "Bitbucket", 
       description: "Connect your Bitbucket repositories",
-      fallbackIcon: "bitbucket",
       connected: false,
       accounts: 0
     },
@@ -32,7 +29,6 @@ export function DataSourcesSettings() {
       id: "google-drive",
       name: "Google Drive",
       description: "Access files from Google Drive",
-      fallbackIcon: "google-drive",
       connected: true,
       accounts: 1
     },
@@ -40,7 +36,6 @@ export function DataSourcesSettings() {
       id: "dropbox",
       name: "Dropbox",
       description: "Access files from Dropbox",
-      fallbackIcon: "dropbox",
       connected: false,
       accounts: 0
     },
@@ -48,7 +43,6 @@ export function DataSourcesSettings() {
       id: "confluence",
       name: "Confluence",
       description: "Connect to Confluence spaces",
-      fallbackIcon: "confluence",
       connected: false,
       accounts: 0
     },
@@ -56,7 +50,6 @@ export function DataSourcesSettings() {
       id: "notion",
       name: "Notion",
       description: "Access Notion databases and pages",
-      fallbackIcon: "notion",
       connected: true,
       accounts: 1
     },
@@ -64,7 +57,6 @@ export function DataSourcesSettings() {
       id: "web-crawler",
       name: "Web Crawler",
       description: "Crawl and index web pages",
-      fallbackIcon: "web-crawler",
       connected: false,
       accounts: 0
     }
@@ -91,7 +83,6 @@ export function DataSourcesSettings() {
                         company={source.name}
                         className="w-5 h-5"
                         size={20}
-                        fallbackIconName={source.fallbackIcon}
                       />
                     </div>
                     <div className="flex-1">
@@ -159,7 +150,7 @@ export function DataSourcesSettings() {
           <Plus className="w-8 h-8 text-muted-foreground mb-2" />
           <h3 className="text-sm font-medium text-foreground mb-1">Request New Data Source</h3>
           <p className="text-xs text-muted-foreground text-center mb-4">
-            Don't see the data source you need? Let us know and we'll consider adding it.
+            Don&apos;t see the data source you need? Let us know and we&apos;ll consider adding it.
           </p>
           <Button variant="outline" size="sm">
             Request Integration

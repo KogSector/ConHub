@@ -184,7 +184,7 @@ export function BillingSettings() {
               </span>
             </div>
             <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-              You're approaching your AI request limit. Consider upgrading to avoid service interruption.
+              You&apos;re approaching your AI request limit. Consider upgrading to avoid service interruption.
             </p>
           </div>
         </CardContent>
