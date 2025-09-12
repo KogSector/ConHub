@@ -1,0 +1,21 @@
+pub mod config;
+pub mod indexer;
+pub mod search;
+pub mod parser;
+pub mod analyzer;
+pub mod xref;
+pub mod history;
+pub mod web;
+pub mod types;
+pub mod utils;
+pub mod enhanced_search;
+pub mod ai_integration;
+pub mod performance;
+
+pub use config::LexorConfig;
+pub use indexer::IndexerEngine;
+pub use search::SearchEngine;
+pub use enhanced_search::EnhancedSearchEngine;
+pub use ai_integration::AIContextEngine;
+pub use performance::PerformanceOptimizer;
+pub use types::*;
