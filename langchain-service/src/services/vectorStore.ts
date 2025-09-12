@@ -1,16 +1,36 @@
 import { OpenAIEmbeddings } from '@langchain/openai';
+import { HuggingFaceTransformersEmbeddings } from '@langchain/community/embeddings/hf_transformers';
+import { MemoryVectorStore } from 'langchain/vectorstores/memory';
 import { QdrantVectorStore } from '@langchain/qdrant';
 import { PineconeStore } from '@langchain/pinecone';
 import { Document } from 'langchain/document';
 import { logger } from '../utils/logger';
 
-// Initialize embeddings
-const embeddings = new OpenAIEmbeddings({
-  openAIApiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize embeddings with fallback to local model
+let embeddings: OpenAIEmbeddings | HuggingFaceTransformersEmbeddings;
+
+try {
+  if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'sk-your-openai-api-key-here') {
+    embeddings = new OpenAIEmbeddings({
+      openAIApiKey: process.env.OPENAI_API_KEY,
+    });
+    logger.info('Using OpenAI embeddings');
+  } else {
+    // Fallback to local HuggingFace embeddings
+    embeddings = new HuggingFaceTransformersEmbeddings({
+      modelName: "Xenova/all-MiniLM-L6-v2",
+    });
+    logger.info('Using local HuggingFace embeddings');
+  }
+} catch (error) {
+  logger.warn('Failed to initialize embeddings, falling back to local model:', error);
+  embeddings = new HuggingFaceTransformersEmbeddings({
+    modelName: "Xenova/all-MiniLM-L6-v2",
+  });
+}
 
 // Vector store instance (will be initialized based on configuration)
-let vectorStoreInstance: QdrantVectorStore | PineconeStore | null = null;
+let vectorStoreInstance: QdrantVectorStore | PineconeStore | MemoryVectorStore | null = null;
 
 async function initializeVectorStore() {
   if (vectorStoreInstance) {
@@ -61,10 +81,16 @@ async function initializeVectorStore() {
       return vectorStoreInstance;
     }
     
-    throw new Error('No vector store configuration found. Please configure either Qdrant or Pinecone.');
+    // Fallback to in-memory vector store for development
+    logger.info('No external vector store configured, using in-memory vector store');
+    vectorStoreInstance = new MemoryVectorStore(embeddings);
+    logger.info('Successfully initialized in-memory vector store');
+    return vectorStoreInstance;
+    
   } catch (error) {
-    logger.error('Failed to initialize vector store:', error);
-    throw error;
+    logger.error('Failed to initialize vector store, falling back to in-memory:', error);
+    vectorStoreInstance = new MemoryVectorStore(embeddings);
+    return vectorStoreInstance;
   }
 }
 
@@ -82,7 +108,11 @@ export const vectorStore = {
     if (!store) {
       throw new Error('Vector store not initialized');
     }
-    return store.similaritySearch(query, k, filter);
+    // Different vector stores handle filters differently
+    if (store instanceof MemoryVectorStore) {
+      return store.similaritySearch(query, k);
+    }
+    return store.similaritySearch(query, k, filter as any);
   },
 
   async similaritySearchWithScore(query: string, k: number = 10, filter?: Record<string, any>) {
@@ -90,7 +120,11 @@ export const vectorStore = {
     if (!store) {
       throw new Error('Vector store not initialized');
     }
-    return store.similaritySearchWithScore(query, k, filter);
+    // Different vector stores handle filters differently
+    if (store instanceof MemoryVectorStore) {
+      return store.similaritySearchWithScore(query, k);
+    }
+    return store.similaritySearchWithScore(query, k, filter as any);
   },
 
   async delete(ids: string[]) {

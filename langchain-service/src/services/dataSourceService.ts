@@ -1,4 +1,5 @@
 import { logger } from '../utils/logger';
+import { haystackService, HaystackDocument } from './haystackService';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface DataSource {

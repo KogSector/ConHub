@@ -7,10 +7,11 @@
     "build": "next build",
     "start:frontend": "next start -p 3000",
     "lint": "next lint",
-    "start": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:langchain\"",
+    "start": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:langchain\" \"npm run dev:haystack\"",
     "dev:frontend": "next dev -p 3000",
     "dev:backend": "cd ../backend && cargo run",
     "dev:langchain": "cd ../langchain-service && npm run dev",
+    "dev:haystack": "cd ../haystack-service && python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload",
     "build:backend": "cd ../backend && cargo build --release",
     "build:langchain": "cd ../langchain-service && npm run build",
     "build:all": "npm run build:backend && npm run build:langchain && npm run build"

@@ -1,6 +1,5 @@
 import { Document } from 'langchain/document';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import { OpenAIEmbeddings } from '@langchain/openai';
 import { GithubRepoLoader } from '@langchain/community/document_loaders/web/github';
 import { DirectoryLoader } from 'langchain/document_loaders/fs/directory';
 import { TextLoader } from 'langchain/document_loaders/fs/text';
@@ -23,11 +22,6 @@ const indexingJobs = new Map<string, IndexingResult>();
 const textSplitter = new RecursiveCharacterTextSplitter({
   chunkSize: 1000,
   chunkOverlap: 200,
-});
-
-// Embeddings model
-const embeddings = new OpenAIEmbeddings({
-  openAIApiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function indexRepository(

@@ -1,0 +1,31 @@
+# Haystack Document Search Service
+
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+farm-haystack==1.21.1
+haystack-ai==2.0.0
+python-multipart==0.0.6
+python-dotenv==1.0.0
+requests==2.31.0
+pydantic==2.5.0
+elasticsearch==8.11.0
+transformers==4.35.2
+torch>=2.0.0
+sentence-transformers==2.2.2
+pypdf==3.17.1
+python-docx==1.1.0
+markdown==3.5.1
+beautifulsoup4==4.12.2
+lxml==4.9.3
+
+# Optional dependencies for different retrievers
+# qdrant-client==1.7.0
+# pinecone-client==2.2.4
+# weaviate-client==3.25.3
+
+# Development dependencies
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
