@@ -1,7 +1,0 @@
-{
-  "name": "conhub-langchain-service",
-  "version": "1.0.0",
-  "description": "LangChain service for ConHub data source indexing and AI integration",
-  "main": "dist/index.js",
-  "private": true
-}

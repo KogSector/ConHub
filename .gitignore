@@ -1,4 +1,6 @@
-# Operating System
+# ===== ConHub - Unified .gitignore =====
+
+# === Operating System ===
 .DS_Store
 .DS_Store?
 ._*
@@ -8,7 +10,7 @@ ehthumbs.db
 Thumbs.db
 Desktop.ini
 
-# IDEs and Editors
+# === IDEs and Editors ===
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
@@ -27,8 +29,8 @@ Desktop.ini
 .sublime-workspace
 *.code-workspace
 
-# Logs
-logs
+# === Logs ===
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -36,79 +38,42 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage/
-*.lcov
-
-# nyc test coverage
-.nyc_output
-
-# Dependency directories
+# === Node.js / JavaScript / TypeScript ===
 node_modules/
 jspm_packages/
-
-# Optional npm cache directory
 .npm
-
-# Optional REPL history
 .node_repl_history
-
-# Output of 'npm pack'
 *.tgz
-
-# Yarn Integrity file
 .yarn-integrity
+dist/
+dist-ssr/
+*.tsbuildinfo
+build/
+.build/
+out/
+.next/
+.nuxt
+.vuepress/dist
+.serverless
+.fusebox/
+.dynamodb/
+.tern-port
+.cache/
+.parcel-cache
+coverage/
+*.lcov
+.nyc_output
 
-# dotenv environment variables file
+# === Environment Variables ===
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+.env.test
+.env.production
 
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# next.js build output
-.next
-out/
-
-# nuxt.js build output
-.nuxt
-
-# vuepress build output
-.vuepress/dist
-
-# Serverless directories
-.serverless
-
-# FuseBox cache
-.fusebox/
-
-# DynamoDB Local files
-.dynamodb/
-
-# TernJS port file
-.tern-port
-
-# Frontend specific
-dist/
-dist-ssr/
-*.local
-*.tsbuildinfo
-
-# Build outputs
-build/
-.build/
-
-# Rust specific
+# === Rust ===
 /target/
 /Cargo.lock
 debug/
@@ -117,41 +82,99 @@ deps/
 incremental/
 **/*.rs.bk
 *.pdb
-
-# Rust documentation
 /doc/
-
-# Rust backup files
 **/*.orig
-
-# Local Rust configuration
 .cargo/config
 
-# Python (if any)
+# === Python ===
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+*.mo
+*.pot
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+instance/
+.webassets-cache
+.scrapy
+docs/_build/
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+.python-version
+Pipfile.lock
+__pypackages__/
+celerybeat-schedule
+celerybeat.pid
+*.sage.py
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+.spyderproject
+.spyproject
+.ropeproject
+/site
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
 
-# Database
+# === Database ===
 *.db
 *.sqlite
 *.sqlite3
 
-# Temporary files
+# === Temporary Files ===
 *.tmp
 *.temp
 *.bak
 *.backup
 *.old
+tmp/
+temp/
+pids
+*.pid
+*.seed
+*.pid.lock
 
-# Archive files
+# === Archive Files ===
 *.7z
 *.dmg
 *.gz
@@ -160,33 +183,34 @@ venv.bak/
 *.rar
 *.tar
 *.zip
-
-# Package files
 *.deb
 *.rpm
 
-# Lock files (keep package-lock.json for consistency)
+# === Lock Files ===
 yarn.lock
 pnpm-lock.yaml
-# Remove the next line if you want to track package-lock.json
-# package-lock.json
-
-# Bun specific
 bun.lockb
 
-# Test artifacts
-/coverage/
+# === Test Artifacts ===
 /test-results/
 /playwright-report/
 /test-results-*/
 
-# Storybook
+# === Storybook ===
 storybook-static/
 
-# Miscellaneous
-.cache/
-.tmp/
+# === Service-Specific ===
+# Haystack
+.haystack/
+models/
+data/
+uploads/
+
+# === Miscellaneous ===
 .sass-cache/
 connect.lock
 typings/
 .angular/
+*.local
+*.pem
+.vercel
