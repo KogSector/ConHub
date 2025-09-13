@@ -19,11 +19,11 @@ Unify your repositories, docs, and URLs with AI for better development workflows
 
 2. **Install dependencies:**
    ```bash
-   # Install frontend dependencies
-   cd frontend && npm install && cd ..
-   
-   # Install workspace dependencies (for running both services)
+   # Install all dependencies from root (manages all JS/TS projects)
    npm install
+   
+   # Install Python dependencies
+   pip install -r requirements.txt
    ```
 
 3. **Configure Auth0:**
@@ -84,24 +84,32 @@ No manual port management needed - everything runs on its designated port automa
 
 ### Available Scripts
 
-- `npm start` - Start the complete ConHub application (frontend + backend + lexor)
+- `npm start` - Start the complete ConHub application (all services)
 - `npm run dev` - Same as start (alias for development)
 - `npm run dev:frontend` - Start only frontend on port 3000
 - `npm run dev:backend` - Start only backend on port 3001
 - `npm run dev:lexor` - Start only lexor service on port 3002
+- `npm run dev:langchain` - Start only langchain service on port 3002
+- `npm run dev:haystack` - Start only haystack service on port 8001
 - `npm run build` - Build all services for production
-- `npm run install:all` - Install all dependencies
+- `npm run lint` - Lint all JavaScript/TypeScript code
+- `npm run test` - Run tests for all services
 
 ## Project Structure
 
 ```
 ConHub/
-├── frontend/          # Next.js frontend (Port 3000)
-├── backend/           # Rust backend (Port 3001)
-├── lexor/             # Rust lexor service (Port 3002)
-├── haystack-service/  # Python AI service
-├── langchain-service/ # TypeScript AI service
-└── package.json       # Workspace configuration
+├── frontend/          # Next.js frontend source (Port 3000)
+├── backend/           # Rust backend source (Port 3001)
+├── lexor/             # Rust lexor service source (Port 3002)
+├── haystack-service/  # Python AI service source (Port 8001)
+├── langchain-service/ # TypeScript AI service source (Port 3002)
+├── package.json       # Root workspace - manages all JS/TS dependencies
+├── Cargo.toml         # Root workspace - manages all Rust dependencies
+├── requirements.txt   # Root - manages all Python dependencies
+├── tsconfig.json      # Root TypeScript configuration
+├── tailwind.config.ts # Root Tailwind configuration
+└── next.config.js     # Root Next.js configuration
 ```
 
 ## Tech Stack

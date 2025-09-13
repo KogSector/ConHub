@@ -1,0 +1,7 @@
+{
+  "extends": ["next/core-web-vitals", "@typescript-eslint/recommended"],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "root": true,
+  "ignorePatterns": ["backend/**", "lexor/**", "haystack-service/**", "node_modules/**", "dist/**", ".next/**"]
+}

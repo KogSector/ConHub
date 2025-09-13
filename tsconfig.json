@@ -1,15 +1,8 @@
 {
-  "plugins": [
-    {
-      "name": "next"
-    }
-  ],
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./frontend/*"]
     },
     "noImplicitAny": false,
     "noUnusedParameters": false,
@@ -17,11 +10,7 @@
     "allowJs": true,
     "noUnusedLocals": false,
     "strictNullChecks": false,
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "strict": false,
     "noEmit": true,
     "incremental": true,
@@ -38,12 +27,16 @@
     ]
   },
   "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+    "frontend/next-env.d.ts",
+    "frontend/**/*.ts",
+    "frontend/**/*.tsx",
+    "langchain-service/**/*.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "backend",
+    "lexor",
+    "haystack-service"
   ]
 }
