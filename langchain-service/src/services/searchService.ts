@@ -1,32 +1,30 @@
-import { vectorStore } from './vectorStore';
-import { logger } from '../utils/logger';
+import { vectorStore } from './vectorStore.js';
+import { logger } from '../utils/logger.js';
 
-export interface SearchResult {
+interface SearchResult {
   id: string;
   content: string;
-  metadata: Record<string, any>;
-  score?: number;
+  metadata: any;
+  score: number;
   source: string;
-  type: 'code' | 'document' | 'web';
 }
 
 export async function searchContent(
   query: string,
-  filters: Record<string, any> = {},
+  filters?: any,
   limit: number = 10
 ): Promise<SearchResult[]> {
   try {
-    logger.info(`Searching content with query: ${query}`);
+    logger.info(`Searching content: ${query}`);
     
     const results = await vectorStore.similaritySearchWithScore(query, limit, filters);
     
     return results.map(([doc, score], index) => ({
-      id: `result_${index}`,
+      id: `result-${index}`,
       content: doc.pageContent,
       metadata: doc.metadata,
       score,
-      source: doc.metadata.source || 'unknown',
-      type: determineContentType(doc.metadata)
+      source: doc.metadata.sourceType || 'unknown'
     }));
   } catch (error) {
     logger.error('Error in content search:', error);
@@ -36,35 +34,25 @@ export async function searchContent(
 
 export async function searchCode(
   query: string,
-  filters: { repositories?: string[], language?: string } = {},
+  filters?: { repositories?: string[]; language?: string },
   limit: number = 10
 ): Promise<SearchResult[]> {
   try {
-    logger.info(`Searching code with query: ${query}`);
+    logger.info(`Searching code: ${query}`);
     
-    // Build filter for code-specific search
-    const codeFilter: Record<string, any> = {
+    const searchFilters = {
       sourceType: 'repository',
       ...filters
     };
     
-    if (filters.language) {
-      codeFilter.language = filters.language;
-    }
-    
-    if (filters.repositories && filters.repositories.length > 0) {
-      codeFilter.repoUrl = { $in: filters.repositories };
-    }
-    
-    const results = await vectorStore.similaritySearchWithScore(query, limit, codeFilter);
+    const results = await vectorStore.similaritySearchWithScore(query, limit, searchFilters);
     
     return results.map(([doc, score], index) => ({
-      id: `code_${index}`,
+      id: `code-${index}`,
       content: doc.pageContent,
       metadata: doc.metadata,
       score,
-      source: doc.metadata.repoUrl || doc.metadata.source || 'unknown',
-      type: 'code' as const
+      source: 'code'
     }));
   } catch (error) {
     logger.error('Error in code search:', error);
@@ -74,59 +62,28 @@ export async function searchCode(
 
 export async function searchDocuments(
   query: string,
-  filters: { documentTypes?: string[], sources?: string[] } = {},
+  filters?: { documentTypes?: string[]; sources?: string[] },
   limit: number = 10
 ): Promise<SearchResult[]> {
   try {
-    logger.info(`Searching documents with query: ${query}`);
+    logger.info(`Searching documents: ${query}`);
     
-    // Build filter for document-specific search
-    const docFilter: Record<string, any> = {
-      sourceType: 'document'
+    const searchFilters = {
+      sourceType: 'document',
+      ...filters
     };
     
-    if (filters.documentTypes && filters.documentTypes.length > 0) {
-      docFilter.documentType = { $in: filters.documentTypes };
-    }
-    
-    if (filters.sources && filters.sources.length > 0) {
-      docFilter.source = { $in: filters.sources };
-    }
-    
-    const results = await vectorStore.similaritySearchWithScore(query, limit, docFilter);
+    const results = await vectorStore.similaritySearchWithScore(query, limit, searchFilters);
     
     return results.map(([doc, score], index) => ({
-      id: `doc_${index}`,
+      id: `doc-${index}`,
       content: doc.pageContent,
       metadata: doc.metadata,
       score,
-      source: doc.metadata.documentUrl || doc.metadata.source || 'unknown',
-      type: 'document' as const
+      source: 'document'
     }));
   } catch (error) {
     logger.error('Error in document search:', error);
     throw error;
   }
-}
-
-function determineContentType(metadata: Record<string, any>): 'code' | 'document' | 'web' {
-  if (metadata.sourceType === 'repository') {
-    return 'code';
-  }
-  
-  if (metadata.sourceType === 'document') {
-    return 'document';
-  }
-  
-  if (metadata.sourceType === 'web') {
-    return 'web';
-  }
-  
-  // Default based on file extension or other indicators
-  const source = metadata.source || '';
-  if (source.includes('github.com') || source.includes('.git')) {
-    return 'code';
-  }
-  
-  return 'document';
 }

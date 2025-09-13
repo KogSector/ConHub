@@ -7,7 +7,7 @@
     "start": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run dev:lexor\" \"npm run dev:langchain\" \"npm run dev:haystack\"",
     "dev": "npm start",
     "dev:frontend": "next dev -p 3000",
-    "dev:backend": "cargo run --bin conhub-backend",
+    "dev:backend": "cd backend && cargo run",
     "dev:lexor": "cargo run --bin lexor",
     "dev:langchain": "cd langchain-service && nodemon --exec ts-node src/index.ts",
     "dev:haystack": "cd haystack-service && python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload",
