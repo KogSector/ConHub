@@ -1,32 +1,15 @@
-use crate::lexor::{IndexerEngine, SearchEngine, LexorConfig};
-use crate::lexor::types::*;
+use crate::LexorService;
+use crate::types::*;
 use actix_web::{web, HttpResponse, Result};
 use serde_json::json;
 use uuid::Uuid;
 use std::sync::Arc;
 
-pub struct LexorService {
-    pub indexer: Arc<IndexerEngine>,
-    pub search: Arc<SearchEngine>,
-}
-
-impl LexorService {
-    pub fn new(config: LexorConfig) -> Result<Self, Box<dyn std::error::Error>> {
-        let indexer = Arc::new(IndexerEngine::new(config)?);
-        let search = Arc::new(SearchEngine::new(
-            indexer.index.clone(),
-            indexer.schema.clone(),
-        )?);
-        
-        Ok(Self { indexer, search })
-    }
-}
-
 pub async fn search_handler(
     service: web::Data<LexorService>,
     query: web::Json<SearchQuery>,
 ) -> Result<HttpResponse> {
-    match service.search.search(&query) {
+    match service.search_engine.search(&query) {
         Ok(results) => Ok(HttpResponse::Ok().json(results)),
         Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
             "error": e.to_string()
@@ -57,7 +40,7 @@ pub async fn index_project_handler(
     service: web::Data<LexorService>,
     path: web::Path<String>,
 ) -> Result<HttpResponse> {
-    let project_id = Uuid::parse_str(&path)?;
+    let project_id = Uuid::parse_str(&path).map_err(|e| actix_web::error::ErrorBadRequest(e))?;
     
     match service.indexer.index_project(project_id) {
         Ok(stats) => Ok(HttpResponse::Ok().json(stats)),

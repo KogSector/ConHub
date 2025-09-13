@@ -1,5 +1,6 @@
-use crate::lexor::types::*;
-use tantivy::*;
+use crate::types::*;
+use crate::types::*;
+use tantivy::{Index, schema::Schema};
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
@@ -29,14 +30,14 @@ pub struct ComplexityRange {
 }
 
 pub struct EnhancedSearchEngine {
-    base_engine: crate::lexor::search::SearchEngine,
+    base_engine: crate::search::SearchEngine,
     embeddings: HashMap<String, Vec<f32>>,
     popularity_scores: HashMap<String, f32>,
 }
 
 impl EnhancedSearchEngine {
-    pub fn new(index: Index, schema: Schema) -> Result<Self, Box<dyn std::error::Error>> {
-        let base_engine = crate::lexor::search::SearchEngine::new(index, schema)?;
+    pub fn new(index: Index, schema: Schema) -> std::result::Result<Self, Box<dyn std::error::Error>> {
+        let base_engine = crate::search::SearchEngine::new(index, schema)?;
         
         Ok(Self {
             base_engine,
@@ -45,7 +46,7 @@ impl EnhancedSearchEngine {
         })
     }
 
-    pub fn enhanced_search(&self, query: &EnhancedSearchQuery) -> Result<SearchResult, Box<dyn std::error::Error>> {
+    pub fn enhanced_search(&self, query: &EnhancedSearchQuery) -> std::result::Result<SearchResult, Box<dyn std::error::Error>> {
         let mut base_query = SearchQuery {
             query: query.query.clone(),
             query_type: QueryType::FullText,
@@ -77,14 +78,14 @@ impl EnhancedSearchEngine {
         Ok(results)
     }
 
-    fn apply_enhanced_scoring(&self, results: &mut SearchResult, query: &EnhancedSearchQuery) -> Result<(), Box<dyn std::error::Error>> {
+    fn apply_enhanced_scoring(&self, results: &mut SearchResult, query: &EnhancedSearchQuery) -> std::result::Result<(), Box<dyn std::error::Error>> {
         for hit in &mut results.results {
             let mut boost = 1.0;
 
             // Recency boost
             if query.boost_recent {
-                let days_old = (chrono::Utc::now() - hit.file.last_modified).num_days();
-                boost *= (1.0 / (1.0 + days_old as f32 * 0.01)).max(0.1);
+                let days_old = (chrono::Utc::now() - hit.file.last_modified).num_seconds() as f32 / 86400.0;
+                boost *= (1.0_f32 / (1.0_f32 + days_old * 0.01_f32)).max(0.1_f32);
             }
 
             // Popularity boost
@@ -112,7 +113,7 @@ impl EnhancedSearchEngine {
         Ok(())
     }
 
-    fn apply_post_filters(&self, results: &mut SearchResult, query: &EnhancedSearchQuery) -> Result<(), Box<dyn std::error::Error>> {
+    fn apply_post_filters(&self, results: &mut SearchResult, query: &EnhancedSearchQuery) -> std::result::Result<(), Box<dyn std::error::Error>> {
         results.results.retain(|hit| {
             // File size filter
             if let Some(max_size) = query.max_file_size {
@@ -136,8 +137,10 @@ impl EnhancedSearchEngine {
 
     fn calculate_semantic_similarity(&self, query: &str, file_path: &str) -> Option<f32> {
         // Simplified semantic similarity - in production, use proper embeddings
-        let query_words: std::collections::HashSet<_> = query.to_lowercase().split_whitespace().collect();
-        let path_words: std::collections::HashSet<_> = file_path.to_lowercase().split(&['/', '\\', '.', '_', '-'][..]).collect();
+        let query_lower = query.to_lowercase();
+        let query_words: std::collections::HashSet<_> = query_lower.split_whitespace().collect();
+        let path_lower = file_path.to_lowercase();
+        let path_words: std::collections::HashSet<_> = path_lower.split(&['/', '\\', '.', '_', '-'][..]).collect();
         
         let intersection = query_words.intersection(&path_words).count();
         let union = query_words.union(&path_words).count();

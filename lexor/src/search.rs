@@ -1,11 +1,10 @@
-use crate::lexor::types::*;
-use crate::lexor::utils::*;
+use crate::types::*;
+use crate::utils::*;
 
 use tantivy::{Index, IndexReader, Searcher, Document, Score};
-use tantivy::query::{QueryParser, Query, BooleanQuery, Occur, TermQuery, FuzzyTermQuery, RegexQuery, RangeQuery, PhraseQuery};
-use tantivy::collector::{TopDocs, FacetCollector, Count};
+use tantivy::query::{QueryParser, Query, BooleanQuery, Occur, TermQuery, FuzzyTermQuery, RegexQuery};
+use tantivy::collector::TopDocs;
 use tantivy::schema::*;
-use tantivy::tokenizer::*;
 use tantivy::Term;
 
 use std::collections::HashMap;
@@ -60,7 +59,7 @@ impl SearchEngine {
         // Convert results
         let mut hits = Vec::new();
         for (score, doc_address) in search_results {
-            let doc = searcher.doc(doc_address)?;
+            let doc: tantivy::Document = searcher.doc(doc_address)?;
             if let Some(hit) = self.convert_document_to_hit(&doc, score, query)? {
                 hits.push(hit);
             }
@@ -88,7 +87,7 @@ impl SearchEngine {
     }
 
     fn build_fulltext_query(&self, query: &SearchQuery) -> Result<Box<dyn Query>, Box<dyn std::error::Error>> {
-        let mut boolean_query = BooleanQuery::new();
+        let mut clauses = Vec::new();
         
         // Main content query
         let content_query = if query.regex {
@@ -99,18 +98,18 @@ impl SearchEngine {
             self.query_parser.parse_query(&query.query)?
         };
         
-        boolean_query.add_clause((Occur::Must, content_query));
+        clauses.push((Occur::Must, content_query));
         
         // Add filters
-        self.add_filters(&mut boolean_query, query)?;
+        self.add_filters(&mut clauses, query)?;
         
-        Ok(Box::new(boolean_query))
+        Ok(Box::new(BooleanQuery::new(clauses)))
     }
 
     fn build_symbol_query(&self, query: &SearchQuery) -> Result<Box<dyn Query>, Box<dyn std::error::Error>> {
         let symbol_name_field = self.schema.get_field("symbol_name").unwrap();
         
-        let symbol_query = if query.case_sensitive {
+        let symbol_query: Box<dyn Query> = if query.case_sensitive {
             Box::new(TermQuery::new(
                 Term::from_field_text(symbol_name_field, &query.query),
                 IndexRecordOption::Basic,
@@ -123,18 +122,18 @@ impl SearchEngine {
             ))
         };
         
-        let mut boolean_query = BooleanQuery::new();
-        boolean_query.add_clause((Occur::Must, symbol_query));
-        self.add_filters(&mut boolean_query, query)?;
+        let mut clauses = Vec::new();
+        clauses.push((Occur::Must, symbol_query));
+        self.add_filters(&mut clauses, query)?;
         
-        Ok(Box::new(boolean_query))
+        Ok(Box::new(BooleanQuery::new(clauses)))
     }
 
     fn build_path_query(&self, query: &SearchQuery) -> Result<Box<dyn Query>, Box<dyn std::error::Error>> {
         let file_path_field = self.schema.get_field("file_path").unwrap();
         let file_name_field = self.schema.get_field("file_name").unwrap();
         
-        let mut boolean_query = BooleanQuery::new();
+        let mut clauses = Vec::new();
         
         // Search in both file path and file name
         let path_query = Box::new(TermQuery::new(
@@ -147,85 +146,86 @@ impl SearchEngine {
             IndexRecordOption::Basic,
         ));
         
-        let mut path_boolean = BooleanQuery::new();
-        path_boolean.add_clause((Occur::Should, path_query));
-        path_boolean.add_clause((Occur::Should, name_query));
+        let path_clauses = vec![
+            (Occur::Should, path_query),
+            (Occur::Should, name_query),
+        ];
         
-        boolean_query.add_clause((Occur::Must, Box::new(path_boolean)));
-        self.add_filters(&mut boolean_query, query)?;
+        clauses.push((Occur::Must, Box::new(BooleanQuery::new(path_clauses))));
+        self.add_filters(&mut clauses, query)?;
         
-        Ok(Box::new(boolean_query))
+        Ok(Box::new(BooleanQuery::new(clauses)))
     }
 
     fn build_definition_query(&self, query: &SearchQuery) -> Result<Box<dyn Query>, Box<dyn std::error::Error>> {
         let symbol_name_field = self.schema.get_field("symbol_name").unwrap();
         let reference_type_field = self.schema.get_field("reference_type").unwrap();
         
-        let mut boolean_query = BooleanQuery::new();
+        let mut clauses = Vec::new();
         
         // Symbol name query
         let symbol_query = Box::new(TermQuery::new(
             Term::from_field_text(symbol_name_field, &query.query),
             IndexRecordOption::Basic,
         ));
-        boolean_query.add_clause((Occur::Must, symbol_query));
+        clauses.push((Occur::Must, symbol_query));
         
         // Filter for definitions only
         let def_query = Box::new(TermQuery::new(
             Term::from_field_text(reference_type_field, "Definition"),
             IndexRecordOption::Basic,
         ));
-        boolean_query.add_clause((Occur::Must, def_query));
+        clauses.push((Occur::Must, def_query));
         
-        self.add_filters(&mut boolean_query, query)?;
+        self.add_filters(&mut clauses, query)?;
         
-        Ok(Box::new(boolean_query))
+        Ok(Box::new(BooleanQuery::new(clauses)))
     }
 
     fn build_reference_query(&self, query: &SearchQuery) -> Result<Box<dyn Query>, Box<dyn std::error::Error>> {
         let symbol_name_field = self.schema.get_field("symbol_name").unwrap();
         let reference_type_field = self.schema.get_field("reference_type").unwrap();
         
-        let mut boolean_query = BooleanQuery::new();
+        let mut clauses = Vec::new();
         
         // Symbol name query
         let symbol_query = Box::new(TermQuery::new(
             Term::from_field_text(symbol_name_field, &query.query),
             IndexRecordOption::Basic,
         ));
-        boolean_query.add_clause((Occur::Must, symbol_query));
+        clauses.push((Occur::Must, symbol_query));
         
         // Filter for references (not definitions)
         let ref_query = Box::new(TermQuery::new(
             Term::from_field_text(reference_type_field, "Usage"),
             IndexRecordOption::Basic,
         ));
-        boolean_query.add_clause((Occur::Must, ref_query));
+        clauses.push((Occur::Must, ref_query));
         
-        self.add_filters(&mut boolean_query, query)?;
+        self.add_filters(&mut clauses, query)?;
         
-        Ok(Box::new(boolean_query))
+        Ok(Box::new(BooleanQuery::new(clauses)))
     }
 
     fn build_history_query(&self, query: &SearchQuery) -> Result<Box<dyn Query>, Box<dyn std::error::Error>> {
         let commit_message_field = self.schema.get_field("commit_message").unwrap();
         let author_field = self.schema.get_field("author").unwrap();
         
-        let mut boolean_query = BooleanQuery::new();
+        let mut clauses = Vec::new();
         
         // Search in commit messages and author
         let message_query = self.query_parser.parse_query(&query.query)?;
-        boolean_query.add_clause((Occur::Should, message_query));
+        clauses.push((Occur::Should, message_query));
         
         let author_query = Box::new(TermQuery::new(
             Term::from_field_text(author_field, &query.query),
             IndexRecordOption::Basic,
         ));
-        boolean_query.add_clause((Occur::Should, author_query));
+        clauses.push((Occur::Should, author_query));
         
-        self.add_filters(&mut boolean_query, query)?;
+        self.add_filters(&mut clauses, query)?;
         
-        Ok(Box::new(boolean_query))
+        Ok(Box::new(BooleanQuery::new(clauses)))
     }
 
     fn build_regex_query(&self, pattern: &str) -> Result<Box<dyn Query>, Box<dyn std::error::Error>> {
@@ -242,22 +242,22 @@ impl SearchEngine {
         self.build_regex_query(&regex_pattern)
     }
 
-    fn add_filters(&self, boolean_query: &mut BooleanQuery, query: &SearchQuery) -> Result<(), Box<dyn std::error::Error>> {
+    fn add_filters(&self, clauses: &mut Vec<(Occur, Box<dyn Query>)>, query: &SearchQuery) -> Result<(), Box<dyn std::error::Error>> {
         // Project filter
         if let Some(projects) = &query.projects {
             if !projects.is_empty() {
                 let project_field = self.schema.get_field("project_id").unwrap();
-                let mut project_query = BooleanQuery::new();
+                let mut project_clauses = Vec::new();
                 
                 for project_id in projects {
                     let term_query = Box::new(TermQuery::new(
                         Term::from_field_text(project_field, &project_id.to_string()),
                         IndexRecordOption::Basic,
                     ));
-                    project_query.add_clause((Occur::Should, term_query));
+                    project_clauses.push((Occur::Should, term_query));
                 }
                 
-                boolean_query.add_clause((Occur::Must, Box::new(project_query)));
+                clauses.push((Occur::Must, Box::new(BooleanQuery::new(project_clauses))));
             }
         }
         
@@ -265,17 +265,17 @@ impl SearchEngine {
         if let Some(languages) = &query.languages {
             if !languages.is_empty() {
                 let language_field = self.schema.get_field("language").unwrap();
-                let mut language_query = BooleanQuery::new();
+                let mut language_clauses = Vec::new();
                 
                 for language in languages {
                     let term_query = Box::new(TermQuery::new(
                         Term::from_field_text(language_field, &format!("{:?}", language)),
                         IndexRecordOption::Basic,
                     ));
-                    language_query.add_clause((Occur::Should, term_query));
+                    language_clauses.push((Occur::Should, term_query));
                 }
                 
-                boolean_query.add_clause((Occur::Must, Box::new(language_query)));
+                clauses.push((Occur::Must, Box::new(BooleanQuery::new(language_clauses))));
             }
         }
         
@@ -283,17 +283,17 @@ impl SearchEngine {
         if let Some(file_types) = &query.file_types {
             if !file_types.is_empty() {
                 let file_type_field = self.schema.get_field("file_type").unwrap();
-                let mut file_type_query = BooleanQuery::new();
+                let mut file_type_clauses = Vec::new();
                 
                 for file_type in file_types {
                     let term_query = Box::new(TermQuery::new(
                         Term::from_field_text(file_type_field, &format!("{:?}", file_type)),
                         IndexRecordOption::Basic,
                     ));
-                    file_type_query.add_clause((Occur::Should, term_query));
+                    file_type_clauses.push((Occur::Should, term_query));
                 }
                 
-                boolean_query.add_clause((Occur::Must, Box::new(file_type_query)));
+                clauses.push((Occur::Must, Box::new(BooleanQuery::new(file_type_clauses))));
             }
         }
         
@@ -304,7 +304,7 @@ impl SearchEngine {
                 Term::from_field_text(file_path_field, path_filter),
                 IndexRecordOption::Basic,
             ));
-            boolean_query.add_clause((Occur::Must, path_query));
+            clauses.push((Occur::Must, path_query));
         }
         
         Ok(())
@@ -344,7 +344,7 @@ impl SearchEngine {
         for (_score, doc_address) in search_results {
             let doc = searcher.doc(doc_address)?;
             if let Some(field_values) = doc.get_all(field).next() {
-                if let Some(text_value) = field_values.as_text() {
+                if let Some(text_value) = field_values.as_str() {
                     *facet_counts.entry(text_value.to_string()).or_insert(0) += 1;
                 }
             }
@@ -364,11 +364,11 @@ impl SearchEngine {
     fn convert_document_to_hit(&self, doc: &Document, score: Score, query: &SearchQuery) -> Result<Option<SearchHit>, Box<dyn std::error::Error>> {
         // Extract file information
         let file_id = doc.get_first(self.schema.get_field("file_id").unwrap())
-            .and_then(|v| v.as_text())
+            .and_then(|v| v.as_str())
             .and_then(|s| Uuid::parse_str(s).ok());
         
         let project_id = doc.get_first(self.schema.get_field("project_id").unwrap())
-            .and_then(|v| v.as_text())
+            .and_then(|v| v.as_str())
             .and_then(|s| Uuid::parse_str(s).ok());
         
         if file_id.is_none() || project_id.is_none() {
@@ -376,16 +376,16 @@ impl SearchEngine {
         }
         
         let file_path = doc.get_first(self.schema.get_field("file_path").unwrap())
-            .and_then(|v| v.as_text())
+            .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
         
         let language_str = doc.get_first(self.schema.get_field("language").unwrap())
-            .and_then(|v| v.as_text())
+            .and_then(|v| v.as_str())
             .unwrap_or("Unknown");
         
         let file_type_str = doc.get_first(self.schema.get_field("file_type").unwrap())
-            .and_then(|v| v.as_text())
+            .and_then(|v| v.as_str())
             .unwrap_or("Unknown");
         
         let file_size = doc.get_first(self.schema.get_field("file_size").unwrap())
@@ -398,24 +398,23 @@ impl SearchEngine {
         
         // Parse language and file type
         let language = match language_str {
-            "Rust" => Language::Rust,
-            "JavaScript" => Language::JavaScript,
-            "TypeScript" => Language::TypeScript,
-            "Python" => Language::Python,
-            "Java" => Language::Java,
-            "C" => Language::C,
-            "Cpp" => Language::Cpp,
-            "Go" => Language::Go,
-            _ => Language::Unknown,
+            "Rust" => crate::types::Language::Rust,
+            "JavaScript" => crate::types::Language::JavaScript,
+            "TypeScript" => crate::types::Language::TypeScript,
+            "Python" => crate::types::Language::Python,
+            "Java" => crate::types::Language::Java,
+            "C" => crate::types::Language::C,
+            "Cpp" => crate::types::Language::Cpp,
+            _ => crate::types::Language::Unknown,
         };
         
         let file_type = match file_type_str {
-            "Source" => FileType::Source,
-            "Documentation" => FileType::Documentation,
-            "Configuration" => FileType::Configuration,
-            "Data" => FileType::Data,
-            "Binary" => FileType::Binary,
-            _ => FileType::Unknown,
+            "Source" => crate::types::FileType::Source,
+            "Documentation" => crate::types::FileType::Documentation,
+            "Configuration" => crate::types::FileType::Configuration,
+            "Data" => crate::types::FileType::Data,
+            "Binary" => crate::types::FileType::Binary,
+            _ => crate::types::FileType::Unknown,
         };
         
         // Create indexed file
@@ -457,11 +456,11 @@ impl SearchEngine {
         
         // Extract symbol information from document
         let symbol_names: Vec<_> = doc.get_all(self.schema.get_field("symbol_name").unwrap())
-            .filter_map(|v| v.as_text())
+            .filter_map(|v| v.as_str())
             .collect();
         
         let symbol_types: Vec<_> = doc.get_all(self.schema.get_field("symbol_type").unwrap())
-            .filter_map(|v| v.as_text())
+            .filter_map(|v| v.as_str())
             .collect();
         
         let symbol_lines: Vec<_> = doc.get_all(self.schema.get_field("symbol_line").unwrap())
@@ -502,7 +501,7 @@ impl SearchEngine {
         
         // Get content from document
         if let Some(content) = doc.get_first(self.schema.get_field("content").unwrap())
-            .and_then(|v| v.as_text()) {
+            .and_then(|v| v.as_str()) {
             
             let matches = highlight_matches(content, &query.query, query.case_sensitive);
             if !matches.is_empty() {
@@ -545,7 +544,7 @@ impl SearchEngine {
         let mut line_matches = Vec::new();
         
         if let Some(content) = doc.get_first(self.schema.get_field("content").unwrap())
-            .and_then(|v| v.as_text()) {
+            .and_then(|v| v.as_str()) {
             
             for (line_num, line) in content.lines().enumerate() {
                 let matches = highlight_matches(line, &query.query, query.case_sensitive);
@@ -570,7 +569,7 @@ impl SearchEngine {
         let symbol_name_field = self.schema.get_field("symbol_name").unwrap();
         
         // Use prefix query for suggestions
-        let query = Box::new(TermQuery::new(
+        let query: Box<dyn tantivy::query::Query> = Box::new(TermQuery::new(
             Term::from_field_text(symbol_name_field, prefix),
             IndexRecordOption::Basic,
         ));
@@ -582,7 +581,7 @@ impl SearchEngine {
         for (_score, doc_address) in search_results {
             let doc = searcher.doc(doc_address)?;
             if let Some(symbol_name) = doc.get_first(symbol_name_field)
-                .and_then(|v| v.as_text()) {
+                .and_then(|v| v.as_str()) {
                 if symbol_name.starts_with(prefix) && !suggestions.contains(&symbol_name.to_string()) {
                     suggestions.push(symbol_name.to_string());
                 }

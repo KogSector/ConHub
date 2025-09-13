@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::collections::HashMap;
+
 use tokio::sync::RwLock;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
@@ -104,12 +104,12 @@ impl<T: Clone> IntelligentCache<T> {
 }
 
 pub struct PerformanceOptimizer {
-    search_cache: IntelligentCache<crate::lexor::types::SearchResult>,
-    symbol_cache: IntelligentCache<Vec<crate::lexor::types::Symbol>>,
+    search_cache: IntelligentCache<crate::types::SearchResult>,
+    symbol_cache: IntelligentCache<Vec<crate::types::Symbol>>,
     metrics: Arc<RwLock<PerformanceMetrics>>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct PerformanceMetrics {
     pub cache_hits: u64,
     pub cache_misses: u64,
@@ -133,7 +133,7 @@ impl PerformanceOptimizer {
         }
     }
 
-    pub async fn get_cached_search(&self, query_hash: &str) -> Option<crate::lexor::types::SearchResult> {
+    pub async fn get_cached_search(&self, query_hash: &str) -> Option<crate::types::SearchResult> {
         let result = self.search_cache.get(query_hash).await;
         
         let mut metrics = self.metrics.write().await;
@@ -146,9 +146,9 @@ impl PerformanceOptimizer {
         result
     }
 
-    pub async fn cache_search_result(&self, query_hash: String, result: crate::lexor::types::SearchResult) {
+    pub async fn cache_search_result(&self, query_hash: String, result: crate::types::SearchResult) {
         let size_estimate = std::mem::size_of_val(&result) + 
-            result.results.len() * std::mem::size_of::<crate::lexor::types::SearchHit>();
+            result.results.len() * std::mem::size_of::<crate::types::SearchHit>();
         
         self.search_cache.put(query_hash, result, size_estimate).await;
     }
@@ -163,11 +163,11 @@ impl PerformanceOptimizer {
     }
 
     pub async fn get_metrics(&self) -> PerformanceMetrics {
-        self.metrics.read().await.clone()
+        (*self.metrics.read().await).clone()
     }
 }
 
-pub fn create_query_hash(query: &crate::lexor::types::SearchQuery) -> String {
+pub fn create_query_hash(query: &crate::types::SearchQuery) -> String {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
     

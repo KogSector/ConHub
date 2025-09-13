@@ -3,10 +3,6 @@ const path = require('path')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  // Set the source directory to frontend
-  experimental: {
-    appDir: true,
-  },
   // Load .env from root directory
   env: {
     ...(function() {

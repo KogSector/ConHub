@@ -43,7 +43,7 @@ pub struct IndexedFile {
     pub encoding: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub enum FileType {
     Source,
     Documentation,
@@ -55,7 +55,7 @@ pub enum FileType {
     Unknown,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub enum Language {
     Rust,
     JavaScript,
@@ -92,7 +92,7 @@ pub struct Symbol {
     pub namespace: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum SymbolType {
     Function,
     Method,
@@ -146,7 +146,7 @@ pub struct SearchQuery {
     pub offset: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
 pub enum QueryType {
     FullText,
     Symbol,

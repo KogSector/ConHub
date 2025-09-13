@@ -1,6 +1,6 @@
 import express from 'express';
-import { connectDataSource, disconnectDataSource, getDataSources, syncDataSource } from '../services/dataSourceService.js';
-import { logger } from '../utils/logger.js';
+import { connectDataSource, disconnectDataSource, getDataSources, syncDataSource } from '../services/dataSourceService';
+import { logger } from '../utils/logger';
 
 const router = express.Router();
 

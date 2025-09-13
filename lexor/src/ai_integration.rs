@@ -1,4 +1,4 @@
-use crate::lexor::types::*;
+use crate::types::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -109,7 +109,7 @@ impl AIContextEngine {
         ComplexityMetrics {
             cyclomatic_complexity: avg_complexity as u32,
             cognitive_complexity: (avg_complexity * 1.2) as u32,
-            maintainability_index: (100.0 - avg_complexity).max(0.0),
+            maintainability_index: (100.0_f32 - avg_complexity).max(0.0_f32),
             technical_debt_ratio: (avg_complexity / 100.0).min(1.0),
         }
     }
@@ -157,7 +157,7 @@ impl AIContextEngine {
         prompt
     }
 
-    pub fn update_symbol_graph(&mut self, file_symbols: HashMap<String, Vec<Symbol>>) {
+    pub fn update_symbol_graph(&mut self, file_symbols: HashMap<String, Vec<crate::types::Symbol>>) {
         for (file_path, symbols) in file_symbols {
             let symbol_names: Vec<String> = symbols.iter().map(|s| s.name.clone()).collect();
             self.symbol_graph.insert(file_path, symbol_names);

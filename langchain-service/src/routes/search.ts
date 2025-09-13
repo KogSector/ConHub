@@ -1,6 +1,6 @@
 import express from 'express';
-import { searchContent, searchCode, searchDocuments } from '../services/searchService.js';
-import { logger } from '../utils/logger.js';
+import { searchContent, searchCode, searchDocuments } from '../services/searchService';
+import { logger } from '../utils/logger';
 
 const router = express.Router();
 

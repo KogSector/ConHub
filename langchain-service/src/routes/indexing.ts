@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
-import { indexRepository, indexDocument, getIndexingStatus } from '../services/indexingService.js';
-import { logger } from '../utils/logger.js';
+import { indexRepository, indexDocument, getIndexingStatus } from '../services/indexingService';
+import { logger } from '../utils/logger';
 
 const router = express.Router();
 

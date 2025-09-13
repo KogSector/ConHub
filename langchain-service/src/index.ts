@@ -3,11 +3,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import { errorHandler, notFound } from './middleware/errorMiddleware.js';
-import { logger } from './utils/logger.js';
-import indexingRoutes from './routes/indexing.js';
-import searchRoutes from './routes/search.js';
-import dataSourceRoutes from './routes/dataSources.js';
+import { errorHandler, notFound } from './middleware/errorMiddleware';
+import { logger } from './utils/logger';
+import indexingRoutes from './routes/indexing';
+import searchRoutes from './routes/search';
+import dataSourceRoutes from './routes/dataSources';
 
 // Load environment variables
 dotenv.config();

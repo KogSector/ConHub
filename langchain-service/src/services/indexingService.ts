@@ -4,8 +4,8 @@ import { GithubRepoLoader } from '@langchain/community/document_loaders/web/gith
 import { DirectoryLoader } from 'langchain/document_loaders/fs/directory';
 import { TextLoader } from 'langchain/document_loaders/fs/text';
 // Note: PDF loader might not be available in this version, will handle gracefully
-import { vectorStore } from './vectorStore.js';
-import { logger } from '../utils/logger.js';
+import { vectorStore } from './vectorStore';
+import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 
 interface IndexingResult {

@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::fs;
 use std::io::{self, Read};
 use sha2::{Sha256, Digest};
-use encoding_rs::{Encoding, UTF_8, WINDOWS_1252, ISO_8859_1};
+use encoding_rs::{Encoding, UTF_8, WINDOWS_1252};
 use regex::Regex;
 use once_cell::sync::Lazy;
 
@@ -62,7 +62,7 @@ pub fn detect_encoding(bytes: &[u8]) -> &'static Encoding {
     } else if high_bit_count > non_ascii_count / 2 {
         WINDOWS_1252
     } else {
-        ISO_8859_1
+        WINDOWS_1252
     }
 }
 

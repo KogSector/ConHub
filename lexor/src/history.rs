@@ -1,5 +1,5 @@
-use crate::lexor::types::*;
-use git2::{Repository, Oid, Commit, DiffOptions, DiffFormat};
+use crate::types::*;
+use git2::{Repository, Oid, Commit, DiffOptions, DiffFormat, Delta};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -17,7 +17,7 @@ impl HistoryAnalyzer {
         }
     }
 
-    pub fn analyze_repository(&mut self, project_path: &Path) -> Result<Vec<HistoryEntry>, Box<dyn std::error::Error>> {
+    pub fn analyze_repository(&self, project_path: &Path) -> Result<Vec<HistoryEntry>, Box<dyn std::error::Error>> {
         let repo = self.get_or_open_repository(project_path)?;
         let mut history_entries = Vec::new();
 
@@ -39,16 +39,11 @@ impl HistoryAnalyzer {
         Ok(history_entries)
     }
 
-    fn get_or_open_repository(&mut self, path: &Path) -> Result<&Repository, Box<dyn std::error::Error>> {
-        if !self.repositories.contains_key(path) {
-            let repo = Repository::open(path)?;
-            self.repositories.insert(path.to_path_buf(), repo);
-        }
-        
-        Ok(self.repositories.get(path).unwrap())
+    fn get_or_open_repository(&self, path: &Path) -> Result<Repository, Box<dyn std::error::Error>> {
+        Ok(Repository::open(path)?)
     }
 
-    fn analyze_commit(&self, repo: &Repository, commit: &Commit, project_path: &Path) -> Result<HistoryEntry, Box<dyn std::error::Error>> {
+    fn analyze_commit(&self, repo: &Repository, commit: &Commit, _project_path: &Path) -> Result<HistoryEntry, Box<dyn std::error::Error>> {
         let commit_id = commit.id().to_string();
         let author = commit.author();
         let committer = commit.committer();
@@ -91,9 +86,26 @@ impl HistoryAnalyzer {
             // Analyze each delta
             diff.foreach(
                 &mut |delta, _progress| {
-                    if let Some(change) = self.analyze_diff_delta(&delta) {
-                        changes.push(change);
-                    }
+                    let old_path = delta.old_file().path().map(|p| p.to_path_buf());
+                    let new_path = delta.new_file().path().map(|p| p.to_path_buf());
+                    let status = delta.status();
+                    
+                    let change_type = match status {
+                        git2::Delta::Added => ChangeType::Added,
+                        git2::Delta::Deleted => ChangeType::Deleted,
+                        git2::Delta::Modified => ChangeType::Modified,
+                        git2::Delta::Renamed => ChangeType::Renamed,
+                        git2::Delta::Copied => ChangeType::Copied,
+                        _ => return true,
+                    };
+                    
+                    changes.push(FileChange {
+                        change_type,
+                        old_path,
+                        new_path,
+                        lines_added: 0,
+                        lines_deleted: 0,
+                    });
                     true
                 },
                 None,
@@ -145,7 +157,7 @@ impl HistoryAnalyzer {
         })
     }
 
-    pub fn get_file_history(&mut self, project_path: &Path, file_path: &Path) -> Result<Vec<HistoryEntry>, Box<dyn std::error::Error>> {
+    pub fn get_file_history(&self, project_path: &Path, file_path: &Path) -> Result<Vec<HistoryEntry>, Box<dyn std::error::Error>> {
         let repo = self.get_or_open_repository(project_path)?;
         let mut history_entries = Vec::new();
 
@@ -208,7 +220,7 @@ impl HistoryAnalyzer {
         }
     }
 
-    pub fn get_blame_info(&mut self, project_path: &Path, file_path: &Path) -> Result<Vec<BlameInfo>, Box<dyn std::error::Error>> {
+    pub fn get_blame_info(&self, project_path: &Path, file_path: &Path) -> Result<Vec<BlameInfo>, Box<dyn std::error::Error>> {
         let repo = self.get_or_open_repository(project_path)?;
         let blame = repo.blame_file(file_path, None)?;
         
@@ -239,7 +251,7 @@ impl HistoryAnalyzer {
         Ok(blame_info)
     }
 
-    pub fn get_branches(&mut self, project_path: &Path) -> Result<Vec<BranchInfo>, Box<dyn std::error::Error>> {
+    pub fn get_branches(&self, project_path: &Path) -> Result<Vec<BranchInfo>, Box<dyn std::error::Error>> {
         let repo = self.get_or_open_repository(project_path)?;
         let mut branches = Vec::new();
         
@@ -281,7 +293,7 @@ impl HistoryAnalyzer {
         Ok(branches)
     }
 
-    pub fn get_tags(&mut self, project_path: &Path) -> Result<Vec<TagInfo>, Box<dyn std::error::Error>> {
+    pub fn get_tags(&self, project_path: &Path) -> Result<Vec<TagInfo>, Box<dyn std::error::Error>> {
         let repo = self.get_or_open_repository(project_path)?;
         let mut tags = Vec::new();
         
@@ -302,7 +314,7 @@ impl HistoryAnalyzer {
         Ok(tags)
     }
 
-    pub fn get_commit_diff(&mut self, project_path: &Path, commit_id: &str) -> Result<CommitDiff, Box<dyn std::error::Error>> {
+    pub fn get_commit_diff(&self, project_path: &Path, commit_id: &str) -> Result<CommitDiff, Box<dyn std::error::Error>> {
         let repo = self.get_or_open_repository(project_path)?;
         let oid = Oid::from_str(commit_id)?;
         let commit = repo.find_commit(oid)?;
@@ -316,9 +328,23 @@ impl HistoryAnalyzer {
             
             diff.foreach(
                 &mut |delta, _progress| {
-                    if let Some(file_diff) = self.create_file_diff(&repo, &delta) {
-                        file_diffs.push(file_diff);
-                    }
+                    let old_path = delta.old_file().path().map(|p| p.to_path_buf());
+                    let new_path = delta.new_file().path().map(|p| p.to_path_buf());
+                    let status = delta.status();
+                    
+                    let file_diff = FileDiff {
+                        old_path,
+                        new_path,
+                        status: match status {
+                            git2::Delta::Added => DiffStatus::Added,
+                            git2::Delta::Deleted => DiffStatus::Deleted,
+                            git2::Delta::Modified => DiffStatus::Modified,
+                            git2::Delta::Renamed => DiffStatus::Renamed,
+                            _ => DiffStatus::Modified,
+                        },
+                        changes: Vec::new(),
+                    };
+                    file_diffs.push(file_diff);
                     true
                 },
                 None,
@@ -333,31 +359,7 @@ impl HistoryAnalyzer {
         })
     }
 
-    fn create_file_diff(&self, repo: &Repository, delta: &git2::DiffDelta) -> Option<FileDiff> {
-        let old_path = delta.old_file().path().map(|p| p.to_path_buf());
-        let new_path = delta.new_file().path().map(|p| p.to_path_buf());
-        
-        let change_type = match delta.status() {
-            git2::Delta::Added => ChangeType::Added,
-            git2::Delta::Deleted => ChangeType::Deleted,
-            git2::Delta::Modified => ChangeType::Modified,
-            git2::Delta::Renamed => ChangeType::Renamed,
-            git2::Delta::Copied => ChangeType::Copied,
-            _ => return None,
-        };
 
-        // TODO: Get actual diff content
-        let diff_content = String::new();
-        
-        Some(FileDiff {
-            old_path,
-            new_path,
-            change_type,
-            diff_content,
-            lines_added: 0,
-            lines_deleted: 0,
-        })
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -395,8 +397,14 @@ pub struct CommitDiff {
 pub struct FileDiff {
     pub old_path: Option<PathBuf>,
     pub new_path: Option<PathBuf>,
-    pub change_type: ChangeType,
-    pub diff_content: String,
-    pub lines_added: u32,
-    pub lines_deleted: u32,
+    pub status: DiffStatus,
+    pub changes: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub enum DiffStatus {
+    Added,
+    Deleted,
+    Modified,
+    Renamed,
 }

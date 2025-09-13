@@ -1,208 +1,146 @@
 import logging
-import asyncio
 from typing import List, Dict, Any, Optional
-import hashlib
-import os
-from sentence_transformers import SentenceTransformer
-import numpy as np
-from transformers import pipeline
+from haystack import Document, Pipeline
+from haystack.components.embedders import SentenceTransformersTextEmbedder, SentenceTransformersDocumentEmbedder
+from haystack.components.retrievers import InMemoryEmbeddingRetriever
+from haystack.document_stores.in_memory import InMemoryDocumentStore
+from haystack.components.writers import DocumentWriter
+from haystack.components.generators import OpenAIGenerator
+from haystack.components.builders import PromptBuilder
 
 logger = logging.getLogger(__name__)
 
 class HaystackManager:
-    """Simplified Haystack-like document manager without heavy dependencies"""
-    
     def __init__(self):
-        self.documents = {}  # In-memory document store
-        self.embeddings = {}  # Document embeddings
-        self.encoder = None
+        self.document_store = None
+        self.indexing_pipeline = None
+        self.search_pipeline = None
         self.qa_pipeline = None
-        self.initialized = False
-    
+        
     async def initialize(self):
-        """Initialize the components"""
+        """Initialize Haystack components."""
         try:
-            logger.info("Initializing Haystack Manager...")
+            # Initialize document store
+            self.document_store = InMemoryDocumentStore()
             
-            # Initialize sentence transformer for embeddings
-            self.encoder = SentenceTransformer('all-MiniLM-L6-v2')
+            # Initialize embedder
+            embedder = SentenceTransformersDocumentEmbedder(model="sentence-transformers/all-MiniLM-L6-v2")
+            embedder.warm_up()
             
-            # Initialize QA pipeline
-            self.qa_pipeline = pipeline(
-                "question-answering",
-                model="distilbert-base-cased-distilled-squad"
-            )
+            # Create indexing pipeline
+            self.indexing_pipeline = Pipeline()
+            self.indexing_pipeline.add_component("embedder", embedder)
+            self.indexing_pipeline.add_component("writer", DocumentWriter(document_store=self.document_store))
+            self.indexing_pipeline.connect("embedder", "writer")
             
-            self.initialized = True
-            logger.info("Haystack Manager initialized successfully")
+            # Create search pipeline
+            text_embedder = SentenceTransformersTextEmbedder(model="sentence-transformers/all-MiniLM-L6-v2")
+            retriever = InMemoryEmbeddingRetriever(document_store=self.document_store)
+            
+            self.search_pipeline = Pipeline()
+            self.search_pipeline.add_component("text_embedder", text_embedder)
+            self.search_pipeline.add_component("retriever", retriever)
+            self.search_pipeline.connect("text_embedder.embedding", "retriever.query_embedding")
+            
+            logger.info("Haystack manager initialized successfully")
             
         except Exception as e:
-            logger.error(f"Failed to initialize Haystack Manager: {e}")
+            logger.error(f"Failed to initialize Haystack manager: {e}")
             raise
     
-    def is_document_store_ready(self) -> bool:
-        """Check if document store is ready"""
-        return self.initialized
-    
-    def is_retriever_ready(self) -> bool:
-        """Check if retriever is ready"""
-        return self.encoder is not None
-    
-    def is_reader_ready(self) -> bool:
-        """Check if reader is ready"""
-        return self.qa_pipeline is not None
-    
-    async def process_document(self, filename: str, content: bytes, content_type: str) -> str:
-        """Process and store a document"""
+    async def index_documents(self, documents: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Index documents in the document store."""
         try:
-            # Generate document ID
-            doc_id = hashlib.md5(f"{filename}{len(content)}".encode()).hexdigest()
+            haystack_docs = []
+            for doc in documents:
+                haystack_doc = Document(
+                    content=doc["content"],
+                    meta=doc.get("meta", {})
+                )
+                haystack_docs.append(haystack_doc)
             
-            # Extract text based on file type
-            text_content = await self._extract_text(content, filename)
+            result = self.indexing_pipeline.run({"embedder": {"documents": haystack_docs}})
             
-            # Generate embeddings
-            embedding = self.encoder.encode([text_content])[0]
-            
-            # Store document
-            self.documents[doc_id] = {
-                "id": doc_id,
-                "filename": filename,
-                "content": text_content,
-                "content_type": content_type,
-                "meta": {
-                    "filename": filename,
-                    "size": len(content)
-                }
+            return {
+                "index_id": "memory_store",
+                "document_count": len(haystack_docs)
             }
             
-            # Store embedding
-            self.embeddings[doc_id] = embedding
-            
-            logger.info(f"Processed document: {filename} (ID: {doc_id})")
-            return doc_id
-            
         except Exception as e:
-            logger.error(f"Error processing document {filename}: {e}")
+            logger.error(f"Error indexing documents: {e}")
             raise
     
-    async def _extract_text(self, content: bytes, filename: str) -> str:
-        """Extract text from different file types"""
-        file_extension = os.path.splitext(filename)[1].lower()
-        
-        if file_extension == '.txt' or file_extension == '.md':
-            return content.decode('utf-8')
-        elif file_extension == '.pdf':
-            try:
-                from pypdf import PdfReader
-                import io
-                pdf_reader = PdfReader(io.BytesIO(content))
-                text = ""
-                for page in pdf_reader.pages:
-                    text += page.extract_text()
-                return text
-            except Exception as e:
-                logger.error(f"Error extracting PDF text: {e}")
-                return "Error extracting PDF content"
-        elif file_extension == '.docx':
-            try:
-                from docx import Document
-                import io
-                doc = Document(io.BytesIO(content))
-                text = ""
-                for paragraph in doc.paragraphs:
-                    text += paragraph.text + "\n"
-                return text
-            except Exception as e:
-                logger.error(f"Error extracting DOCX text: {e}")
-                return "Error extracting DOCX content"
-        else:
-            return content.decode('utf-8', errors='ignore')
-    
-    async def search(self, query: str, top_k: int = 5, filters: Optional[Dict] = None) -> List[Dict]:
-        """Search for documents using semantic similarity"""
+    async def process_uploaded_file(self, file, metadata: Optional[str] = None) -> Dict[str, Any]:
+        """Process an uploaded file and index it."""
         try:
-            if not self.documents:
-                return []
+            content = await file.read()
+            text_content = content.decode('utf-8')
             
-            # Generate query embedding
-            query_embedding = self.encoder.encode([query])[0]
+            doc = Document(
+                content=text_content,
+                meta={"filename": file.filename, "metadata": metadata or ""}
+            )
             
-            # Calculate similarities
-            similarities = {}
-            for doc_id, doc_embedding in self.embeddings.items():
-                similarity = np.dot(query_embedding, doc_embedding) / (
-                    np.linalg.norm(query_embedding) * np.linalg.norm(doc_embedding)
-                )
-                similarities[doc_id] = similarity
+            result = self.indexing_pipeline.run({"embedder": {"documents": [doc]}})
             
-            # Sort by similarity
-            sorted_docs = sorted(similarities.items(), key=lambda x: x[1], reverse=True)
+            return {
+                "index_id": "memory_store",
+                "document_count": 1
+            }
             
-            # Return top-k results
-            results = []
-            for doc_id, score in sorted_docs[:top_k]:
-                doc = self.documents[doc_id]
-                results.append({
-                    "id": doc_id,
-                    "content": doc["content"][:500] + "..." if len(doc["content"]) > 500 else doc["content"],
-                    "score": float(score),
-                    "meta": doc["meta"]
+        except Exception as e:
+            logger.error(f"Error processing uploaded file: {e}")
+            raise
+    
+    async def search_documents(self, query: str, top_k: int = 10, filters: Optional[Dict] = None) -> List[Dict[str, Any]]:
+        """Search documents using semantic search."""
+        try:
+            result = self.search_pipeline.run({
+                "text_embedder": {"text": query},
+                "retriever": {"top_k": top_k}
+            })
+            
+            documents = result["retriever"]["documents"]
+            
+            search_results = []
+            for doc in documents:
+                search_results.append({
+                    "content": doc.content,
+                    "score": doc.score if hasattr(doc, 'score') else 0.0,
+                    "meta": doc.meta
                 })
             
-            return results
+            return search_results
             
         except Exception as e:
             logger.error(f"Error searching documents: {e}")
             raise
     
-    async def ask_question(self, question: str, top_k: int = 3, filters: Optional[Dict] = None) -> Dict:
-        """Answer a question using the documents"""
+    async def answer_question(self, question: str, top_k: int = 3, filters: Optional[Dict] = None) -> List[Dict[str, Any]]:
+        """Answer a question using retrieved documents."""
         try:
-            # First, find relevant documents
-            relevant_docs = await self.search(question, top_k, filters)
-            
-            if not relevant_docs:
-                return {
-                    "answer": "No relevant documents found",
-                    "confidence": 0.0,
-                    "documents": []
-                }
-            
-            # Use the most relevant document for QA
-            context = relevant_docs[0]["content"]
-            
-            # Get answer from QA pipeline
-            result = self.qa_pipeline(question=question, context=context)
-            
-            return {
-                "answer": result["answer"],
-                "confidence": result["score"],
-                "documents": relevant_docs
-            }
+            # For now, just return search results
+            # In a full implementation, you'd use a generator component
+            return await self.search_documents(question, top_k, filters)
             
         except Exception as e:
             logger.error(f"Error answering question: {e}")
             raise
     
-    async def list_documents(self) -> List[Dict]:
-        """List all documents"""
-        return [
-            {
-                "id": doc["id"],
-                "filename": doc["filename"],
-                "content_type": doc["content_type"],
-                "meta": doc["meta"]
+    async def get_document_stats(self) -> Dict[str, Any]:
+        """Get statistics about indexed documents."""
+        try:
+            count = self.document_store.count_documents()
+            return {
+                "total_documents": count,
+                "document_store_type": "InMemoryDocumentStore"
             }
-            for doc in self.documents.values()
-        ]
+            
+        except Exception as e:
+            logger.error(f"Error getting document stats: {e}")
+            raise
     
-    async def delete_document(self, document_id: str) -> bool:
-        """Delete a document"""
-        if document_id in self.documents:
-            del self.documents[document_id]
-            if document_id in self.embeddings:
-                del self.embeddings[document_id]
-            logger.info(f"Deleted document: {document_id}")
-            return True
-        return False
+    async def cleanup(self):
+        """Cleanup resources."""
+        logger.info("Cleaning up Haystack manager")
+        # Add any cleanup logic here

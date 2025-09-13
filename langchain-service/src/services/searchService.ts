@@ -1,5 +1,5 @@
-import { vectorStore } from './vectorStore.js';
-import { logger } from '../utils/logger.js';
+import { vectorStore } from './vectorStore';
+import { logger } from '../utils/logger';
 
 interface SearchResult {
   id: string;

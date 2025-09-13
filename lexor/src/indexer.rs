@@ -1,8 +1,8 @@
-use crate::lexor::types::*;
-use crate::lexor::config::LexorConfig;
-use crate::lexor::parser::{LanguageParser, SimpleParser};
-use crate::lexor::utils::*;
-use crate::lexor::history::HistoryAnalyzer;
+use crate::types::*;
+use crate::config::{LexorConfig, ProjectConfig};
+use crate::parser::{LanguageParser, SimpleParser};
+use crate::utils::*;
+use crate::history::HistoryAnalyzer;
 
 use tantivy::schema::*;
 use tantivy::{Index, IndexWriter, Document, Term};
@@ -334,7 +334,7 @@ impl IndexerEngine {
         let schema = &self.schema;
 
         // Create document for the file
-        let mut doc = Document::new();
+        let mut doc = tantivy::TantivyDocument::default();
         
         // File fields
         doc.add_text(schema.get_field("file_id").unwrap(), &file.id.to_string());
@@ -348,7 +348,7 @@ impl IndexerEngine {
         doc.add_text(schema.get_field("file_type").unwrap(), &format!("{:?}", file.file_type));
         doc.add_u64(schema.get_field("file_size").unwrap(), file.size);
         doc.add_u64(schema.get_field("line_count").unwrap(), file.lines as u64);
-        doc.add_date(schema.get_field("last_modified").unwrap(), file.last_modified);
+        doc.add_date(schema.get_field("last_modified").unwrap(), tantivy::DateTime::from_timestamp_secs(file.last_modified.timestamp()));
         doc.add_text(schema.get_field("checksum").unwrap(), &file.checksum);
 
         // Content fields

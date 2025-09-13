@@ -1,4 +1,4 @@
-use crate::lexor::types::*;
+use crate::types::*;
 use std::collections::HashMap;
 
 pub struct CodeAnalyzer;

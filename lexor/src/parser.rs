@@ -1,5 +1,5 @@
-use crate::lexor::types::*;
-use crate::lexor::utils::*;
+use crate::types::*;
+use crate::utils::highlight_matches;
 use tree_sitter::{Parser, Tree, Node, Query, QueryCursor, TreeCursor};
 use std::collections::HashMap;
 use std::path::Path;
@@ -36,7 +36,7 @@ impl LanguageParser {
         ] {
             if let Some(ts_lang) = language.tree_sitter_language() {
                 let mut parser = Parser::new();
-                if parser.set_language(ts_lang).is_ok() {
+                if parser.set_language(&ts_lang).is_ok() {
                     parsers.insert(language.clone(), parser);
                     
                     if let Some(query) = Self::create_symbol_queries(&language) {
@@ -53,7 +53,7 @@ impl LanguageParser {
         match language {
             Language::Rust => Some(SymbolQuery {
                 functions: Query::new(
-                    tree_sitter_rust::language(),
+                    &tree_sitter_rust::language(),
                     r#"
                     (function_item
                         name: (identifier) @name
@@ -68,7 +68,7 @@ impl LanguageParser {
                     "#
                 ).ok()?,
                 classes: Query::new(
-                    tree_sitter_rust::language(),
+                    &tree_sitter_rust::language(),
                     r#"
                     (struct_item
                         name: (type_identifier) @name) @struct
@@ -84,7 +84,7 @@ impl LanguageParser {
                     "#
                 ).ok()?,
                 variables: Query::new(
-                    tree_sitter_rust::language(),
+                    &tree_sitter_rust::language(),
                     r#"
                     (let_declaration
                         pattern: (identifier) @name) @variable
@@ -97,7 +97,7 @@ impl LanguageParser {
                     "#
                 ).ok()?,
                 imports: Query::new(
-                    tree_sitter_rust::language(),
+                    &tree_sitter_rust::language(),
                     r#"
                     (use_declaration
                         argument: (scoped_identifier) @import) @use
@@ -110,7 +110,7 @@ impl LanguageParser {
             
             Language::JavaScript | Language::TypeScript => Some(SymbolQuery {
                 functions: Query::new(
-                    tree_sitter_javascript::language(),
+                    &tree_sitter_javascript::language(),
                     r#"
                     (function_declaration
                         name: (identifier) @name
@@ -125,7 +125,7 @@ impl LanguageParser {
                     "#
                 ).ok()?,
                 classes: Query::new(
-                    tree_sitter_javascript::language(),
+                    &tree_sitter_javascript::language(),
                     r#"
                     (class_declaration
                         name: (identifier) @name) @class
@@ -135,7 +135,7 @@ impl LanguageParser {
                     "#
                 ).ok()?,
                 variables: Query::new(
-                    tree_sitter_javascript::language(),
+                    &tree_sitter_javascript::language(),
                     r#"
                     (variable_declarator
                         name: (identifier) @name) @variable
@@ -146,7 +146,7 @@ impl LanguageParser {
                     "#
                 ).ok()?,
                 imports: Query::new(
-                    tree_sitter_javascript::language(),
+                    &tree_sitter_javascript::language(),
                     r#"
                     (import_statement
                         source: (string) @source) @import
@@ -159,7 +159,7 @@ impl LanguageParser {
             
             Language::Python => Some(SymbolQuery {
                 functions: Query::new(
-                    tree_sitter_python::language(),
+                    &tree_sitter_python::language(),
                     r#"
                     (function_definition
                         name: (identifier) @name
@@ -167,21 +167,21 @@ impl LanguageParser {
                     "#
                 ).ok()?,
                 classes: Query::new(
-                    tree_sitter_python::language(),
+                    &tree_sitter_python::language(),
                     r#"
                     (class_definition
                         name: (identifier) @name) @class
                     "#
                 ).ok()?,
                 variables: Query::new(
-                    tree_sitter_python::language(),
+                    &tree_sitter_python::language(),
                     r#"
                     (assignment
                         left: (identifier) @name) @variable
                     "#
                 ).ok()?,
                 imports: Query::new(
-                    tree_sitter_python::language(),
+                    &tree_sitter_python::language(),
                     r#"
                     (import_statement
                         name: (dotted_name) @name) @import
@@ -194,7 +194,7 @@ impl LanguageParser {
             
             Language::Java => Some(SymbolQuery {
                 functions: Query::new(
-                    tree_sitter_java::language(),
+                    &tree_sitter_java::language(),
                     r#"
                     (method_declaration
                         name: (identifier) @name
@@ -206,7 +206,7 @@ impl LanguageParser {
                     "#
                 ).ok()?,
                 classes: Query::new(
-                    tree_sitter_java::language(),
+                    &tree_sitter_java::language(),
                     r#"
                     (class_declaration
                         name: (identifier) @name) @class
@@ -219,7 +219,7 @@ impl LanguageParser {
                     "#
                 ).ok()?,
                 variables: Query::new(
-                    tree_sitter_java::language(),
+                    &tree_sitter_java::language(),
                     r#"
                     (field_declaration
                         declarator: (variable_declarator
@@ -231,7 +231,7 @@ impl LanguageParser {
                     "#
                 ).ok()?,
                 imports: Query::new(
-                    tree_sitter_java::language(),
+                    &tree_sitter_java::language(),
                     r#"
                     (import_declaration
                         (scoped_identifier) @import) @import_stmt
