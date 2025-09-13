@@ -38,9 +38,10 @@ Unify your repositories, docs, and URLs with AI for better development workflows
 npm start
 ```
 
-This automatically starts both services:
+This automatically starts all services:
+- ✅ **Frontend** on port 3000
 - ✅ **Backend API** on port 3001
-- ✅ **Frontend** on port 3000  
+- ✅ **Lexor Service** on port 3002
 - ✅ **Auto-reload** on file changes
 - ✅ **Cross-platform** (Windows, Mac, Linux)
 
@@ -51,18 +52,23 @@ npm run dev:backend
 
 # Frontend only  
 npm run dev:frontend
+
+# Lexor service only
+npm run dev:lexor
 ```
 
 ### Services
 
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:3001
+- **Lexor Service**: http://localhost:3002
 
 ### Port Configuration
 
 The services are pre-configured to use specific ports:
 - **Frontend (Next.js)**: Port 3000
 - **Backend (Rust/Actix)**: Port 3001
+- **Lexor (Rust/Actix)**: Port 3002
 
 No manual port management needed - everything runs on its designated port automatically!
 
@@ -78,11 +84,12 @@ No manual port management needed - everything runs on its designated port automa
 
 ### Available Scripts
 
-- `npm start` - Start the complete ConHub application (frontend + backend)
+- `npm start` - Start the complete ConHub application (frontend + backend + lexor)
 - `npm run dev` - Same as start (alias for development)
 - `npm run dev:frontend` - Start only frontend on port 3000
 - `npm run dev:backend` - Start only backend on port 3001
-- `npm run build` - Build both services for production
+- `npm run dev:lexor` - Start only lexor service on port 3002
+- `npm run build` - Build all services for production
 - `npm run install:all` - Install all dependencies
 
 ## Project Structure
@@ -91,6 +98,9 @@ No manual port management needed - everything runs on its designated port automa
 ConHub/
 ├── frontend/          # Next.js frontend (Port 3000)
 ├── backend/           # Rust backend (Port 3001)
+├── lexor/             # Rust lexor service (Port 3002)
+├── haystack-service/  # Python AI service
+├── langchain-service/ # TypeScript AI service
 └── package.json       # Workspace configuration
 ```
 
@@ -98,6 +108,7 @@ ConHub/
 
 - **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS, Auth0
 - **Backend**: Rust, Actix Web
+- **Lexor**: Rust, Actix Web, Tantivy (code indexing and search)
 - **Authentication**: Auth0
 - **Styling**: Tailwind CSS, shadcn/ui components
 
@@ -156,3 +167,6 @@ Visit http://localhost:3000/test to test the connection between frontend and bac
 
 - Frontend: 3000
 - Backend: 3001
+- Lexor: 3002
+- Haystack Service: 8000
+- LangChain Service: 8001
