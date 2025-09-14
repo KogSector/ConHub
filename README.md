@@ -216,16 +216,72 @@ docker run -p 6333:6333 qdrant/qdrant
 
 ## Available Scripts
 
-- `npm start` - Start all services
+- `npm start` - Start all services (automatically detects platform)
 - `npm run dev` - Same as start (alias)
 - `npm run build` - Build all services for production
 - `npm run lint` - Lint all JavaScript/TypeScript code
 - `npm run test` - Run tests for all services
+- `npm run test:services` - Test service endpoints
+- `npm run check:services` - Check service health
 - `npm run dev:frontend` - Frontend only
 - `npm run dev:backend` - Backend only
 - `npm run dev:lexor` - Lexor service only
 - `npm run dev:langchain` - LangChain service only
 - `npm run dev:haystack` - Haystack service only
+
+### Platform-Specific Scripts
+
+ConHub includes cross-platform scripts for service management:
+
+**Windows PowerShell (Recommended)**
+```powershell
+.\scripts\start.ps1        # Start all services
+.\scripts\stop.ps1         # Stop all services  
+.\scripts\test.ps1         # Test service endpoints
+.\scripts\check.ps1        # Check service health
+```
+
+**Windows Command Prompt**
+```cmd
+scripts\start.bat          # Start all services
+scripts\stop.bat           # Stop all services
+scripts\test.bat           # Test service endpoints
+scripts\check.bat          # Check service health
+```
+
+**Linux/macOS**
+```bash
+./scripts/start.sh         # Start all services
+./scripts/stop.sh          # Stop all services
+./scripts/test.sh          # Test service endpoints
+./scripts/check.sh         # Check service health
+```
+
+### Service Ports & Health Checks
+
+| Service | Port | Health Check URL | Description |
+|---------|------|------------------|-------------|
+| **Frontend** | 3000 | http://localhost:3000 | Next.js web interface |
+| **Backend** | 3001 | http://localhost:3001/health | Rust API server |
+| **LangChain** | 3003 | http://localhost:3003/health | TypeScript AI service |
+| **Haystack** | 8001 | http://localhost:8001/health | Python document service |
+
+### Platform Detection
+
+The build system automatically detects your platform and runs the appropriate scripts:
+- **Windows**: Runs `.ps1` scripts by default, falls back to `.bat`
+- **Linux/macOS**: Runs `.sh` scripts
+
+### Prerequisites for Scripts
+
+1. **Node.js** and **npm** installed
+2. **Rust** and **Cargo** installed  
+3. **Python** virtual environment (`.venv`) created in project root
+4. All dependencies installed:
+   ```bash
+   npm install
+   pip install -r requirements.txt
+   ```
 
 ## Project Structure
 
@@ -332,18 +388,59 @@ cargo build --release
 
 ### Common Issues
 
-1. **Port conflicts**: Check if ports 3000-3002, 8001 are available
+1. **Port conflicts**: Check if ports 3000-3003, 8001 are available
 2. **Missing dependencies**: Run `npm install` and `pip install -r requirements.txt`
 3. **Auth0 errors**: Verify Auth0 configuration in `.env`
 4. **Model downloads**: Ensure internet connection for first-time model downloads
 5. **Memory issues**: Reduce batch sizes or use smaller models
 
+### Platform-Specific Issues
+
+**Windows: PowerShell Execution Policy Error**
+If you get an execution policy error when running `.ps1` scripts:
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+**Linux/macOS: Permission Denied**
+Make scripts executable:
+```bash
+chmod +x scripts/*.sh
+```
+
+**Python Virtual Environment Issues**
+Make sure the Python virtual environment is created and activated:
+```bash
+# Create virtual environment
+python -m venv .venv
+
+# Windows
+.venv\Scripts\activate
+
+# Linux/macOS
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
 ### Service Health Checks
 - Frontend: http://localhost:3000
 - Backend: http://localhost:3001/health
-- Lexor: http://localhost:3002/health
-- LangChain: http://localhost:3002/health
+- LangChain: http://localhost:3003/health
 - Haystack: http://localhost:8001/health
+
+**Quick Health Check Commands:**
+```bash
+# Test all services at once
+npm run check:services
+
+# Or test individually
+curl http://localhost:3000          # Frontend
+curl http://localhost:3001/health   # Backend
+curl http://localhost:3003/health   # LangChain  
+curl http://localhost:8001/health   # Haystack
+```
 
 ## Contributing
 

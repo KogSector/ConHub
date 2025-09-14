@@ -1,3 +1,7 @@
+// This file contains service orchestration logic that will be used in future versions
+// Currently commented out to avoid unused code warnings
+
+/*
 use reqwest::Client;
 use serde_json::json;
 use std::collections::HashMap;
@@ -92,3 +96,4 @@ impl ServiceOrchestrator {
         statuses
     }
 }
+*/
