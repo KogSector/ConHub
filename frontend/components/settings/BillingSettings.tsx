@@ -101,19 +101,6 @@ export function BillingSettings() {
               <Progress value={2.1} className="h-2" />
             </div>
           </div>
-
-          <div className="flex gap-4">
-            <Button variant="outline">
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Upgrade Plan
-            </Button>
-            <Button variant="outline">
-              View All Plans
-            </Button>
-            <Button variant="outline" className="text-destructive">
-              Cancel Subscription
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
@@ -341,6 +328,27 @@ export function BillingSettings() {
               </p>
             </div>
             <Button variant="outline">Configure</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Plan Management Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Plan Management</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4">
+            <Button variant="outline">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Upgrade Plan
+            </Button>
+            <Button variant="outline">
+              View All Plans
+            </Button>
+            <Button variant="outline" className="text-destructive">
+              Cancel Subscription
+            </Button>
           </div>
         </CardContent>
       </Card>

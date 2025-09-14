@@ -7,7 +7,7 @@ import Link from "next/link";
 import { 
   Bot, 
   Plus, 
-  Settings, 
+  Settings,
   Activity,
   Code,
   Network,
@@ -30,12 +30,6 @@ export default function Dashboard() {
               <h1 className="text-3xl md:text-4xl font-bold font-orbitron bg-gradient-to-r from-primary via-primary-glow to-accent bg-clip-text text-transparent">ConHub</h1>
             </div>
             <div className="flex items-center gap-4">
-              <Link href="/dashboard/settings">
-                <Button variant="ghost" size="sm">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </Button>
-              </Link>
               <ProfileAvatar />
             </div>
           </div>

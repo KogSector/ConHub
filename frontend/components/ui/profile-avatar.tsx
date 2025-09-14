@@ -1,61 +1,61 @@
-'use client'
-
-import { useAuth } from "@/hooks/use-auth"
-import { Button } from "@/components/ui/button"
-import { 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { LogOut, Settings } from "lucide-react"
+} from "@/components/ui/dropdown-menu";
+import { User, Settings, LogOut, CreditCard } from "lucide-react";
+import Link from "next/link";
 
-export const ProfileAvatar = () => {
-  const { user, logout } = useAuth()
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
-  }
-
-  const displayName = user?.name || user?.email || 'User'
-  const initials = getInitials(displayName)
-
+export function ProfileAvatar() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
-          {user?.picture ? (
-            <img
-              src={user.picture}
-              alt="Profile"
-              className="h-8 w-8 rounded-full object-cover"
-            />
-          ) : (
-            <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
-              {initials}
-            </div>
-          )}
+        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src="/placeholder.svg" alt="Profile" />
+            <AvatarFallback>JD</AvatarFallback>
+          </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <div className="px-2 py-1.5 text-sm">
-          <div className="font-medium">{displayName}</div>
-          {user?.email && <div className="text-muted-foreground">{user.email}</div>}
-        </div>
-        <DropdownMenuItem>
-          <Settings className="w-4 h-4 mr-2" />
-          Settings
+      <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">John Doe</p>
+            <p className="text-xs leading-none text-muted-foreground">
+              john.doe@example.com
+            </p>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/settings" className="cursor-pointer">
+            <User className="mr-2 h-4 w-4" />
+            <span>Profile</span>
+          </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={logout}>
-          <LogOut className="w-4 h-4 mr-2" />
-          Sign Out
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/settings?tab=billing" className="cursor-pointer">
+            <CreditCard className="mr-2 h-4 w-4" />
+            <span>Billing</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/settings?tab=security" className="cursor-pointer">
+            <Settings className="mr-2 h-4 w-4" />
+            <span>Settings</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="cursor-pointer">
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

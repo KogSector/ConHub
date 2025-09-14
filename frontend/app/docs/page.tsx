@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
+import { useAuth } from "@/hooks/use-auth";
+import Link from "next/link";
 import { 
   BookOpen, 
   Bot, 
@@ -14,10 +16,23 @@ import {
   Code,
   Users,
   GitBranch,
-  Target
+  Target,
+  ArrowRight
 } from "lucide-react";
 
 export default function Documentation() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  const handleDashboardClick = () => {
+    if (isAuthenticated) {
+      window.location.href = '/dashboard';
+    } else {
+      // For now, redirect to home page since /login is not implemented yet
+      // TODO: Change to '/login' when login page is implemented
+      window.location.href = '/';
+    }
+  };
+
   const sections = [
     {
       title: "Getting Started",
@@ -113,6 +128,29 @@ export default function Documentation() {
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
                 Everything you need to master ConHub, from basic setup to advanced integrations.
               </p>
+              
+              {/* Dashboard Button */}
+              <div className="flex justify-center mt-6">
+                <Button 
+                  onClick={handleDashboardClick}
+                  disabled={isLoading}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  {isLoading ? (
+                    "Loading..."
+                  ) : isAuthenticated ? (
+                    <>
+                      Go to Dashboard
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </>
+                  ) : (
+                    <>
+                      Get Started
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </>
+                  )}
+                </Button>
+              </div>
               
               {/* Search Bar */}
               <div className="max-w-lg mx-auto mt-8">

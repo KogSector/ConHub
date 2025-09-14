@@ -263,121 +263,88 @@ export function SecuritySettings() {
         <CardContent className="space-y-4">
           {apiTokens.map((token) => (
             <div key={token.id} className="p-4 rounded-lg border border-border bg-muted/20">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
                     <span className="font-medium">{token.name}</span>
                     <div className="flex gap-1">
                       {token.permissions.map((perm) => (
-                        <Badge key={perm} variant="outline" className="text-xs">
+                        <Badge key={perm} variant="secondary" className="text-xs">
                           {perm}
                         </Badge>
                       ))}
                     </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    Created: {token.created} • Last used: {token.lastUsed}
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <div className="flex items-center gap-1">
+                      <Key className="w-3 h-3" />
+                      <code className="bg-muted px-2 py-1 rounded text-xs">{token.token}</code>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span>Created: {token.created}</span>
+                      <span>Last used: {token.lastUsed}</span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm">
-                    <Copy className="w-4 h-4" />
+                  <Button variant="outline" size="sm">
+                    <Eye className="w-4 h-4 mr-2" />
+                    View
                   </Button>
-                  <Button variant="ghost" size="sm" className="text-destructive">
-                    <Trash2 className="w-4 h-4" />
+                  <Button variant="outline" size="sm" className="text-destructive">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
                   </Button>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Input 
-                  type="password" 
-                  value={token.token} 
-                  readOnly 
-                  className="h-8 text-xs font-mono"
-                />
-                <Button variant="outline" size="sm">
-                  <Eye className="w-4 h-4" />
-                </Button>
               </div>
             </div>
           ))}
         </CardContent>
       </Card>
 
-      {/* Data & Privacy */}
+      {/* Security Audit Log */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
-            Data & Privacy
+            <AlertTriangle className="w-5 h-5" />
+            Security Audit Log
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Data encryption</Label>
-              <p className="text-sm text-muted-foreground">
-                All data is encrypted at rest and in transit
-              </p>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
+              <div className="flex items-center gap-3">
+                <Shield className="w-4 h-4 text-green-600" />
+                <div>
+                  <p className="font-medium">Password changed</p>
+                  <p className="text-sm text-muted-foreground">2 hours ago from 192.168.1.100</p>
+                </div>
+              </div>
             </div>
-            <Badge variant="default">Enabled</Badge>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Activity logging</Label>
-              <p className="text-sm text-muted-foreground">
-                Keep logs of account activity for security purposes
-              </p>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
+              <div className="flex items-center gap-3">
+                <Key className="w-4 h-4 text-blue-600" />
+                <div>
+                  <p className="font-medium">API token created</p>
+                  <p className="text-sm text-muted-foreground">1 day ago</p>
+                </div>
+              </div>
             </div>
-            <Switch defaultChecked />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Analytics collection</Label>
-              <p className="text-sm text-muted-foreground">
-                Help improve ConHub by sharing anonymous usage data
-              </p>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
+              <div className="flex items-center gap-3">
+                <Smartphone className="w-4 h-4 text-orange-600" />
+                <div>
+                  <p className="font-medium">New device login</p>
+                  <p className="text-sm text-muted-foreground">3 days ago from iPhone</p>
+                </div>
+              </div>
             </div>
-            <Switch />
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Export account data</Label>
-              <p className="text-sm text-muted-foreground">
-                Download a copy of all your ConHub data
-              </p>
-            </div>
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Export Data
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label className="text-destructive">Delete account</Label>
-              <p className="text-sm text-muted-foreground">
-                Permanently delete your account and all associated data
-              </p>
-            </div>
-            <Button variant="destructive">
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete Account
-            </Button>
           </div>
         </CardContent>
       </Card>
-
-      {/* Save Changes */}
-      <div className="flex justify-end gap-4">
-        <Button variant="outline">Cancel</Button>
-        <Button>Save Changes</Button>
-      </div>
     </div>
   );
 }

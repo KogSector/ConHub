@@ -26,6 +26,8 @@
     "lint": "cd frontend && next lint && cd ../langchain-service && eslint src/**/*.ts",
     "lint:fix": "cd frontend && next lint --fix && cd ../langchain-service && eslint src/**/*.ts --fix",
     "test": "cd langchain-service && jest",
+    "test:settings": "powershell -ExecutionPolicy Bypass -File scripts/test-settings.ps1",
+    "test:settings:linux": "./scripts/test-settings.sh",
     "install:all": "npm install"
   },
   "dependencies": {

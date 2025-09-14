@@ -1,97 +1,63 @@
-import { Button } from "@/components/ui/button";
-import { Mail, Linkedin } from "lucide-react";
+import Link from "next/link";
 
-export const Footer = () => {
+export function Footer() {
   return (
-    <footer className="bg-card border-t border-border">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid md:grid-cols-4 gap-8">
-          {/* Brand */}
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <span className="text-xl font-bold text-foreground">ConHub</span>
-            </div>
-            <p className="text-muted-foreground max-w-xs">
-              Unify your repositories with AI for better microservices development.
-            </p>
-            <div className="flex space-x-3">
-              <Button variant="ghost" size="sm" asChild>
-                <a href="https://www.linkedin.com/in/rishabh-das-64a336215/" target="_blank" rel="noopener noreferrer">
-                  <Linkedin className="w-4 h-4" />
-                </a>
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <a href="mailto:rishabh.babi@gmail.com">
-                  <Mail className="w-4 h-4" />
-                </a>
-              </Button>
-            </div>
+    <footer className="border-t border-border bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold">Product</h3>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><Link href="/features" className="hover:text-foreground">Features</Link></li>
+              <li><Link href="/pricing" className="hover:text-foreground">Pricing</Link></li>
+              <li><Link href="/docs" className="hover:text-foreground">Documentation</Link></li>
+              <li><Link href="/api" className="hover:text-foreground">API</Link></li>
+            </ul>
           </div>
-
-          {/* Product */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground">Product</h3>
-            <div className="space-y-2 text-sm">
-              <a href="/#features" className="block text-muted-foreground hover:text-foreground transition-colors">
-                Features
-              </a>
-              <a href="/docs" className="block text-muted-foreground hover:text-foreground transition-colors">
-                Documentation
-              </a>
-              <a href="/pricing" className="block text-muted-foreground hover:text-foreground transition-colors">
-                Pricing
-              </a>
-              <a href="/changelog" className="block text-muted-foreground hover:text-foreground transition-colors">
-                Changelog
-              </a>
-            </div>
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold">Company</h3>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><Link href="/about" className="hover:text-foreground">About</Link></li>
+              <li><Link href="/blog" className="hover:text-foreground">Blog</Link></li>
+              <li><Link href="/careers" className="hover:text-foreground">Careers</Link></li>
+              <li><Link href="/contact" className="hover:text-foreground">Contact</Link></li>
+            </ul>
           </div>
-
-          {/* Developers */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground">Developers</h3>
-            <div className="space-y-2 text-sm">
-              <a href="/api" className="block text-muted-foreground hover:text-foreground transition-colors">
-                API Reference
-              </a>
-              <a href="/sdk" className="block text-muted-foreground hover:text-foreground transition-colors">
-                SDKs
-              </a>
-              <a href="/webhooks" className="block text-muted-foreground hover:text-foreground transition-colors">
-                Webhooks
-              </a>
-              <a href="/examples" className="block text-muted-foreground hover:text-foreground transition-colors">
-                Examples
-              </a>
-            </div>
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold">Resources</h3>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><Link href="/help" className="hover:text-foreground">Help Center</Link></li>
+              <li><Link href="/community" className="hover:text-foreground">Community</Link></li>
+              <li><Link href="/status" className="hover:text-foreground">Status</Link></li>
+              <li><Link href="/changelog" className="hover:text-foreground">Changelog</Link></li>
+            </ul>
           </div>
-
-          {/* Company */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground">Company</h3>
-            <div className="space-y-2 text-sm">
-              <a href="/about" className="block text-muted-foreground hover:text-foreground transition-colors">
-                About
-              </a>
-              <a href="/blog" className="block text-muted-foreground hover:text-foreground transition-colors">
-                Blog
-              </a>
-              <a href="/careers" className="block text-muted-foreground hover:text-foreground transition-colors">
-                Careers
-              </a>
-              <a href="/contact" className="block text-muted-foreground hover:text-foreground transition-colors">
-                Contact
-              </a>
-            </div>
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold">Legal</h3>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><Link href="/privacy" className="hover:text-foreground">Privacy</Link></li>
+              <li><Link href="/terms" className="hover:text-foreground">Terms</Link></li>
+              <li><Link href="/security" className="hover:text-foreground">Security</Link></li>
+              <li><Link href="/cookies" className="hover:text-foreground">Cookies</Link></li>
+            </ul>
           </div>
         </div>
-
-        <div className="border-t border-border mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-          <div className="text-sm text-muted-foreground">
-            © 2024 ConHub. All rights reserved.
+        <div className="mt-8 pt-8 border-t border-border">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <p className="text-sm text-muted-foreground">
+              © 2024 ConHub. All rights reserved.
+            </p>
+            <div className="flex items-center space-x-4 mt-4 md:mt-0">
+              <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground">
+                Privacy Policy
+              </Link>
+              <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground">
+                Terms of Service
+              </Link>
+            </div>
           </div>
         </div>
       </div>
     </footer>
   );
-};
+}

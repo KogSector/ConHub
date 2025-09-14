@@ -87,8 +87,7 @@ export default function AIAgentsPage() {
             <div className="flex items-center space-x-4">
               <Link href="/dashboard">
                 <Button variant="ghost" size="sm">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Dashboard
+                  <ArrowLeft className="w-4 h-4" />
                 </Button>
               </Link>
               <div className="flex items-center space-x-3">

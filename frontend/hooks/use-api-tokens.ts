@@ -1,0 +1,101 @@
+import { useState, useEffect } from 'react';
+
+export interface ApiToken {
+  id: string;
+  name: string;
+  token: string;
+  permissions: string[];
+  created_at: string;
+  last_used?: string;
+}
+
+export interface CreateApiTokenRequest {
+  name: string;
+  permissions: string[];
+}
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+export function useApiTokens(userId: string = 'default') {
+  const [tokens, setTokens] = useState<ApiToken[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchTokens = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/settings/${userId}/api-tokens`);
+      const result = await response.json();
+      
+      if (result.success) {
+        setTokens(result.data || []);
+        setError(null);
+      } else {
+        setError(result.error || 'Failed to fetch API tokens');
+      }
+    } catch (err) {
+      setError('Network error while fetching API tokens');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createToken = async (tokenData: CreateApiTokenRequest) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/settings/${userId}/api-tokens`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(tokenData),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        await fetchTokens(); // Refresh the list
+        return result.data;
+      } else {
+        setError(result.error || 'Failed to create API token');
+        return null;
+      }
+    } catch (err) {
+      setError('Network error while creating API token');
+      return null;
+    }
+  };
+
+  const deleteToken = async (tokenId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/settings/${userId}/api-tokens/${tokenId}`, {
+        method: 'DELETE',
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        await fetchTokens(); // Refresh the list
+        return true;
+      } else {
+        setError(result.error || 'Failed to delete API token');
+        return false;
+      }
+    } catch (err) {
+      setError('Network error while deleting API token');
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    fetchTokens();
+  }, [userId]);
+
+  return {
+    tokens,
+    loading,
+    error,
+    createToken,
+    deleteToken,
+    refetch: fetchTokens,
+  };
+}
