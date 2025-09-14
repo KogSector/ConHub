@@ -1,194 +1,166 @@
-import os
-import logging
-from typing import List, Optional, Dict, Any
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+"""
+ConHub Haystack Service - Simplified Document Processing API
+"""
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import uvicorn
-from dotenv import load_dotenv
+from typing import List, Dict, Any, Optional
+import json
+import os
+from pathlib import Path
 
-from .core.haystack_manager import HaystackManager
+from .core.document_manager import DocumentManager
 from .models.schemas import (
-    DocumentRequest,
-    SearchRequest,
-    SearchResponse,
-    IndexResponse,
-    HealthResponse
+    DocumentResponse, 
+    SearchRequest, 
+    SearchResponse, 
+    QuestionRequest, 
+    QuestionResponse,
+    StatsResponse
 )
-from .core.config import get_settings
 
-# Load environment variables
-load_dotenv()
-
-# Configure logging
-logging.basicConfig(
-    level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
-
+# Initialize FastAPI app
 app = FastAPI(
     title="ConHub Haystack Service",
-    description="Document indexing and search service using Haystack",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    description="Document processing and search service for ConHub",
+    version="1.0.0"
 )
 
-# CORS middleware
-settings = get_settings()
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize Haystack manager
-haystack_manager = None
+# Initialize document manager
+doc_manager = DocumentManager()
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize Haystack components on startup."""
-    global haystack_manager
-    try:
-        logger.info("Initializing Haystack service...")
-        haystack_manager = HaystackManager()
-        await haystack_manager.initialize()
-        logger.info("Haystack service initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize Haystack service: {e}")
-        raise
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown."""
-    global haystack_manager
-    if haystack_manager:
-        await haystack_manager.cleanup()
-
-def get_haystack_manager() -> HaystackManager:
-    """Dependency to get Haystack manager."""
-    if haystack_manager is None:
-        raise HTTPException(status_code=500, detail="Haystack service not initialized")
-    return haystack_manager
-
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health")
 async def health_check():
-    """Health check endpoint."""
-    return HealthResponse(
-        status="healthy",
-        service="ConHub Haystack Service",
-        version="1.0.0"
-    )
+    """Health check endpoint"""
+    return {"status": "healthy", "service": "haystack"}
 
-@app.post("/documents", response_model=IndexResponse)
-async def index_documents(
-    request: DocumentRequest,
-    manager: HaystackManager = Depends(get_haystack_manager)
-):
-    """Index documents in the document store."""
+@app.post("/documents", response_model=DocumentResponse)
+async def add_document(content: str = Form(...), metadata: str = Form("{}")) -> DocumentResponse:
+    """Add a document to the collection"""
     try:
-        logger.info(f"Indexing {len(request.documents)} documents")
-        result = await manager.index_documents(request.documents)
-        return IndexResponse(
-            success=True,
-            message=f"Successfully indexed {len(request.documents)} documents",
-            document_count=len(request.documents),
-            index_id=result.get("index_id")
+        metadata_dict = json.loads(metadata) if metadata else {}
+        doc_id = doc_manager.add_document(content, metadata_dict)
+        
+        return DocumentResponse(
+            id=doc_id,
+            message="Document added successfully",
+            success=True
         )
     except Exception as e:
-        logger.error(f"Error indexing documents: {e}")
-        raise HTTPException(status_code=500, detail=f"Indexing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error adding document: {str(e)}")
 
-@app.post("/documents/upload", response_model=IndexResponse)
-async def upload_and_index_file(
-    file: UploadFile = File(...),
-    metadata: Optional[str] = None,
-    manager: HaystackManager = Depends(get_haystack_manager)
-):
-    """Upload and index a file."""
+@app.post("/documents/upload", response_model=DocumentResponse)
+async def upload_document(file: UploadFile = File(...), metadata: str = Form("{}")) -> DocumentResponse:
+    """Upload and process a document file"""
     try:
-        logger.info(f"Processing uploaded file: {file.filename}")
-        result = await manager.process_uploaded_file(file, metadata)
-        return IndexResponse(
-            success=True,
-            message=f"Successfully processed file: {file.filename}",
-            document_count=result.get("document_count", 1),
-            index_id=result.get("index_id")
+        # Read file content
+        content = await file.read()
+        
+        # Simple text extraction (you could add more sophisticated processing here)
+        if file.filename.endswith('.txt'):
+            text_content = content.decode('utf-8')
+        elif file.filename.endswith('.pdf'):
+            # For PDF files, you'd need a PDF processing library
+            # For now, just return an error message
+            raise HTTPException(status_code=400, detail="PDF processing not implemented yet")
+        else:
+            # Try to decode as text
+            try:
+                text_content = content.decode('utf-8')
+            except UnicodeDecodeError:
+                raise HTTPException(status_code=400, detail="Unsupported file format")
+        
+        metadata_dict = json.loads(metadata) if metadata else {}
+        metadata_dict["filename"] = file.filename
+        metadata_dict["content_type"] = file.content_type
+        
+        doc_id = doc_manager.add_document(text_content, metadata_dict)
+        
+        return DocumentResponse(
+            id=doc_id,
+            message=f"File '{file.filename}' uploaded and processed successfully",
+            success=True
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error processing uploaded file: {e}")
-        raise HTTPException(status_code=500, detail=f"File processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
 @app.post("/search", response_model=SearchResponse)
-async def search_documents(
-    request: SearchRequest,
-    manager: HaystackManager = Depends(get_haystack_manager)
-):
-    """Search documents using semantic search."""
+async def search_documents(request: SearchRequest) -> SearchResponse:
+    """Search documents"""
     try:
-        logger.info(f"Searching for: {request.query}")
-        results = await manager.search_documents(
-            query=request.query,
-            top_k=request.top_k,
-            filters=request.filters
-        )
+        results = doc_manager.search_documents(request.query, request.limit)
+        
         return SearchResponse(
-            success=True,
             query=request.query,
             results=results,
-            total_count=len(results)
+            total_results=len(results)
         )
     except Exception as e:
-        logger.error(f"Error searching documents: {e}")
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error searching documents: {str(e)}")
 
-@app.post("/ask", response_model=SearchResponse)
-async def ask_question(
-    request: SearchRequest,
-    manager: HaystackManager = Depends(get_haystack_manager)
-):
-    """Ask a question and get an answer from indexed documents."""
+@app.post("/ask", response_model=QuestionResponse)
+async def ask_question(request: QuestionRequest) -> QuestionResponse:
+    """Ask a question about the documents"""
     try:
-        logger.info(f"Answering question: {request.query}")
-        results = await manager.answer_question(
-            question=request.query,
-            top_k=request.top_k,
-            filters=request.filters
-        )
-        return SearchResponse(
-            success=True,
+        result = doc_manager.ask_question(request.query, request.top_k)
+        
+        return QuestionResponse(
             query=request.query,
-            results=results,
-            total_count=len(results)
+            answer=result["answer"],
+            sources=result["sources"],
+            confidence=result["confidence"]
         )
     except Exception as e:
-        logger.error(f"Error answering question: {e}")
-        raise HTTPException(status_code=500, detail=f"Question answering failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error processing question: {str(e)}")
 
-@app.get("/stats")
-async def get_stats(
-    manager: HaystackManager = Depends(get_haystack_manager)
-):
-    """Get statistics about indexed documents."""
+@app.get("/stats", response_model=StatsResponse)
+async def get_stats() -> StatsResponse:
+    """Get document collection statistics"""
     try:
-        stats = await manager.get_document_stats()
-        return {
-            "success": True,
-            "stats": stats
-        }
+        stats = doc_manager.get_stats()
+        return StatsResponse(**stats)
     except Exception as e:
-        logger.error(f"Error getting stats: {e}")
-        raise HTTPException(status_code=500, detail=f"Stats retrieval failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error getting stats: {str(e)}")
+
+@app.delete("/documents/{doc_id}")
+async def delete_document(doc_id: str):
+    """Delete a document"""
+    try:
+        success = doc_manager.delete_document(doc_id)
+        if success:
+            return {"message": "Document deleted successfully", "success": True}
+        else:
+            raise HTTPException(status_code=404, detail="Document not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting document: {str(e)}")
+
+@app.get("/documents/{doc_id}")
+async def get_document(doc_id: str):
+    """Get a document by ID"""
+    try:
+        document = doc_manager.get_document(doc_id)
+        if document:
+            return document
+        else:
+            raise HTTPException(status_code=404, detail="Document not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving document: {str(e)}")
 
 if __name__ == "__main__":
-    settings = get_settings()
-    uvicorn.run(
-        "app.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.environment == "development",
-        log_level=settings.log_level.lower()
-    )
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)

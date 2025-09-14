@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { useSettings } from "@/hooks/use-settings";
 import { 
   User, 
   Camera, 
@@ -15,10 +18,83 @@ import {
   Globe,
   Github,
   Twitter,
-  Linkedin
+  Linkedin,
+  Loader2
 } from "lucide-react";
 
 export function ProfileSettings() {
+  const { settings, loading, updateSettings } = useSettings();
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    bio: "",
+    location: "",
+    website: "",
+    github: "",
+    twitter: "",
+    linkedin: ""
+  });
+
+  // Update form data when settings load
+  useState(() => {
+    if (settings) {
+      setFormData({
+        first_name: settings.profile.first_name,
+        last_name: settings.profile.last_name,
+        email: settings.profile.email,
+        bio: settings.profile.bio || "",
+        location: settings.profile.location || "",
+        website: settings.profile.website || "",
+        github: settings.profile.social_links.github || "",
+        twitter: settings.profile.social_links.twitter || "",
+        linkedin: settings.profile.social_links.linkedin || ""
+      });
+    }
+  });
+
+  const handleSave = async () => {
+    setSaving(true);
+    const success = await updateSettings({
+      profile: {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        email: formData.email,
+        bio: formData.bio || undefined,
+        location: formData.location || undefined,
+        website: formData.website || undefined,
+        social_links: {
+          github: formData.github,
+          twitter: formData.twitter,
+          linkedin: formData.linkedin
+        }
+      }
+    });
+    
+    if (success) {
+      toast({
+        title: "Settings saved",
+        description: "Your profile settings have been updated successfully."
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive"
+      });
+    }
+    setSaving(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       {/* Profile Information */}
@@ -58,24 +134,30 @@ export function ProfileSettings() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
-              <Input id="firstName" defaultValue="John" />
+              <Input 
+                id="firstName" 
+                value={formData.first_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="lastName">Last Name</Label>
-              <Input id="lastName" defaultValue="Doe" />
+              <Input 
+                id="lastName" 
+                value={formData.last_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                <Input id="email" className="pl-10" defaultValue="john.doe@example.com" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                <Input id="phone" className="pl-10" defaultValue="+1 (555) 123-4567" />
+                <Input 
+                  id="email" 
+                  className="pl-10" 
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                />
               </div>
             </div>
           </div>
@@ -85,7 +167,8 @@ export function ProfileSettings() {
             <Textarea 
               id="bio" 
               placeholder="Tell us about yourself..."
-              defaultValue="Full-stack developer passionate about building scalable applications with modern technologies."
+              value={formData.bio}
+              onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
               className="resize-none"
               rows={3}
             />
@@ -96,14 +179,25 @@ export function ProfileSettings() {
               <Label htmlFor="location">Location</Label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                <Input id="location" className="pl-10" defaultValue="San Francisco, CA" />
+                <Input 
+                  id="location" 
+                  className="pl-10" 
+                  value={formData.location}
+                  onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="website">Website</Label>
               <div className="relative">
                 <Globe className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                <Input id="website" className="pl-10" placeholder="https://yourwebsite.com" />
+                <Input 
+                  id="website" 
+                  className="pl-10" 
+                  placeholder="https://yourwebsite.com"
+                  value={formData.website}
+                  onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
+                />
               </div>
             </div>
           </div>
@@ -120,21 +214,39 @@ export function ProfileSettings() {
             <Label htmlFor="github">GitHub</Label>
             <div className="relative">
               <Github className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-              <Input id="github" className="pl-10" placeholder="https://github.com/username" />
+              <Input 
+                id="github" 
+                className="pl-10" 
+                placeholder="https://github.com/username"
+                value={formData.github}
+                onChange={(e) => setFormData(prev => ({ ...prev, github: e.target.value }))}
+              />
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="twitter">Twitter/X</Label>
             <div className="relative">
               <Twitter className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-              <Input id="twitter" className="pl-10" placeholder="https://twitter.com/username" />
+              <Input 
+                id="twitter" 
+                className="pl-10" 
+                placeholder="https://twitter.com/username"
+                value={formData.twitter}
+                onChange={(e) => setFormData(prev => ({ ...prev, twitter: e.target.value }))}
+              />
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="linkedin">LinkedIn</Label>
             <div className="relative">
               <Linkedin className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-              <Input id="linkedin" className="pl-10" placeholder="https://linkedin.com/in/username" />
+              <Input 
+                id="linkedin" 
+                className="pl-10" 
+                placeholder="https://linkedin.com/in/username"
+                value={formData.linkedin}
+                onChange={(e) => setFormData(prev => ({ ...prev, linkedin: e.target.value }))}
+              />
             </div>
           </div>
         </CardContent>
@@ -142,8 +254,11 @@ export function ProfileSettings() {
 
       {/* Save Changes */}
       <div className="flex justify-end gap-4">
-        <Button variant="outline">Cancel</Button>
-        <Button>Save Changes</Button>
+        <Button variant="outline" onClick={() => window.location.reload()}>Cancel</Button>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          Save Changes
+        </Button>
       </div>
     </div>
   );
