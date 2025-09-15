@@ -55,10 +55,12 @@ export default function Dashboard() {
                     <span>Connect Repository</span>
                   </Button>
                 </Link>
-                <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
-                  <FileText className="w-6 h-6" />
-                  <span>Add Documents</span>
-                </Button>
+                <Link href="/dashboard/documents">
+                  <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors w-full">
+                    <FileText className="w-6 h-6" />
+                    <span>Add Documents</span>
+                  </Button>
+                </Link>
                 <Link href="/dashboard/urls">
                   <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors w-full">
                     <LinkIcon className="w-6 h-6" />

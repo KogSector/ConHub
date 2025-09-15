@@ -1,0 +1,255 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { AddDocumentModal } from "@/components/ui/add-document-modal";
+import { ProfileAvatar } from "@/components/ui/profile-avatar";
+import { Footer } from "@/components/ui/footer";
+import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
+import { 
+  Plus, 
+  FileText, 
+  Download, 
+  Trash2, 
+  ArrowLeft,
+  Calendar,
+  Tag,
+  File,
+  FolderOpen
+} from "lucide-react";
+
+interface DocumentRecord {
+  id: string;
+  name: string;
+  type: string;
+  source: string;
+  size: string;
+  created_at: string;
+  status: string;
+  tags: string[];
+}
+
+export default function DocumentsPage() {
+  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
+  const fetchDocuments = async () => {
+    try {
+      const result = await apiClient.getDocuments();
+      if (result.success) {
+        setDocuments(result.data || []);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch documents",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteDocument = async (id: string) => {
+    try {
+      const result = await apiClient.deleteDocument(id);
+      if (result.success) {
+        setDocuments(prev => prev.filter(doc => doc.id !== id));
+        toast({
+          title: "Success",
+          description: "Document deleted successfully",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: result.message || "Failed to delete document",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete document",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="border-b border-border bg-card/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-20">
+            <div className="flex items-center space-x-4">
+              <Link href="/dashboard">
+                <Button variant="ghost" size="sm">
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+              </Link>
+              <div className="h-6 w-px bg-border" />
+              <h1 className="text-2xl font-bold text-foreground">Document Management</h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <ProfileAvatar />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
+              <FileText className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{documents.length}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Processed</CardTitle>
+              <FileText className="w-4 h-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {documents.filter(doc => doc.status === 'processed').length}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Size</CardTitle>
+              <FolderOpen className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">4.2 MB</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Action Bar */}
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">Your Documents</h2>
+            <p className="text-sm text-muted-foreground">Connect and manage documents from various sources</p>
+          </div>
+          <div className="flex gap-3">
+            <Button onClick={() => setIsModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Documents
+            </Button>
+          </div>
+        </div>
+
+        {/* Documents List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Document Collection</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-muted-foreground">Loading documents...</div>
+              </div>
+            ) : documents.length === 0 ? (
+              <div className="text-center py-8">
+                <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">No documents added yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  Start by connecting your first document source.
+                </p>
+                <Button onClick={() => setIsModalOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Your First Document
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-start justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <File className="w-4 h-4 text-primary flex-shrink-0" />
+                        <h3 className="font-medium text-foreground truncate">
+                          {doc.name}
+                        </h3>
+                        <Badge variant="outline" className="text-xs">
+                          {doc.status}
+                        </Badge>
+                      </div>
+                      
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
+                        <span>{doc.type}</span>
+                        <span>{doc.source}</span>
+                        <span>{doc.size}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(doc.created_at).toLocaleDateString()}
+                        </div>
+                        {doc.tags.length > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Tag className="w-3 h-3" />
+                            <div className="flex gap-1">
+                              {doc.tags.map((tag) => (
+                                <Badge key={tag} variant="secondary" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="sm">
+                        <Download className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteDocument(doc.id)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <AddDocumentModal
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        onDocumentAdded={fetchDocuments}
+      />
+      
+      <Footer />
+    </div>
+  );
+}

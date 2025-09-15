@@ -103,5 +103,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/urls", web::get().to(crate::handlers::urls::get_urls))
             .route("/urls/{id}", web::delete().to(crate::handlers::urls::delete_url))
             .route("/urls/analytics", web::get().to(crate::handlers::urls::get_url_analytics))
+            .route("/documents", web::post().to(crate::handlers::documents::create_document))
+            .route("/documents", web::get().to(crate::handlers::documents::get_documents))
+            .route("/documents/{id}", web::delete().to(crate::handlers::documents::delete_document))
+            .route("/documents/analytics", web::get().to(crate::handlers::documents::get_document_analytics))
     );
 }

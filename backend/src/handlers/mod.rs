@@ -2,6 +2,7 @@ mod api;
 mod health;
 mod settings;
 mod urls;
+mod documents;
 
 use actix_web::web;
 
@@ -12,5 +13,6 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .configure(api::configure)
             .configure(settings::configure)
             .configure(urls::configure)
+            .configure(documents::configure)
     );
 }
