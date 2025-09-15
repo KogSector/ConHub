@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { X, Plus, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api";
 
 interface AddUrlModalProps {
   open: boolean;
@@ -82,26 +83,13 @@ export function AddUrlModal({ open, onOpenChange, onUrlAdded }: AddUrlModalProps
 
     setIsLoading(true);
     try {
-      const response = await fetch("http://localhost:3001/api/urls", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          url: formData.url,
-          title: formData.title || undefined,
-          description: formData.description || undefined,
-          tags: formData.tags.length > 0 ? formData.tags : undefined,
-        }),
+      const result = await apiClient.createUrl({
+        url: formData.url,
+        title: formData.title || undefined,
+        description: formData.description || undefined,
+        tags: formData.tags.length > 0 ? formData.tags : undefined,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Response error:', response.status, errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      const result = await response.json();
       console.log('API Response:', result);
 
       if (result.success) {

@@ -9,6 +9,7 @@ import { BulkUrlImport } from "@/components/ui/bulk-url-import";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { Footer } from "@/components/ui/footer";
 import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api";
 import Link from "next/link";
 import { 
   Plus, 
@@ -40,8 +41,7 @@ export default function UrlsPage() {
 
   const fetchUrls = async () => {
     try {
-      const response = await fetch("http://localhost:3001/api/urls");
-      const result = await response.json();
+      const result = await apiClient.getUrls();
       if (result.success) {
         setUrls(result.data || []);
       }
@@ -58,10 +58,7 @@ export default function UrlsPage() {
 
   const deleteUrl = async (id: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/urls/${id}`, {
-        method: "DELETE",
-      });
-      const result = await response.json();
+      const result = await apiClient.deleteUrl(id);
       if (result.success) {
         setUrls(prev => prev.filter(url => url.id !== id));
         toast({
@@ -151,8 +148,8 @@ export default function UrlsPage() {
         {/* Action Bar */}
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-xl font-semibold text-foreground">Manage URLs</h2>
-            <p className="text-sm text-muted-foreground">Add and organize your URL sources</p>
+            <h2 className="text-xl font-semibold text-foreground">Your URLs</h2>
+            <p className="text-sm text-muted-foreground">Add and organize your URL sources for AI context</p>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => setIsBulkImportOpen(true)}>
@@ -169,7 +166,7 @@ export default function UrlsPage() {
         {/* URLs List */}
         <Card>
           <CardHeader>
-            <CardTitle>Your URLs</CardTitle>
+            <CardTitle>URL Collection</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (

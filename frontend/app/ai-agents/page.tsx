@@ -96,10 +96,6 @@ export default function AIAgentsPage() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Agent
-              </Button>
               <ProfileAvatar />
             </div>
           </div>
@@ -176,15 +172,26 @@ export default function AIAgentsPage() {
           </Card>
         </div>
 
-        {/* Agents List */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
+        {/* Action Bar */}
+        <div className="flex justify-between items-center mb-6">
+          <div>
             <h2 className="text-xl font-semibold text-foreground">Your AI Agents</h2>
+            <p className="text-sm text-muted-foreground">Create and manage your AI-powered automation agents</p>
+          </div>
+          <div className="flex gap-3">
             <Button variant="outline">
               <Settings className="w-4 h-4 mr-2" />
               Global Settings
             </Button>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Agent
+            </Button>
           </div>
+        </div>
+
+        {/* Agents List */}
+        <div className="space-y-4">
 
           <div className="grid gap-4">
             {agents.map((agent) => {

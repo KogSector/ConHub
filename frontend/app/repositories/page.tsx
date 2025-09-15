@@ -69,10 +69,6 @@ export default function RepositoriesPage() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Connect Repository
-              </Button>
               <ProfileAvatar />
             </div>
           </div>
@@ -149,15 +145,26 @@ export default function RepositoriesPage() {
           </Card>
         </div>
 
-        {/* Repository List */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
+        {/* Action Bar */}
+        <div className="flex justify-between items-center mb-6">
+          <div>
             <h2 className="text-xl font-semibold text-foreground">Connected Repositories</h2>
+            <p className="text-sm text-muted-foreground">Connect and manage your code repositories</p>
+          </div>
+          <div className="flex gap-3">
             <Button variant="outline">
               <Settings className="w-4 h-4 mr-2" />
               Manage Connections
             </Button>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Connect Repository
+            </Button>
           </div>
+        </div>
+
+        {/* Repository List */}
+        <div className="space-y-4">
 
           <div className="grid gap-4">
             {repositories.map((repo) => (
