@@ -99,5 +99,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/ai/ask", web::post().to(ask_ai))
             .route("/data-sources/connect", web::post().to(connect_data_source))
             .route("/data-sources", web::get().to(list_data_sources))
+            .route("/urls", web::post().to(crate::handlers::urls::create_url))
+            .route("/urls", web::get().to(crate::handlers::urls::get_urls))
+            .route("/urls/{id}", web::delete().to(crate::handlers::urls::delete_url))
+            .route("/urls/analytics", web::get().to(crate::handlers::urls::get_url_analytics))
     );
 }

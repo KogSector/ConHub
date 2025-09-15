@@ -1,8 +1,12 @@
+"use client";
+
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { Footer } from "@/components/ui/footer";
+import { AddUrlModal } from "@/components/ui/add-url-modal";
 import Link from "next/link";
 import { 
   Bot, 
@@ -20,6 +24,8 @@ import {
 } from "lucide-react";
 
 export default function Dashboard() {
+  const [isAddUrlModalOpen, setIsAddUrlModalOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -53,10 +59,12 @@ export default function Dashboard() {
                   <FileText className="w-6 h-6" />
                   <span>Add Documents</span>
                 </Button>
-                <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
-                  <LinkIcon className="w-6 h-6" />
-                  <span>Add URLs</span>
-                </Button>
+                <Link href="/dashboard/urls">
+                  <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors w-full">
+                    <LinkIcon className="w-6 h-6" />
+                    <span>Add URLs</span>
+                  </Button>
+                </Link>
                 <Link href="/ai-agents">
                   <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors w-full">
                     <Bot className="w-6 h-6" />
@@ -181,9 +189,9 @@ export default function Dashboard() {
                 <CardTitle className="text-lg font-semibold text-foreground">
                   Connected Sources
                 </CardTitle>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => setIsAddUrlModalOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Source
+                  Add URL
                 </Button>
               </div>
             </CardHeader>
@@ -305,6 +313,12 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+      
+      <AddUrlModal
+        open={isAddUrlModalOpen}
+        onOpenChange={setIsAddUrlModalOpen}
+      />
+      
       <Footer />
     </div>
   );

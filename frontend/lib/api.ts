@@ -56,6 +56,24 @@ export class ApiClient {
   async health() {
     return this.get('/health');
   }
+
+  // URL-specific methods
+  async createUrl(data: {
+    url: string;
+    title?: string;
+    description?: string;
+    tags?: string[];
+  }) {
+    return this.post('/api/urls', data);
+  }
+
+  async getUrls() {
+    return this.get('/api/urls');
+  }
+
+  async deleteUrl(id: string) {
+    return this.delete(`/api/urls/${id}`);
+  }
 }
 
 export const apiClient = new ApiClient();
