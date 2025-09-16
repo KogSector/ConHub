@@ -168,36 +168,36 @@ export default function RepositoriesPage() {
 
           <div className="grid gap-4">
             {repositories.map((repo) => (
-              <Card key={repo.id} className="bg-card border-border hover:bg-accent/5 transition-colors">
+              <Card key={repo.id} className="bg-card border-border hover:bg-accent/5 transition-colors overflow-hidden">
                 <div className="flex flex-col px-6 py-4 gap-4">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <div className="p-2 bg-muted rounded-lg flex-shrink-0">
                       <GitBranch className="w-5 h-5 text-foreground" />
                     </div>
-                    <span className="font-semibold text-base text-foreground truncate">{repo.name}</span>
+                    <span className="font-semibold text-base text-foreground truncate min-w-0 flex-1">{repo.name}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                       repo.status === 'active' ? 'bg-green-500 shadow-lg shadow-green-500/50' : 'bg-gray-400'
                     }`}></div>
-                    <p className="text-xs text-muted-foreground truncate max-w-xs">{repo.description}</p>
+                    <p className="text-xs text-muted-foreground truncate min-w-0 flex-1">{repo.description}</p>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       <div className={`w-2 h-2 rounded-full ${languageColors[repo.language as keyof typeof languageColors] || 'bg-gray-500'}`}></div>
-                      <span>{repo.language}</span>
+                      <span className="truncate">{repo.language}</span>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       <Star className="w-3 h-3" />
                       <span>{repo.stars}</span>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       <GitFork className="w-3 h-3" />
                       <span>{repo.forks}</span>
                     </div>
-                    <span>Updated {repo.lastUpdated}</span>
+                    <span className="truncate">Updated {repo.lastUpdated}</span>
                   </div>
-                  <div className="flex items-center gap-2 ml-auto">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Button variant="outline" size="sm" asChild>
                       <Link href={repo.url} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="w-4 h-4 mr-1" />

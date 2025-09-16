@@ -11,6 +11,9 @@ pub mod utils;
 pub mod enhanced_search;
 pub mod ai_integration;
 pub mod performance;
+pub mod language_parser;
+pub mod ctags_integration;
+pub mod enhanced_parser;
 
 pub use config::LexorConfig;
 pub use indexer::IndexerEngine;
@@ -18,4 +21,7 @@ pub use search::SearchEngine;
 pub use enhanced_search::EnhancedSearchEngine;
 pub use ai_integration::AIContextEngine;
 pub use performance::PerformanceOptimizer;
+pub use language_parser::{UniversalLanguageParser, ParseResult};
+pub use ctags_integration::CtagsIntegration;
+pub use enhanced_parser::{EnhancedLanguageParser, ParserConfig};
 pub use types::*;

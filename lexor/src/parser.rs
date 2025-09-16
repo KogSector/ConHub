@@ -6,6 +6,9 @@ use std::path::Path;
 use uuid::Uuid;
 use once_cell::sync::Lazy;
 
+mod language_parser;
+pub use language_parser::{UniversalLanguageParser, ParseResult};
+
 pub struct LanguageParser {
     parsers: HashMap<Language, Parser>,
     queries: HashMap<Language, SymbolQuery>,

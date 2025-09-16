@@ -117,17 +117,17 @@ export function RepositorySettings() {
         </CardHeader>
         <CardContent className="space-y-4">
           {repositories.map((repo) => (
-            <div key={repo.id} className="p-4 rounded-lg border border-border bg-muted/20">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <GitBranch className="w-5 h-5 text-primary" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-foreground">{repo.name}</span>
+            <div key={repo.id} className="p-4 rounded-lg border border-border bg-muted/20 overflow-hidden">
+              <div className="flex items-center justify-between mb-3 min-w-0">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <GitBranch className="w-5 h-5 text-primary flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-foreground truncate min-w-0">{repo.name}</span>
                       {repo.private ? (
-                        <EyeOff className="w-4 h-4 text-muted-foreground" />
+                        <EyeOff className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                       ) : (
-                        <Eye className="w-4 h-4 text-muted-foreground" />
+                        <Eye className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                       )}
                       <Badge 
                         variant={
@@ -135,17 +135,17 @@ export function RepositorySettings() {
                           repo.status === "syncing" ? "secondary" : 
                           "destructive"
                         }
-                        className="text-xs"
+                        className="text-xs flex-shrink-0"
                       >
                         {repo.status}
                       </Badge>
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-muted-foreground truncate">
                       Branch: {repo.branch} • Last sync: {repo.lastSync}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <Button variant="ghost" size="sm">
                     <ExternalLink className="w-4 h-4" />
                   </Button>

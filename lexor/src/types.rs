@@ -55,7 +55,7 @@ pub enum FileType {
     Unknown,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum Language {
     Rust,
     JavaScript,
@@ -65,6 +65,14 @@ pub enum Language {
     C,
     Cpp,
     Go,
+    Php,
+    Ruby,
+    CSharp,
+    Swift,
+    Kotlin,
+    Scala,
+    Perl,
+    Lua,
     Html,
     Css,
     Json,
@@ -74,6 +82,10 @@ pub enum Language {
     Markdown,
     Shell,
     Sql,
+    Dockerfile,
+    Make,
+    CMake,
+    Text,
     Unknown,
 }
 
@@ -250,13 +262,21 @@ impl Language {
     pub fn from_extension(ext: &str) -> Self {
         match ext.to_lowercase().as_str() {
             "rs" => Language::Rust,
-            "js" | "mjs" | "cjs" => Language::JavaScript,
+            "js" | "mjs" | "cjs" | "jsx" => Language::JavaScript,
             "ts" | "tsx" => Language::TypeScript,
             "py" | "pyw" => Language::Python,
             "java" => Language::Java,
             "c" | "h" => Language::C,
             "cpp" | "cc" | "cxx" | "hpp" | "hxx" => Language::Cpp,
             "go" => Language::Go,
+            "php" => Language::Php,
+            "rb" => Language::Ruby,
+            "cs" => Language::CSharp,
+            "swift" => Language::Swift,
+            "kt" | "kts" => Language::Kotlin,
+            "scala" | "sc" => Language::Scala,
+            "pl" | "pm" => Language::Perl,
+            "lua" => Language::Lua,
             "html" | "htm" => Language::Html,
             "css" => Language::Css,
             "json" => Language::Json,
@@ -266,6 +286,7 @@ impl Language {
             "md" | "markdown" => Language::Markdown,
             "sh" | "bash" | "zsh" => Language::Shell,
             "sql" => Language::Sql,
+            "txt" => Language::Text,
             _ => Language::Unknown,
         }
     }
@@ -289,7 +310,7 @@ impl FileType {
     pub fn from_path(path: &std::path::Path) -> Self {
         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
             match ext.to_lowercase().as_str() {
-                "rs" | "js" | "ts" | "py" | "java" | "c" | "cpp" | "go" | "h" | "hpp" => FileType::Source,
+                "rs" | "js" | "ts" | "py" | "java" | "c" | "cpp" | "go" | "h" | "hpp" | "php" | "rb" | "cs" | "swift" | "kt" | "scala" | "pl" | "lua" => FileType::Source,
                 "md" | "txt" | "rst" | "adoc" => FileType::Documentation,
                 "json" | "yaml" | "yml" | "toml" | "xml" | "ini" | "cfg" | "conf" => FileType::Configuration,
                 "csv" | "tsv" | "dat" => FileType::Data,

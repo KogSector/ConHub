@@ -8,6 +8,7 @@ import { AddDocumentModal } from "@/components/ui/add-document-modal";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { Footer } from "@/components/ui/footer";
 import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api";
 import Link from "next/link";
 import { 
   Plus, 
@@ -23,13 +24,15 @@ import {
 
 interface DocumentRecord {
   id: string;
+  user_id: string;
   name: string;
-  type: string;
+  doc_type: string;
   source: string;
   size: string;
-  created_at: string;
-  status: string;
   tags: string[];
+  created_at: string;
+  updated_at: string;
+  status: string;
 }
 
 export default function DocumentsPage() {
@@ -42,9 +45,17 @@ export default function DocumentsPage() {
     try {
       const result = await apiClient.getDocuments();
       if (result.success) {
+        // Backend returns documents directly in the data field
         setDocuments(result.data || []);
+      } else {
+        toast({
+          title: "Error",
+          description: result.message || "Failed to fetch documents",
+          variant: "destructive",
+        });
       }
     } catch (error) {
+      console.error("Error fetching documents:", error);
       toast({
         title: "Error",
         description: "Failed to fetch documents",
@@ -170,12 +181,12 @@ export default function DocumentsPage() {
               <div className="text-center py-8">
                 <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">No documents added yet</h3>
-                <p className="text-muted-foreground mb-4">
+                <p className="text-muted-foreground mb-8">
                   Start by connecting your first document source.
                 </p>
                 <Button onClick={() => setIsModalOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Your First Document
+                  Add Your Document
                 </Button>
               </div>
             ) : (
@@ -197,7 +208,7 @@ export default function DocumentsPage() {
                       </div>
                       
                       <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
-                        <span>{doc.type}</span>
+                        <span>{doc.doc_type}</span>
                         <span>{doc.source}</span>
                         <span>{doc.size}</span>
                       </div>

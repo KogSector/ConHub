@@ -160,7 +160,7 @@ export default function Documentation() {
                     placeholder="Search documentation..."
                     className="w-full px-4 py-3 bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   />
-                  <Button size="sm" className="absolute right-2 top-2">
+                  <Button size="sm" className="absolute right-2 top-1/2 -translate-y-1/2">
                     Search
                   </Button>
                 </div>
@@ -235,22 +235,7 @@ export default function Documentation() {
                       ))}
                     </ul>
                     <button 
-                      className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 w-full bg-transparent border-0 text-white transition-all duration-300 focus-visible:outline-none"
-                      style={{
-                        color: 'white',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.boxShadow = '0 0 20px rgba(251, 146, 60, 0.8)';
-                        e.currentTarget.style.transform = 'scale(1.05)';
-                        e.currentTarget.style.backgroundColor = 'rgba(251, 146, 60, 0.1)';
-                        e.currentTarget.style.color = 'white';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.boxShadow = 'none';
-                        e.currentTarget.style.transform = 'scale(1)';
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = 'white';
-                      }}
+                      className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium w-full h-10 px-4 py-2 text-white border border-orange-500/30 bg-transparent hover:text-white hover:bg-orange-500/10 hover:border-orange-500/50 hover:shadow-[0px_0px_20px_rgba(251,146,60,0.8)] hover:scale-105 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
                     >
                       View All Articles
                     </button>

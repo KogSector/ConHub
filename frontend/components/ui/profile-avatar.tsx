@@ -22,7 +22,7 @@ export function ProfileAvatar() {
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-64 -ml-0.0025 mt-4">
+      <DropdownMenuContent className="w-64 mr-4 mt-6">
         <DropdownMenuLabel className="font-normal py-3 px-4">
           <div className="flex flex-col space-y-2">
             <p className="text-base font-medium leading-none">John Doe</p>
