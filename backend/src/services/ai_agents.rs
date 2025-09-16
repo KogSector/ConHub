@@ -118,6 +118,9 @@ impl AgentService {
         let temperature = agent.config.temperature.unwrap_or(0.7);
         let max_tokens = agent.config.max_tokens.unwrap_or(1000);
         
+        // Use include_history flag (placeholder for future conversation history feature)
+        let _include_history = request.include_history.unwrap_or(false);
+        
         let mut messages = vec![];
         
         // Add system message with context if available
@@ -442,29 +445,5 @@ impl AgentService {
                 Ok(response.status().is_success())
             }
         }
-    }
-}
-
-// Original AI service functions for backward compatibility
-pub async fn ask_ai_question(
-    client: &Client,
-    haystack_url: &str,
-    request: &crate::models::SearchRequest,
-) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-    let payload = json!({
-        "query": request.query,
-        "top_k": request.limit.unwrap_or(5)
-    });
-    
-    let response = client
-        .post(&format!("{}/ask", haystack_url))
-        .json(&payload)
-        .send()
-        .await?;
-    
-    if response.status().is_success() {
-        Ok(response.json().await?)
-    } else {
-        Err(format!("AI service error: {}", response.status()).into())
     }
 }

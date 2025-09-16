@@ -1,6 +1,7 @@
 use actix_web::{web, HttpResponse, Result};
 use serde_json::json;
 use std::collections::HashMap;
+use std::sync::Mutex;
 use uuid::Uuid;
 use chrono::Utc;
 
@@ -12,20 +13,19 @@ use crate::models::{
 use crate::services::ai_agents::AgentService;
 
 // In-memory storage for demonstration (replace with actual database)
-static mut AGENTS: Option<HashMap<String, AgentRecord>> = None;
+static AGENTS: Mutex<Option<HashMap<String, AgentRecord>>> = Mutex::new(None);
 
-fn get_agents_store() -> &'static mut HashMap<String, AgentRecord> {
-    unsafe {
-        if AGENTS.is_none() {
-            AGENTS = Some(HashMap::new());
-        }
-        AGENTS.as_mut().unwrap()
-    }
+fn get_agents_store() -> Result<std::sync::MutexGuard<'static, Option<HashMap<String, AgentRecord>>>> {
+    Ok(AGENTS.lock().unwrap())
 }
 
 // Get all agents for a user
 pub async fn get_agents() -> Result<HttpResponse> {
-    let agents = get_agents_store();
+    let mut agents_guard = get_agents_store()?;
+    if agents_guard.is_none() {
+        *agents_guard = Some(HashMap::new());
+    }
+    let agents = agents_guard.as_ref().unwrap();
     let agent_list: Vec<&AgentRecord> = agents.values().collect();
     
     Ok(HttpResponse::Ok().json(ApiResponse {
@@ -39,7 +39,11 @@ pub async fn get_agents() -> Result<HttpResponse> {
 // Get specific agent by ID
 pub async fn get_agent(path: web::Path<String>) -> Result<HttpResponse> {
     let agent_id = path.into_inner();
-    let agents = get_agents_store();
+    let mut agents_guard = get_agents_store()?;
+    if agents_guard.is_none() {
+        *agents_guard = Some(HashMap::new());
+    }
+    let agents = agents_guard.as_ref().unwrap();
     
     match agents.get(&agent_id) {
         Some(agent) => Ok(HttpResponse::Ok().json(ApiResponse {
@@ -59,7 +63,11 @@ pub async fn get_agent(path: web::Path<String>) -> Result<HttpResponse> {
 
 // Create a new agent
 pub async fn create_agent(req: web::Json<CreateAgentRequest>) -> Result<HttpResponse> {
-    let agents = get_agents_store();
+    let mut agents_guard = get_agents_store()?;
+    if agents_guard.is_none() {
+        *agents_guard = Some(HashMap::new());
+    }
+    let agents = agents_guard.as_mut().unwrap();
     let agent_id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     
@@ -124,7 +132,11 @@ pub async fn update_agent(
     req: web::Json<UpdateAgentRequest>,
 ) -> Result<HttpResponse> {
     let agent_id = path.into_inner();
-    let agents = get_agents_store();
+    let mut agents_guard = get_agents_store()?;
+    if agents_guard.is_none() {
+        *agents_guard = Some(HashMap::new());
+    }
+    let agents = agents_guard.as_mut().unwrap();
     
     match agents.get_mut(&agent_id) {
         Some(agent) => {
@@ -169,7 +181,11 @@ pub async fn update_agent(
 // Delete an agent
 pub async fn delete_agent(path: web::Path<String>) -> Result<HttpResponse> {
     let agent_id = path.into_inner();
-    let agents = get_agents_store();
+    let mut agents_guard = get_agents_store()?;
+    if agents_guard.is_none() {
+        *agents_guard = Some(HashMap::new());
+    }
+    let agents = agents_guard.as_mut().unwrap();
     
     match agents.remove(&agent_id) {
         Some(_) => Ok(HttpResponse::Ok().json(ApiResponse::<()> {
@@ -190,7 +206,11 @@ pub async fn delete_agent(path: web::Path<String>) -> Result<HttpResponse> {
 // Get context for an agent (filtered by permissions)
 pub async fn get_agent_context(path: web::Path<String>) -> Result<HttpResponse> {
     let agent_id = path.into_inner();
-    let agents = get_agents_store();
+    let mut agents_guard = get_agents_store()?;
+    if agents_guard.is_none() {
+        *agents_guard = Some(HashMap::new());
+    }
+    let agents = agents_guard.as_ref().unwrap();
     
     match agents.get(&agent_id) {
         Some(agent) => {
@@ -260,7 +280,11 @@ pub async fn invoke_agent(
     req: web::Json<AgentInvokeRequest>,
 ) -> Result<HttpResponse> {
     let agent_id = path.into_inner();
-    let agents = get_agents_store();
+    let mut agents_guard = get_agents_store()?;
+    if agents_guard.is_none() {
+        *agents_guard = Some(HashMap::new());
+    }
+    let agents = agents_guard.as_mut().unwrap();
     
     match agents.get_mut(&agent_id) {
         Some(agent) => {
@@ -374,7 +398,11 @@ fn get_filtered_context(agent: &AgentRecord, context_type: &Option<String>) -> O
 // Test agent connection
 pub async fn test_agent(path: web::Path<String>) -> Result<HttpResponse> {
     let agent_id = path.into_inner();
-    let agents = get_agents_store();
+    let mut agents_guard = get_agents_store()?;
+    if agents_guard.is_none() {
+        *agents_guard = Some(HashMap::new());
+    }
+    let agents = agents_guard.as_mut().unwrap();
     
     match agents.get_mut(&agent_id) {
         Some(agent) => {

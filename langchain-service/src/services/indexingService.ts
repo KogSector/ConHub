@@ -1,5 +1,7 @@
 import { Document } from 'langchain/document';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
+import { GithubRepoLoader } from '@langchain/community/document_loaders/web/github';
+import { TextLoader } from 'langchain/document_loaders/fs/text';
 import { vectorStore } from './vectorStore';
 import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';

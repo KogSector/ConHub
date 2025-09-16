@@ -116,7 +116,7 @@ export class URLConnector implements ConnectorInterface {
       const links: string[] = [];
       const baseUrl = new URL(url);
 
-      $('a[href]').each((_, element) => {
+      $('a[href]').each((_: any, element: any) => {
         const href = $(element).attr('href');
         if (href) {
           try {
@@ -192,7 +192,7 @@ export class URLConnector implements ConnectorInterface {
       const description = $('meta[name="description"]').attr('content') || 
                          $('meta[property="og:description"]').attr('content');
 
-      const keywords = $('meta[name="keywords"]').attr('content')?.split(',').map(k => k.trim());
+      const keywords = $('meta[name="keywords"]').attr('content')?.split(',').map((k: string) => k.trim());
 
       const author = $('meta[name="author"]').attr('content') || 
                     $('meta[property="article:author"]').attr('content');
@@ -236,7 +236,7 @@ export class URLConnector implements ConnectorInterface {
       // Clean up text
       text = text.replace(/\s+/g, ' ').trim();
 
-      const wordCount = text.split(/\s+/).filter(word => word.length > 0).length;
+      const wordCount = text.split(/\s+/).filter((word: string) => word.length > 0).length;
 
       return {
         title,

@@ -4,3 +4,8 @@ pub mod ai;
 pub mod ai_agents;
 pub mod data_source_proxy;
 pub mod orchestration;
+pub mod repository;
+pub mod datasource;
+pub mod vcs_detector;
+pub mod vcs_connector;
+pub mod enhanced_repository;

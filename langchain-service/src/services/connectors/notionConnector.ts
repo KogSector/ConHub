@@ -55,9 +55,9 @@ export class NotionConnector implements ConnectorInterface {
                 pageId: page.id,
                 databaseId,
                 databaseTitle: this.getDatabaseTitle(database),
-                createdTime: page.created_time,
-                lastEditedTime: page.last_edited_time,
-                url: page.url,
+                createdTime: (page as any).created_time,
+                lastEditedTime: (page as any).last_edited_time,
+                url: (page as any).url,
                 properties: page.properties
               }
             });
@@ -83,9 +83,9 @@ export class NotionConnector implements ConnectorInterface {
               source: 'notion',
               type: 'page',
               pageId,
-              createdTime: page.created_time,
-              lastEditedTime: page.last_edited_time,
-              url: page.url
+              createdTime: (page as any).created_time,
+              lastEditedTime: (page as any).last_edited_time,
+              url: (page as any).url
             }
           });
 
@@ -104,9 +104,9 @@ export class NotionConnector implements ConnectorInterface {
                   type: 'subpage',
                   pageId: subpage.id,
                   parentPageId: pageId,
-                  createdTime: subpage.created_time,
-                  lastEditedTime: subpage.last_edited_time,
-                  url: subpage.url
+                  createdTime: (subpage as any).created_time,
+                  lastEditedTime: (subpage as any).last_edited_time,
+                  url: (subpage as any).url
                 }
               });
             }
