@@ -1,7 +1,7 @@
 mod api;
 mod health;
 mod settings;
-mod urls;
+mod data_source_handlers;
 mod documents;
 mod agents;
 
@@ -13,7 +13,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .configure(health::configure)
             .configure(api::configure)
             .configure(settings::configure)
-            .configure(urls::configure)
+            .configure(data_source_handlers::configure)
             .configure(documents::configure)
             .configure(agents::configure)
     );

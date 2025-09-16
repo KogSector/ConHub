@@ -1,5 +1,5 @@
 import express from 'express';
-import { connectDataSource, disconnectDataSource, getDataSources, syncDataSource } from '../services/dataSourceService';
+import { connectDataSource, disconnectDataSource, getDataSources, getDataSource, syncDataSource, deleteDataSource, updateDataSource } from '../services/dataSourceService';
 import { logger } from '../utils/logger';
 
 const router = express.Router();
@@ -91,6 +91,52 @@ router.post('/:sourceId/sync', async (req, res) => {
       error: 'Failed to sync data source',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
+  }
+});
+
+// Get data source details
+router.get('/:sourceId', async (req, res) => {
+  try {
+    const { sourceId } = req.params;
+    const dataSource = await getDataSource(sourceId);
+    
+    if (!dataSource) {
+      return res.status(404).json({ error: 'Data source not found' });
+    }
+    
+    res.json({ success: true, dataSource });
+  } catch (error) {
+    logger.error('Error getting data source:', error);
+    res.status(500).json({ error: 'Failed to get data source' });
+  }
+});
+
+// Update data source
+router.put('/:sourceId', async (req, res) => {
+  try {
+    const { sourceId } = req.params;
+    const { name, config } = req.body;
+    
+    const dataSource = await updateDataSource(sourceId, { name, config });
+    
+    res.json({ success: true, dataSource });
+  } catch (error) {
+    logger.error('Error updating data source:', error);
+    res.status(500).json({ error: 'Failed to update data source' });
+  }
+});
+
+// Delete data source
+router.delete('/:sourceId', async (req, res) => {
+  try {
+    const { sourceId } = req.params;
+    
+    await deleteDataSource(sourceId);
+    
+    res.json({ success: true, message: 'Data source deleted successfully' });
+  } catch (error) {
+    logger.error('Error deleting data source:', error);
+    res.status(500).json({ error: 'Failed to delete data source' });
   }
 });
 

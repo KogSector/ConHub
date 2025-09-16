@@ -8,6 +8,7 @@ import { logger } from './utils/logger';
 import indexingRoutes from './routes/indexing';
 import searchRoutes from './routes/search';
 import dataSourceRoutes from './routes/dataSources';
+import aiAgentRoutes from './routes/aiAgents';
 
 // Load environment variables
 dotenv.config();
@@ -45,6 +46,7 @@ app.get('/health', (req: express.Request, res: express.Response) => {
 app.use('/api/indexing', indexingRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/data-sources', dataSourceRoutes);
+app.use('/api/ai-agents', aiAgentRoutes);
 
 // Error handling
 app.use(notFound);

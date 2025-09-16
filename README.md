@@ -16,6 +16,32 @@ ConHub consists of 5 integrated services:
 - **LangChain Service** (Node.js) - AI-powered data source integration
 - **Haystack Service** (Python) - Document processing and Q&A
 
+## Features
+
+### 🔗 Data Source Integration
+- **GitHub** - Repositories, issues, pull requests, README files
+- **BitBucket** - Repositories, issues, pull requests
+- **Google Drive** - Documents, spreadsheets, presentations
+- **Notion** - Pages, databases, subpages
+- **URLs** - Web crawling with content extraction
+- **Local Files** - Upload and index documents
+
+### 🤖 AI Agent Integration
+- **GitHub Copilot** - Code assistance and suggestions
+- **Amazon Q** - AWS-focused development help
+- **Custom Agents** - Extensible agent framework
+
+### 🔍 Advanced Search & Indexing
+- **Semantic Search** - Natural language queries across all sources
+- **Code Search** - Symbol-aware code search with Lexor
+- **Document Q&A** - Ask questions about your documents
+- **Real-time Sync** - Keep data up-to-date automatically
+
+### 📊 Comprehensive Analytics
+- **Indexing Progress** - Track document processing status
+- **Search Analytics** - Monitor query performance
+- **Agent Usage** - AI interaction metrics
+
 ## Quick Start
 
 ### Prerequisites
@@ -59,329 +85,212 @@ This automatically starts all services:
 - ✅ **Frontend** on port 3000
 - ✅ **Backend API** on port 3001
 - ✅ **Lexor Service** on port 3002
-- ✅ **LangChain Service** on port 3002
+- ✅ **LangChain Service** on port 3003
 - ✅ **Haystack Service** on port 8001
 - ✅ **Auto-reload** on file changes
 - ✅ **Cross-platform** (Windows, Mac, Linux)
 
-**Individual Services** (if needed):
-```bash
-npm run dev:frontend    # Frontend only
-npm run dev:backend     # Backend only
-npm run dev:lexor       # Lexor service only
-npm run dev:langchain   # LangChain service only
-npm run dev:haystack    # Haystack service only
+## Data Source Configuration
+
+### GitHub
+```json
+{
+  "type": "github",
+  "credentials": {
+    "accessToken": "your_github_token"
+  },
+  "config": {
+    "repositories": ["owner/repo1", "owner/repo2"],
+    "includeReadme": true,
+    "includeCode": true,
+    "fileExtensions": [".js", ".ts", ".py", ".md"]
+  }
+}
 ```
 
-## Services
-
-### Frontend (Port 3000)
-**Next.js 14 + React 18 + TypeScript**
-- Modern React application with App Router
-- Tailwind CSS + shadcn/ui components
-- Auth0 authentication
-- Real-time dashboard and search interface
-
-**Features:**
-- Multi-source data management
-- Semantic search interface
-- AI chat and Q&A
-- Repository and document browser
-- User authentication and settings
-
-### Backend (Port 3001)
-**Rust + Actix Web**
-- High-performance API server
-- Authentication and authorization
-- CORS-enabled REST API
-- Integration with all services
-
-**API Endpoints:**
-- Authentication and user management
-- Service orchestration
-- Health checks and monitoring
-
-### Lexor Service (Port 3002)
-**Rust + Actix Web + Tantivy**
-- High-performance code indexing
-- Full-text search across codebases
-- Symbol cross-referencing
-- Git history analysis
-- Multi-language support
-
-**Features:**
-- Fast source code indexing
-- Advanced search capabilities
-- Symbol definitions and references
-- Git integration and history tracking
-- Tree-sitter syntax highlighting
-
-**API Endpoints:**
-- `GET /health` - Health check
-- `POST /api/search` - Search code
-- `GET /api/projects` - List projects
-- `POST /api/projects` - Add project
-- `POST /api/projects/{id}/index` - Index project
-
-### LangChain Service (Port 3002)
-**Node.js + TypeScript + LangChain**
-- Multi-source data indexing
-- Vector embeddings and semantic search
-- AI-powered Q&A
-- Real-time data synchronization
-
-**Supported Data Sources:**
-- GitHub repositories (public/private)
-- Google Drive documents
-- Notion pages and databases
-- Web pages and URLs
-- Local file uploads
-
-**API Endpoints:**
-- `GET /api/data-sources` - List connected sources
-- `POST /api/data-sources/connect` - Connect new source
-- `POST /api/indexing/repository` - Index GitHub repo
-- `POST /api/search/universal` - Universal search
-- `POST /api/search/code` - Code-specific search
-
-### Haystack Service (Port 8001)
-**Python + FastAPI + Haystack**
-- Document processing and indexing
-- Semantic search with local models
-- Question answering system
-- File upload and processing
-
-**Features:**
-- PDF, Word, text file processing
-- Local embedding models (no API keys needed)
-- In-memory or Elasticsearch storage
-- Question answering with context
-- Batch document processing
-
-**API Endpoints:**
-- `POST /documents` - Index documents
-- `POST /documents/upload` - Upload files
-- `POST /search` - Semantic search
-- `POST /ask` - Question answering
-- `GET /stats` - Document statistics
-
-## Configuration
-
-### Environment Variables
-
-All services use the single `.env` file at the root:
-
-```bash
-# Service URLs
-NEXT_PUBLIC_API_URL=http://localhost:3001
-LANGCHAIN_SERVICE_URL=http://localhost:3002
-HAYSTACK_SERVICE_URL=http://localhost:8001
-
-# Auth0 Configuration
-AUTH0_SECRET=your-secret-here
-AUTH0_CLIENT_ID=your-client-id
-AUTH0_CLIENT_SECRET=your-client-secret
-
-# AI Configuration
-OPENAI_API_KEY=your-openai-key
-QDRANT_URL=http://localhost:6333
-
-# Data Source APIs
-GITHUB_ACCESS_TOKEN=your-github-token
-GOOGLE_DRIVE_CLIENT_ID=your-google-drive-id
-NOTION_API_KEY=your-notion-key
+### BitBucket
+```json
+{
+  "type": "bitbucket",
+  "credentials": {
+    "username": "your_username",
+    "appPassword": "your_app_password"
+  },
+  "config": {
+    "repositories": ["workspace/repo1", "workspace/repo2"],
+    "includeReadme": true,
+    "includeCode": true
+  }
+}
 ```
 
-### Auth0 Setup
-
-1. Create an Auth0 account at https://auth0.com
-2. Create a new application (Single Page Application)
-3. Configure your application settings:
-   - Allowed Callback URLs: `http://localhost:3000`
-   - Allowed Logout URLs: `http://localhost:3000`
-   - Allowed Web Origins: `http://localhost:3000`
-4. Update `.env` with your Auth0 credentials
-
-### Vector Database Setup
-
-**Option 1: Qdrant (Recommended)**
-```bash
-docker run -p 6333:6333 qdrant/qdrant
+### Google Drive
+```json
+{
+  "type": "google-drive",
+  "credentials": {
+    "clientId": "your_client_id",
+    "clientSecret": "your_client_secret",
+    "refreshToken": "your_refresh_token"
+  },
+  "config": {
+    "folderIds": ["folder_id_1", "folder_id_2"],
+    "includeShared": false,
+    "fileTypes": [
+      "application/vnd.google-apps.document",
+      "application/vnd.google-apps.presentation"
+    ]
+  }
+}
 ```
 
-**Option 2: Pinecone**
-- Sign up at pinecone.io
-- Create an index
-- Add API key to `.env`
-
-## Available Scripts
-
-- `npm start` - Start all services (automatically detects platform)
-- `npm run dev` - Same as start (alias)
-- `npm run build` - Build all services for production
-- `npm run lint` - Lint all JavaScript/TypeScript code
-- `npm run test` - Run tests for all services
-- `npm run test:services` - Test service endpoints
-- `npm run check:services` - Check service health
-- `npm run dev:frontend` - Frontend only
-- `npm run dev:backend` - Backend only
-- `npm run dev:lexor` - Lexor service only
-- `npm run dev:langchain` - LangChain service only
-- `npm run dev:haystack` - Haystack service only
-
-### Platform-Specific Scripts
-
-ConHub includes cross-platform scripts for service management:
-
-**Windows PowerShell (Recommended)**
-```powershell
-.\scripts\start.ps1        # Start all services
-.\scripts\stop.ps1         # Stop all services  
-.\scripts\test.ps1         # Test service endpoints
-.\scripts\check.ps1        # Check service health
+### Notion
+```json
+{
+  "type": "notion",
+  "credentials": {
+    "apiKey": "your_notion_api_key"
+  },
+  "config": {
+    "databaseIds": ["database_id_1"],
+    "pageIds": ["page_id_1"],
+    "includeSubpages": true
+  }
+}
 ```
 
-**Windows Command Prompt**
-```cmd
-scripts\start.bat          # Start all services
-scripts\stop.bat           # Stop all services
-scripts\test.bat           # Test service endpoints
-scripts\check.bat          # Check service health
+### URLs
+```json
+{
+  "type": "url",
+  "config": {
+    "urls": ["https://docs.example.com", "https://blog.example.com"],
+    "crawlDepth": 2,
+    "allowedDomains": ["example.com", "docs.example.com"]
+  }
+}
 ```
-
-**Linux/macOS**
-```bash
-./scripts/start.sh         # Start all services
-./scripts/stop.sh          # Stop all services
-./scripts/test.sh          # Test service endpoints
-./scripts/check.sh         # Check service health
-```
-
-### Service Ports & Health Checks
-
-| Service | Port | Health Check URL | Description |
-|---------|------|------------------|-------------|
-| **Frontend** | 3000 | http://localhost:3000 | Next.js web interface |
-| **Backend** | 3001 | http://localhost:3001/health | Rust API server |
-| **LangChain** | 3003 | http://localhost:3003/health | TypeScript AI service |
-| **Haystack** | 8001 | http://localhost:8001/health | Python document service |
-
-### Platform Detection
-
-The build system automatically detects your platform and runs the appropriate scripts:
-- **Windows**: Runs `.ps1` scripts by default, falls back to `.bat`
-- **Linux/macOS**: Runs `.sh` scripts
-
-### Prerequisites for Scripts
-
-1. **Node.js** and **npm** installed
-2. **Rust** and **Cargo** installed  
-3. **Python** virtual environment (`.venv`) created in project root
-4. All dependencies installed:
-   ```bash
-   npm install
-   pip install -r requirements.txt
-   ```
-
-## Project Structure
-
-```
-ConHub/
-├── 📦 package.json        # Master JS/TS dependencies
-├── 🦀 Cargo.toml          # Master Rust project
-├── 🐍 requirements.txt    # Master Python dependencies
-├── 🔐 .env                # Master environment config
-├── ⚙️  Configuration files # All other master configs
-├── frontend/              # Next.js application
-├── backend/               # Rust API server
-├── lexor/                 # Rust code indexing service
-├── langchain-service/     # Node.js AI service
-└── haystack-service/      # Python document service
-```
-
-## Tech Stack
-
-- **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS, shadcn/ui
-- **Backend**: Rust, Actix Web
-- **Lexor**: Rust, Actix Web, Tantivy, Tree-sitter
-- **LangChain**: Node.js, TypeScript, LangChain, OpenAI
-- **Haystack**: Python, FastAPI, Haystack, Transformers
-- **Authentication**: Auth0
-- **Vector Databases**: Qdrant, Pinecone
-- **Storage**: In-memory, Elasticsearch
-
-## Features
-
-- ✅ **Multi-source connectivity** - Git repos, docs, URLs
-- ✅ **AI agent integration** - LangChain + Haystack
-- ✅ **RAG architecture** - Retrieval-Augmented Generation
-- ✅ **Code indexing** - Fast search across codebases
-- ✅ **Document processing** - PDFs, Word docs, text files
-- ✅ **Semantic search** - Natural language queries
-- ✅ **Question answering** - Direct answers from your data
-- ✅ **Real-time sync** - Keep data up-to-date
-- ✅ **Secure authentication** - Auth0 integration
-- ✅ **Local models** - Run offline without API keys
-- ✅ **Cross-platform** - Windows, Mac, Linux
 
 ## API Examples
 
-### Connect GitHub Repository
+### Connect Data Source
 ```bash
-curl -X POST http://localhost:3002/api/data-sources/connect \
+curl -X POST http://localhost:3003/api/data-sources/connect \
   -H "Content-Type: application/json" \
   -d '{
     "type": "github",
     "credentials": {"accessToken": "your_token"},
-    "config": {"repositories": ["owner/repo"]}
+    "config": {
+      "name": "My GitHub Repos",
+      "repositories": ["owner/repo"],
+      "includeReadme": true,
+      "includeCode": true
+    }
   }'
 ```
 
-### Search Code
+### Query AI Agent
 ```bash
-curl -X POST http://localhost:3002/api/search/code \
+curl -X POST http://localhost:3003/api/ai-agents/query \
   -H "Content-Type: application/json" \
-  -d '{"query": "authentication function", "limit": 10}'
+  -d '{
+    "query": "How does authentication work in this codebase?",
+    "includeContext": true
+  }'
 ```
 
-### Upload Document
+### Search Content
 ```bash
-curl -X POST http://localhost:8001/documents/upload \
-  -F "file=@document.pdf" \
-  -F "metadata={\"source\": \"manual\"}"
-```
-
-### Ask Question
-```bash
-curl -X POST http://localhost:8001/ask \
+curl -X POST http://localhost:3003/api/search/universal \
   -H "Content-Type: application/json" \
-  -d '{"query": "How does authentication work?", "top_k": 3}'
+  -d '{
+    "query": "user authentication",
+    "limit": 10
+  }'
 ```
 
-## Production Deployment
+## Environment Variables
 
-### Docker
-Each service includes a Dockerfile for containerization.
-
-### Build for Production
 ```bash
-npm run build
-cargo build --release
+# Service URLs
+NEXT_PUBLIC_API_URL=http://localhost:3001
+LANGCHAIN_SERVICE_URL=http://localhost:3003
+HAYSTACK_SERVICE_URL=http://localhost:8001
+
+# AI Configuration
+OPENAI_API_KEY=your_openai_key
+GITHUB_ACCESS_TOKEN=your_github_token
+
+# Vector Database
+QDRANT_URL=http://localhost:6333
+PINECONE_API_KEY=your_pinecone_key
+
+# Auth0 Configuration
+AUTH0_SECRET=your_auth0_secret
+AUTH0_CLIENT_ID=your_client_id
+AUTH0_CLIENT_SECRET=your_client_secret
 ```
 
-### Environment
-- Set `NODE_ENV=production`
-- Use production databases (Elasticsearch, PostgreSQL)
-- Configure reverse proxy (nginx)
-- Set up SSL certificates
-- Monitor with logging and metrics
+## Service Architecture
+
+### Frontend (Port 3000)
+- **Next.js 14** with App Router
+- **React 18** with TypeScript
+- **Tailwind CSS** + shadcn/ui components
+- **Real-time dashboard** and search interface
+
+### Backend (Port 3001)
+- **Rust + Actix Web** for high performance
+- **Authentication** and authorization
+- **Service orchestration**
+
+### Lexor Service (Port 3002)
+- **Rust + Tantivy** for code indexing
+- **Tree-sitter** syntax analysis
+- **Git integration** and history tracking
+
+### LangChain Service (Port 3003)
+- **Node.js + TypeScript**
+- **Multi-source data connectors**
+- **AI agent integration**
+- **Vector embeddings** and semantic search
+
+### Haystack Service (Port 8001)
+- **Python + FastAPI**
+- **Document processing** and Q&A
+- **Local embedding models**
+
+## Supported File Types
+
+### Code Files
+- JavaScript/TypeScript (`.js`, `.ts`, `.jsx`, `.tsx`)
+- Python (`.py`)
+- Rust (`.rs`)
+- Java (`.java`)
+- C/C++ (`.c`, `.cpp`, `.h`)
+- Go (`.go`)
+- And many more...
+
+### Documents
+- Markdown (`.md`)
+- Text files (`.txt`)
+- PDFs (`.pdf`)
+- Word documents (`.docx`)
+- Google Docs, Sheets, Slides
+- Notion pages and databases
+
+### Web Content
+- HTML pages
+- JSON APIs
+- RSS feeds
+- Documentation sites
 
 ## Development Tips
 
-1. **Start with local models** - No API keys needed for development
-2. **Use in-memory storage** - Faster for development and testing
-3. **Enable hot reload** - All services support auto-reload
-4. **Check logs** - Each service provides detailed logging
+1. **Start with GitHub/BitBucket** - Easiest to set up and test
+2. **Use local models** - No API keys needed for basic functionality
+3. **Monitor logs** - Each service provides detailed logging
+4. **Check health endpoints** - Verify services are running properly
 5. **Use the unified .env** - All configuration in one place
 
 ## Troubleshooting
@@ -390,55 +299,15 @@ cargo build --release
 
 1. **Port conflicts**: Check if ports 3000-3003, 8001 are available
 2. **Missing dependencies**: Run `npm install` and `pip install -r requirements.txt`
-3. **Auth0 errors**: Verify Auth0 configuration in `.env`
-4. **Model downloads**: Ensure internet connection for first-time model downloads
-5. **Memory issues**: Reduce batch sizes or use smaller models
-
-### Platform-Specific Issues
-
-**Windows: PowerShell Execution Policy Error**
-If you get an execution policy error when running `.ps1` scripts:
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-
-**Linux/macOS: Permission Denied**
-Make scripts executable:
-```bash
-chmod +x scripts/*.sh
-```
-
-**Python Virtual Environment Issues**
-Make sure the Python virtual environment is created and activated:
-```bash
-# Create virtual environment
-python -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-
-# Linux/macOS
-source .venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
+3. **API rate limits**: Use personal access tokens for higher limits
+4. **Memory issues**: Reduce batch sizes or use smaller models
 
 ### Service Health Checks
-- Frontend: http://localhost:3000
-- Backend: http://localhost:3001/health
-- LangChain: http://localhost:3003/health
-- Haystack: http://localhost:8001/health
-
-**Quick Health Check Commands:**
 ```bash
-# Test all services at once
-npm run check:services
-
-# Or test individually
 curl http://localhost:3000          # Frontend
 curl http://localhost:3001/health   # Backend
-curl http://localhost:3003/health   # LangChain  
+curl http://localhost:3002/health   # Lexor
+curl http://localhost:3003/health   # LangChain
 curl http://localhost:8001/health   # Haystack
 ```
 
@@ -446,9 +315,8 @@ curl http://localhost:8001/health   # Haystack
 
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+3. Add comprehensive tests
+4. Submit a pull request
 
 ## License
 

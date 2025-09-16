@@ -1,28 +1,75 @@
 import { Document } from 'langchain/document';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import { GithubRepoLoader } from '@langchain/community/document_loaders/web/github';
-import { DirectoryLoader } from 'langchain/document_loaders/fs/directory';
-import { TextLoader } from 'langchain/document_loaders/fs/text';
-// Note: PDF loader might not be available in this version, will handle gracefully
 import { vectorStore } from './vectorStore';
 import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 
-interface IndexingResult {
+export interface IndexingResult {
   indexId: string;
   status: 'started' | 'processing' | 'completed' | 'failed';
   documentCount?: number;
   error?: string;
 }
 
-// Store for tracking indexing jobs
+export interface DocumentToIndex {
+  id: string;
+  title: string;
+  content: string;
+  metadata: Record<string, any>;
+  sourceId?: string;
+  sourceType?: string;
+}
+
+// Store for tracking indexing jobs and documents
 const indexingJobs = new Map<string, IndexingResult>();
+const indexedDocuments = new Map<string, DocumentToIndex>();
 
 // Text splitter for chunking documents
 const textSplitter = new RecursiveCharacterTextSplitter({
   chunkSize: 1000,
   chunkOverlap: 200,
 });
+
+class IndexingService {
+  async indexDocument(doc: DocumentToIndex): Promise<string> {
+    const chunks = await textSplitter.splitText(doc.content);
+    const documents = chunks.map((chunk, index) => new Document({
+      pageContent: chunk,
+      metadata: {
+        ...doc.metadata,
+        documentId: doc.id,
+        chunkIndex: index,
+        title: doc.title,
+        sourceId: doc.sourceId,
+        sourceType: doc.sourceType,
+        indexedAt: new Date().toISOString()
+      }
+    }));
+    
+    await vectorStore.addDocuments(documents);
+    indexedDocuments.set(doc.id, doc);
+    
+    return doc.id;
+  }
+
+  async removeDocumentsBySource(sourceId: string): Promise<void> {
+    const docsToRemove = Array.from(indexedDocuments.values())
+      .filter(doc => doc.sourceId === sourceId);
+    
+    for (const doc of docsToRemove) {
+      indexedDocuments.delete(doc.id);
+    }
+    
+    logger.info(`Removed ${docsToRemove.length} documents for source ${sourceId}`);
+  }
+
+  async getDocumentsBySource(sourceId: string): Promise<DocumentToIndex[]> {
+    return Array.from(indexedDocuments.values())
+      .filter(doc => doc.sourceId === sourceId);
+  }
+}
+
+export const indexingService = new IndexingService();
 
 export async function indexRepository(
   repoUrl: string, 
