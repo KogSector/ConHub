@@ -305,9 +305,6 @@ export function RepositoriesPageClient() {
                 <Card key={repo.id} className="bg-card border-border hover:bg-accent/5 transition-colors overflow-hidden">
                   <div className="flex flex-col px-6 py-4 gap-4">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="p-2 bg-muted rounded-lg flex-shrink-0">
-                        <GitBranch className="w-5 h-5 text-foreground" />
-                      </div>
                       <span className="font-semibold text-base text-foreground truncate min-w-0 flex-1">{repo.name}</span>
                       <Badge variant="outline" className="flex-shrink-0">
                         {repo.provider}
@@ -323,11 +320,9 @@ export function RepositoriesPageClient() {
                         <span className="truncate">{repo.language}</span>
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        <Star className="w-3 h-3" />
                         <span>{repo.stars}</span>
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        <GitFork className="w-3 h-3" />
                         <span>{repo.forks}</span>
                       </div>
                       <span className="truncate">Updated {repo.lastUpdated}</span>

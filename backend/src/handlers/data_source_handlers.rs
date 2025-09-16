@@ -5,7 +5,7 @@ use reqwest::Client;
 pub async fn connect(req: web::Json<DataSourceRequest>) -> Result<HttpResponse> {
     let client = Client::new();
     let langchain_url = std::env::var("LANGCHAIN_SERVICE_URL")
-        .unwrap_or_else(|_| "http://localhost:3003".to_string());
+        .unwrap_or_else(|_| "http://localhost:3002".to_string());
     
     match connect_data_source(&client, &langchain_url, &req).await {
         Ok(response) => Ok(HttpResponse::Ok().json(response)),
@@ -19,7 +19,7 @@ pub async fn connect(req: web::Json<DataSourceRequest>) -> Result<HttpResponse> 
 pub async fn list() -> Result<HttpResponse> {
     let client = Client::new();
     let langchain_url = std::env::var("LANGCHAIN_SERVICE_URL")
-        .unwrap_or_else(|_| "http://localhost:3003".to_string());
+        .unwrap_or_else(|_| "http://localhost:3002".to_string());
     
     match list_data_sources(&client, &langchain_url).await {
         Ok(response) => Ok(HttpResponse::Ok().json(response)),
@@ -33,7 +33,7 @@ pub async fn list() -> Result<HttpResponse> {
 pub async fn sync(path: web::Path<String>) -> Result<HttpResponse> {
     let client = Client::new();
     let langchain_url = std::env::var("LANGCHAIN_SERVICE_URL")
-        .unwrap_or_else(|_| "http://localhost:3003".to_string());
+        .unwrap_or_else(|_| "http://localhost:3002".to_string());
     let source_id = path.into_inner();
     
     match sync_data_source(&client, &langchain_url, &source_id).await {

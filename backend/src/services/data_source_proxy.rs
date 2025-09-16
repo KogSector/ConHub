@@ -8,6 +8,7 @@ use chrono;
 #[derive(Deserialize)]
 pub struct DataSourceRequest {
     pub source_type: String,
+    pub url: Option<String>,
     pub config: serde_json::Value,
     pub credentials: Option<serde_json::Value>,
 }
@@ -59,6 +60,10 @@ async fn connect_vcs_data_source(
 ) -> Result<DataSourceResponse, Box<dyn std::error::Error>> {
     let repository_service = RepositoryService::new();
     
+    // Get repository URL
+    let url = request.url.as_ref()
+        .ok_or("Repository URL is required for VCS connections")?;
+    
     // Parse VCS type and provider
     let vcs_type = match request.source_type.as_str() {
         "github" => VcsType::Git,
@@ -101,52 +106,29 @@ async fn connect_vcs_data_source(
     } else {
         return Err("Credentials are required for VCS connections".into());
     };
-    
-    // Extract repositories list from config
-    let repositories = request.config["repositories"].as_array()
-        .and_then(|arr| {
-            arr.iter()
-                .map(|v| v.as_str())
-                .collect::<Option<Vec<_>>>()
-        })
-        .unwrap_or_default();
-    
-    if repositories.is_empty() {
-        return Err("At least one repository is required".into());
-    }
-    
-    let repo_count = repositories.len();
-    
-    // Connect each repository
-    for repo_path in &repositories {
-        let url = match vcs_provider {
-            VcsProvider::GitHub => format!("https://github.com/{}", repo_path),
-            VcsProvider::Bitbucket => format!("https://bitbucket.org/{}", repo_path),
-            _ => continue,
-        };
-        
-        match repository_service.connect_repository(ConnectRepositoryRequest {
-            url: url.clone(),
-            vcs_type: Some(vcs_type.clone()),
-            provider: Some(vcs_provider.clone()),
-            credentials: credentials.clone(),
-            config: None,
-        }).await {
-            Ok(_) => {
-                println!("Successfully connected repository: {}", repo_path);
-            }
-            Err(e) => {
-                eprintln!("Failed to connect repository {}: {}", repo_path, e);
-                // Continue with other repositories instead of failing completely
-            }
+
+    // Create repository connection request
+    let connect_request = ConnectRepositoryRequest {
+        url: url.clone(),
+        vcs_type: Some(vcs_type),
+        provider: Some(vcs_provider),
+        credentials,
+        config: None, // We'll use defaults for now
+    };
+
+    // Connect the repository using our VCS service
+    match repository_service.connect_repository(connect_request).await {
+        Ok(repo_info) => {
+            Ok(DataSourceResponse {
+                id: repo_info.id,
+                status: "connected".to_string(),
+                message: format!("Repository '{}' connected successfully", repo_info.name),
+            })
+        }
+        Err(e) => {
+            Err(format!("Failed to connect repository: {}", e).into())
         }
     }
-    
-    Ok(DataSourceResponse {
-        id: format!("{}_{}", request.source_type, chrono::Utc::now().timestamp()),
-        status: "connected".to_string(),
-        message: format!("Connected {} repositories successfully", repo_count),
-    })
 }
 
 pub async fn list_data_sources(

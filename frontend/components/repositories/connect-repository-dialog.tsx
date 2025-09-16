@@ -20,6 +20,7 @@ interface ConnectRepositoryDialogProps {
 export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: ConnectRepositoryDialogProps) {
   const [provider, setProvider] = useState('');
   const [name, setName] = useState('');
+  const [repositoryUrl, setRepositoryUrl] = useState('');
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [config, setConfig] = useState<Record<string, any>>({
     includeReadme: true,
@@ -31,25 +32,55 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Extract repository name from URL
+  const extractRepoName = (url: string): string => {
+    try {
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/').filter(Boolean);
+      if (pathParts.length >= 2) {
+        const owner = pathParts[pathParts.length - 2];
+        const repo = pathParts[pathParts.length - 1].replace('.git', '');
+        return `${owner}/${repo}`;
+      }
+      return url;
+    } catch {
+      return url;
+    }
+  };
+
+  const handleCancel = () => {
+    resetForm();
+    onOpenChange(false);
+  };
+
   const handleConnect = async () => {
     setLoading(true);
     setError(null);
     
+    console.log('Connecting repository...', { provider, repositoryUrl, credentials });
+    
     try {
+      const payload = { 
+        type: provider, 
+        url: repositoryUrl,
+        credentials, 
+        config: { 
+          ...config, 
+          name: name || extractRepoName(repositoryUrl) || `${provider}-${Date.now()}`
+        } 
+      };
+      
+      console.log('Sending payload:', payload);
+      
       const response = await fetch('/api/data-sources/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          type: provider, 
-          credentials, 
-          config: { 
-            ...config, 
-            name: name || `${provider}-${Date.now()}`
-          } 
-        })
+        body: JSON.stringify(payload)
       });
       
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
       
       if (data.success) {
         onSuccess();
@@ -69,6 +100,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   const resetForm = () => {
     setProvider('');
     setName('');
+    setRepositoryUrl('');
     setCredentials({});
     setConfig({
       includeReadme: true,
@@ -84,72 +116,80 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     switch (provider) {
       case 'github':
         return (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="accessToken">GitHub Access Token</Label>
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="accessToken" className="text-sm font-medium">GitHub Access Token</Label>
+                <a 
+                  href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  How to create a token?
+                </a>
+              </div>
               <Input
                 id="accessToken"
                 type="password"
-                placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                placeholder="ghp_xxxxxxxxxxxxxxxxxxxx or github_pat_xxxxxxxxxx"
                 value={credentials.accessToken || ''}
                 onChange={(e) => setCredentials({ ...credentials, accessToken: e.target.value })}
+                className="mt-2"
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Generate a token at: Settings → Developer settings → Personal access tokens
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="repositories">Repositories</Label>
-              <Textarea
-                id="repositories"
-                placeholder="owner/repo1, owner/repo2"
-                value={config.repositories?.join(', ') || ''}
-                onChange={(e) => setConfig({ 
-                  ...config, 
-                  repositories: e.target.value.split(',').map(r => r.trim()).filter(Boolean)
-                })}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Comma-separated list of repositories (e.g., microsoft/vscode, facebook/react)
-              </p>
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <p className="font-medium">Token Types Supported:</p>
+                <ul className="space-y-1 ml-4">
+                  <li>• <strong>Classic tokens (ghp_*):</strong> Need <code>repo</code> or <code>public_repo</code> scope</li>
+                  <li>• <strong>Fine-grained tokens (github_pat_*):</strong> Need repository access and Contents/Metadata permissions</li>
+                </ul>
+                <div className="flex gap-4 pt-1">
+                  <a 
+                    href="https://github.com/settings/tokens" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Manage Classic Tokens
+                  </a>
+                  <a 
+                    href="https://github.com/settings/personal-access-tokens/new" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Create Fine-grained Token
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         );
 
       case 'bitbucket':
         return (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="username">Username</Label>
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <Label htmlFor="username" className="text-sm font-medium">Username</Label>
               <Input
                 id="username"
                 value={credentials.username || ''}
                 onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+                className="mt-2"
               />
             </div>
-            <div>
-              <Label htmlFor="appPassword">App Password</Label>
+            <div className="space-y-3">
+              <Label htmlFor="appPassword" className="text-sm font-medium">App Password</Label>
               <Input
                 id="appPassword"
                 type="password"
                 value={credentials.appPassword || ''}
                 onChange={(e) => setCredentials({ ...credentials, appPassword: e.target.value })}
+                className="mt-2"
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-2">
                 Create at: Settings → Personal Bitbucket settings → App passwords
               </p>
-            </div>
-            <div>
-              <Label htmlFor="repositories">Repositories</Label>
-              <Textarea
-                id="repositories"
-                placeholder="workspace/repo1, workspace/repo2"
-                value={config.repositories?.join(', ') || ''}
-                onChange={(e) => setConfig({ 
-                  ...config, 
-                  repositories: e.target.value.split(',').map(r => r.trim()).filter(Boolean)
-                })}
-              />
             </div>
           </div>
         );
@@ -169,7 +209,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
           </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-6">
+        <div className="space-y-8">
           {error && (
             <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
@@ -177,20 +217,24 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
             </div>
           )}
 
-          <div>
-            <Label htmlFor="name">Connection Name</Label>
+          <div className="space-y-3">
+            <Label htmlFor="name" className="text-sm font-medium">Connection Name (Optional)</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="My GitHub Repositories"
+              placeholder={repositoryUrl ? extractRepoName(repositoryUrl) : "Auto-generated from repository URL"}
+              className="mt-2"
             />
+            <p className="text-xs text-muted-foreground mt-2">
+              Leave empty to automatically use the repository name from the URL
+            </p>
           </div>
 
-          <div>
-            <Label htmlFor="provider">Repository Provider</Label>
+          <div className="space-y-3">
+            <Label htmlFor="provider" className="text-sm font-medium">Repository Provider</Label>
             <Select value={provider} onValueChange={setProvider}>
-              <SelectTrigger>
+              <SelectTrigger className="mt-2">
                 <SelectValue placeholder="Select a repository provider" />
               </SelectTrigger>
               <SelectContent>
@@ -210,16 +254,35 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
             </Select>
           </div>
 
+          {provider && (
+            <div className="space-y-3">
+              <Label htmlFor="repositoryUrl" className="text-sm font-medium">Repository URL</Label>
+              <Input
+                id="repositoryUrl"
+                value={repositoryUrl}
+                onChange={(e) => setRepositoryUrl(e.target.value)}
+                placeholder={provider === 'github' ? 'https://github.com/owner/repo' : 'https://bitbucket.org/workspace/repo'}
+                className="mt-2"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                {provider === 'github' 
+                  ? 'Full GitHub repository URL (e.g., https://github.com/microsoft/vscode)'
+                  : 'Full Bitbucket repository URL (e.g., https://bitbucket.org/atlassian/stash)'
+                }
+              </p>
+            </div>
+          )}
+
           {provider && renderCredentialFields()}
 
           {provider && (
-            <div className="space-y-4 border-t pt-4">
-              <h4 className="font-medium">Configuration Options</h4>
+            <div className="space-y-6 border-t pt-6">
+              <h4 className="font-medium text-base">Configuration Options</h4>
               
-              <div className="grid gap-4">
+              <div className="grid gap-6">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Include README files</Label>
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium">Include README files</Label>
                     <p className="text-xs text-muted-foreground">Extract and index README.md files</p>
                   </div>
                   <Switch
@@ -229,8 +292,8 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Include source code</Label>
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium">Include source code</Label>
                     <p className="text-xs text-muted-foreground">Index source code files for search</p>
                   </div>
                   <Switch
@@ -240,8 +303,8 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Enable webhooks (future)</Label>
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium">Enable webhooks (future)</Label>
                     <p className="text-xs text-muted-foreground">Real-time updates when repositories change</p>
                   </div>
                   <Switch
@@ -250,13 +313,13 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   />
                 </div>
 
-                <div>
-                  <Label>Default Branch</Label>
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Default Branch</Label>
                   <Select 
                     value={config.defaultBranch} 
                     onValueChange={(value) => setConfig({ ...config, defaultBranch: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="mt-2">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -267,9 +330,9 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   </Select>
                 </div>
 
-                <div>
-                  <Label>File Extensions to Index</Label>
-                  <div className="flex flex-wrap gap-1 mt-2">
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">File Extensions to Index</Label>
+                  <div className="flex flex-wrap gap-2 mt-3">
                     {['.js', '.ts', '.jsx', '.tsx', '.py', '.rs', '.go', '.java', '.md', '.txt', '.json', '.yml', '.yaml'].map((ext) => (
                       <Badge
                         key={ext}
@@ -292,13 +355,13 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
             </div>
           )}
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex justify-end space-x-3 pt-6">
+            <Button variant="outline" onClick={handleCancel}>
               Cancel
             </Button>
             <Button 
               onClick={handleConnect} 
-              disabled={!provider || !name || loading || (!credentials.accessToken && !credentials.username)}
+              disabled={!provider || !repositoryUrl || loading || (!credentials.accessToken && !credentials.username)}
             >
               {loading ? 'Connecting...' : 'Connect Repository'}
             </Button>

@@ -210,6 +210,7 @@ impl VcsDetector {
 pub struct CloneUrls {
     pub https: String,
     pub ssh: Option<String>,
+    #[allow(dead_code)]
     pub original: String,
 }
 

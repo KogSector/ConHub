@@ -1,12 +1,10 @@
 use async_trait::async_trait;
 use reqwest::Client;
-use serde_json::{json, Value};
-use std::collections::HashMap;
-use chrono::Utc;
+use serde_json::Value;
 
 use crate::models::{
     VcsType, VcsProvider, RepositoryInfo, RepositoryCredentials, 
-    CredentialType, RepositoryConfig, RepositorySyncStatus
+    CredentialType
 };
 use crate::services::vcs_detector::{VcsDetector, CloneUrls};
 
@@ -26,6 +24,7 @@ pub enum VcsError {
     NetworkError(String),
     
     #[error("Invalid credentials: {0}")]
+    #[allow(dead_code)]
     InvalidCredentials(String),
     
     #[error("Unsupported VCS type: {0:?}")]
@@ -43,6 +42,7 @@ pub enum VcsError {
 
 /// Repository metadata retrieved from VCS
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct RepositoryMetadata {
     pub name: String,
     pub description: Option<String>,
@@ -59,6 +59,7 @@ pub struct RepositoryMetadata {
 
 /// File content from repository
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct FileContent {
     pub path: String,
     pub content: String,
@@ -69,6 +70,7 @@ pub struct FileContent {
 
 /// Repository branch information
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct BranchInfo {
     pub name: String,
     pub sha: String,
@@ -97,6 +99,7 @@ pub trait VcsConnector: Send + Sync {
     ) -> VcsResult<Vec<BranchInfo>>;
     
     /// Get file contents from repository
+    #[allow(dead_code)]
     async fn get_file_content(
         &self,
         url: &str,
@@ -106,6 +109,7 @@ pub trait VcsConnector: Send + Sync {
     ) -> VcsResult<FileContent>;
     
     /// List files in repository directory
+    #[allow(dead_code)]
     async fn list_files(
         &self,
         url: &str,
@@ -116,6 +120,7 @@ pub trait VcsConnector: Send + Sync {
     ) -> VcsResult<Vec<String>>;
     
     /// Clone or pull repository for local access
+    #[allow(dead_code)]
     async fn sync_repository(
         &self,
         repo_info: &RepositoryInfo,
@@ -176,7 +181,21 @@ impl GitConnector {
         // Add authentication headers based on credential type
         match &credentials.credential_type {
             CredentialType::PersonalAccessToken { token } => {
-                request = request.header("Authorization", format!("token {}", token));
+                println!("Making API request to: {}", url);
+                // Auto-detect token type and use appropriate authorization header
+                if token.starts_with("github_pat_") {
+                    // Fine-grained personal access token
+                    println!("Using Bearer auth for fine-grained token");
+                    request = request.header("Authorization", format!("Bearer {}", token));
+                } else if token.starts_with("ghp_") {
+                    // Classic personal access token
+                    println!("Using token auth for classic token");
+                    request = request.header("Authorization", format!("token {}", token));
+                } else {
+                    // Default to token format for unknown token types
+                    println!("Using default token auth for unknown token type");
+                    request = request.header("Authorization", format!("token {}", token));
+                }
             }
             CredentialType::OAuthToken { access_token, .. } => {
                 request = request.header("Authorization", format!("Bearer {}", access_token));
@@ -214,14 +233,26 @@ impl VcsConnector for GitConnector {
         // Test with GitHub user endpoint
         match &credentials.credential_type {
             CredentialType::PersonalAccessToken { token } => {
+                println!("Testing connection with token starting with: {}", &token[..8]);
+                
+                let auth_header = if token.starts_with("github_pat_") {
+                    println!("Using Bearer auth for fine-grained token");
+                    format!("Bearer {}", token)
+                } else {
+                    println!("Using token auth for classic token");
+                    format!("token {}", token)
+                };
+                
+                println!("Making request to GitHub user API...");
                 let response = self.client
                     .get("https://api.github.com/user")
-                    .header("Authorization", format!("token {}", token))
+                    .header("Authorization", auth_header)
                     .header("User-Agent", "ConHub")
                     .send()
                     .await
                     .map_err(|e| VcsError::NetworkError(e.to_string()))?;
                 
+                println!("Response status: {}", response.status());
                 Ok(response.status().is_success())
             }
             CredentialType::OAuthToken { access_token, .. } => {
@@ -260,6 +291,8 @@ impl VcsConnector for GitConnector {
         };
         
         let repo_data = self.make_api_request(&api_url, credentials).await?;
+        
+        println!("Successfully got repository metadata for: {}", api_url);
         
         // Parse response based on provider
         let metadata = match provider {
@@ -332,10 +365,10 @@ impl VcsConnector for GitConnector {
     
     async fn get_file_content(
         &self,
-        url: &str,
-        path: &str,
-        branch: &str,
-        credentials: &RepositoryCredentials,
+        _url: &str,
+        _path: &str,
+        _branch: &str,
+        _credentials: &RepositoryCredentials,
     ) -> VcsResult<FileContent> {
         // Implementation for getting file content from Git repositories
         // This would involve API calls to get file contents
@@ -344,11 +377,11 @@ impl VcsConnector for GitConnector {
     
     async fn list_files(
         &self,
-        url: &str,
-        path: &str,
-        branch: &str,
-        credentials: &RepositoryCredentials,
-        recursive: bool,
+        _url: &str,
+        _path: &str,
+        _branch: &str,
+        _credentials: &RepositoryCredentials,
+        _recursive: bool,
     ) -> VcsResult<Vec<String>> {
         // Implementation for listing files in Git repositories
         Err(VcsError::OperationFailed("Not implemented yet".to_string()))
@@ -356,8 +389,8 @@ impl VcsConnector for GitConnector {
     
     async fn sync_repository(
         &self,
-        repo_info: &RepositoryInfo,
-        local_path: &str,
+        _repo_info: &RepositoryInfo,
+        _local_path: &str,
     ) -> VcsResult<()> {
         // Implementation for cloning/pulling Git repositories
         Err(VcsError::OperationFailed("Not implemented yet".to_string()))
@@ -365,10 +398,10 @@ impl VcsConnector for GitConnector {
     
     async fn setup_webhook(
         &self,
-        url: &str,
-        webhook_url: &str,
-        secret: &str,
-        credentials: &RepositoryCredentials,
+        _url: &str,
+        _webhook_url: &str,
+        _secret: &str,
+        _credentials: &RepositoryCredentials,
     ) -> VcsResult<String> {
         // Implementation for setting up webhooks
         Err(VcsError::OperationFailed("Not implemented yet".to_string()))
@@ -377,6 +410,7 @@ impl VcsConnector for GitConnector {
 
 /// SVN connector implementation
 pub struct SvnConnector {
+    #[allow(dead_code)]
     client: Client,
 }
 
@@ -390,62 +424,62 @@ impl SvnConnector {
 
 #[async_trait]
 impl VcsConnector for SvnConnector {
-    async fn test_connection(&self, credentials: &RepositoryCredentials) -> VcsResult<bool> {
+    async fn test_connection(&self, _credentials: &RepositoryCredentials) -> VcsResult<bool> {
         // SVN connection testing would require different approach
         Err(VcsError::UnsupportedVcs(VcsType::Subversion))
     }
     
     async fn get_repository_metadata(
         &self,
-        url: &str,
-        credentials: &RepositoryCredentials,
+        _url: &str,
+        _credentials: &RepositoryCredentials,
     ) -> VcsResult<RepositoryMetadata> {
         Err(VcsError::UnsupportedVcs(VcsType::Subversion))
     }
     
     async fn list_branches(
         &self,
-        url: &str,
-        credentials: &RepositoryCredentials,
+        _url: &str,
+        _credentials: &RepositoryCredentials,
     ) -> VcsResult<Vec<BranchInfo>> {
         Err(VcsError::UnsupportedVcs(VcsType::Subversion))
     }
     
     async fn get_file_content(
         &self,
-        url: &str,
-        path: &str,
-        branch: &str,
-        credentials: &RepositoryCredentials,
+        _url: &str,
+        _path: &str,
+        _branch: &str,
+        _credentials: &RepositoryCredentials,
     ) -> VcsResult<FileContent> {
         Err(VcsError::UnsupportedVcs(VcsType::Subversion))
     }
     
     async fn list_files(
         &self,
-        url: &str,
-        path: &str,
-        branch: &str,
-        credentials: &RepositoryCredentials,
-        recursive: bool,
+        _url: &str,
+        _path: &str,
+        _branch: &str,
+        _credentials: &RepositoryCredentials,
+        _recursive: bool,
     ) -> VcsResult<Vec<String>> {
         Err(VcsError::UnsupportedVcs(VcsType::Subversion))
     }
     
     async fn sync_repository(
         &self,
-        repo_info: &RepositoryInfo,
-        local_path: &str,
+        _repo_info: &RepositoryInfo,
+        _local_path: &str,
     ) -> VcsResult<()> {
         Err(VcsError::UnsupportedVcs(VcsType::Subversion))
     }
     
     async fn setup_webhook(
         &self,
-        url: &str,
-        webhook_url: &str,
-        secret: &str,
-        credentials: &RepositoryCredentials,
+        _url: &str,
+        _webhook_url: &str,
+        _secret: &str,
+        _credentials: &RepositoryCredentials,
     ) -> VcsResult<String> {
         Err(VcsError::UnsupportedVcs(VcsType::Subversion))
     }

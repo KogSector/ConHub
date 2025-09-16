@@ -152,7 +152,7 @@ impl RepositoryService {
             repo.sync_status = RepositorySyncStatus::Syncing;
             repo.updated_at = Utc::now();
             
-            let connector = VcsConnectorFactory::create_connector(&repo.vcs_type);
+            let _connector = VcsConnectorFactory::create_connector(&repo.vcs_type);
             
             // Here you would implement the actual syncing logic
             // For now, we'll just simulate a successful sync
@@ -239,7 +239,7 @@ impl CredentialValidator {
     /// Validate credentials for a specific VCS type
     pub async fn validate_credentials(
         vcs_type: &VcsType,
-        provider: &VcsProvider,
+        _provider: &VcsProvider,
         credentials: &RepositoryCredentials,
     ) -> VcsResult<bool> {
         let connector = VcsConnectorFactory::create_connector(vcs_type);
@@ -247,6 +247,7 @@ impl CredentialValidator {
     }
     
     /// Check if credentials are expired
+    #[allow(dead_code)]
     pub fn are_credentials_expired(credentials: &RepositoryCredentials) -> bool {
         if let Some(expires_at) = credentials.expires_at {
             return Utc::now() > expires_at;
@@ -255,9 +256,10 @@ impl CredentialValidator {
     }
     
     /// Refresh OAuth token if possible
+    #[allow(dead_code)]
     pub async fn refresh_oauth_token(credentials: &RepositoryCredentials) -> VcsResult<RepositoryCredentials> {
         match &credentials.credential_type {
-            CredentialType::OAuthToken { refresh_token: Some(refresh_token), .. } => {
+            CredentialType::OAuthToken { refresh_token: Some(_refresh_token), .. } => {
                 // Here you would implement OAuth token refresh logic
                 // This would depend on the specific provider's OAuth flow
                 Err(VcsError::OperationFailed("OAuth token refresh not implemented".to_string()))
@@ -268,10 +270,12 @@ impl CredentialValidator {
 }
 
 /// Repository synchronization scheduler
+#[allow(dead_code)]
 pub struct RepositorySyncScheduler;
 
 impl RepositorySyncScheduler {
     /// Schedule automatic synchronization for repositories
+    #[allow(dead_code)]
     pub async fn schedule_sync(&self, repository_service: &RepositoryService) -> VcsResult<()> {
         let repositories = repository_service.list_repositories();
         
@@ -287,6 +291,7 @@ impl RepositorySyncScheduler {
     }
     
     /// Run immediate sync for all auto-sync enabled repositories
+    #[allow(dead_code)]
     pub async fn sync_all(&self, repository_service: &RepositoryService) -> Vec<(String, VcsResult<()>)> {
         let repositories = repository_service.list_repositories();
         let mut results = Vec::new();
