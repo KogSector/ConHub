@@ -2,8 +2,29 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use std::sync::Arc;
+use std::collections::HashMap;
 
 use crate::models::{AgentRecord, AgentContext, AgentInvokeRequest, AgentInvokeResponse, AgentInvokeUsage};
+use crate::models::mcp::*;
+use crate::services::mcp_server::ConHubMcpServer;
+use crate::services::mcp_client::{McpClient, AuthConfig};
+
+#[derive(Debug, Clone)]
+pub struct AgentService {
+    client: Client,
+    mcp_server: Arc<ConHubMcpServer>,
+    mcp_clients: Arc<tokio::sync::RwLock<HashMap<String, McpClient>>>,
+}
+
+/// MCP-enhanced context for AI agents
+#[derive(Debug, Clone)]
+pub struct McpEnhancedContext {
+    pub traditional_context: Option<AgentContext>,
+    pub mcp_contexts: Vec<McpContext>,
+    pub mcp_resources: Vec<McpResource>,
+    pub context_metadata: HashMap<String, serde_json::Value>,
+}
 
 #[derive(Debug, Clone)]
 pub struct AgentService {
@@ -77,8 +98,198 @@ impl AgentService {
             .timeout(Duration::from_secs(60))
             .build()
             .expect("Failed to create HTTP client");
+
+        let mcp_server = Arc::new(ConHubMcpServer::new());
+        let mcp_clients = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         
-        Self { client }
+        Self { 
+            client, 
+            mcp_server,
+            mcp_clients,
+        }
+    }
+
+    /// Initialize the service with MCP server setup
+    pub async fn initialize(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // Initialize the MCP server
+        Arc::get_mut(&mut self.mcp_server)
+            .ok_or("Failed to get mutable reference to MCP server")?
+            .initialize()
+            .await
+            .map_err(|e| format!("Failed to initialize MCP server: {}", e))?;
+
+        log::info!("AgentService initialized with MCP support");
+        Ok(())
+    }
+
+    /// Connect to an external MCP server
+    pub async fn connect_external_mcp_server(
+        &self,
+        name: String,
+        endpoint: String,
+        auth_config: AuthConfig,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let mcp_client = McpClient::new()
+            .map_err(|e| format!("Failed to create MCP client: {}", e))?;
+
+        let server_id = mcp_client
+            .connect(endpoint, auth_config)
+            .await
+            .map_err(|e| format!("Failed to connect to MCP server: {}", e))?;
+
+        // Store the client
+        {
+            let mut clients = self.mcp_clients.write().await;
+            clients.insert(name.clone(), mcp_client);
+        }
+
+        log::info!("Connected to external MCP server: {} (ID: {})", name, server_id);
+        Ok(server_id)
+    }
+
+    /// Create MCP-enhanced context for an agent
+    pub async fn create_mcp_context(
+        &self,
+        agent: &AgentRecord,
+        traditional_context: Option<AgentContext>,
+    ) -> Result<McpEnhancedContext, Box<dyn std::error::Error>> {
+        let mut mcp_contexts = Vec::new();
+        let mut mcp_resources = Vec::new();
+        let mut context_metadata = HashMap::new();
+
+        // Create contexts based on agent permissions
+        if agent.permissions.contains(&"repositories".to_string()) {
+            if let Ok(repo_context) = self.create_repository_context().await {
+                mcp_contexts.push(repo_context);
+            }
+        }
+
+        if agent.permissions.contains(&"documents".to_string()) {
+            if let Ok(doc_context) = self.create_document_context().await {
+                mcp_contexts.push(doc_context);
+            }
+        }
+
+        if agent.permissions.contains(&"urls".to_string()) {
+            if let Ok(url_context) = self.create_url_context().await {
+                mcp_contexts.push(url_context);
+            }
+        }
+
+        // Add metadata about context creation
+        context_metadata.insert("created_at".to_string(), json!(chrono::Utc::now()));
+        context_metadata.insert("agent_id".to_string(), json!(agent.id));
+        context_metadata.insert("permissions".to_string(), json!(agent.permissions));
+
+        Ok(McpEnhancedContext {
+            traditional_context,
+            mcp_contexts,
+            mcp_resources,
+            context_metadata,
+        })
+    }
+
+    /// Create repository context using MCP
+    async fn create_repository_context(&self) -> Result<McpContext, McpError> {
+        let context_id = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now();
+
+        // In a real implementation, this would fetch actual repository data
+        let context = McpContext {
+            id: context_id,
+            name: "Repository Context".to_string(),
+            description: Some("Context containing repository information and code".to_string()),
+            context_type: ContextType::Repository,
+            resources: vec![
+                ContextResource {
+                    resource_id: "repo_1".to_string(),
+                    relevance_score: Some(0.9),
+                    content: Some("ConHub main repository".to_string()),
+                    content_type: Some("application/vnd.conhub.repository".to_string()),
+                    annotations: Some(ResourceAnnotations {
+                        audience: Some(vec!["developers".to_string()]),
+                        priority: Some(0.9),
+                        tags: vec!["repository".to_string(), "code".to_string()],
+                        source_type: "git".to_string(),
+                        confidence: Some(0.95),
+                    }),
+                }
+            ],
+            metadata: HashMap::new(),
+            created_at: now,
+            expires_at: None,
+            access_level: AccessLevel::Internal,
+        };
+
+        Ok(context)
+    }
+
+    /// Create document context using MCP
+    async fn create_document_context(&self) -> Result<McpContext, McpError> {
+        let context_id = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now();
+
+        let context = McpContext {
+            id: context_id,
+            name: "Document Context".to_string(),
+            description: Some("Context containing documents and documentation".to_string()),
+            context_type: ContextType::Document,
+            resources: vec![
+                ContextResource {
+                    resource_id: "doc_1".to_string(),
+                    relevance_score: Some(0.8),
+                    content: Some("API documentation and guides".to_string()),
+                    content_type: Some("text/markdown".to_string()),
+                    annotations: Some(ResourceAnnotations {
+                        audience: Some(vec!["users".to_string(), "developers".to_string()]),
+                        priority: Some(0.8),
+                        tags: vec!["documentation".to_string(), "api".to_string()],
+                        source_type: "markdown".to_string(),
+                        confidence: Some(0.9),
+                    }),
+                }
+            ],
+            metadata: HashMap::new(),
+            created_at: now,
+            expires_at: None,
+            access_level: AccessLevel::Internal,
+        };
+
+        Ok(context)
+    }
+
+    /// Create URL context using MCP
+    async fn create_url_context(&self) -> Result<McpContext, McpError> {
+        let context_id = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now();
+
+        let context = McpContext {
+            id: context_id,
+            name: "URL Context".to_string(),
+            description: Some("Context containing web resources and URLs".to_string()),
+            context_type: ContextType::Url,
+            resources: vec![
+                ContextResource {
+                    resource_id: "url_1".to_string(),
+                    relevance_score: Some(0.7),
+                    content: Some("External web resources and references".to_string()),
+                    content_type: Some("text/html".to_string()),
+                    annotations: Some(ResourceAnnotations {
+                        audience: Some(vec!["researchers".to_string()]),
+                        priority: Some(0.7),
+                        tags: vec!["web".to_string(), "reference".to_string()]),
+                        source_type: "url".to_string(),
+                        confidence: Some(0.8),
+                    }),
+                }
+            ],
+            metadata: HashMap::new(),
+            created_at: now,
+            expires_at: None,
+            access_level: AccessLevel::Internal,
+        };
+
+        Ok(context)
     }
 
     pub async fn invoke_agent(
@@ -89,10 +300,13 @@ impl AgentService {
     ) -> Result<AgentInvokeResponse, Box<dyn std::error::Error>> {
         let start_time = std::time::Instant::now();
         
+        // Create MCP-enhanced context
+        let mcp_context = self.create_mcp_context(agent, context.cloned()).await?;
+        
         let response = match agent.agent_type.as_str() {
-            "openai" => self.invoke_openai(agent, request, context).await?,
-            "anthropic" => self.invoke_anthropic(agent, request, context).await?,
-            "custom" => self.invoke_custom(agent, request, context).await?,
+            "openai" => self.invoke_openai_with_mcp(agent, request, &mcp_context).await?,
+            "anthropic" => self.invoke_anthropic_with_mcp(agent, request, &mcp_context).await?,
+            "custom" => self.invoke_custom_with_mcp(agent, request, &mcp_context).await?,
             _ => return Err("Unsupported agent type".into()),
         };
         
@@ -105,6 +319,313 @@ impl AgentService {
                 response_time_ms: response_time,
             },
             context_used: response.context_used,
+        })
+    }
+
+    /// OpenAI invocation with MCP-enhanced context
+    async fn invoke_openai_with_mcp(
+        &self,
+        agent: &AgentRecord,
+        request: &AgentInvokeRequest,
+        mcp_context: &McpEnhancedContext,
+    ) -> Result<AgentInvokeResponse, Box<dyn std::error::Error>> {
+        let model = agent.config.model.as_ref().unwrap_or(&"gpt-4".to_string()).clone();
+        let temperature = agent.config.temperature.unwrap_or(0.7);
+        let max_tokens = agent.config.max_tokens.unwrap_or(1000);
+        
+        let mut messages = vec![];
+        
+        // Add system message with MCP-enhanced context
+        let context_summary = self.format_mcp_context_for_openai(mcp_context);
+        if !context_summary.is_empty() {
+            messages.push(OpenAIMessage {
+                role: "system".to_string(),
+                content: format!(
+                    "You are an AI assistant with access to structured context through the Model Context Protocol (MCP):\n{}",
+                    context_summary
+                ),
+            });
+        }
+
+        // Add custom instructions if any
+        if let Some(instructions) = &agent.config.custom_instructions {
+            messages.push(OpenAIMessage {
+                role: "system".to_string(),
+                content: instructions.clone(),
+            });
+        }
+
+        // Add user message
+        messages.push(OpenAIMessage {
+            role: "user".to_string(),
+            content: request.message.clone(),
+        });
+
+        let payload = OpenAIRequest {
+            model,
+            messages,
+            max_tokens: Some(max_tokens),
+            temperature: Some(temperature),
+        };
+
+        let response = self.client
+            .post("https://api.openai.com/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", agent.api_key))
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let error_text = response.text().await?;
+            return Err(format!("OpenAI API error: {}", error_text).into());
+        }
+
+        let openai_response: OpenAIResponse = response.json().await?;
+
+        let response_text = openai_response.choices
+            .first()
+            .ok_or("No response from OpenAI")?
+            .message
+            .content
+            .clone();
+
+        let context_used = mcp_context.mcp_contexts.iter()
+            .map(|ctx| ctx.name.clone())
+            .collect::<Vec<_>>();
+
+        Ok(AgentInvokeResponse {
+            response: response_text,
+            usage: AgentInvokeUsage {
+                tokens_used: openai_response.usage.total_tokens,
+                response_time_ms: 0, // Will be set by caller
+            },
+            context_used,
+        })
+    }
+
+    /// Anthropic invocation with MCP-enhanced context
+    async fn invoke_anthropic_with_mcp(
+        &self,
+        agent: &AgentRecord,
+        request: &AgentInvokeRequest,
+        mcp_context: &McpEnhancedContext,
+    ) -> Result<AgentInvokeResponse, Box<dyn std::error::Error>> {
+        let model = agent.config.model.as_ref().unwrap_or(&"claude-3-sonnet-20240229".to_string()).clone();
+        let temperature = agent.config.temperature.unwrap_or(0.7);
+        let max_tokens = agent.config.max_tokens.unwrap_or(1000);
+
+        // Format MCP context for Anthropic
+        let context_summary = self.format_mcp_context_for_anthropic(mcp_context);
+        
+        let mut content = String::new();
+        if !context_summary.is_empty() {
+            content.push_str(&format!(
+                "Context available through Model Context Protocol (MCP):\n{}\n\nUser request: ",
+                context_summary
+            ));
+        }
+        content.push_str(&request.message);
+
+        let messages = vec![AnthropicMessage {
+            role: "user".to_string(),
+            content,
+        }];
+
+        let payload = AnthropicRequest {
+            model,
+            messages,
+            max_tokens,
+            temperature: Some(temperature),
+        };
+
+        let response = self.client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &agent.api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let error_text = response.text().await?;
+            return Err(format!("Anthropic API error: {}", error_text).into());
+        }
+
+        let anthropic_response: AnthropicResponse = response.json().await?;
+
+        let response_text = anthropic_response.content
+            .first()
+            .ok_or("No response from Anthropic")?
+            .text
+            .clone();
+
+        let total_tokens = anthropic_response.usage.input_tokens + anthropic_response.usage.output_tokens;
+        let context_used = mcp_context.mcp_contexts.iter()
+            .map(|ctx| ctx.name.clone())
+            .collect::<Vec<_>>();
+
+        Ok(AgentInvokeResponse {
+            response: response_text,
+            usage: AgentInvokeUsage {
+                tokens_used: total_tokens,
+                response_time_ms: 0, // Will be set by caller
+            },
+            context_used,
+        })
+    }
+
+    /// Custom agent invocation with MCP-enhanced context
+    async fn invoke_custom_with_mcp(
+        &self,
+        agent: &AgentRecord,
+        request: &AgentInvokeRequest,
+        mcp_context: &McpEnhancedContext,
+    ) -> Result<AgentInvokeResponse, Box<dyn std::error::Error>> {
+        let endpoint = agent.endpoint.as_ref()
+            .ok_or("Custom agent endpoint not configured")?;
+
+        // Create MCP-aware payload
+        let context_summary = self.format_mcp_context_for_custom(mcp_context);
+        
+        let payload = json!({
+            "message": request.message,
+            "mcp_context": {
+                "contexts": mcp_context.mcp_contexts,
+                "resources": mcp_context.mcp_resources,
+                "metadata": mcp_context.context_metadata,
+                "formatted_summary": context_summary
+            },
+            "config": agent.config,
+            "include_history": request.include_history.unwrap_or(false)
+        });
+
+        let response = self.client
+            .post(endpoint)
+            .header("Authorization", format!("Bearer {}", agent.api_key))
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let error_text = response.text().await?;
+            return Err(format!("Custom agent API error: {}", error_text).into());
+        }
+
+        let response_json: Value = response.json().await?;
+        
+        let response_text = response_json["response"]
+            .as_str()
+            .unwrap_or("No response from custom agent")
+            .to_string();
+
+        let tokens_used = response_json["usage"]["tokens_used"]
+            .as_u64()
+            .unwrap_or(0) as u32;
+
+        let context_used = mcp_context.mcp_contexts.iter()
+            .map(|ctx| ctx.name.clone())
+            .collect::<Vec<_>>();
+
+        Ok(AgentInvokeResponse {
+            response: response_text,
+            usage: AgentInvokeUsage {
+                tokens_used,
+                response_time_ms: 0, // Will be set by caller
+            },
+            context_used,
+        })
+    }
+
+    /// Format MCP context for OpenAI
+    fn format_mcp_context_for_openai(&self, mcp_context: &McpEnhancedContext) -> String {
+        let mut context_str = String::new();
+
+        // Add MCP contexts
+        if !mcp_context.mcp_contexts.is_empty() {
+            context_str.push_str("## MCP Contexts:\n");
+            for context in &mcp_context.mcp_contexts {
+                context_str.push_str(&format!(
+                    "### {} ({})\n",
+                    context.name,
+                    match context.context_type {
+                        ContextType::Repository => "Repository",
+                        ContextType::Document => "Document", 
+                        ContextType::Url => "URL",
+                        ContextType::DataSource => "Data Source",
+                        ContextType::Agent => "Agent",
+                        ContextType::Conversation => "Conversation",
+                        ContextType::Tool => "Tool",
+                        ContextType::Custom(ref name) => name,
+                    }
+                ));
+                
+                if let Some(description) = &context.description {
+                    context_str.push_str(&format!("Description: {}\n", description));
+                }
+
+                for resource in &context.resources {
+                    context_str.push_str(&format!(
+                        "- Resource: {} (relevance: {:.2})\n",
+                        resource.resource_id,
+                        resource.relevance_score.unwrap_or(0.0)
+                    ));
+                    
+                    if let Some(content) = &resource.content {
+                        context_str.push_str(&format!("  Content: {}\n", content));
+                    }
+                }
+                context_str.push('\n');
+            }
+        }
+
+        // Add traditional context if available for backward compatibility
+        if let Some(traditional) = &mcp_context.traditional_context {
+            context_str.push_str(&self.format_context_for_openai(traditional));
+        }
+
+        context_str
+    }
+
+    /// Format MCP context for Anthropic
+    fn format_mcp_context_for_anthropic(&self, mcp_context: &McpEnhancedContext) -> String {
+        let mut context_str = String::new();
+
+        if !mcp_context.mcp_contexts.is_empty() {
+            context_str.push_str("Available MCP Contexts:\n");
+            for context in &mcp_context.mcp_contexts {
+                context_str.push_str(&format!(
+                    "- {}: {}\n",
+                    context.name,
+                    context.description.as_ref().unwrap_or(&"No description".to_string())
+                ));
+                
+                for resource in &context.resources {
+                    if let Some(content) = &resource.content {
+                        context_str.push_str(&format!("  * {}\n", content));
+                    }
+                }
+            }
+        }
+
+        // Add traditional context if available
+        if let Some(traditional) = &mcp_context.traditional_context {
+            context_str.push_str(&self.format_context_for_anthropic(traditional));
+        }
+
+        context_str
+    }
+
+    /// Format MCP context for custom agents
+    fn format_mcp_context_for_custom(&self, mcp_context: &McpEnhancedContext) -> serde_json::Value {
+        json!({
+            "mcp_contexts": mcp_context.mcp_contexts.len(),
+            "context_types": mcp_context.mcp_contexts.iter().map(|c| &c.context_type).collect::<Vec<_>>(),
+            "resources_count": mcp_context.mcp_resources.len(),
+            "metadata": mcp_context.context_metadata,
+            "traditional_context_available": mcp_context.traditional_context.is_some()
         })
     }
 

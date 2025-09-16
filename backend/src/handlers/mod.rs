@@ -6,6 +6,7 @@ mod documents;
 mod agents;
 mod urls;
 mod repositories;
+mod mcp;
 
 use actix_web::web;
 
@@ -16,6 +17,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .configure(documents::configure)
             .configure(agents::configure)
             .configure(repositories::configure_routes)
+            .configure(mcp::configure)
     ).service(
         web::scope("")
             .configure(health::configure)
