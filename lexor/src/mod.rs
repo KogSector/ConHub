@@ -14,6 +14,9 @@ pub mod performance;
 pub mod language_parser;
 pub mod ctags_integration;
 pub mod enhanced_parser;
+pub mod symbol_extractor;
+pub mod cross_reference_builder;
+pub mod integration_engine;
 
 pub use config::LexorConfig;
 pub use indexer::IndexerEngine;
@@ -24,4 +27,7 @@ pub use performance::PerformanceOptimizer;
 pub use language_parser::{UniversalLanguageParser, ParseResult};
 pub use ctags_integration::CtagsIntegration;
 pub use enhanced_parser::{EnhancedLanguageParser, ParserConfig};
+pub use symbol_extractor::{SymbolExtractor, SymbolDatabase, EnhancedSymbol};
+pub use cross_reference_builder::{CrossReferenceBuilder, SymbolGraph, DependencyAnalysis};
+pub use integration_engine::{SymbolAnalysisEngine, AnalysisResult, DatabaseExport};
 pub use types::*;

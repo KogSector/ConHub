@@ -46,7 +46,7 @@ export default function DocumentsPage() {
       const result = await apiClient.getDocuments();
       if (result.success) {
         // Backend returns documents directly in the data field
-        setDocuments(result.data || []);
+        setDocuments(Array.isArray(result.data) ? result.data : result.data?.data || []);
       } else {
         toast({
           title: "Error",

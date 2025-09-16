@@ -82,20 +82,20 @@ export function SettingsProvider({ children, userId = 'default' }: { children: R
         SettingsAPI.getTeamMembers(userId),
       ]);
 
-      if (settingsResult.success) {
-        dispatch({ type: 'SET_SETTINGS', payload: settingsResult.data });
+      if (settingsResult.success && settingsResult.data) {
+        dispatch({ type: 'SET_SETTINGS', payload: settingsResult.data as UserSettings });
       }
       
       if (tokensResult.success) {
-        dispatch({ type: 'SET_API_TOKENS', payload: tokensResult.data || [] });
+        dispatch({ type: 'SET_API_TOKENS', payload: tokensResult.data as any[] || [] });
       }
       
       if (webhooksResult.success) {
-        dispatch({ type: 'SET_WEBHOOKS', payload: webhooksResult.data || [] });
+        dispatch({ type: 'SET_WEBHOOKS', payload: webhooksResult.data as any[] || [] });
       }
       
       if (teamResult.success) {
-        dispatch({ type: 'SET_TEAM_MEMBERS', payload: teamResult.data || [] });
+        dispatch({ type: 'SET_TEAM_MEMBERS', payload: teamResult.data as any[] || [] });
       }
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: 'Failed to load settings data' });
@@ -118,7 +118,7 @@ export function SettingsProvider({ children, userId = 'default' }: { children: R
     if (result.success) {
       const tokensResult = await SettingsAPI.getApiTokens(userId);
       if (tokensResult.success) {
-        dispatch({ type: 'SET_API_TOKENS', payload: tokensResult.data || [] });
+        dispatch({ type: 'SET_API_TOKENS', payload: (tokensResult.data as any[]) || [] });
       }
       return result.data;
     }
@@ -130,7 +130,7 @@ export function SettingsProvider({ children, userId = 'default' }: { children: R
     if (result.success) {
       const tokensResult = await SettingsAPI.getApiTokens(userId);
       if (tokensResult.success) {
-        dispatch({ type: 'SET_API_TOKENS', payload: tokensResult.data || [] });
+        dispatch({ type: 'SET_API_TOKENS', payload: (tokensResult.data as any[]) || [] });
       }
       return true;
     }
@@ -142,7 +142,7 @@ export function SettingsProvider({ children, userId = 'default' }: { children: R
     if (result.success) {
       const webhooksResult = await SettingsAPI.getWebhooks(userId);
       if (webhooksResult.success) {
-        dispatch({ type: 'SET_WEBHOOKS', payload: webhooksResult.data || [] });
+        dispatch({ type: 'SET_WEBHOOKS', payload: (webhooksResult.data as any[]) || [] });
       }
       return result.data;
     }
@@ -154,7 +154,7 @@ export function SettingsProvider({ children, userId = 'default' }: { children: R
     if (result.success) {
       const webhooksResult = await SettingsAPI.getWebhooks(userId);
       if (webhooksResult.success) {
-        dispatch({ type: 'SET_WEBHOOKS', payload: webhooksResult.data || [] });
+        dispatch({ type: 'SET_WEBHOOKS', payload: (webhooksResult.data as any[]) || [] });
       }
       return true;
     }
@@ -166,7 +166,7 @@ export function SettingsProvider({ children, userId = 'default' }: { children: R
     if (result.success) {
       const teamResult = await SettingsAPI.getTeamMembers(userId);
       if (teamResult.success) {
-        dispatch({ type: 'SET_TEAM_MEMBERS', payload: teamResult.data || [] });
+        dispatch({ type: 'SET_TEAM_MEMBERS', payload: (teamResult.data as any[]) || [] });
       }
       return result.data;
     }
@@ -178,7 +178,7 @@ export function SettingsProvider({ children, userId = 'default' }: { children: R
     if (result.success) {
       const teamResult = await SettingsAPI.getTeamMembers(userId);
       if (teamResult.success) {
-        dispatch({ type: 'SET_TEAM_MEMBERS', payload: teamResult.data || [] });
+        dispatch({ type: 'SET_TEAM_MEMBERS', payload: (teamResult.data as any[]) || [] });
       }
       return true;
     }

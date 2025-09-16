@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -112,7 +113,9 @@ function SettingsContent() {
 export default function SettingsPage() {
   return (
     <SettingsProvider>
-      <SettingsContent />
+      <Suspense fallback={<div>Loading...</div>}>
+        <SettingsContent />
+      </Suspense>
     </SettingsProvider>
   );
 }

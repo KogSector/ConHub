@@ -13,6 +13,70 @@ export interface DocumentRecord {
   status: string;
 }
 
+export interface AgentRecord {
+  id: string;
+  user_id: string;
+  name: string;
+  agent_type: string;
+  endpoint?: string;
+  api_key: string;
+  permissions: string[];
+  status: 'Connected' | 'Pending' | 'Error' | 'Inactive';
+  config: AgentConfig;
+  created_at: string;
+  updated_at: string;
+  last_used?: string;
+  usage_stats: AgentUsageStats;
+}
+
+export interface AgentConfig {
+  model?: string;
+  temperature?: number;
+  max_tokens?: number;
+  timeout?: number;
+  custom_instructions?: string;
+}
+
+export interface AgentUsageStats {
+  total_requests: number;
+  total_tokens: number;
+  avg_response_time?: number;
+  last_error?: string;
+}
+
+export interface CreateAgentRequest {
+  name: string;
+  agent_type: string;
+  endpoint?: string;
+  api_key: string;
+  permissions: string[];
+  config: AgentConfig;
+}
+
+export interface UpdateAgentRequest {
+  name?: string;
+  endpoint?: string;
+  api_key?: string;
+  permissions?: string[];
+  config?: AgentConfig;
+  status?: AgentRecord['status'];
+}
+
+export interface AgentInvokeRequest {
+  message: string;
+  context_type?: string;
+  include_history?: boolean;
+}
+
+export interface AgentInvokeResponse {
+  response: string;
+  usage: {
+    tokens_used: number;
+    response_time_ms: number;
+  };
+  context_used: string[];
+}
+
 export interface ApiResponse<T = any> {
   success: boolean;
   message: string;
@@ -158,11 +222,44 @@ export class ApiClient {
   async checkBackendHealth(): Promise<boolean> {
     try {
       const response = await this.health();
-      return response.success || response.status === 'ok';
+      return response.success;
     } catch (error) {
       console.error('Backend health check failed:', error);
       return false;
     }
+  }
+
+  // Agent-specific methods
+  async getAgents(): Promise<ApiResponse<AgentRecord[]>> {
+    return this.get('/api/agents');
+  }
+
+  async getAgent(id: string): Promise<ApiResponse<AgentRecord>> {
+    return this.get(`/api/agents/${id}`);
+  }
+
+  async createAgent(data: CreateAgentRequest): Promise<ApiResponse<AgentRecord>> {
+    return this.post('/api/agents', data);
+  }
+
+  async updateAgent(id: string, data: UpdateAgentRequest): Promise<ApiResponse<AgentRecord>> {
+    return this.put(`/api/agents/${id}`, data);
+  }
+
+  async deleteAgent(id: string): Promise<ApiResponse> {
+    return this.delete(`/api/agents/${id}`);
+  }
+
+  async getAgentContext(id: string): Promise<ApiResponse> {
+    return this.get(`/api/agents/${id}/context`);
+  }
+
+  async invokeAgent(id: string, data: AgentInvokeRequest): Promise<ApiResponse<AgentInvokeResponse>> {
+    return this.post(`/api/agents/${id}/invoke`, data);
+  }
+
+  async testAgent(id: string): Promise<ApiResponse<{connected: boolean}>> {
+    return this.post(`/api/agents/${id}/test`, {});
   }
 }
 
