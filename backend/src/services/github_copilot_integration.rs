@@ -12,6 +12,7 @@ use uuid::Uuid;
 /// providing structured context and tool access through HTTP endpoints.
 #[derive(Debug, Clone)]
 pub struct GitHubCopilotIntegration {
+    #[allow(dead_code)]
     client: Client,
     config: CopilotConfig,
     session_manager: Arc<tokio::sync::RwLock<HashMap<String, CopilotSession>>>,
@@ -59,9 +60,12 @@ pub struct CopilotRateLimits {
 /// Active Copilot session
 #[derive(Debug, Clone)]
 pub struct CopilotSession {
+    #[allow(dead_code)]
     pub session_id: String,
     pub user_id: String,
+    #[allow(dead_code)]
     pub workspace_id: Option<String>,
+    #[allow(dead_code)]
     pub created_at: DateTime<Utc>,
     pub last_activity: DateTime<Utc>,
     pub permissions: Vec<String>,
@@ -534,17 +538,22 @@ impl GitHubCopilotIntegration {
 #[derive(Debug, thiserror::Error)]
 pub enum CopilotIntegrationError {
     #[error("Session not found: {0}")]
+    #[allow(dead_code)]
     SessionNotFound(String),
     
     #[error("Authentication failed: {0}")]
+    #[allow(dead_code)]
     AuthenticationFailed(String),
     
     #[error("Rate limit exceeded")]
+    #[allow(dead_code)]
     RateLimitExceeded,
     
     #[error("Insufficient permissions: {0}")]
+    #[allow(dead_code)]
     InsufficientPermissions(String),
     
     #[error("Context creation failed: {0}")]
+    #[allow(dead_code)]
     ContextCreationFailed(String),
 }

@@ -1,14 +1,17 @@
 use actix_web::{web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use lazy_static::lazy_static;
 
 use crate::models::ApiResponse;
 use crate::models::copilot::CopilotEnhancedContext;
 use crate::services::github_copilot_integration::*;
 
-/// Global GitHub Copilot integration instance
-static mut COPILOT_INTEGRATION: Option<Arc<GitHubCopilotIntegration>> = None;
+// Global GitHub Copilot integration instance
+lazy_static! {
+    static ref COPILOT_INTEGRATION: Arc<Mutex<Option<Arc<GitHubCopilotIntegration>>>> = Arc::new(Mutex::new(None));
+}
 
 // ============================================================================
 // Request/Response Types
@@ -52,12 +55,11 @@ pub struct CopilotToolCallRequest {
 
 /// Get or initialize the GitHub Copilot integration
 async fn get_copilot_integration() -> Result<Arc<GitHubCopilotIntegration>, Box<dyn std::error::Error>> {
-    unsafe {
-        if COPILOT_INTEGRATION.is_none() {
-            COPILOT_INTEGRATION = Some(Arc::new(GitHubCopilotIntegration::new()));
-        }
-        Ok(COPILOT_INTEGRATION.as_ref().unwrap().clone())
+    let mut integration_guard = COPILOT_INTEGRATION.lock().unwrap();
+    if integration_guard.is_none() {
+        *integration_guard = Some(Arc::new(GitHubCopilotIntegration::new()));
     }
+    Ok(integration_guard.as_ref().unwrap().clone())
 }
 
 // ============================================================================

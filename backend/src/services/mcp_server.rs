@@ -180,6 +180,7 @@ impl ConHubMcpServer {
     }
 
     /// Handle MCP protocol messages
+    #[allow(dead_code)]
     pub async fn handle_message(&self, message: McpMessage) -> McpMessage {
         match self.process_request(message).await {
             Ok(response) => response,
@@ -195,6 +196,7 @@ impl ConHubMcpServer {
     }
 
     /// Process incoming MCP requests
+    #[allow(dead_code)]
     async fn process_request(&self, message: McpMessage) -> Result<McpMessage, McpError> {
         let method = message.method.as_ref()
             .ok_or_else(|| McpError::new(error_codes::INVALID_REQUEST, "Missing method".to_string()))?;
@@ -225,6 +227,7 @@ impl ConHubMcpServer {
     }
 
     /// Handle initialize request
+    #[allow(dead_code)]
     async fn handle_initialize(&self, params: Option<serde_json::Value>) -> Result<serde_json::Value, McpError> {
         let _params: InitializeParams = match params {
             Some(p) => serde_json::from_value(p)
@@ -299,6 +302,7 @@ impl ConHubMcpServer {
     }
 
     /// Handle tools list request
+    #[allow(dead_code)]
     async fn handle_tools_list(&self, params: Option<serde_json::Value>) -> Result<serde_json::Value, McpError> {
         let _params: ToolsListParams = match params {
             Some(p) => serde_json::from_value(p)
@@ -385,6 +389,7 @@ impl ConHubMcpServer {
     }
 
     /// Handle context get request
+    #[allow(dead_code)]
     async fn handle_context_get(&self, params: Option<serde_json::Value>) -> Result<serde_json::Value, McpError> {
         let params: ContextGetParams = match params {
             Some(p) => serde_json::from_value(p)
@@ -404,6 +409,7 @@ impl ConHubMcpServer {
     }
 
     /// Handle ping request
+    #[allow(dead_code)]
     async fn handle_ping(&self, _params: Option<serde_json::Value>) -> Result<serde_json::Value, McpError> {
         let result = PongResult {
             timestamp: Utc::now(),
@@ -414,6 +420,7 @@ impl ConHubMcpServer {
     }
 
     /// Create search tool definition
+    #[allow(dead_code)]
     fn create_search_tool(&self) -> McpTool {
         McpTool {
             id: "search".to_string(),
@@ -459,6 +466,7 @@ impl ConHubMcpServer {
     }
 
     /// Create analysis tool definition
+    #[allow(dead_code)]
     fn create_analysis_tool(&self) -> McpTool {
         McpTool {
             id: "analyze".to_string(),
@@ -496,6 +504,7 @@ impl ConHubMcpServer {
     }
 
     /// Create context tool definition
+    #[allow(dead_code)]
     fn create_context_tool(&self) -> McpTool {
         McpTool {
             id: "create_context".to_string(),
@@ -648,12 +657,14 @@ impl ConHubMcpServer {
     }
 
     /// Add a resource to the server
+    #[allow(dead_code)]
     pub async fn add_resource(&self, resource: McpResource) {
         let mut resources = self.resources.write().await;
         resources.insert(resource.id.clone(), resource);
     }
 
     /// Get server security configuration
+    #[allow(dead_code)]
     pub fn security_config(&self) -> &ServerSecurity {
         &self.security_config
     }

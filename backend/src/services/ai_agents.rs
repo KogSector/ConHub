@@ -13,7 +13,9 @@ use crate::services::mcp_client::{McpClient, AuthConfig};
 #[derive(Debug, Clone)]
 pub struct AgentService {
     client: Client,
+    #[allow(dead_code)]
     mcp_server: Arc<ConHubMcpServer>,
+    #[allow(dead_code)]
     mcp_clients: Arc<tokio::sync::RwLock<HashMap<String, McpClient>>>,
 }
 
@@ -105,6 +107,7 @@ impl AgentService {
     }
 
     /// Initialize the service with MCP server setup
+    #[allow(dead_code)]
     pub async fn initialize(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         // Initialize the MCP server
         Arc::get_mut(&mut self.mcp_server)
@@ -118,6 +121,7 @@ impl AgentService {
     }
 
     /// Connect to an external MCP server
+    #[allow(dead_code)]
     pub async fn connect_external_mcp_server(
         &self,
         name: String,
@@ -624,6 +628,7 @@ impl AgentService {
         })
     }
 
+    #[allow(dead_code)]
     async fn invoke_openai(
         &self,
         agent: &AgentRecord,
@@ -707,6 +712,7 @@ impl AgentService {
         })
     }
 
+    #[allow(dead_code)]
     async fn invoke_anthropic(
         &self,
         agent: &AgentRecord,
@@ -778,6 +784,7 @@ impl AgentService {
         })
     }
 
+    #[allow(dead_code)]
     async fn invoke_custom(
         &self,
         agent: &AgentRecord,

@@ -27,9 +27,12 @@ pub struct McpClientConfig {
     pub timeout: Duration,
     pub max_retries: u32,
     pub retry_delay: Duration,
+    #[allow(dead_code)]
     pub max_concurrent_connections: usize,
     pub connection_pool_size: usize,
+    #[allow(dead_code)]
     pub heartbeat_interval: Duration,
+    #[allow(dead_code)]
     pub default_auth_method: AuthMethod,
 }
 
@@ -50,14 +53,17 @@ impl Default for McpClientConfig {
 /// Represents a connection to an MCP server
 #[derive(Debug, Clone)]
 pub struct McpConnection {
+    #[allow(dead_code)]
     pub server_id: ServerId,
     pub endpoint: String,
     pub server_info: Option<ServerInfo>,
     pub capabilities: Option<ServerCapabilities>,
     pub auth_config: AuthConfig,
     pub status: ConnectionStatus,
+    #[allow(dead_code)]
     pub last_ping: Option<chrono::DateTime<Utc>>,
     pub error_count: u32,
+    #[allow(dead_code)]
     pub connected_at: chrono::DateTime<Utc>,
 }
 
@@ -75,6 +81,7 @@ pub enum ConnectionStatus {
     Connected,
     Disconnected,
     Error(String),
+    #[allow(dead_code)]
     Timeout,
 }
 
@@ -117,6 +124,7 @@ impl std::fmt::Debug for McpClient {
 
 impl McpClient {
     /// Create a new MCP client with default configuration
+    #[allow(dead_code)]
     pub fn new() -> Result<Self, McpClientError> {
         Self::with_config(McpClientConfig::default())
     }
@@ -287,6 +295,7 @@ impl McpClient {
     }
 
     /// List available tools from a server
+    #[allow(dead_code)]
     pub async fn list_tools(
         &self,
         server_id: &ServerId,
@@ -322,6 +331,7 @@ impl McpClient {
     }
 
     /// Create a context on a server
+    #[allow(dead_code)]
     pub async fn create_context(
         &self,
         server_id: &ServerId,
@@ -347,6 +357,7 @@ impl McpClient {
     }
 
     /// Get a context from a server
+    #[allow(dead_code)]
     pub async fn get_context(
         &self,
         server_id: &ServerId,
@@ -364,6 +375,7 @@ impl McpClient {
     }
 
     /// Ping a server to check connectivity
+    #[allow(dead_code)]
     pub async fn ping(&self, server_id: &ServerId) -> Result<PongResult, McpClientError> {
         let request = McpRequest::Ping(PingParams {});
         
@@ -600,18 +612,21 @@ impl McpClient {
     }
 
     /// Get connection status for a server
+    #[allow(dead_code)]
     pub async fn get_connection_status(&self, server_id: &ServerId) -> Option<ConnectionStatus> {
         let connections = self.connections.read().await;
         connections.get(server_id).map(|conn| conn.status.clone())
     }
 
     /// List all active connections
+    #[allow(dead_code)]
     pub async fn list_connections(&self) -> Vec<McpConnection> {
         let connections = self.connections.read().await;
         connections.values().cloned().collect()
     }
 
     /// Start background health monitoring for all connections
+    #[allow(dead_code)]
     pub async fn start_health_monitoring(&self) {
         let connections = Arc::clone(&self.connections);
         let heartbeat_interval = self.config.heartbeat_interval;

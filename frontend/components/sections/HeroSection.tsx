@@ -40,8 +40,8 @@ export const HeroSection = () => {
             
             <div className="space-y-4">
               <h1 className="text-4xl md:text-6xl font-bold text-foreground leading-tight">
-                Unify Your 
-                <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> Knowledge</span>
+                Supercharge Your 
+                <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> Development</span>
                 {" "}with AI
               </h1>
               <p className="text-xl text-muted-foreground leading-relaxed max-w-lg">
