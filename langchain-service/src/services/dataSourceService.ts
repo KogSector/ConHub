@@ -48,46 +48,50 @@ export async function connectDataSource(
     throw new Error(`Unsupported data source type: ${type}`);
   }
 
-  // Validate credentials
-  const isValid = await connector.validate(credentials);
-  if (!isValid) {
-    throw new Error('Invalid credentials provided');
-  }
-
-  // Connect to the data source
-  const connected = await connector.connect(credentials, config);
-  if (!connected) {
-    throw new Error('Failed to connect to data source');
-  }
-
-  const id = uuidv4();
-  const dataSource: DataSource = {
-    id,
-    type: type as DataSource['type'],
-    name: config.name || `${type}-${id.slice(0, 8)}`,
-    status: 'connected',
-    config,
-    credentials,
-    createdAt: new Date().toISOString(),
-    indexedCount: 0,
-    totalCount: 0
-  };
-  
-  dataSources.set(id, dataSource);
-  logger.info(`Connected data source: ${type} (${id})`);
-  
-  // Start initial indexing
-  syncDataSource(id).catch(error => {
-    logger.error(`Initial sync failed for ${id}:`, error);
-    const ds = dataSources.get(id);
-    if (ds) {
-      ds.status = 'error';
-      ds.error = error.message;
-      dataSources.set(id, ds);
+  try {
+    // Validate credentials first
+    logger.info(`Validating credentials for ${type} data source`);
+    await connector.validate(credentials);
+    
+    // Connect to the data source
+    logger.info(`Connecting to ${type} data source`);
+    const connected = await connector.connect(credentials, config);
+    if (!connected) {
+      throw new Error('Failed to connect to data source');
     }
-  });
-  
-  return dataSource;
+
+    const id = uuidv4();
+    const dataSource: DataSource = {
+      id,
+      type: type as DataSource['type'],
+      name: config.name || `${type}-${id.slice(0, 8)}`,
+      status: 'connected',
+      config,
+      credentials,
+      createdAt: new Date().toISOString(),
+      indexedCount: 0,
+      totalCount: 0
+    };
+    
+    dataSources.set(id, dataSource);
+    logger.info(`Connected data source: ${type} (${id})`);
+    
+    // Start initial indexing in background
+    syncDataSource(id).catch(error => {
+      logger.error(`Initial sync failed for ${id}:`, error);
+      const ds = dataSources.get(id);
+      if (ds) {
+        ds.status = 'error';
+        ds.error = error.message;
+        dataSources.set(id, ds);
+      }
+    });
+    
+    return dataSource;
+  } catch (error: any) {
+    logger.error(`Failed to connect ${type} data source:`, error.message);
+    throw error; // Re-throw with original error message for better user feedback
+  }
 }
 
 export async function disconnectDataSource(sourceId: string): Promise<void> {

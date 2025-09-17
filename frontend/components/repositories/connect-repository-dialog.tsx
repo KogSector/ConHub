@@ -57,7 +57,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     setLoading(true);
     setError(null);
     
-    console.log('Connecting repository...', { provider, repositoryUrl, credentials });
+    console.log('Connecting repository...', { provider, repositoryUrl, credentials: credentials ? 'present' : 'missing' });
     
     try {
       const payload = { 
@@ -70,7 +70,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         } 
       };
       
-      console.log('Sending payload:', payload);
+      console.log('Sending payload:', { ...payload, credentials: credentials ? 'present' : 'missing' });
       
       const response = await fetch('/api/data-sources/connect', {
         method: 'POST',
@@ -87,11 +87,22 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         onOpenChange(false);
         resetForm();
       } else {
-        setError(data.error || 'Failed to connect repository');
+        // Provide more specific error handling
+        const errorMessage = data.error || 'Failed to connect repository';
+        
+        if (errorMessage.includes('token')) {
+          setError(`${errorMessage}\n\nPlease check:\n• Token is not expired\n• Token has correct permissions\n• For public repos: use 'public_repo' scope\n• For private repos: use 'repo' scope`);
+        } else if (errorMessage.includes('not found') || errorMessage.includes('Access denied')) {
+          setError(`${errorMessage}\n\nPlease verify:\n• Repository URL is correct\n• Repository exists and is accessible\n• Token has access to the repository\n• Repository is not private (if using public_repo scope)`);
+        } else if (errorMessage.includes('rate limit')) {
+          setError(`${errorMessage}\n\nGitHub API rate limit exceeded. Please wait a few minutes before trying again.`);
+        } else {
+          setError(errorMessage);
+        }
       }
     } catch (error) {
       console.error('Error connecting repository:', error);
-      setError('Network error occurred while connecting repository');
+      setError('Network error occurred while connecting repository. Please check if all services are running and try again.');
     } finally {
       setLoading(false);
     }
@@ -138,12 +149,14 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                 className="mt-2"
               />
               <div className="space-y-2 text-xs text-muted-foreground">
-                <p className="font-medium">Token Types Supported:</p>
+                <p className="font-medium">Token Requirements:</p>
                 <ul className="space-y-1 ml-4">
-                  <li>• <strong>Classic tokens (ghp_*):</strong> Need <code>repo</code> or <code>public_repo</code> scope</li>
+                  <li>• <strong>Classic tokens (ghp_*):</strong> Need <code>repo</code> scope for private repos, <code>public_repo</code> for public repos</li>
                   <li>• <strong>Fine-grained tokens (github_pat_*):</strong> Need repository access and Contents/Metadata permissions</li>
+                  <li>• <strong>Token must not be expired</strong></li>
+                  <li>• <strong>Account must have access to the repository</strong></li>
                 </ul>
-                <div className="flex gap-4 pt-1">
+                <div className="flex gap-4 pt-2">
                   <a 
                     href="https://github.com/settings/tokens" 
                     target="_blank" 
@@ -160,6 +173,15 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   >
                     Create Fine-grained Token
                   </a>
+                </div>
+                <div className="mt-3 p-3 bg-muted/50 rounded-md">
+                  <p className="font-medium text-foreground">Quick Setup:</p>
+                  <ol className="mt-1 space-y-1 ml-4">
+                    <li>1. Click "Manage Classic Tokens" above</li>
+                    <li>2. Generate new token (classic)</li>
+                    <li>3. Select <code>public_repo</code> or <code>repo</code> scope</li>
+                    <li>4. Copy the token and paste it above</li>
+                  </ol>
                 </div>
               </div>
             </div>
@@ -211,9 +233,14 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         
         <div className="space-y-8">
           {error && (
-            <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {error}
+            <div className="bg-destructive/10 text-destructive text-sm p-4 rounded-md border border-destructive/20">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <div className="space-y-2">
+                  <div className="font-medium">Connection Failed</div>
+                  <div className="whitespace-pre-line">{error}</div>
+                </div>
+              </div>
             </div>
           )}
 

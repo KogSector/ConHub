@@ -234,7 +234,7 @@ export default function Documentation() {
                         </li>
                       ))}
                     </ul>
-                    <div className="relative p-2 -m-2">
+                    <div className="relative px-4 py-2 -mx-4 -my-2">
                       <button 
                         className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium w-full h-10 px-4 py-2 text-white border border-orange-500/30 bg-transparent hover:text-white hover:bg-orange-500/10 hover:border-orange-500/50 hover:shadow-[0px_0px_12px_rgba(251,146,60,0.6)] hover:scale-105 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
                       >

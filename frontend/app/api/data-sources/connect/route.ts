@@ -1,5 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Helper function to extract repository name from URL
+function extractRepositoryName(url: string): string | null {
+  try {
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split('/').filter(Boolean);
+    
+    // For GitHub: https://github.com/owner/repo
+    // For BitBucket: https://bitbucket.org/workspace/repo
+    if (pathParts.length >= 2) {
+      const owner = pathParts[pathParts.length - 2];
+      const repo = pathParts[pathParts.length - 1].replace('.git', '');
+      return `${owner}/${repo}`;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -41,6 +60,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Extract repository info from URL for GitHub/BitBucket
+    let processedConfig = config;
+    if ((type === 'github' || type === 'bitbucket') && url) {
+      const repoName = extractRepositoryName(url);
+      if (repoName) {
+        processedConfig = {
+          ...config,
+          repositories: [repoName], // Convert single URL to repository list
+          url // Keep original URL for reference
+        };
+        console.log('API Route - Extracted repository:', repoName);
+      } else {
+        console.log('API Route - Failed to extract repository from URL:', url);
+        return NextResponse.json(
+          { success: false, error: 'Invalid repository URL format' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Forward to backend service
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
     console.log('API Route - Forwarding to backend:', backendUrl);
@@ -49,7 +88,7 @@ export async function POST(request: NextRequest) {
       source_type: type,
       url,
       credentials,
-      config
+      config: processedConfig
     };
     
     console.log('API Route - Sending payload to backend:', payload);

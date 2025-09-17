@@ -7,23 +7,119 @@ export class GitHubConnector implements ConnectorInterface {
 
   async validate(credentials: { accessToken: string }): Promise<boolean> {
     try {
+      if (!credentials.accessToken) {
+        logger.error('GitHub validation failed: No access token provided');
+        throw new Error('GitHub access token is required');
+      }
+
       const octokit = new Octokit({ auth: credentials.accessToken });
-      await octokit.rest.users.getAuthenticated();
+      const response = await octokit.rest.users.getAuthenticated();
+      
+      // Check token scopes for debugging
+      const scopes = response.headers['x-oauth-scopes'];
+      logger.info('GitHub token validated successfully:', {
+        user: response.data.login,
+        scopes: scopes,
+        tokenType: credentials.accessToken.startsWith('ghp_') ? 'classic' : 
+                  credentials.accessToken.startsWith('github_pat_') ? 'fine-grained' : 'unknown'
+      });
+      
+      // Validate scopes for private repo access
+      if (scopes && !scopes.includes('repo') && !scopes.includes('public_repo')) {
+        logger.warn('Token may lack required scopes for repository access:', scopes);
+      }
+      
       return true;
-    } catch (error) {
-      logger.error('GitHub credential validation failed:', error);
-      return false;
+    } catch (error: any) {
+      const errorMsg = this.getErrorMessage(error);
+      logger.error('GitHub credential validation failed:', errorMsg);
+      throw new Error(errorMsg);
     }
   }
 
   async connect(credentials: { accessToken: string }, config: any): Promise<boolean> {
     try {
+      if (!credentials.accessToken) {
+        throw new Error('GitHub access token is required');
+      }
+
       this.octokit = new Octokit({ auth: credentials.accessToken });
-      await this.octokit.rest.users.getAuthenticated();
+      const response = await this.octokit.rest.users.getAuthenticated();
+      
+      // Test repository access if repositories are specified
+      if (config.repositories && config.repositories.length > 0) {
+        await this.testRepositoryAccess(config.repositories[0]);
+      }
+      
+      logger.info('GitHub connected successfully for user:', response.data.login);
       return true;
-    } catch (error) {
-      logger.error('GitHub connection failed:', error);
-      return false;
+    } catch (error: any) {
+      const errorMsg = this.getErrorMessage(error);
+      logger.error('GitHub connection failed:', errorMsg);
+      throw new Error(errorMsg);
+    }
+  }
+
+  private async testRepositoryAccess(repoName: string): Promise<void> {
+    if (!this.octokit) {
+      throw new Error('GitHub not connected');
+    }
+
+    try {
+      const [owner, repo] = repoName.split('/');
+      if (!owner || !repo) {
+        throw new Error(`Invalid repository format: ${repoName}. Expected format: owner/repo`);
+      }
+
+      logger.info(`Testing access to repository: ${repoName}`);
+      
+      // First try to get basic repo info
+      const repoData = await this.octokit.rest.repos.get({ owner, repo });
+      logger.info(`Repository access successful. Repo: ${repoData.data.full_name}, Private: ${repoData.data.private}, Permissions: ${JSON.stringify(repoData.data.permissions)}`);
+      
+      // Test if we can read contents (crucial for private repos)
+      try {
+        await this.octokit.rest.repos.getContent({
+          owner,
+          repo,
+          path: ''
+        });
+        logger.info(`Repository contents access verified for: ${repoName}`);
+      } catch (contentError: any) {
+        logger.warn(`Contents access test failed for ${repoName}:`, contentError.message);
+        if (contentError.status === 403) {
+          throw new Error(`Access denied to repository contents: ${repoName}. Your token may need 'repo' scope for private repositories or 'Contents' permission for fine-grained tokens.`);
+        }
+      }
+      
+    } catch (error: any) {
+      logger.error(`Repository access test failed for ${repoName}:`, error);
+      
+      if (error.status === 404) {
+        throw new Error(`Repository not found: ${repoName}. This could mean:\n• Repository doesn't exist\n• Repository is private and token lacks access\n• Organization requires token approval\n• Repository name is misspelled`);
+      } else if (error.status === 403) {
+        throw new Error(`Access denied to repository: ${repoName}. For private repositories:\n• Classic tokens need 'repo' scope (not just 'public_repo')\n• Fine-grained tokens need repository access + Contents/Metadata permissions\n• Organization may require token approval`);
+      } else if (error.status === 401) {
+        throw new Error('GitHub token is invalid or expired. Please check your access token.');
+      } else {
+        throw new Error(`Failed to access repository ${repoName}: ${error.message}`);
+      }
+    }
+  }
+
+  private getErrorMessage(error: any): string {
+    if (error.status === 401) {
+      return 'GitHub token is invalid or expired. Please check your access token and ensure it has not been revoked.';
+    } else if (error.status === 403) {
+      return 'GitHub token lacks required permissions. For public repositories, use a token with "public_repo" scope. For private repositories, use "repo" scope.';
+    } else if (error.status === 404) {
+      return 'GitHub API endpoint not found. This may indicate an issue with the token or API access.';
+    } else if (error.message?.includes('rate limit')) {
+      return 'GitHub API rate limit exceeded. Please wait before trying again.';
+    } else if (error.message) {
+      return `GitHub API error: ${error.message}`;
+    } else {
+      return 'Unknown GitHub API error occurred.';
     }
   }
 

@@ -54,7 +54,7 @@ class HaystackService {
   async uploadAndIndexFile(file: Buffer, filename: string, metadata?: Record<string, any>): Promise<HaystackIndexResponse> {
     try {
       const formData = new FormData();
-      const blob = new Blob([file]);
+      const blob = new Blob([new Uint8Array(file)]);
       formData.append('file', blob, filename);
       
       if (metadata) {

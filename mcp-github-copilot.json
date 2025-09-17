@@ -1,0 +1,347 @@
+{
+  "mcpServers": {
+    "github-copilot": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "env": {
+        "NODE_ENV": "production",
+        "PORT": "3001",
+        "GITHUB_APP_ID": "${GITHUB_APP_ID}",
+        "GITHUB_APP_PRIVATE_KEY": "${GITHUB_APP_PRIVATE_KEY}",
+        "GITHUB_CLIENT_ID": "${GITHUB_CLIENT_ID}",
+        "GITHUB_CLIENT_SECRET": "${GITHUB_CLIENT_SECRET}",
+        "GITHUB_WEBHOOK_SECRET": "${GITHUB_WEBHOOK_SECRET}"
+      },
+      "capabilities": {
+        "tools": [
+          {
+            "name": "github.get_user",
+            "description": "Get authenticated GitHub user information",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "required": []
+            }
+          },
+          {
+            "name": "github.get_repositories",
+            "description": "Get user or organization repositories",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "username": {
+                  "type": "string",
+                  "description": "GitHub username (optional)"
+                },
+                "org": {
+                  "type": "string", 
+                  "description": "Organization name (optional)"
+                },
+                "page": {
+                  "type": "integer",
+                  "description": "Page number for pagination",
+                  "default": 1
+                },
+                "per_page": {
+                  "type": "integer",
+                  "description": "Number of results per page",
+                  "default": 100
+                }
+              }
+            }
+          },
+          {
+            "name": "github.search_repositories",
+            "description": "Search GitHub repositories",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "Search query"
+                },
+                "page": {
+                  "type": "integer",
+                  "description": "Page number for pagination",
+                  "default": 1
+                },
+                "per_page": {
+                  "type": "integer", 
+                  "description": "Number of results per page",
+                  "default": 100
+                }
+              },
+              "required": ["query"]
+            }
+          },
+          {
+            "name": "github.get_repository_content",
+            "description": "Get repository file content",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "description": "Repository owner"
+                },
+                "repo": {
+                  "type": "string",
+                  "description": "Repository name"
+                },
+                "path": {
+                  "type": "string",
+                  "description": "File path",
+                  "default": ""
+                },
+                "ref": {
+                  "type": "string",
+                  "description": "Git reference (branch, tag, commit)"
+                }
+              },
+              "required": ["owner", "repo"]
+            }
+          },
+          {
+            "name": "github.get_repository_analytics",
+            "description": "Get comprehensive repository analytics including commits, issues, and PRs",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "description": "Repository owner"
+                },
+                "repo": {
+                  "type": "string",
+                  "description": "Repository name"
+                }
+              },
+              "required": ["owner", "repo"]
+            }
+          },
+          {
+            "name": "copilot.get_billing",
+            "description": "Get GitHub Copilot billing information for an organization",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "org": {
+                  "type": "string",
+                  "description": "Organization name"
+                }
+              },
+              "required": ["org"]
+            }
+          },
+          {
+            "name": "copilot.get_seats",
+            "description": "Get GitHub Copilot seat assignments for an organization",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "org": {
+                  "type": "string",
+                  "description": "Organization name"
+                },
+                "page": {
+                  "type": "integer",
+                  "description": "Page number for pagination",
+                  "default": 1
+                },
+                "per_page": {
+                  "type": "integer",
+                  "description": "Number of results per page",
+                  "default": 50
+                }
+              },
+              "required": ["org"]
+            }
+          },
+          {
+            "name": "copilot.add_seats",
+            "description": "Add users to GitHub Copilot for an organization",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "org": {
+                  "type": "string",
+                  "description": "Organization name"
+                },
+                "usernames": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Array of GitHub usernames to add"
+                }
+              },
+              "required": ["org", "usernames"]
+            }
+          },
+          {
+            "name": "copilot.remove_seats",
+            "description": "Remove users from GitHub Copilot for an organization",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "org": {
+                  "type": "string",
+                  "description": "Organization name"
+                },
+                "usernames": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Array of GitHub usernames to remove"
+                }
+              },
+              "required": ["org", "usernames"]
+            }
+          },
+          {
+            "name": "copilot.get_usage_metrics",
+            "description": "Get GitHub Copilot usage metrics for an organization",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "org": {
+                  "type": "string",
+                  "description": "Organization name"
+                },
+                "since": {
+                  "type": "string",
+                  "description": "Start date for metrics (ISO 8601 format)"
+                },
+                "until": {
+                  "type": "string",
+                  "description": "End date for metrics (ISO 8601 format)"
+                }
+              },
+              "required": ["org"]
+            }
+          },
+          {
+            "name": "copilot.get_user_info",
+            "description": "Get current user's GitHub Copilot information",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "required": []
+            }
+          },
+          {
+            "name": "copilot.get_enabled_repos",
+            "description": "Get repositories with GitHub Copilot enabled for an organization",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "org": {
+                  "type": "string",
+                  "description": "Organization name"
+                },
+                "page": {
+                  "type": "integer",
+                  "description": "Page number for pagination",
+                  "default": 1
+                },
+                "per_page": {
+                  "type": "integer",
+                  "description": "Number of results per page",
+                  "default": 100
+                }
+              },
+              "required": ["org"]
+            }
+          },
+          {
+            "name": "copilot.enable_repos",
+            "description": "Enable GitHub Copilot for specific repositories",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "org": {
+                  "type": "string",
+                  "description": "Organization name"
+                },
+                "repository_names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Array of repository names to enable Copilot for"
+                }
+              },
+              "required": ["org", "repository_names"]
+            }
+          },
+          {
+            "name": "copilot.disable_repos",
+            "description": "Disable GitHub Copilot for specific repositories",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "org": {
+                  "type": "string",
+                  "description": "Organization name"
+                },
+                "repository_names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Array of repository names to disable Copilot for"
+                }
+              },
+              "required": ["org", "repository_names"]
+            }
+          },
+          {
+            "name": "auth.github_app",
+            "description": "Authenticate using GitHub App installation",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "installation_id": {
+                  "type": "string",
+                  "description": "GitHub App installation ID"
+                }
+              }
+            }
+          },
+          {
+            "name": "auth.oauth",
+            "description": "Authenticate using GitHub OAuth",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "description": "OAuth authorization code"
+                }
+              },
+              "required": ["code"]
+            }
+          }
+        ],
+        "resources": [
+          {
+            "uri": "github://repositories",
+            "name": "GitHub Repositories",
+            "description": "Access to GitHub repository data"
+          },
+          {
+            "uri": "github://organizations",
+            "name": "GitHub Organizations", 
+            "description": "Access to GitHub organization data"
+          },
+          {
+            "uri": "github://copilot",
+            "name": "GitHub Copilot",
+            "description": "Access to GitHub Copilot management and usage data"
+          }
+        ]
+      }
+    }
+  }
+}
