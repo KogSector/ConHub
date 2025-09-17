@@ -16,8 +16,8 @@ use crate::models::mcp::*;
 pub struct ConHubMcpServer {
     server_info: ServerInfo,
     capabilities: ServerCapabilities,
-    context_providers: Arc<RwLock<HashMap<String, Box<dyn McpContextProvider>>>>,
-    tool_providers: Arc<RwLock<HashMap<String, Box<dyn McpToolProvider>>>>,
+    context_providers: Arc<RwLock<HashMap<String, ContextProviderWrapper>>>,
+    tool_providers: Arc<RwLock<HashMap<String, ToolProviderWrapper>>>,
     contexts: Arc<AsyncRwLock<HashMap<ContextId, McpContext>>>,
     resources: Arc<AsyncRwLock<HashMap<ResourceId, McpResource>>>,
     security_config: ServerSecurity,
@@ -78,7 +78,19 @@ impl ConHubMcpServer {
             security_config,
         }
     }
+}
 
+impl std::fmt::Debug for ConHubMcpServer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConHubMcpServer")
+            .field("server_info", &self.server_info)
+            .field("capabilities", &self.capabilities)
+            .field("security_config", &self.security_config)
+            .finish_non_exhaustive()
+    }
+}
+
+impl ConHubMcpServer {
     /// Initialize the server with default context and tool providers
     pub async fn initialize(&mut self) -> Result<(), McpError> {
         // Register default context providers
@@ -99,9 +111,10 @@ impl ConHubMcpServer {
         let provider = RepositoryContextProvider::new().await?;
         let provider_id = provider.provider_id();
         
-        // Store the provider
-        // Note: This is simplified - in a real implementation, we'd need to handle
-        // the trait object storage more carefully
+        // Store the provider using the wrapper
+        let wrapper = ContextProviderWrapper::Repository(provider);
+        self.context_providers.write().unwrap().insert(provider_id.clone(), wrapper);
+        
         log::info!("Registered repository context provider: {}", provider_id);
         Ok(())
     }
@@ -110,6 +123,9 @@ impl ConHubMcpServer {
     async fn register_document_provider(&mut self) -> Result<(), McpError> {
         let provider = DocumentContextProvider::new().await?;
         let provider_id = provider.provider_id();
+        
+        let wrapper = ContextProviderWrapper::Document(provider);
+        self.context_providers.write().unwrap().insert(provider_id.clone(), wrapper);
         
         log::info!("Registered document context provider: {}", provider_id);
         Ok(())
@@ -120,6 +136,9 @@ impl ConHubMcpServer {
         let provider = UrlContextProvider::new().await?;
         let provider_id = provider.provider_id();
         
+        let wrapper = ContextProviderWrapper::Url(provider);
+        self.context_providers.write().unwrap().insert(provider_id.clone(), wrapper);
+        
         log::info!("Registered URL context provider: {}", provider_id);
         Ok(())
     }
@@ -128,6 +147,9 @@ impl ConHubMcpServer {
     async fn register_datasource_provider(&mut self) -> Result<(), McpError> {
         let provider = DataSourceContextProvider::new().await?;
         let provider_id = provider.provider_id();
+        
+        let wrapper = ContextProviderWrapper::DataSource(provider);
+        self.context_providers.write().unwrap().insert(provider_id.clone(), wrapper);
         
         log::info!("Registered data source context provider: {}", provider_id);
         Ok(())
@@ -138,6 +160,9 @@ impl ConHubMcpServer {
         let provider = SearchToolProvider::new().await?;
         let provider_id = provider.provider_id();
         
+        let wrapper = ToolProviderWrapper::Search(provider);
+        self.tool_providers.write().unwrap().insert(provider_id.clone(), wrapper);
+        
         log::info!("Registered search tool provider: {}", provider_id);
         Ok(())
     }
@@ -146,6 +171,9 @@ impl ConHubMcpServer {
     async fn register_analysis_tools(&mut self) -> Result<(), McpError> {
         let provider = AnalysisToolProvider::new().await?;
         let provider_id = provider.provider_id();
+        
+        let wrapper = ToolProviderWrapper::Analysis(provider);
+        self.tool_providers.write().unwrap().insert(provider_id.clone(), wrapper);
         
         log::info!("Registered analysis tool provider: {}", provider_id);
         Ok(())
@@ -215,7 +243,7 @@ impl ConHubMcpServer {
     }
 
     /// Handle resources list request
-    async fn handle_resources_list(&self, params: Option<serde_json::Value>) -> Result<serde_json::Value, McpError> {
+    pub async fn handle_resources_list(&self, params: Option<serde_json::Value>) -> Result<serde_json::Value, McpError> {
         let _params: ResourcesListParams = match params {
             Some(p) => serde_json::from_value(p)
                 .map_err(|e| McpError::new(error_codes::INVALID_PARAMS, e.to_string()))?,
@@ -241,7 +269,7 @@ impl ConHubMcpServer {
     }
 
     /// Handle resources read request
-    async fn handle_resources_read(&self, params: Option<serde_json::Value>) -> Result<serde_json::Value, McpError> {
+    pub async fn handle_resources_read(&self, params: Option<serde_json::Value>) -> Result<serde_json::Value, McpError> {
         let params: ResourcesReadParams = match params {
             Some(p) => serde_json::from_value(p)
                 .map_err(|e| McpError::new(error_codes::INVALID_PARAMS, e.to_string()))?,
@@ -295,7 +323,7 @@ impl ConHubMcpServer {
     }
 
     /// Handle tools call request
-    async fn handle_tools_call(&self, params: Option<serde_json::Value>) -> Result<serde_json::Value, McpError> {
+    pub async fn handle_tools_call(&self, params: Option<serde_json::Value>) -> Result<serde_json::Value, McpError> {
         let params: ToolsCallParams = match params {
             Some(p) => serde_json::from_value(p)
                 .map_err(|e| McpError::new(error_codes::INVALID_PARAMS, e.to_string()))?,
@@ -314,7 +342,7 @@ impl ConHubMcpServer {
     }
 
     /// Handle context create request
-    async fn handle_context_create(&self, params: Option<serde_json::Value>) -> Result<serde_json::Value, McpError> {
+    pub async fn handle_context_create(&self, params: Option<serde_json::Value>) -> Result<serde_json::Value, McpError> {
         let params: ContextCreateParams = match params {
             Some(p) => serde_json::from_value(p)
                 .map_err(|e| McpError::new(error_codes::INVALID_PARAMS, e.to_string()))?,
@@ -642,7 +670,7 @@ impl McpServerTrait for ConHubMcpServer {
 
     async fn handle_request(&self, request: McpRequest) -> McpResponse {
         match request {
-            McpRequest::Initialize(params) => {
+            McpRequest::Initialize(_params) => {
                 let result = InitializeResult {
                     protocol_version: MCP_VERSION.to_string(),
                     capabilities: self.capabilities.clone(),
@@ -671,21 +699,22 @@ impl McpServerTrait for ConHubMcpServer {
         }
     }
 
-    fn register_context_provider(&mut self, _provider: Box<dyn McpContextProvider>) {
-        // Implementation would store the provider
-        // For now, this is a placeholder
+    fn register_context_provider(&mut self, provider: ContextProviderWrapper) {
+        let provider_id = provider.provider_id();
+        self.context_providers.write().unwrap().insert(provider_id, provider);
     }
 
-    fn register_tool_provider(&mut self, _provider: Box<dyn McpToolProvider>) {
-        // Implementation would store the provider
-        // For now, this is a placeholder
+    fn register_tool_provider(&mut self, provider: ToolProviderWrapper) {
+        let provider_id = provider.provider_id();
+        self.tool_providers.write().unwrap().insert(provider_id, provider);
     }
 }
 
 // Placeholder context provider implementations
 // These would be fully implemented with actual data access
 
-struct RepositoryContextProvider;
+#[derive(Debug, Clone)]
+pub struct RepositoryContextProvider;
 impl RepositoryContextProvider {
     async fn new() -> Result<Self, McpError> {
         Ok(Self)
@@ -725,7 +754,8 @@ impl McpContextProvider for RepositoryContextProvider {
 }
 
 // Similar placeholder implementations for other providers
-struct DocumentContextProvider;
+#[derive(Debug, Clone)]
+pub struct DocumentContextProvider;
 impl DocumentContextProvider {
     async fn new() -> Result<Self, McpError> { Ok(Self) }
 }
@@ -738,7 +768,8 @@ impl McpContextProvider for DocumentContextProvider {
     async fn read_resource(&self, _: &ResourceId) -> Result<ResourceContent, McpError> { Err(McpError::new(error_codes::RESOURCE_NOT_FOUND, "Not implemented".to_string())) }
 }
 
-struct UrlContextProvider;
+#[derive(Debug, Clone)]
+pub struct UrlContextProvider;
 impl UrlContextProvider {
     async fn new() -> Result<Self, McpError> { Ok(Self) }
 }
@@ -751,7 +782,8 @@ impl McpContextProvider for UrlContextProvider {
     async fn read_resource(&self, _: &ResourceId) -> Result<ResourceContent, McpError> { Err(McpError::new(error_codes::RESOURCE_NOT_FOUND, "Not implemented".to_string())) }
 }
 
-struct DataSourceContextProvider;
+#[derive(Debug, Clone)]
+pub struct DataSourceContextProvider;
 impl DataSourceContextProvider {
     async fn new() -> Result<Self, McpError> { Ok(Self) }
 }
@@ -765,7 +797,8 @@ impl McpContextProvider for DataSourceContextProvider {
 }
 
 // Tool provider placeholders
-struct SearchToolProvider;
+#[derive(Debug, Clone)]
+pub struct SearchToolProvider;
 impl SearchToolProvider {
     async fn new() -> Result<Self, McpError> { Ok(Self) }
 }
@@ -775,7 +808,8 @@ impl McpToolProvider for SearchToolProvider {
     async fn call_tool(&self, _: &str, _: Option<serde_json::Value>) -> Result<ToolsCallResult, McpError> { Err(McpError::new(error_codes::TOOL_NOT_FOUND, "Not implemented".to_string())) }
 }
 
-struct AnalysisToolProvider;
+#[derive(Debug, Clone)]
+pub struct AnalysisToolProvider;
 impl AnalysisToolProvider {
     async fn new() -> Result<Self, McpError> { Ok(Self) }
 }

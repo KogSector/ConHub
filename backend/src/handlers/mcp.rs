@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
-use uuid::Uuid;
 use chrono::Utc;
 
 use crate::models::mcp::*;
@@ -241,21 +240,39 @@ pub async fn connect_external_mcp(req: web::Json<ConnectExternalMcpRequest>) -> 
                 // Create auth config
                 let auth_config = match req.auth_method.as_str() {
                     "api_key" => {
-                        let api_key = req.credentials.get("api_key")
-                            .and_then(|v| v.as_str())
-                            .ok_or("Missing API key")?;
+                        let api_key = match req.credentials.get("api_key")
+                            .and_then(|v| v.as_str()) {
+                            Some(key) => key,
+                            None => {
+                                return Ok(HttpResponse::BadRequest().json(ApiResponse::<()>::error(
+                                    "Missing API key".to_string(),
+                                )));
+                            }
+                        };
                         AuthConfig::api_key(api_key.to_string())
                     }
                     "bearer" => {
-                        let token = req.credentials.get("token")
-                            .and_then(|v| v.as_str())
-                            .ok_or("Missing bearer token")?;
+                        let token = match req.credentials.get("token")
+                            .and_then(|v| v.as_str()) {
+                            Some(token) => token,
+                            None => {
+                                return Ok(HttpResponse::BadRequest().json(ApiResponse::<()>::error(
+                                    "Missing bearer token".to_string(),
+                                )));
+                            }
+                        };
                         AuthConfig::bearer(token.to_string())
                     }
                     "oauth2" => {
-                        let access_token = req.credentials.get("access_token")
-                            .and_then(|v| v.as_str())
-                            .ok_or("Missing access token")?;
+                        let access_token = match req.credentials.get("access_token")
+                            .and_then(|v| v.as_str()) {
+                            Some(token) => token,
+                            None => {
+                                return Ok(HttpResponse::BadRequest().json(ApiResponse::<()>::error(
+                                    "Missing access token".to_string(),
+                                )));
+                            }
+                        };
                         let refresh_token = req.credentials.get("refresh_token")
                             .and_then(|v| v.as_str())
                             .map(String::from);
@@ -430,8 +447,14 @@ pub async fn create_mcp_context(req: web::Json<CreateContextRequest>) -> Result<
                 // Use the server's handle_context_create method
                 match server.handle_context_create(Some(serde_json::to_value(params).unwrap())).await {
                     Ok(result) => {
-                        let context_result: ContextCreateResult = serde_json::from_value(result)
-                            .map_err(|e| format!("Failed to parse context result: {}", e))?;
+                        let context_result: ContextCreateResult = match serde_json::from_value(result) {
+                            Ok(result) => result,
+                            Err(e) => {
+                                return Ok(HttpResponse::InternalServerError().json(ApiResponse::<()>::error(
+                                    format!("Failed to parse context result: {}", e),
+                                )));
+                            }
+                        };
 
                         Ok(HttpResponse::Ok().json(ApiResponse {
                             success: true,
@@ -506,8 +529,14 @@ pub async fn list_mcp_resources(query: web::Query<ListResourcesRequest>) -> Resu
 
                     match server.handle_resources_list(Some(serde_json::to_value(params).unwrap())).await {
                         Ok(result) => {
-                            let resources_result: ResourcesListResult = serde_json::from_value(result)
-                                .map_err(|e| format!("Failed to parse resources result: {}", e))?;
+                            let resources_result: ResourcesListResult = match serde_json::from_value(result) {
+                                Ok(result) => result,
+                                Err(e) => {
+                                    return Ok(HttpResponse::InternalServerError().json(ApiResponse::<()>::error(
+                                        format!("Failed to parse resources result: {}", e),
+                                    )));
+                                }
+                            };
 
                             Ok(HttpResponse::Ok().json(ApiResponse {
                                 success: true,
@@ -583,8 +612,14 @@ pub async fn read_mcp_resource(req: web::Json<ReadResourceRequest>) -> Result<Ht
 
                     match server.handle_resources_read(Some(serde_json::to_value(params).unwrap())).await {
                         Ok(result) => {
-                            let read_result: ResourcesReadResult = serde_json::from_value(result)
-                                .map_err(|e| format!("Failed to parse read result: {}", e))?;
+                            let read_result: ResourcesReadResult = match serde_json::from_value(result) {
+                                Ok(result) => result,
+                                Err(e) => {
+                                    return Ok(HttpResponse::InternalServerError().json(ApiResponse::<()>::error(
+                                        format!("Failed to parse read result: {}", e),
+                                    )));
+                                }
+                            };
 
                             Ok(HttpResponse::Ok().json(ApiResponse {
                                 success: true,
@@ -661,8 +696,14 @@ pub async fn call_mcp_tool(req: web::Json<CallToolRequest>) -> Result<HttpRespon
 
                     match server.handle_tools_call(Some(serde_json::to_value(params).unwrap())).await {
                         Ok(result) => {
-                            let call_result: ToolsCallResult = serde_json::from_value(result)
-                                .map_err(|e| format!("Failed to parse tool result: {}", e))?;
+                            let call_result: ToolsCallResult = match serde_json::from_value(result) {
+                                Ok(result) => result,
+                                Err(e) => {
+                                    return Ok(HttpResponse::InternalServerError().json(ApiResponse::<()>::error(
+                                        format!("Failed to parse tool result: {}", e),
+                                    )));
+                                }
+                            };
 
                             Ok(HttpResponse::Ok().json(ApiResponse {
                                 success: true,

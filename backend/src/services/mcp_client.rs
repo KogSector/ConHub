@@ -106,6 +106,15 @@ impl std::fmt::Display for McpClientError {
 
 impl std::error::Error for McpClientError {}
 
+impl std::fmt::Debug for McpClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("McpClient")
+            .field("config", &self.config)
+            .field("connections", &self.connections)
+            .finish_non_exhaustive()
+    }
+}
+
 impl McpClient {
     /// Create a new MCP client with default configuration
     pub fn new() -> Result<Self, McpClientError> {
@@ -182,7 +191,7 @@ impl McpClient {
 
     /// Initialize connection by performing handshake
     async fn initialize_connection(&self, server_id: &ServerId) -> Result<(), McpClientError> {
-        let endpoint = {
+        let _endpoint = {
             let connections = self.connections.read().await;
             let connection = connections.get(server_id)
                 .ok_or_else(|| McpClientError::ConnectionError("Connection not found".to_string()))?;

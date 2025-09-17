@@ -10,4 +10,5 @@ pub mod vcs_detector;
 pub mod vcs_connector;
 pub mod mcp_server;
 pub mod mcp_client;
+pub mod github_copilot_integration;
 pub mod enhanced_repository;

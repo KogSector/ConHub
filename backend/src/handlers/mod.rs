@@ -7,6 +7,7 @@ mod agents;
 mod urls;
 mod repositories;
 mod mcp;
+mod github_copilot;
 
 use actix_web::web;
 
@@ -18,6 +19,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .configure(agents::configure)
             .configure(repositories::configure_routes)
             .configure(mcp::configure)
+            .configure(github_copilot::configure_copilot_routes)
     ).service(
         web::scope("")
             .configure(health::configure)

@@ -26,11 +26,6 @@ pub struct McpEnhancedContext {
     pub context_metadata: HashMap<String, serde_json::Value>,
 }
 
-#[derive(Debug, Clone)]
-pub struct AgentService {
-    client: Client,
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct OpenAIRequest {
     model: String,
@@ -154,7 +149,7 @@ impl AgentService {
         traditional_context: Option<AgentContext>,
     ) -> Result<McpEnhancedContext, Box<dyn std::error::Error>> {
         let mut mcp_contexts = Vec::new();
-        let mut mcp_resources = Vec::new();
+        let mcp_resources = Vec::new();
         let mut context_metadata = HashMap::new();
 
         // Create contexts based on agent permissions
@@ -277,7 +272,7 @@ impl AgentService {
                     annotations: Some(ResourceAnnotations {
                         audience: Some(vec!["researchers".to_string()]),
                         priority: Some(0.7),
-                        tags: vec!["web".to_string(), "reference".to_string()]),
+                        tags: vec!["web".to_string(), "reference".to_string()],
                         source_type: "url".to_string(),
                         confidence: Some(0.8),
                     }),
