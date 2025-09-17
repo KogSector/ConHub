@@ -46,6 +46,7 @@ pub enum ContextType {
 pub struct AIContextEngine {
     symbol_graph: HashMap<String, Vec<String>>,
     dependency_graph: HashMap<String, Vec<String>>,
+    #[allow(dead_code)]
     usage_analytics: HashMap<String, UsagePattern>,
 }
 

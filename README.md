@@ -236,10 +236,9 @@ GITHUB_ACCESS_TOKEN=your_github_token
 QDRANT_URL=http://localhost:6333
 PINECONE_API_KEY=your_pinecone_key
 
-# Auth0 Configuration
-AUTH0_SECRET=your_auth0_secret
-AUTH0_CLIENT_ID=your_client_id
-AUTH0_CLIENT_SECRET=your_client_secret
+# Authentication Configuration
+JWT_SECRET=your_jwt_secret_key
+DATABASE_URL=sqlite:./conhub.db
 ```
 
 ## Service Architecture

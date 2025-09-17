@@ -1,13 +1,14 @@
 use crate::types::*;
-use crate::types::*;
 use std::collections::HashMap;
 use uuid::Uuid;
 
+#[allow(dead_code)]
 pub struct CrossReferenceEngine {
     symbol_definitions: HashMap<String, Vec<Symbol>>,
     symbol_references: HashMap<Uuid, Vec<Reference>>,
 }
 
+#[allow(dead_code)]
 impl CrossReferenceEngine {
     pub fn new() -> Self {
         Self {

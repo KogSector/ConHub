@@ -1,4 +1,5 @@
 mod api;
+mod auth;
 mod health;
 mod settings;
 mod data_source_handlers;
@@ -14,6 +15,7 @@ use actix_web::web;
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api")
+            .configure(auth::configure)
             .configure(data_source_handlers::configure)
             .configure(documents::configure)
             .configure(agents::configure)

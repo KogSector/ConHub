@@ -3,7 +3,6 @@ use crate::types::*;
 use actix_web::{web, HttpResponse, Result};
 use serde_json::json;
 use uuid::Uuid;
-use std::sync::Arc;
 
 pub async fn search_handler(
     service: web::Data<LexorService>,

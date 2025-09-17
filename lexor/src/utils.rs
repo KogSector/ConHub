@@ -103,6 +103,7 @@ pub fn is_binary_content(bytes: &[u8]) -> bool {
     non_printable as f64 / sample.len() as f64 > 0.30
 }
 
+#[allow(dead_code)]
 pub fn normalize_path(path: &Path) -> PathBuf {
     let mut components = Vec::new();
     
@@ -139,6 +140,7 @@ pub fn count_lines(content: &str) -> u32 {
     }
 }
 
+#[allow(dead_code)]
 pub fn extract_words(content: &str) -> Vec<String> {
     static WORD_REGEX: Lazy<Regex> = Lazy::new(|| {
         Regex::new(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b").unwrap()
@@ -166,6 +168,7 @@ pub fn highlight_matches(content: &str, query: &str, case_sensitive: bool) -> Ve
     matches
 }
 
+#[allow(dead_code)]
 pub fn format_file_size(size: u64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
     let mut size = size as f64;
@@ -183,6 +186,7 @@ pub fn format_file_size(size: u64) -> String {
     }
 }
 
+#[allow(dead_code)]
 pub fn sanitize_filename(name: &str) -> String {
     name.chars()
         .map(|c| match c {
@@ -224,6 +228,7 @@ fn glob_match(pattern: &str, text: &str) -> bool {
     }
 }
 
+#[allow(dead_code)]
 pub fn extract_context_lines(content: &str, line_number: u32, context_size: usize) -> Vec<(u32, String)> {
     let lines: Vec<&str> = content.lines().collect();
     let total_lines = lines.len();

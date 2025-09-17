@@ -78,7 +78,7 @@ impl<T: Clone> IntelligentCache<T> {
 
     async fn evict_lru(&self) {
         let mut oldest_key = None;
-        let mut oldest_time = std::time::Instant::now();
+        let _oldest_time = std::time::Instant::now();
         let mut lowest_score = f64::MAX;
 
         for entry in self.entries.iter() {
@@ -105,6 +105,7 @@ impl<T: Clone> IntelligentCache<T> {
 
 pub struct PerformanceOptimizer {
     search_cache: IntelligentCache<crate::types::SearchResult>,
+    #[allow(dead_code)]
     symbol_cache: IntelligentCache<Vec<crate::types::Symbol>>,
     metrics: Arc<RwLock<PerformanceMetrics>>,
 }
@@ -167,6 +168,7 @@ impl PerformanceOptimizer {
     }
 }
 
+#[allow(dead_code)]
 pub fn create_query_hash(query: &crate::types::SearchQuery) -> String {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};

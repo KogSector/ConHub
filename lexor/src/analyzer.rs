@@ -1,8 +1,7 @@
-use crate::types::*;
-use std::collections::HashMap;
-
+#[allow(dead_code)]
 pub struct CodeAnalyzer;
 
+#[allow(dead_code)]
 impl CodeAnalyzer {
     pub fn analyze_complexity(content: &str) -> ComplexityMetrics {
         let lines = content.lines().count();
@@ -39,6 +38,7 @@ impl CodeAnalyzer {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ComplexityMetrics {
     pub lines_of_code: usize,
     pub cyclomatic_complexity: u32,

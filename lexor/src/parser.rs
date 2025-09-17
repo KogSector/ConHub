@@ -1,6 +1,6 @@
 use crate::types::*;
 use crate::utils::highlight_matches;
-use tree_sitter::{Parser, Tree, Node, Query, QueryCursor, TreeCursor};
+use tree_sitter::{Parser, Tree, Node, Query, QueryCursor};
 use std::collections::HashMap;
 use std::path::Path;
 use uuid::Uuid;
@@ -18,6 +18,7 @@ struct SymbolQuery {
     functions: Query,
     classes: Query,
     variables: Query,
+    #[allow(dead_code)]
     imports: Query,
 }
 
@@ -249,7 +250,7 @@ impl LanguageParser {
         }
     }
 
-    pub fn parse_file(&mut self, file_id: Uuid, path: &Path, content: &str, language: &Language) -> Result<Vec<Symbol>, Box<dyn std::error::Error>> {
+    pub fn parse_file(&mut self, file_id: Uuid, _path: &Path, content: &str, language: &Language) -> Result<Vec<Symbol>, Box<dyn std::error::Error>> {
         let parser = self.parsers.get_mut(language)
             .ok_or("Parser not available for language")?;
         
@@ -392,14 +393,14 @@ impl LanguageParser {
         }
     }
 
-    pub fn extract_references(&mut self, file_id: Uuid, content: &str, language: &Language, symbols: &[Symbol]) -> Vec<Reference> {
+    pub fn extract_references(&mut self, file_id: Uuid, content: &str, _language: &Language, symbols: &[Symbol]) -> Vec<Reference> {
         let mut references = Vec::new();
         
         // Simple reference extraction based on symbol names
         for symbol in symbols {
             let matches = highlight_matches(content, &symbol.name, true);
             
-            for (start, end) in matches {
+            for (start, _end) in matches {
                 // Convert byte position to line/column
                 let line_col = self.byte_pos_to_line_col(content, start);
                 

@@ -5,26 +5,25 @@ use crate::utils::*;
 use crate::history::HistoryAnalyzer;
 
 use tantivy::schema::*;
-use tantivy::{Index, IndexWriter, Document, Term};
-use tantivy::collector::TopDocs;
-use tantivy::query::QueryParser;
+use tantivy::{Index, IndexWriter, Term};
 use tantivy::directory::MmapDirectory;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::fs;
-use walkdir::WalkDir;
 use ignore::WalkBuilder;
 use rayon::prelude::*;
 use dashmap::DashMap;
 use uuid::Uuid;
 use chrono::Utc;
-use log::{info, warn, error, debug};
+use log::{info, warn, debug};
 
 pub struct IndexerEngine {
+    #[allow(dead_code)]
     config: LexorConfig,
     schema: Schema,
+    #[allow(dead_code)]
     index: Index,
     writer: Arc<Mutex<IndexWriter>>,
     projects: Arc<DashMap<Uuid, Project>>,
@@ -32,6 +31,7 @@ pub struct IndexerEngine {
     symbols: Arc<DashMap<Uuid, Symbol>>,
     references: Arc<DashMap<Uuid, Reference>>,
     parser: Arc<Mutex<LanguageParser>>,
+    #[allow(dead_code)]
     history_analyzer: Arc<Mutex<HistoryAnalyzer>>,
 }
 
@@ -330,7 +330,7 @@ impl IndexerEngine {
     }
 
     fn index_file_content(&self, file: &IndexedFile, content: &str, symbols: &[Symbol], references: &[Reference]) -> Result<(), Box<dyn std::error::Error>> {
-        let mut writer = self.writer.lock().unwrap();
+        let writer = self.writer.lock().unwrap();
         let schema = &self.schema;
 
         // Create document for the file

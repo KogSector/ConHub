@@ -79,7 +79,7 @@ async fn connect_vcs_data_source(
     let credentials = if let Some(creds) = &request.credentials {
         if request.source_type == "github" {
             // Check if it's a GitHub App installation (has installationId)
-            if let Some(installation_id) = creds.get("installationId") {
+            if let Some(_installation_id) = creds.get("installationId") {
                 // TODO: Implement GitHub App authentication
                 // For now, fallback to requiring accessToken
                 if let Some(token) = creds.get("accessToken") {

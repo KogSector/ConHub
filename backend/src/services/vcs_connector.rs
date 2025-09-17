@@ -197,9 +197,6 @@ impl GitConnector {
                     request = request.header("Authorization", format!("token {}", token));
                 }
             }
-            CredentialType::OAuthToken { access_token, .. } => {
-                request = request.header("Authorization", format!("Bearer {}", access_token));
-            }
             CredentialType::UsernamePassword { username, password } => {
                 request = request.basic_auth(username, Some(password));
             }
@@ -253,17 +250,6 @@ impl VcsConnector for GitConnector {
                     .map_err(|e| VcsError::NetworkError(e.to_string()))?;
                 
                 println!("Response status: {}", response.status());
-                Ok(response.status().is_success())
-            }
-            CredentialType::OAuthToken { access_token, .. } => {
-                let response = self.client
-                    .get("https://api.github.com/user")
-                    .header("Authorization", format!("Bearer {}", access_token))
-                    .header("User-Agent", "ConHub")
-                    .send()
-                    .await
-                    .map_err(|e| VcsError::NetworkError(e.to_string()))?;
-                
                 Ok(response.status().is_success())
             }
             _ => Ok(false), // Other credential types not supported for testing

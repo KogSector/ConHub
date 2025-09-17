@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::models::{
     ConnectRepositoryRequest, RepositoryInfo, RepositoryCredentials, 
-    CredentialType, RepositoryConfig, RepositorySyncStatus, VcsType, VcsProvider
+    RepositoryConfig, RepositorySyncStatus, VcsType, VcsProvider
 };
 use crate::services::vcs_detector::VcsDetector;
 use crate::services::vcs_connector::{VcsConnectorFactory, VcsError, VcsResult};
@@ -257,15 +257,9 @@ impl CredentialValidator {
     
     /// Refresh OAuth token if possible
     #[allow(dead_code)]
-    pub async fn refresh_oauth_token(credentials: &RepositoryCredentials) -> VcsResult<RepositoryCredentials> {
-        match &credentials.credential_type {
-            CredentialType::OAuthToken { refresh_token: Some(_refresh_token), .. } => {
-                // Here you would implement OAuth token refresh logic
-                // This would depend on the specific provider's OAuth flow
-                Err(VcsError::OperationFailed("OAuth token refresh not implemented".to_string()))
-            }
-            _ => Err(VcsError::InvalidCredentials("Not an OAuth token or no refresh token available".to_string())),
-        }
+    pub async fn refresh_oauth_token(_credentials: &RepositoryCredentials) -> VcsResult<RepositoryCredentials> {
+        // OAuth functionality removed - return error for now
+        Err(VcsError::OperationFailed("OAuth functionality has been removed".to_string()))
     }
 }
 

@@ -1,8 +1,7 @@
 use crate::types::*;
-use crate::utils::*;
 
-use tantivy::{Index, IndexReader, Searcher, Document, Score};
-use tantivy::query::{QueryParser, Query, TermQuery};
+use tantivy::{Index, IndexReader, Score};
+use tantivy::query::{QueryParser, TermQuery};
 use tantivy::collector::TopDocs;
 use tantivy::schema::*;
 use tantivy::Term;
@@ -11,6 +10,7 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 pub struct SearchEngine {
+    #[allow(dead_code)]
     index: Index,
     reader: IndexReader,
     schema: Schema,

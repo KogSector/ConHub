@@ -1,5 +1,4 @@
 use crate::types::*;
-use crate::types::*;
 use tantivy::{Index, schema::Schema};
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
@@ -31,6 +30,7 @@ pub struct ComplexityRange {
 
 pub struct EnhancedSearchEngine {
     base_engine: crate::search::SearchEngine,
+    #[allow(dead_code)]
     embeddings: HashMap<String, Vec<f32>>,
     popularity_scores: HashMap<String, f32>,
 }

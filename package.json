@@ -32,7 +32,6 @@
     "install:all": "npm install"
   },
   "dependencies": {
-    "@auth0/auth0-react": "^2.4.0",
     "@hookform/resolvers": "^3.10.0",
     "@langchain/community": "^0.3.3",
     "@langchain/openai": "^0.3.1",

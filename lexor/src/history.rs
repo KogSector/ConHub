@@ -1,15 +1,17 @@
 use crate::types::*;
-use git2::{Repository, Oid, Commit, DiffOptions, DiffFormat, Delta};
+use git2::{Repository, Oid, Commit};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use uuid::Uuid;
 use chrono::{DateTime, Utc, TimeZone};
-use log::{info, warn, error, debug};
+use log::info;
 
+#[allow(dead_code)]
 pub struct HistoryAnalyzer {
     repositories: HashMap<PathBuf, Repository>,
 }
 
+#[allow(dead_code)]
 impl HistoryAnalyzer {
     pub fn new() -> Self {
         Self {
@@ -363,6 +365,7 @@ impl HistoryAnalyzer {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct BlameInfo {
     pub line_number: usize,
     pub commit_id: String,
@@ -373,6 +376,7 @@ pub struct BlameInfo {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct BranchInfo {
     pub name: String,
     pub is_current: bool,
@@ -381,6 +385,7 @@ pub struct BranchInfo {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TagInfo {
     pub name: String,
     pub commit_id: String,
@@ -388,12 +393,14 @@ pub struct TagInfo {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct CommitDiff {
     pub commit_id: String,
     pub files: Vec<FileDiff>,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct FileDiff {
     pub old_path: Option<PathBuf>,
     pub new_path: Option<PathBuf>,
@@ -402,6 +409,7 @@ pub struct FileDiff {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum DiffStatus {
     Added,
     Deleted,
