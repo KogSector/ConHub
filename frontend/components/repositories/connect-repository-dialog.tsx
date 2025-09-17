@@ -183,6 +183,22 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                     <li>4. Copy the token and paste it above</li>
                   </ol>
                 </div>
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="flex items-start gap-2">
+                    <div className="text-blue-600 mt-0.5">ℹ️</div>
+                    <div>
+                      <p className="font-medium text-blue-800">Organization Repositories</p>
+                      <p className="text-xs text-blue-700 mt-1">
+                        For enhanced organization access, consider using GitHub Apps instead of Personal Access Tokens. 
+                        GitHub Apps provide better security, audit trails, and fine-grained permissions for organization repositories.
+                      </p>
+                      <p className="text-xs text-blue-600 mt-2">
+                        <strong>Personal tokens work for:</strong> Personal repos, org repos with user access<br/>
+                        <strong>GitHub Apps work best for:</strong> Organization-wide access, team repositories, enterprise use
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -1,5 +1,4 @@
 import { GitHubCopilotService } from './copilotService';
-import { getGitHubAppAuth } from '../auth/githubAppAuth';
 import { logger } from '../../utils/logger';
 import { Octokit } from '@octokit/rest';
 
@@ -67,6 +66,8 @@ export class GitHubIntegrationService {
    */
   static async createWithAppAuth(installationId?: string): Promise<GitHubIntegrationService> {
     try {
+      // Lazy load to avoid startup issues
+      const { getGitHubAppAuth } = await import('../auth/githubAppAuth');
       const appAuth = getGitHubAppAuth();
       const octokit = await appAuth.getInstallationOctokit(installationId);
       

@@ -1,5 +1,4 @@
 import express from 'express';
-import { getGitHubAppAuth } from '../services/auth/githubAppAuth';
 import { logger } from '../utils/logger';
 
 const router = express.Router();
@@ -13,6 +12,8 @@ router.get('/github/url', async (req, res) => {
       return res.status(400).json({ error: 'State parameter is required' });
     }
     
+    // Lazy load to avoid startup issues
+    const { getGitHubAppAuth } = await import('../services/auth/githubAppAuth');
     const githubAuth = getGitHubAppAuth();
     const oauthUrl = githubAuth.getOAuthURL(state as string, ['repo', 'user:email']);
     
@@ -38,6 +39,8 @@ router.post('/github/callback', async (req, res) => {
       return res.status(400).json({ error: 'Authorization code is required' });
     }
     
+    // Lazy load to avoid startup issues
+    const { getGitHubAppAuth } = await import('../services/auth/githubAppAuth');
     const githubAuth = getGitHubAppAuth();
     const accessToken = await githubAuth.exchangeCodeForToken(code);
     
@@ -61,6 +64,8 @@ router.post('/github/callback', async (req, res) => {
 // Get available GitHub App installations
 router.get('/github/installations', async (req, res) => {
   try {
+    // Lazy load to avoid startup issues
+    const { getGitHubAppAuth } = await import('../services/auth/githubAppAuth');
     const githubAuth = getGitHubAppAuth();
     const installations = await githubAuth.getInstallations();
     
@@ -91,6 +96,8 @@ router.get('/github/installations/:installationId/repositories', async (req, res
   try {
     const { installationId } = req.params;
     
+    // Lazy load to avoid startup issues
+    const { getGitHubAppAuth } = await import('../services/auth/githubAppAuth');
     const githubAuth = getGitHubAppAuth();
     const repositories = await githubAuth.getInstallationRepositories(installationId);
     

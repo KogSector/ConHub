@@ -9,7 +9,7 @@ import indexingRoutes from './routes/indexing';
 import searchRoutes from './routes/search';
 import dataSourceRoutes from './routes/dataSources';
 import aiAgentRoutes from './routes/aiAgents';
-import authRoutes from './routes/auth';
+// import authRoutes from './routes/auth'; // Temporarily disabled due to ES module issues
 import copilotRoutes from './routes/copilot';
 import githubRoutes from './routes/github';
 
@@ -50,7 +50,7 @@ app.use('/api/indexing', indexingRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/data-sources', dataSourceRoutes);
 app.use('/api/ai-agents', aiAgentRoutes);
-app.use('/api/auth', authRoutes);
+// app.use('/api/auth', authRoutes); // Temporarily disabled due to ES module issues
 app.use('/api/copilot', copilotRoutes);
 app.use('/api/github', githubRoutes);
 

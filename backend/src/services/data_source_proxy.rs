@@ -75,16 +75,37 @@ async fn connect_vcs_data_source(
         _ => return Err("Unsupported VCS provider".into()),
     };
     
-    // Parse credentials
+    // Parse credentials - support both PAT and GitHub App auth
     let credentials = if let Some(creds) = &request.credentials {
         if request.source_type == "github" {
-            let token = creds["accessToken"].as_str()
-                .ok_or("GitHub access token is required")?;
-            RepositoryCredentials {
-                credential_type: CredentialType::PersonalAccessToken { 
-                    token: token.to_string() 
-                },
-                expires_at: None,
+            // Check if it's a GitHub App installation (has installationId)
+            if let Some(installation_id) = creds.get("installationId") {
+                // TODO: Implement GitHub App authentication
+                // For now, fallback to requiring accessToken
+                if let Some(token) = creds.get("accessToken") {
+                    let token_str = token.as_str()
+                        .ok_or("GitHub access token must be a string")?;
+                    RepositoryCredentials {
+                        credential_type: CredentialType::PersonalAccessToken { 
+                            token: token_str.to_string() 
+                        },
+                        expires_at: None,
+                    }
+                } else {
+                    return Err("GitHub App authentication not yet implemented. Please use access token.".into());
+                }
+            } else if let Some(token) = creds.get("accessToken") {
+                // Standard PAT authentication
+                let token_str = token.as_str()
+                    .ok_or("GitHub access token must be a string")?;
+                RepositoryCredentials {
+                    credential_type: CredentialType::PersonalAccessToken { 
+                        token: token_str.to_string() 
+                    },
+                    expires_at: None,
+                }
+            } else {
+                return Err("GitHub access token or installation ID is required".into());
             }
         } else if request.source_type == "bitbucket" {
             let username = creds["username"].as_str()

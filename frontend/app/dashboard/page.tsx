@@ -48,40 +48,101 @@ export default function Dashboard() {
           {/* Left Column - Quick Actions */}
           <div>
             <h2 className="text-2xl font-semibold text-foreground mb-6">Quick Actions</h2>
-            <div className="grid grid-cols-2 gap-4 mt-7">
-                <Link href="/repositories">
-                  <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors w-full">
-                    <GitBranch className="w-6 h-6" />
-                    <span>Connect Repository</span>
-                  </Button>
+            <div className="grid grid-cols-2 gap-6 mt-7">
+                <Link href="/repositories" className="group">
+                  <div className="relative transform transition-all duration-300 hover:scale-105 hover:-translate-y-2">
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl blur-xl opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
+                    <div className="relative bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-purple-600 text-white rounded-2xl p-6 shadow-2xl border border-blue-400/20 backdrop-blur-sm transition-all duration-300">
+                      <div className="flex flex-col items-center space-y-3">
+                        <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                          <GitBranch className="w-7 h-7" />
+                        </div>
+                        <span className="font-semibold text-center leading-tight">Connect Repository</span>
+                      </div>
+                      <div className="absolute top-2 right-2 w-2 h-2 bg-white/30 rounded-full"></div>
+                      <div className="absolute bottom-2 left-2 w-1 h-1 bg-white/20 rounded-full"></div>
+                    </div>
+                  </div>
                 </Link>
-                <Link href="/dashboard/documents">
-                  <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors w-full">
-                    <FileText className="w-6 h-6" />
-                    <span>Add Documents</span>
-                  </Button>
+                
+                <Link href="/dashboard/documents" className="group">
+                  <div className="relative transform transition-all duration-300 hover:scale-105 hover:-translate-y-2">
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl blur-xl opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
+                    <div className="relative bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 text-white rounded-2xl p-6 shadow-2xl border border-emerald-400/20 backdrop-blur-sm transition-all duration-300">
+                      <div className="flex flex-col items-center space-y-3">
+                        <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                          <FileText className="w-7 h-7" />
+                        </div>
+                        <span className="font-semibold text-center leading-tight">Add Documents</span>
+                      </div>
+                      <div className="absolute top-2 right-2 w-2 h-2 bg-white/30 rounded-full"></div>
+                      <div className="absolute bottom-2 left-2 w-1 h-1 bg-white/20 rounded-full"></div>
+                    </div>
+                  </div>
                 </Link>
-                <Link href="/dashboard/urls">
-                  <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors w-full">
-                    <LinkIcon className="w-6 h-6" />
-                    <span>Add URLs</span>
-                  </Button>
+                
+                <Link href="/dashboard/urls" className="group">
+                  <div className="relative transform transition-all duration-300 hover:scale-105 hover:-translate-y-2">
+                    <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl blur-xl opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
+                    <div className="relative bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-red-600 text-white rounded-2xl p-6 shadow-2xl border border-orange-400/20 backdrop-blur-sm transition-all duration-300">
+                      <div className="flex flex-col items-center space-y-3">
+                        <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                          <LinkIcon className="w-7 h-7" />
+                        </div>
+                        <span className="font-semibold text-center leading-tight">Add URLs</span>
+                      </div>
+                      <div className="absolute top-2 right-2 w-2 h-2 bg-white/30 rounded-full"></div>
+                      <div className="absolute bottom-2 left-2 w-1 h-1 bg-white/20 rounded-full"></div>
+                    </div>
+                  </div>
                 </Link>
-                <Link href="/ai-agents">
-                  <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors w-full">
-                    <Bot className="w-6 h-6" />
-                    <span>Manage AI Agents</span>
-                  </Button>
+                
+                <Link href="/ai-agents" className="group">
+                  <div className="relative transform transition-all duration-300 hover:scale-105 hover:-translate-y-2">
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl blur-xl opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
+                    <div className="relative bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-pink-600 text-white rounded-2xl p-6 shadow-2xl border border-purple-400/20 backdrop-blur-sm transition-all duration-300">
+                      <div className="flex flex-col items-center space-y-3">
+                        <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                          <Bot className="w-7 h-7" />
+                        </div>
+                        <span className="font-semibold text-center leading-tight">Manage AI Agents</span>
+                      </div>
+                      <div className="absolute top-2 right-2 w-2 h-2 bg-white/30 rounded-full"></div>
+                      <div className="absolute bottom-2 left-2 w-1 h-1 bg-white/20 rounded-full"></div>
+                    </div>
+                  </div>
                 </Link>
-                <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors">
-                  <Network className="w-6 h-6" />
-                  <span>Configure RAG</span>
-                </Button>
-                <Link href="/docs">
-                  <Button size="lg" className="px-6 py-6 h-auto flex flex-col items-center space-y-2 hover:bg-green-600 transition-colors w-full">
-                    <BookOpen className="w-6 h-6" />
-                    <span>View Documentation</span>
-                  </Button>
+                
+                <div className="group cursor-pointer">
+                  <div className="relative transform transition-all duration-300 hover:scale-105 hover:-translate-y-2">
+                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl blur-xl opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
+                    <div className="relative bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-blue-600 text-white rounded-2xl p-6 shadow-2xl border border-cyan-400/20 backdrop-blur-sm transition-all duration-300">
+                      <div className="flex flex-col items-center space-y-3">
+                        <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                          <Network className="w-7 h-7" />
+                        </div>
+                        <span className="font-semibold text-center leading-tight">Configure RAG</span>
+                      </div>
+                      <div className="absolute top-2 right-2 w-2 h-2 bg-white/30 rounded-full"></div>
+                      <div className="absolute bottom-2 left-2 w-1 h-1 bg-white/20 rounded-full"></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <Link href="/docs" className="group">
+                  <div className="relative transform transition-all duration-300 hover:scale-105 hover:-translate-y-2">
+                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl blur-xl opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
+                    <div className="relative bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-purple-600 text-white rounded-2xl p-6 shadow-2xl border border-indigo-400/20 backdrop-blur-sm transition-all duration-300">
+                      <div className="flex flex-col items-center space-y-3">
+                        <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                          <BookOpen className="w-7 h-7" />
+                        </div>
+                        <span className="font-semibold text-center leading-tight">View Documentation</span>
+                      </div>
+                      <div className="absolute top-2 right-2 w-2 h-2 bg-white/30 rounded-full"></div>
+                      <div className="absolute bottom-2 left-2 w-1 h-1 bg-white/20 rounded-full"></div>
+                    </div>
+                  </div>
                 </Link>
             </div>
           </div>
@@ -125,7 +186,7 @@ export default function Dashboard() {
                     <CardTitle className="text-sm font-medium text-muted-foreground">
                       URLs
                     </CardTitle>
-                    <Globe className="w-4 h-4 text-primary" />
+                    <LinkIcon className="w-4 h-4 text-primary" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-foreground">23</div>
@@ -202,7 +263,7 @@ export default function Dashboard() {
               {[
                 { name: "frontend-app", type: "repository", status: "active", private: false, icon: GitBranch },
                 { name: "API Documentation", type: "document", status: "active", private: false, icon: FileText },
-                { name: "Confluence Wiki", type: "url", status: "syncing", private: true, icon: Globe },
+                { name: "Confluence Wiki", type: "url", status: "syncing", private: true, icon: LinkIcon },
                 { name: "user-service", type: "repository", status: "active", private: true, icon: GitBranch },
               ].map((source, index) => {
                 const IconComponent = source.icon;

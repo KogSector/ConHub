@@ -16,7 +16,7 @@
     "dev:frontend": "cd frontend && next dev -p 3000",
     "dev:backend": "cargo run --bin conhub-backend",
     "dev:lexor": "cargo run --bin lexor",
-    "dev:langchain": "set PORT=3002 && nodemon --exec ts-node langchain-service/src/index.ts",
+    "dev:langchain": "set PORT=3002 && nodemon --exec \"npx ts-node --project tsconfig.langchain.json\" langchain-service/src/index.ts",
     "dev:haystack": "cd haystack-service && python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload",
     "build": "npm run build:frontend && npm run build:backend && npm run build:langchain",
     "build:frontend": "cd frontend && next build",
