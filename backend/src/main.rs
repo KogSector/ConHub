@@ -6,12 +6,13 @@ mod services;
 
 use actix_web::{web, App, HttpServer, middleware::Logger};
 use actix_cors::Cors;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 use std::sync::Arc;
 use config::AppConfig;
 use services::auth_service::AuthService;
 use services::session_service::{SessionService, session_cleanup_task};
 use services::feature_toggle_service::{FeatureToggleService, watch_feature_toggles};
+use services::social_integration_service::SocialIntegrationService;
 use middleware::auth::AuthMiddleware;
 
 #[actix_web::main]
@@ -22,33 +23,40 @@ async fn main() -> std::io::Result<()> {
     
     // Initialize database
     let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "sqlite:./conhub.db".to_string());
+        .unwrap_or_else(|_| "postgresql://postgres:password@localhost:5432/conhub".to_string());
     
-    let db_pool = SqlitePool::connect(&database_url)
+    let db_pool = PgPool::connect(&database_url)
         .await
         .expect("Failed to connect to database");
     
     // Run migrations/setup
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            name TEXT NOT NULL,
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            email VARCHAR(255) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            name VARCHAR(255) NOT NULL,
             avatar_url TEXT,
-            organization TEXT,
-            role TEXT NOT NULL DEFAULT 'user',
-            subscription_tier TEXT NOT NULL DEFAULT 'free',
+            organization VARCHAR(255),
+            role VARCHAR(50) NOT NULL DEFAULT 'user',
+            subscription_tier VARCHAR(50) NOT NULL DEFAULT 'free',
             is_verified BOOLEAN NOT NULL DEFAULT FALSE,
             is_active BOOLEAN NOT NULL DEFAULT TRUE,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            last_login_at TEXT
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+            last_login_at TIMESTAMP WITH TIME ZONE
         )"
     )
     .execute(&db_pool)
     .await
     .expect("Failed to create users table");
+
+    // Run social platform migrations
+    let social_migration = include_str!("../migrations/001_social_tables.sql");
+    sqlx::query(social_migration)
+        .execute(&db_pool)
+        .await
+        .expect("Failed to run social platform migrations");
 
     // Initialize auth service
     let jwt_secret = std::env::var("JWT_SECRET")
@@ -78,6 +86,7 @@ async fn main() -> std::io::Result<()> {
     let auth_service_data = web::Data::new(auth_service);
     let session_service_data = web::Data::new(session_service.as_ref().clone());
     let feature_toggle_service_data = web::Data::new(feature_toggle_service.as_ref().clone());
+    let social_service = web::Data::new(SocialIntegrationService::new(db_pool.clone()));
     let db_data = web::Data::new(db_pool);
     
     println!("Starting ConHub Backend on http://localhost:3001");
@@ -96,6 +105,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(auth_service_data.clone())
             .app_data(session_service_data.clone())
             .app_data(feature_toggle_service_data.clone())
+            .app_data(social_service.clone())
             .app_data(db_data.clone())
             .wrap(cors)
             .wrap(Logger::default())

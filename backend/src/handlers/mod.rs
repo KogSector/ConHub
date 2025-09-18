@@ -9,6 +9,7 @@ mod urls;
 mod repositories;
 mod mcp;
 mod github_copilot;
+mod social;
 
 use actix_web::web;
 
@@ -22,6 +23,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .configure(repositories::configure_routes)
             .configure(mcp::configure)
             .configure(github_copilot::configure_copilot_routes)
+            .configure(social::configure)
     ).service(
         web::scope("")
             .configure(health::configure)

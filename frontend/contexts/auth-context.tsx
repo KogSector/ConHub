@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import { isLoginEnabled } from '@/lib/feature-toggles'
 
 export interface User {
   id: string
@@ -51,9 +52,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
+  const loginEnabled = isLoginEnabled()
+
+  // Mock user for when login is disabled
+  const mockUser: User = {
+    id: 'dev-user',
+    name: 'Development User',
+    email: 'dev@conhub.local',
+    avatar_url: undefined,
+    organization: 'ConHub Dev',
+    role: 'admin',
+    subscription_tier: 'enterprise',
+    is_verified: true,
+    created_at: new Date().toISOString(),
+    last_login_at: new Date().toISOString(),
+  }
 
   useEffect(() => {
-    // Check for stored token on mount
+    if (!loginEnabled) {
+      // When login is disabled, set mock user and finish loading
+      setUser(mockUser)
+      setToken('mock-token')
+      setIsLoading(false)
+      return
+    }
+
+    // Check for stored token on mount (only when login is enabled)
     const storedToken = localStorage.getItem('auth_token')
     if (storedToken) {
       setToken(storedToken)
@@ -61,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       setIsLoading(false)
     }
-  }, [])
+  }, [loginEnabled])
 
   const verifyToken = async (tokenToVerify: string) => {
     try {
@@ -124,6 +148,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const login = async (email: string, password: string) => {
+    if (!loginEnabled) {
+      // When login is disabled, just redirect to dashboard
+      router.push('/dashboard')
+      return
+    }
+
     setIsLoading(true)
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
@@ -153,6 +183,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const register = async (data: RegisterData) => {
+    if (!loginEnabled) {
+      // When login is disabled, just redirect to dashboard
+      router.push('/dashboard')
+      return
+    }
+
     setIsLoading(true)
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
@@ -182,6 +218,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
+    if (!loginEnabled) {
+      // When login is disabled, just redirect to homepage
+      router.push('/')
+      return
+    }
+
     setUser(null)
     setToken(null)
     localStorage.removeItem('auth_token')
@@ -189,6 +231,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const updateProfile = async (data: Partial<User>) => {
+    if (!loginEnabled) {
+      // When login is disabled, update the mock user
+      setUser(prev => prev ? { ...prev, ...data } : null)
+      return
+    }
+
     if (!token) throw new Error('No authentication token')
 
     try {
@@ -215,6 +263,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const changePassword = async (currentPassword: string, newPassword: string) => {
+    if (!loginEnabled) {
+      // When login is disabled, just return success (no-op)
+      return
+    }
+
     if (!token) throw new Error('No authentication token')
 
     try {

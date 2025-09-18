@@ -8,6 +8,8 @@ pub mod feature_toggle_service;
 pub mod database_optimizations;
 pub mod data_source_proxy;
 pub mod orchestration;
+pub mod social_integration_service;
+pub mod platform_data_fetcher;
 pub mod repository;
 pub mod datasource;
 pub mod vcs_detector;

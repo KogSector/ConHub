@@ -1,4 +1,4 @@
-use sqlx::{SqlitePool, Row};
+use sqlx::{PgPool, Row};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use dashmap::DashMap;
@@ -9,7 +9,7 @@ use log::{info, warn, error};
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct DatabaseOptimizations {
-    pool: SqlitePool,
+    pool: PgPool,
     // Query result cache for frequently accessed data
     query_cache: Arc<DashMap<String, (serde_json::Value, std::time::Instant)>>,
     // Connection pool stats
@@ -50,7 +50,7 @@ impl DatabaseStats {
 
 #[allow(dead_code)]
 impl DatabaseOptimizations {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: PgPool) -> Self {
         Self {
             pool,
             query_cache: Arc::new(DashMap::new()),

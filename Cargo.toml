@@ -60,8 +60,13 @@ tempfile = "3.8"
 # Authentication dependencies
 bcrypt = "0.15"
 jsonwebtoken = "9.2"
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"] }
 validator = { version = "0.18", features = ["derive"] }
 futures-util = "0.3"
 actix-session = "0.9"
 redis = { version = "0.24", features = ["tokio-comp"] }
+
+# Social Platform Integration dependencies
+oauth2 = "4.4"
+base64 = "0.21"
+anyhow = "1.0"

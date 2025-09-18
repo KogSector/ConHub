@@ -7,8 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { isLoginEnabled } from "@/lib/feature-toggles";
 
 export const AuthStatus = () => {
-  const { user, isAuthenticated, isLoading, login, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const loginEnabled = isLoginEnabled();
+
+  const handleLogin = () => {
+    // Redirect to login page
+    window.location.href = '/auth/login';
+  };
 
   if (isLoading) {
     return (
@@ -49,16 +54,24 @@ export const AuthStatus = () => {
               <span>Email:</span>
               <span className="text-sm">{user.email || 'N/A'}</span>
             </div>
-            {user.picture && (
+            {user.avatar_url && (
               <div className="flex items-center justify-between">
                 <span>Avatar:</span>
                 <img 
-                  src={user.picture} 
+                  src={user.avatar_url} 
                   alt="User avatar" 
                   className="w-8 h-8 rounded-full"
                 />
               </div>
             )}
+            <div className="flex items-center justify-between">
+              <span>Role:</span>
+              <Badge variant="outline">{user.role}</Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Organization:</span>
+              <span className="text-sm">{user.organization || 'N/A'}</span>
+            </div>
           </div>
         )}
         
@@ -69,8 +82,8 @@ export const AuthStatus = () => {
                 Sign Out
               </Button>
             ) : (
-              <Button onClick={login} className="w-full">
-                Sign In with Auth0
+              <Button onClick={handleLogin} className="w-full">
+                Sign In
               </Button>
             )
           ) : (
