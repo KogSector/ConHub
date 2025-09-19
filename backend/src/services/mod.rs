@@ -5,7 +5,8 @@ pub mod ai_agents;
 pub mod auth_service;
 pub mod session_service;
 pub mod feature_toggle_service;
-pub mod database_optimizations;
+pub mod rule_bank;
+// Optimization services integrated into core services above
 pub mod data_source_proxy;
 pub mod orchestration;
 pub mod social_integration_service;

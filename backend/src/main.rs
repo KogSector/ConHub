@@ -13,7 +13,8 @@ use services::auth_service::AuthService;
 use services::session_service::{SessionService, session_cleanup_task};
 use services::feature_toggle_service::{FeatureToggleService, watch_feature_toggles};
 use services::social_integration_service::SocialIntegrationService;
-use middleware::auth::AuthMiddleware;
+use services::rule_bank::AIRuleBankService;
+use middleware::auth::AuthMiddlewareFactory;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -76,6 +77,9 @@ async fn main() -> std::io::Result<()> {
     // Initialize feature toggle service
     let feature_toggle_service = Arc::new(FeatureToggleService::new("./feature-toggles.json"));
     
+    // Initialize AI Rule Bank service
+    let rule_bank_service = Arc::new(AIRuleBankService::new(db_pool.clone()));
+    
     // Initialize feature toggles
     if let Err(e) = feature_toggle_service.init().await {
         log::warn!("Failed to load initial feature toggles: {}", e);
@@ -93,9 +97,10 @@ async fn main() -> std::io::Result<()> {
     });
     
     let app_state = web::Data::new(config.clone());
-    let auth_service_data = web::Data::new(auth_service);
+    let auth_service_data = web::Data::new(auth_service.clone());
     let session_service_data = web::Data::new(session_service.as_ref().clone());
     let feature_toggle_service_data = web::Data::new(feature_toggle_service.as_ref().clone());
+    let rule_bank_service_data = web::Data::new((*rule_bank_service).clone());
     let social_service = web::Data::new(SocialIntegrationService::new(db_pool.clone()));
     let db_data = web::Data::new(db_pool);
     
@@ -115,11 +120,12 @@ async fn main() -> std::io::Result<()> {
             .app_data(auth_service_data.clone())
             .app_data(session_service_data.clone())
             .app_data(feature_toggle_service_data.clone())
+            .app_data(rule_bank_service_data.clone())
             .app_data(social_service.clone())
             .app_data(db_data.clone())
             .wrap(cors)
             .wrap(Logger::default())
-            .wrap(AuthMiddleware)
+            .wrap(AuthMiddlewareFactory::new(Arc::new(auth_service.clone())))
             .configure(handlers::configure_routes)
     })
     .bind("127.0.0.1:3001")?

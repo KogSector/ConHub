@@ -73,6 +73,7 @@ impl FeatureToggleService {
     }
 
     /// Check if login feature is enabled
+    #[allow(dead_code)]
     pub async fn is_login_enabled(&self) -> bool {
         let toggles = self.toggles.read().await;
         toggles.login
@@ -106,6 +107,7 @@ impl FeatureToggleService {
     }
 
     /// Check if authentication should be bypassed for a specific route
+    #[allow(dead_code)]
     pub async fn should_bypass_auth(&self, _path: &str) -> bool {
         // If login is disabled, bypass auth for all routes except admin routes
         if !self.is_login_enabled().await {

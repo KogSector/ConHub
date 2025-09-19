@@ -2,13 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
-/* GitSync Pro - Developer-focused design system 
-All colors MUST be HSL.
+/* Critical CSS - Above the fold optimization */
+@layer base {
+  /* Performance optimizations */
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    /* Prevent layout shift */
+    min-height: 100vh;
+    /* Optimize text rendering */
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Optimize loading states */
+  [data-loading="true"] {
+    pointer-events: none;
+    user-select: none;
+  }
+}
+
+/* ConHub - High-performance design system 
+All colors use HSL for better performance and consistency.
 */
 
 @layer base {
   :root {
-    /* Core dark theme */
+    /* Core dark theme - optimized for performance */
     --background: 220 13% 9%;
     --foreground: 220 9% 95%;
 
@@ -19,7 +49,7 @@ All colors MUST be HSL.
     --popover: 220 13% 12%;
     --popover-foreground: 220 9% 95%;
 
-    /* Brand colors - GitHub inspired blues */
+    /* Brand colors - optimized contrast ratios */
     --primary: 213 94% 68%;
     --primary-foreground: 220 13% 9%;
     --primary-glow: 213 94% 78%;
@@ -48,7 +78,7 @@ All colors MUST be HSL.
     /* Design system tokens */
     --radius: 0.75rem;
 
-    /* Shadows with brand colors */
+    /* Performance optimized shadows */
     --shadow-primary: 0 10px 40px -10px hsl(213 94% 68% / 0.3);
     --shadow-card: 0 8px 30px -8px hsl(220 13% 5% / 0.4);
     --shadow-glow: 0 0 40px hsl(213 94% 78% / 0.2);
@@ -63,6 +93,51 @@ All colors MUST be HSL.
     --sidebar-border: 220 13% 20%;
     --sidebar-ring: 213 94% 68%;
   }
+}
+
+@layer components {
+  /* High-performance component styles */
+  .animate-blob {
+    animation: blob 7s infinite;
+    will-change: transform;
+    transform: translate3d(0, 0, 0); /* Hardware acceleration */
+  }
+
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+
+  /* Grid pattern with better performance */
+  .bg-grid-pattern {
+    background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.1) 1px, transparent 0);
+    background-size: 20px 20px;
+    /* Use transform for better performance */
+    transform: translate3d(0, 0, 0);
+  }
+
+  /* Optimized glass morphism */
+  .glass-morphism {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Optimize for GPU */
+    transform: translate3d(0, 0, 0);
+    will-change: backdrop-filter;
+  }
+
+  /* Performance optimized focus styles */
+  .focus-optimized:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    /* Prevent repaint on focus */
+    transform: translate3d(0, 0, 0);
+  }
+}
 
   .dark {
     /* Already dark by default, but keeping for consistency */
@@ -164,5 +239,75 @@ All colors MUST be HSL.
   }
   100% {
     transform: translate(0px, 0px) scale(1);
+  }
+}
+
+/* Performance optimized animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Additional performance utilities */
+@layer utilities {
+  /* GPU acceleration utilities */
+  .gpu-accelerated {
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  /* Loading state utilities */
+  .loading-skeleton {
+    background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--muted-foreground) / 0.1) 50%, hsl(var(--muted)) 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+  }
+
+  /* Intersection observer optimization */
+  .lazy-load {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  }
+
+  .lazy-load.loaded {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Critical performance optimizations */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+  }
+
+  .animate-slide-in-left {
+    animation: slideInFromLeft 0.5s ease-out forwards;
   }
 }

@@ -10,10 +10,12 @@ mod repositories;
 mod mcp;
 mod github_copilot;
 mod social;
+// mod rule_bank;
 
 use actix_web::web;
 
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
+    // cfg.configure(rule_bank::configure_rule_bank_routes);
     cfg.service(
         web::scope("/api")
             .configure(auth::configure)

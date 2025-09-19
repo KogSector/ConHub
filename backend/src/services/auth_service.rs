@@ -31,6 +31,7 @@ pub enum AuthError {
 
 pub type AuthResult<T> = Result<T, AuthError>;
 
+#[derive(Clone)]
 pub struct AuthService {
     db: Pool<Postgres>,
     jwt_secret: String,
@@ -302,11 +303,12 @@ impl AuthService {
         let claims = Claims {
             sub: user.id.to_string(),
             email: user.email.clone(),
-            name: user.name.clone(),
-            role: user.role.clone(),
-            subscription_tier: user.subscription_tier.clone(),
+            roles: vec![format!("{:?}", user.role)], // Convert role to roles vector
             exp,
             iat,
+            iss: "conhub".to_string(),
+            aud: "conhub-users".to_string(),
+            session_id: uuid::Uuid::new_v4().to_string(),
         };
 
         let token = encode(

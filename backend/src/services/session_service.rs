@@ -34,20 +34,23 @@ impl UserSession {
         Utc::now() > self.expires_at
     }
 
+    #[allow(dead_code)]
     pub fn refresh(&mut self) {
         self.last_accessed = Utc::now();
         self.expires_at = Utc::now() + Duration::hours(24);
     }
 
+    #[allow(dead_code)]
     pub fn to_claims(&self) -> Claims {
         Claims {
             sub: self.user_id.to_string(),
             email: self.email.clone(),
-            name: "User".to_string(), // You may want to store the actual name in the session
-            role: crate::models::auth::UserRole::User, // Default role, you may want to store this in session
-            subscription_tier: crate::models::auth::SubscriptionTier::Free, // Default tier
+            roles: vec!["User".to_string()], // Default role as string vector
             exp: self.expires_at.timestamp() as usize,
             iat: self.created_at.timestamp() as usize,
+            iss: "conhub".to_string(),
+            aud: "conhub-users".to_string(),
+            session_id: uuid::Uuid::new_v4().to_string(),
         }
     }
 }
@@ -82,6 +85,7 @@ impl SessionService {
     }
 
     /// Validate and refresh session
+    #[allow(dead_code)]
     pub async fn validate_session(&self, session_id: &str) -> Option<UserSession> {        
         if let Some(mut entry) = self.sessions.get_mut(session_id) {
             let session = entry.value_mut();
