@@ -47,9 +47,23 @@ impl AuthService {
     }
 
     /// Initialize the database tables
+    #[allow(dead_code)] // This method is kept for potential future use
     pub async fn init_database(&self) -> AuthResult<()> {
         sqlx::query(
             r#"
+            -- Create enums if they don't exist
+            DO $$ BEGIN
+                CREATE TYPE user_role AS ENUM ('admin', 'user', 'moderator');
+            EXCEPTION
+                WHEN duplicate_object THEN null;
+            END $$;
+            
+            DO $$ BEGIN
+                CREATE TYPE subscription_tier AS ENUM ('free', 'personal', 'team', 'enterprise');
+            EXCEPTION
+                WHEN duplicate_object THEN null;
+            END $$;
+            
             CREATE TABLE IF NOT EXISTS users (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 email VARCHAR(255) UNIQUE NOT NULL,
@@ -57,8 +71,8 @@ impl AuthService {
                 name VARCHAR(255) NOT NULL,
                 avatar_url TEXT,
                 organization VARCHAR(255),
-                role VARCHAR(50) NOT NULL DEFAULT 'user',
-                subscription_tier VARCHAR(50) NOT NULL DEFAULT 'free',
+                role user_role NOT NULL DEFAULT 'user',
+                subscription_tier subscription_tier NOT NULL DEFAULT 'free',
                 is_verified BOOLEAN NOT NULL DEFAULT FALSE,
                 is_active BOOLEAN NOT NULL DEFAULT TRUE,
                 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -127,8 +141,8 @@ impl AuthService {
         .bind(&user.name)
         .bind(&user.avatar_url)
         .bind(&user.organization)
-        .bind("user")
-        .bind("free")
+        .bind(&user.role)
+        .bind(&user.subscription_tier)
         .bind(user.is_verified)
         .bind(user.is_active)
         .bind(user.created_at)
@@ -340,5 +354,102 @@ impl AuthService {
             updated_at,
             last_login_at,
         })
+    }
+
+    /// Initiate password reset for a user
+    /// For security reasons, this doesn't reveal if the email exists or not
+    pub async fn initiate_password_reset(&self, email: &str) -> AuthResult<()> {
+        // Check if user exists
+        let user = sqlx::query("SELECT id, email, name FROM users WHERE email = $1 AND is_active = true")
+            .bind(email)
+            .fetch_optional(&self.db)
+            .await?;
+
+        if let Some(user_row) = user {
+            let user_id: Uuid = user_row.try_get("id")?;
+            let user_email: String = user_row.try_get("email")?;
+            let _user_name: String = user_row.try_get("name")?; // Prefixed with _ to suppress warning
+
+            // Generate a password reset token (valid for 1 hour)
+            let reset_token = Uuid::new_v4().to_string();
+            let expires_at = Utc::now() + Duration::hours(1);
+
+            // Store the reset token in the database
+            sqlx::query(
+                "INSERT INTO password_reset_tokens (user_id, token, expires_at) 
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (user_id) 
+                 DO UPDATE SET token = EXCLUDED.token, expires_at = EXCLUDED.expires_at, created_at = NOW()"
+            )
+            .bind(user_id)
+            .bind(&reset_token)
+            .bind(expires_at)
+            .execute(&self.db)
+            .await?;
+
+            // TODO: Send email with reset link
+            // For now, we'll just log it (in production, integrate with email service)
+            log::info!(
+                "Password reset token generated for user {}: {}. Reset link: http://localhost:3000/auth/reset-password?token={}",
+                user_email, reset_token, reset_token
+            );
+
+            println!(
+                "🔑 Password Reset Link for {}: http://localhost:3000/auth/reset-password?token={}",
+                user_email, reset_token
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Reset password using token
+    pub async fn reset_password(&self, token: &str, new_password: &str) -> AuthResult<()> {
+        // Find valid token
+        let result = sqlx::query(
+            "SELECT user_id FROM password_reset_tokens 
+             WHERE token = $1 AND expires_at > NOW()"
+        )
+        .bind(token)
+        .fetch_optional(&self.db)
+        .await?;
+
+        let user_id = match result {
+            Some(row) => row.try_get::<Uuid, _>("user_id")?,
+            None => return Err(AuthError::InvalidCredentials), // Invalid or expired token
+        };
+
+        // Get current password hash to check if new password is different
+        let current_hash = sqlx::query_scalar::<_, String>(
+            "SELECT password_hash FROM users WHERE id = $1"
+        )
+        .bind(user_id)
+        .fetch_one(&self.db)
+        .await?;
+
+        // Check if new password is the same as current password
+        if verify(new_password, &current_hash).unwrap_or(false) {
+            return Err(AuthError::ValidationError("New password cannot be the same as your current password".to_string()));
+        }
+
+        // Hash the new password
+        let new_password_hash = hash(new_password, DEFAULT_COST)?;
+
+        // Update password
+        sqlx::query(
+            "UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2"
+        )
+        .bind(&new_password_hash)
+        .bind(user_id)
+        .execute(&self.db)
+        .await?;
+
+        // Delete used token
+        sqlx::query("DELETE FROM password_reset_tokens WHERE token = $1")
+            .bind(token)
+            .execute(&self.db)
+            .await?;
+
+        Ok(())
     }
 }

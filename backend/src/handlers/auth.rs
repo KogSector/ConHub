@@ -260,6 +260,76 @@ pub async fn logout(
         })))
 }
 
+pub async fn forgot_password(
+    auth_service: web::Data<AuthService>,
+    request: web::Json<ForgotPasswordRequest>,
+) -> Result<HttpResponse> {
+    // Validate request
+    if let Err(validation_errors) = request.validate() {
+        return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "Validation failed",
+            "details": validation_errors
+        })));
+    }
+
+    // For security reasons, always return success even if email doesn't exist
+    // This prevents email enumeration attacks
+    match auth_service.initiate_password_reset(&request.email).await {
+        Ok(_) => {
+            log::info!("Password reset initiated for email: {}", request.email);
+        }
+        Err(AuthError::UserNotFound) => {
+            log::info!("Password reset attempted for non-existent email: {}", request.email);
+        }
+        Err(err) => {
+            log::error!("Forgot password error: {:?}", err);
+        }
+    }
+
+    // Always return success response for security
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "message": "If an account with that email exists, we've sent a password reset link."
+    })))
+}
+
+/// Reset password using reset token
+pub async fn reset_password(
+    auth_service: web::Data<AuthService>,
+    request: web::Json<ResetPasswordRequest>,
+) -> Result<HttpResponse, actix_web::Error> {
+    // Validate request
+    if let Err(validation_errors) = request.validate() {
+        return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "Validation failed",
+            "details": validation_errors
+        })));
+    }
+
+    match auth_service.reset_password(&request.token, &request.new_password).await {
+        Ok(()) => {
+            Ok(HttpResponse::Ok().json(serde_json::json!({
+                "message": "Password has been successfully reset."
+            })))
+        }
+        Err(AuthError::InvalidCredentials) => {
+            Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "Invalid or expired reset token."
+            })))
+        }
+        Err(AuthError::ValidationError(msg)) => {
+            Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "error": msg
+            })))
+        }
+        Err(err) => {
+            log::error!("Reset password error: {:?}", err);
+            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Internal server error"
+            })))
+        }
+    }
+}
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/auth")
@@ -270,5 +340,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/profile", web::put().to(update_profile))
             .route("/change-password", web::post().to(change_password))
             .route("/verify", web::post().to(verify_token))
+            .route("/forgot-password", web::post().to(forgot_password))
+            .route("/reset-password", web::post().to(reset_password))
     );
 }

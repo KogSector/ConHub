@@ -25,6 +25,7 @@ lazy_static = "1.4"
 url = "2.4"
 async-trait = "0.1"
 thiserror = "1.0"
+dotenv = "0.15"
 
 # Lexor-specific dependencies
 tantivy = "0.22"

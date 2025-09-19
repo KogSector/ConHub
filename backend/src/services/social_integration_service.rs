@@ -52,6 +52,7 @@ impl SocialIntegrationService {
     }
 
     /// Initialize database tables for social connections
+    #[allow(dead_code)]
     pub async fn init_database(&self) -> Result<()> {
         sqlx::query(
             r#"

@@ -29,19 +29,15 @@ pub struct FeatureToggleService {
 
 impl FeatureToggleService {
     pub fn new(config_path: &str) -> Self {
-        let service = Self {
+        Self {
             toggles: Arc::new(RwLock::new(FeatureToggles::default())),
             config_path: config_path.to_string(),
-        };
-        
-        // Load initial configuration
-        if let Err(e) = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(service.reload_config())
-        }) {
-            warn!("Failed to load initial feature toggles: {}", e);
         }
-        
-        service
+    }
+    
+    pub async fn init(&self) -> Result<(), Box<dyn std::error::Error>> {
+        // Load initial configuration
+        self.reload_config().await
     }
 
     /// Load feature toggles from file

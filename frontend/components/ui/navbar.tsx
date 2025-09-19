@@ -9,7 +9,7 @@ import { isLoginEnabled } from "@/lib/feature-toggles";
 
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, isAuthenticated, isLoading, login, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, loginWithRedirect, logout } = useAuth();
 
   const handleAuthClick = () => {
     if (!isLoginEnabled()) {
@@ -17,7 +17,7 @@ export const Navbar = () => {
     } else if (isAuthenticated) {
       logout();
     } else {
-      login();
+      loginWithRedirect();
     }
   };
 
