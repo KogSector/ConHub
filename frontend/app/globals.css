@@ -169,7 +169,6 @@ All colors use HSL for better performance and consistency.
     --sidebar-border: 220 13% 20%;
     --sidebar-ring: 213 94% 68%;
   }
-}
 
 @layer base {
   * {

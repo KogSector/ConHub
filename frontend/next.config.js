@@ -10,6 +10,15 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   
+  // Fast Refresh and development optimizations
+  reactStrictMode: true,
+  
+  // Optimize package imports for faster builds
+  transpilePackages: [
+    'lucide-react',
+    '@radix-ui/react-icons'
+  ],
+  
   // Image optimization
   images: {
     formats: ['image/webp', 'image/avif'],

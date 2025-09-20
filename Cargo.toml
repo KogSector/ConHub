@@ -21,7 +21,7 @@ serde_json = "1.0"
 
 # Advanced Logging and Tracing
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter", "chrono"] }
 tracing-actix-web = "0.7"
 tracing-appender = "0.2"
 log = "0.4"

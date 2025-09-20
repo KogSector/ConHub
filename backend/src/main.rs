@@ -108,6 +108,7 @@ async fn main() -> std::io::Result<()> {
     let db_data = web::Data::new(db_pool);
     
     info!(port = 3001, "Starting ConHub Backend server");
+    info!("Configuring HTTP server with CORS and middleware");
     
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -117,8 +118,6 @@ async fn main() -> std::io::Result<()> {
             .allowed_headers(vec!["Content-Type", "Authorization", "Accept"])
             .supports_credentials()
             .max_age(3600);
-            
-        info!("Configuring HTTP server with CORS and middleware");
             
         App::new()
             .app_data(app_state.clone())

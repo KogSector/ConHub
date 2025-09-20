@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { Footer } from "@/components/ui/footer";
-import { AddUrlModal } from "@/components/ui/add-url-modal";
+import { LoadingSkeleton, lazyLoad } from "@/components/ui/lazy-loading";
 import Link from "next/link";
 import { 
   Bot, 
@@ -23,6 +23,13 @@ import {
   BookOpen,
   Users
 } from "lucide-react";
+
+// Lazy load heavy components
+const AddUrlModal = lazyLoad(
+  () => import("@/components/ui/add-url-modal"),
+  () => <div />, // Modal doesn't need loading state
+  { ssr: false }
+);
 
 export default function Dashboard() {
   const [isAddUrlModalOpen, setIsAddUrlModalOpen] = useState(false);

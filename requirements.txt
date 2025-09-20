@@ -8,6 +8,9 @@ python-dotenv>=1.0.0
 requests>=2.31.0
 pydantic>=1.10.0,<2.0.0
 
+# System monitoring
+psutil>=5.9.0
+
 # Document Search and Processing
 # Using simpler libraries instead of Haystack for better compatibility
 elasticsearch>=8.11.0

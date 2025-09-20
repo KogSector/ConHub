@@ -3,6 +3,7 @@ import json
 import time
 import os
 import sys
+import platform
 from pathlib import Path
 from typing import Dict, Any, Optional
 from functools import wraps
@@ -30,6 +31,20 @@ class ConHubFormatter(logging.Formatter):
     
     def format(self, record: logging.LogRecord) -> str:
         if self.json_format:
+            # Cross-platform hostname detection with fallbacks
+            try:
+                # Try platform.node() first (works on all platforms)
+                hostname = platform.node()
+                if not hostname:
+                    # Fallback to socket.gethostname()
+                    import socket
+                    hostname = socket.gethostname()
+                if not hostname:
+                    # Final fallback to environment variables
+                    hostname = os.getenv('HOSTNAME', os.getenv('COMPUTERNAME', 'unknown'))
+            except Exception:
+                hostname = 'unknown'
+            
             log_entry = {
                 'timestamp': datetime.fromtimestamp(record.created).isoformat(),
                 'level': record.levelname,
@@ -38,7 +53,7 @@ class ConHubFormatter(logging.Formatter):
                 'service': 'conhub-haystack-service',
                 'version': '1.0.0',
                 'environment': os.getenv('ENVIRONMENT', 'development'),
-                'hostname': os.uname().nodename,
+                'hostname': hostname,
                 'pid': os.getpid(),
                 'thread': threading.current_thread().name
             }

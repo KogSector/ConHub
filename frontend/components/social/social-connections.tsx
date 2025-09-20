@@ -334,3 +334,5 @@ export function SocialConnections() {
     </div>
   );
 }
+
+export default SocialConnections;

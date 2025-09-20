@@ -168,3 +168,5 @@ export const DocsSection = () => {
     </section>
   );
 };
+
+export default DocsSection;

@@ -247,3 +247,5 @@ export function AddUrlModal({ open, onOpenChange, onUrlAdded }: AddUrlModalProps
     </Dialog>
   );
 }
+
+export default AddUrlModal;

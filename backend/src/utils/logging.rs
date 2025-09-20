@@ -1,4 +1,4 @@
-use tracing::{info, warn, error, debug, Level};
+use tracing::{info, warn, debug, Level};
 use tracing_subscriber::{
     fmt::{self, time::ChronoUtc},
     layer::SubscriberExt,
@@ -8,7 +8,7 @@ use tracing_subscriber::{
 use tracing_appender::{non_blocking, rolling};
 use std::env;
 use std::path::PathBuf;
-use sysinfo::{System, SystemExt, CpuExt};
+use sysinfo::System;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::collections::HashMap;
@@ -21,6 +21,7 @@ pub struct LoggingConfig {
     pub file_logging: bool,
     pub log_directory: PathBuf,
     pub service_name: String,
+    #[allow(dead_code)]
     pub enable_performance_logging: bool,
 }
 
@@ -84,7 +85,7 @@ pub fn init_logging(config: LoggingConfig) -> Result<(), Box<dyn std::error::Err
     
     // Create error-specific file appender
     let error_file_appender = rolling::daily(&config.log_directory, "conhub-errors.log");
-    let (non_blocking_error, _error_guard) = non_blocking(error_file_appender);
+    let (_non_blocking_error, _error_guard) = non_blocking(error_file_appender);
     
     // Base filter for environment
     let env_filter = EnvFilter::new(format!("{}={}", config.service_name.replace("-", "_"), config.level));
@@ -196,6 +197,7 @@ impl PerformanceMonitor {
     }
     
     /// Record request metrics
+    #[allow(dead_code)]
     pub async fn record_request(&self, endpoint: &str, duration: Duration, is_error: bool) {
         let mut metrics = self.request_metrics.write().await;
         let endpoint_metrics = metrics.entry(endpoint.to_string()).or_default();
@@ -272,11 +274,13 @@ impl PerformanceMonitor {
 }
 
 /// Request timing middleware helper
+#[allow(dead_code)]
 pub struct RequestTimer {
     pub start_time: Instant,
     pub endpoint: String,
 }
 
+#[allow(dead_code)]
 impl RequestTimer {
     pub fn new(endpoint: String) -> Self {
         Self {
