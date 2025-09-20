@@ -1,13 +1,24 @@
 """
 ConHub Haystack Service - Simplified Document Processing API
 """
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import json
 import os
+import time
+import logging
 from pathlib import Path
+import uuid
+
+# Import our enhanced logging
+from .utils.logging import (
+    performance_monitor, 
+    document_logger, 
+    timed_operation,
+    setup_logging
+)
 
 from .core.document_manager import DocumentManager
 from .models.schemas import (
@@ -19,12 +30,63 @@ from .models.schemas import (
     StatsResponse
 )
 
+# Setup logging first
+setup_logging()
+logger = logging.getLogger(__name__)
+
 # Initialize FastAPI app
 app = FastAPI(
     title="ConHub Haystack Service",
     description="Document processing and search service for ConHub",
     version="1.0.0"
 )
+
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    start_time = time.time()
+    
+    logger.info("Request started", extra={
+        'category': 'request',
+        'request_id': request_id,
+        'method': request.method,
+        'url': str(request.url),
+        'client_ip': request.client.host if request.client else None,
+        'user_agent': request.headers.get('user-agent')
+    })
+    
+    # Add request ID to request state
+    request.state.request_id = request_id
+    
+    try:
+        response = await call_next(request)
+        duration = time.time() - start_time
+        
+        logger.info("Request completed", extra={
+            'category': 'request',
+            'request_id': request_id,
+            'method': request.method,
+            'url': str(request.url),
+            'status_code': response.status_code,
+            'duration': round(duration, 3)
+        })
+        
+        return response
+    except Exception as e:
+        duration = time.time() - start_time
+        
+        logger.error("Request failed", extra={
+            'category': 'request',
+            'request_id': request_id,
+            'method': request.method,
+            'url': str(request.url),
+            'duration': round(duration, 3),
+            'error': str(e),
+            'exception_type': type(e).__name__
+        })
+        
+        raise
 
 # Configure CORS
 app.add_middleware(

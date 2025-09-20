@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use log::{info, warn, error};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FeatureToggles {
     #[serde(rename = "Login")]
     pub login: bool,
@@ -54,10 +54,14 @@ impl FeatureToggleService {
                 e
             })?;
 
+        // Only log if toggles actually changed
         let mut current_toggles = self.toggles.write().await;
-        *current_toggles = toggles;
+        let changed = *current_toggles != toggles;
+        *current_toggles = toggles.clone();
         
-        info!("Feature toggles reloaded from {}", self.config_path);
+        if changed {
+            info!("Feature toggles updated - Login: {}", toggles.login);
+        }
         Ok(())
     }
 
@@ -121,7 +125,7 @@ impl FeatureToggleService {
 
 // File watcher for hot-reloading feature toggles (optional)
 pub async fn watch_feature_toggles(service: Arc<FeatureToggleService>) {
-    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30)); // Check every 30 seconds
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(300)); // Check every 5 minutes
     
     loop {
         interval.tick().await;

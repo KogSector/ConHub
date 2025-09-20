@@ -917,6 +917,226 @@ npm run test:settings  # Test settings API endpoints
 
 ---
 
+## Logging & Monitoring System
+
+ConHub features a comprehensive logging and monitoring system across all services, providing detailed insights into performance, errors, and user interactions.
+
+### Logging Architecture
+
+Each service implements structured logging with consistent formats:
+
+- **Backend (Rust)**: Advanced tracing framework with performance monitoring
+- **Frontend (React/Next.js)**: Client-side logging with user analytics 
+- **LangChain Service (Node.js)**: Winston-based logging with AI operation tracking
+- **Haystack Service (Python)**: Structured logging with document processing analytics
+
+### Log Configuration
+
+Configure logging levels and behavior via environment variables in `.env`:
+
+```bash
+# Global logging settings
+LOG_LEVEL=info                    # Global log level (error, warn, info, debug, trace)
+RUST_LOG=info                     # Rust-specific logging
+RUST_LOG_LEVEL=info              # Backend service log level
+
+# Service-specific levels
+BACKEND_LOG_LEVEL=info            # Backend API logging
+FRONTEND_LOG_LEVEL=info           # Frontend client logging  
+LANGCHAIN_LOG_LEVEL=info          # LangChain service logging
+HAYSTACK_LOG_LEVEL=info           # Haystack document processing
+
+# Output formats
+BACKEND_JSON_LOGS=false           # Enable JSON structured logs (recommended for production)
+LANGCHAIN_JSON_LOGS=false         # JSON logs for LangChain service
+HAYSTACK_JSON_LOGS=false          # JSON logs for Haystack service
+
+# Performance monitoring
+ENABLE_PERFORMANCE_MONITORING=true     # Enable system metrics collection
+PERFORMANCE_LOG_INTERVAL=60           # Performance metrics interval (seconds)
+SYSTEM_METRICS_INTERVAL=60            # System resource monitoring interval
+
+# Log file management
+LOG_MAX_FILE_SIZE=10485760            # Maximum log file size (10MB)
+LOG_MAX_FILES=5                       # Number of rotated log files to keep
+LOG_DIRECTORY=logs                    # Log files directory
+
+# Request logging
+ENABLE_REQUEST_LOGGING=true           # Log all API requests
+LOG_SLOW_REQUESTS=true               # Flag slow requests
+SLOW_REQUEST_THRESHOLD=1000          # Slow request threshold (milliseconds)
+
+# Error tracking
+ENABLE_ERROR_TRACKING=true           # Enable error capture and reporting
+ENABLE_STACK_TRACES=true             # Include stack traces in error logs
+```
+
+### Log Levels
+
+ConHub supports standard log levels across all services:
+
+- **ERROR**: Critical errors and failures
+- **WARN**: Warning conditions and non-critical issues  
+- **INFO**: General informational messages (default)
+- **DEBUG**: Detailed debugging information
+- **TRACE**: Very detailed execution tracing
+
+### Log Output Locations
+
+#### Development Mode
+- **Console Output**: All services log to stdout/stderr
+- **File Logs**: Located in `logs/` directory with automatic rotation
+- **Browser Console**: Frontend logs appear in browser dev tools
+
+#### Log Files Structure
+```
+logs/
+├── backend/
+│   ├── conhub-backend.log        # Main backend logs
+│   ├── performance.log           # Performance metrics
+│   └── error.log                # Error-only logs
+├── frontend/
+│   ├── app.log                  # General application logs
+│   ├── user-actions.log         # User interaction tracking
+│   └── api-calls.log            # Frontend API call logs
+├── langchain/
+│   ├── combined.log             # All LangChain service logs
+│   ├── error.log                # Error-only logs
+│   ├── performance.log          # Performance and timing
+│   └── ai-operations.log        # AI-specific operations
+└── haystack/
+    ├── app.log                  # Main application logs
+    ├── performance.log          # System performance metrics
+    └── document-operations.log  # Document processing logs
+```
+
+### Performance Monitoring
+
+ConHub includes comprehensive performance monitoring:
+
+#### Backend Monitoring (Rust)
+- **Request Timing**: Track API endpoint response times
+- **System Metrics**: CPU, memory, disk usage monitoring
+- **Database Performance**: Query timing and connection pool metrics
+- **Custom Metrics**: Application-specific performance indicators
+
+#### Frontend Monitoring (React/Next.js)
+- **Core Web Vitals**: LCP, FID, CLS measurements
+- **User Interactions**: Click tracking, form submissions, navigation
+- **API Performance**: Client-side API call timing and success rates
+- **Page Load Metrics**: Time to interactive, first paint, etc.
+
+#### AI Service Monitoring
+- **Model Response Times**: Track AI agent response latency
+- **Token Usage**: Monitor API token consumption
+- **Request Success Rates**: Track AI service availability
+- **Context Processing**: MCP operation timing and success
+
+### User Analytics & Tracking
+
+The frontend logging system includes privacy-respecting user analytics:
+
+#### User Action Tracking
+```typescript
+// Form interaction tracking
+const formTracking = useFormTracking({
+  formId: 'user-settings',
+  trackValidation: true,
+  trackSubmissions: true
+});
+
+// Search behavior analytics
+const searchTracking = useSearchTracking({
+  source: 'main-search',
+  trackQueries: true,
+  trackResults: true
+});
+
+// AI interaction monitoring
+const aiTracking = useAITracking({
+  agentType: 'github-copilot',
+  trackRequests: true,
+  trackResponses: true
+});
+```
+
+#### Privacy & Data Protection
+- **No PII Logging**: Personal information is never logged
+- **Anonymized Data**: User IDs are hashed for privacy
+- **Configurable Tracking**: All tracking can be disabled
+- **Local Storage**: Offline logging with periodic upload
+
+### Error Handling & Reporting
+
+#### Structured Error Logging
+All services implement consistent error reporting:
+
+```rust
+// Backend (Rust) - Structured error context
+error!(
+    error = %e,
+    user_id = %user_id,
+    endpoint = %endpoint,
+    "Database connection failed"
+);
+```
+
+```typescript
+// Frontend (TypeScript) - Error boundary integration
+logger.error('Component render failed', {
+  component: 'UserDashboard',
+  error: error.message,
+  stack: error.stack,
+  userId: user?.id
+});
+```
+
+#### Error Categories
+- **System Errors**: Infrastructure and service failures
+- **User Errors**: Invalid input or authentication issues
+- **Integration Errors**: External API and service failures
+- **Performance Errors**: Timeout and resource exhaustion
+
+### Production Recommendations
+
+For production deployments, update your `.env` configuration:
+
+```bash
+# Production logging configuration
+NODE_ENV=production
+LOG_LEVEL=warn                    # Reduce log verbosity
+BACKEND_JSON_LOGS=true           # Enable structured JSON logs
+LANGCHAIN_JSON_LOGS=true         # JSON format for log aggregation
+HAYSTACK_JSON_LOGS=true          # Structured document processing logs
+ENABLE_STACK_TRACES=false        # Disable stack traces for security
+```
+
+#### Log Aggregation
+ConHub's JSON structured logs are compatible with:
+- **ELK Stack**: Elasticsearch, Logstash, Kibana
+- **Prometheus/Grafana**: Metrics and alerting
+- **Splunk**: Enterprise log management
+- **DataDog**: Cloud-native monitoring
+- **Azure Monitor**: Microsoft cloud logging
+
+### Monitoring & Alerting
+
+#### Key Metrics to Monitor
+- **Error Rates**: Track service error percentages
+- **Response Times**: Monitor API and UI responsiveness  
+- **Resource Usage**: CPU, memory, disk utilization
+- **User Engagement**: Active users, feature usage
+- **AI Performance**: Model response times, success rates
+
+#### Recommended Alerts
+- High error rates (>5% over 5 minutes)
+- Slow response times (>2s average over 5 minutes)
+- High resource usage (>80% CPU/memory)
+- AI service failures (>10% failure rate)
+- Database connection issues
+
+---
+
 ## Database Setup & Management
 
 ConHub includes automation scripts for database setup and management across different platforms.

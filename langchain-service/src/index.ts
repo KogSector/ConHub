@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { errorHandler, notFound } from './middleware/errorMiddleware';
-import { logger } from './utils/logger';
+import { logger, createRequestLogger, logHealthCheck, performanceLogger } from './utils/logger';
 import indexingRoutes from './routes/indexing';
 import searchRoutes from './routes/search';
 import dataSourceRoutes from './routes/dataSources';
@@ -19,6 +19,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+logger.info('Initializing LangChain service', { port: PORT });
+
 // Middleware
 app.use(helmet());
 app.use(cors({
@@ -27,6 +29,10 @@ app.use(cors({
     : ['http://localhost:3000'],
   credentials: true
 }));
+
+// Enhanced request logging
+app.use(createRequestLogger());
+
 app.use(morgan('combined', {
   stream: {
     write: (message: string) => logger.info(message.trim())
