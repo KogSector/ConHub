@@ -2,12 +2,14 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Code, GitBranch, Brain, TestTube2, Database, RefreshCw } from "lucide-react";
-import Image from "next/image";
+import { TestTube2, Shield, Code, Brain, Database, RefreshCw, GitBranch } from "lucide-react";
+import { Globe } from "@/components/ui/globe";
+import { isHeavyModeEnabled } from "@/lib/feature-toggles";
 import { useAuth } from "@/hooks/use-auth";
 
+const heavyMode = isHeavyModeEnabled();
 
-export const HeroSection = () => {
+export function HeroSection() {
   const { isAuthenticated, login } = useAuth();
   
   const handleGetStarted = () => {
@@ -96,31 +98,43 @@ export const HeroSection = () => {
           {/* Right Column - Hero Image */}
           <div className="relative">
             <div className="relative rounded-2xl overflow-hidden shadow-glow">
-              <Image
-                src="/assets/hero-image.jpg"
-                alt="ConHub Dashboard showing connected sources and AI agents"
-                className="w-full h-auto object-cover"
-                width={600}
-                height={400}
-                priority
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent" />
+              {heavyMode ? (
+                <Globe className="w-full h-auto" />
+              ) : (
+                <div className="w-full h-[400px] bg-muted/20 border border-border rounded-2xl flex items-center justify-center">
+                  <div className="text-center text-muted-foreground">
+                    <Globe className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                    <p>3D Globe disabled in light mode</p>
+                  </div>
+                </div>
+              )}
             </div>
             
-            {/* Floating elements */}
-            <div className="absolute -top-4 -right-4 bg-card border border-border rounded-lg p-3 shadow-card">
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                <span className="text-muted-foreground">5 AI agents connected</span>
-              </div>
-            </div>
-            
-            <div className="absolute -bottom-4 -left-4 bg-card border border-border rounded-lg p-3 shadow-card">
-              <div className="flex items-center gap-2 text-sm">
-                <RefreshCw className="w-4 h-4 text-primary" />
-                <span className="text-muted-foreground">12 sources synced</span>
-              </div>
-            </div>
+            {heavyMode && (
+              <>
+                {/* Floating elements */}
+                <div className="absolute -top-4 -right-4 bg-card border border-border rounded-lg p-3 shadow-card animate-fade-in-up">
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+                    <span className="text-muted-foreground">5 AI agents connected</span>
+                  </div>
+                </div>
+                
+                <div className="absolute -bottom-4 -left-4 bg-card border border-border rounded-lg p-3 shadow-card animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+                  <div className="flex items-center gap-2 text-sm">
+                    <RefreshCw className="w-4 h-4 text-primary" />
+                    <span className="text-muted-foreground">12 sources synced</span>
+                  </div>
+                </div>
+
+                <div className="absolute top-1/2 -left-8 bg-card border border-border rounded-lg p-3 shadow-card animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+                  <div className="flex items-center gap-2 text-sm">
+                    <GitBranch className="w-4 h-4 text-green-500" />
+                    <span className="text-muted-foreground">Analyzing 3 repos</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

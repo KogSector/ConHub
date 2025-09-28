@@ -44,7 +44,7 @@ const nextConfig = {
   // Webpack optimizations
   webpack: (config, { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack }) => {
     // Performance optimizations
-    if (!dev) {
+    if (!dev && !isServer) {
       config.optimization.splitChunks = {
         chunks: 'all',
         cacheGroups: {
@@ -52,6 +52,31 @@ const nextConfig = {
             test: /[\\/]node_modules[\\/]/,
             name: 'vendors',
             chunks: 'all',
+          },
+          // Heavy dependencies - load separately to improve initial load
+          langchain: {
+            test: /[\\/]node_modules[\\/](@langchain|langchain)[\\/]/,
+            name: 'langchain',
+            chunks: 'async', // Only load when needed
+            priority: 30,
+          },
+          framerMotion: {
+            test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
+            name: 'framer-motion', 
+            chunks: 'async',
+            priority: 25,
+          },
+          googleapis: {
+            test: /[\\/]node_modules[\\/]googleapis[\\/]/,
+            name: 'googleapis',
+            chunks: 'async',
+            priority: 20,
+          },
+          recharts: {
+            test: /[\\/]node_modules[\\/]recharts[\\/]/,
+            name: 'recharts',
+            chunks: 'async',
+            priority: 15,
           },
           common: {
             name: 'common',

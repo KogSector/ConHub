@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { Footer } from "@/components/ui/footer";
-import { LoadingSkeleton, lazyLoad } from "@/components/ui/lazy-loading";
 import Link from "next/link";
 import { 
   Bot, 
@@ -24,15 +22,7 @@ import {
   Users
 } from "lucide-react";
 
-// Lazy load heavy components
-const AddUrlModal = lazyLoad(
-  () => import("@/components/ui/add-url-modal"),
-  () => <div />, // Modal doesn't need loading state
-  { ssr: false }
-);
-
 export default function Dashboard() {
-  const [isAddUrlModalOpen, setIsAddUrlModalOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
@@ -276,10 +266,12 @@ export default function Dashboard() {
                 <CardTitle className="text-lg font-semibold text-foreground">
                   Connected Sources
                 </CardTitle>
-                <Button variant="outline" size="sm" onClick={() => setIsAddUrlModalOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add URL
-                </Button>
+                <Link href="/dashboard/urls">
+                  <Button variant="outline" size="sm">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add URL
+                  </Button>
+                </Link>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -400,11 +392,6 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
-      
-      <AddUrlModal
-        open={isAddUrlModalOpen}
-        onOpenChange={setIsAddUrlModalOpen}
-      />
       
       <Footer />
     </div>

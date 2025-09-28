@@ -10,13 +10,15 @@ use log::{info, warn, error};
 pub struct FeatureToggles {
     #[serde(rename = "Login")]
     pub login: bool,
-    // Add other feature toggles as needed
+    #[serde(rename = "Heavy", default)]
+    pub heavy: bool,
 }
 
 impl Default for FeatureToggles {
     fn default() -> Self {
         Self {
             login: true, // Default to requiring login
+            heavy: false, // Default to not being heavy
         }
     }
 }
@@ -60,7 +62,7 @@ impl FeatureToggleService {
         *current_toggles = toggles.clone();
         
         if changed {
-            info!("Feature toggles updated - Login: {}", toggles.login);
+            info!("Feature toggles updated - Login: {}, Heavy: {}", toggles.login, toggles.heavy);
         }
         Ok(())
     }

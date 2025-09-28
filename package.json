@@ -13,7 +13,8 @@
     "status:linux": "./scripts/status.sh",
     "check:services": "node scripts/check-platform.js check",
     "dev": "npm start",
-    "dev:frontend": "cd frontend && ..\\node_modules\\.bin\\next dev -p 3000",
+    "dev:frontend": "cd frontend && ..\\node_modules\\.bin\\next build --no-lint && ..\\node_modules\\.bin\\next start -p 3000",
+    "dev:frontend-fast": "cd frontend && ..\\node_modules\\.bin\\next dev -p 3000",
     "dev:backend": "cargo run --bin conhub-backend",
     "dev:lexor": "cargo run --bin lexor",
     "dev:langchain": "set PORT=3002 && nodemon --exec \"npx ts-node --project tsconfig.langchain.json\" langchain-service/src/index.ts",
@@ -29,6 +30,7 @@
     "test": "jest --testPathPattern=langchain-service",
     "test:settings": "powershell -ExecutionPolicy Bypass -File scripts/test-settings.ps1",
     "diagnose": "node scripts/diagnose-performance.js",
+    "test:speed": "node scripts/test-frontend-speed.js",
     "test:settings:linux": "./scripts/test-settings.sh",
     "health": "node scripts/diagnose-performance.js",
     "install:all": "npm install"
