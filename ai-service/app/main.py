@@ -21,6 +21,7 @@ from .utils.logging import (
 )
 
 from .core.document_manager import DocumentManager
+from .services import ai_agent_service, vector_store_service, AgentQuery, AgentResponse
 from .models.schemas import (
     DocumentResponse, 
     SearchRequest, 
@@ -222,6 +223,52 @@ async def get_document(doc_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving document: {str(e)}")
+
+# AI Agent endpoints
+@app.get("/ai/agents")
+async def get_ai_agents():
+    """Get all AI agents"""
+    try:
+        agents = await ai_agent_service.get_agents()
+        return {"agents": [agent.dict() for agent in agents]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting agents: {str(e)}")
+
+@app.post("/ai/query")
+async def query_ai_agent(query: AgentQuery):
+    """Query an AI agent"""
+    try:
+        response = await ai_agent_service.query_agent(query)
+        return response.dict()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error querying agent: {str(e)}")
+
+# Vector store endpoints
+@app.post("/vector/documents")
+async def add_vector_document(content: str = Form(...), metadata: str = Form("{}")):
+    """Add a document to the vector store"""
+    try:
+        metadata_dict = json.loads(metadata) if metadata else {}
+        doc_id = f"doc-{uuid.uuid4()}"
+        document = await vector_store_service.add_document(doc_id, content, metadata_dict)
+        return {"id": document.id, "message": "Document added to vector store", "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error adding document to vector store: {str(e)}")
+
+@app.post("/vector/search")
+async def vector_search(query: str = Form(...), k: int = Form(5)):
+    """Perform vector similarity search"""
+    try:
+        results = await vector_store_service.similarity_search(query, k)
+        return {
+            "query": query,
+            "results": [result.dict() for result in results],
+            "total_results": len(results)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error performing vector search: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

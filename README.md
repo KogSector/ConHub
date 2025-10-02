@@ -8,13 +8,12 @@ ConHub is a comprehensive AI-powered platform that connects multiple knowledge s
 
 ## Architecture
 
-ConHub consists of 5 integrated services working together to deliver a complete AI development platform:
+ConHub consists of 4 integrated services working together to deliver a complete AI development platform:
 
 - **Frontend** (Next.js) - Modern user interface and dashboard
-- **Backend** (Rust) - High-performance API, authentication, and MCP server
+- **Backend** (Rust) - High-performance API, authentication, data connectors, and MCP server
 - **Lexor** (Rust) - Lightning-fast code indexing and semantic search
-- **LangChain Service** (Node.js) - AI-powered data source integration and processing
-- **Haystack Service** (Python) - Advanced document processing and Q&A capabilities
+- **AI Service** (Python) - Unified AI agents, vector search, and document processing
 
 ## Features
 
@@ -96,8 +95,7 @@ This automatically starts all services:
 - ✅ **Frontend** on port 3000
 - ✅ **Backend API** on port 3001
 - ✅ **Lexor Service** on port 3002
-- ✅ **LangChain Service** on port 3003
-- ✅ **Haystack Service** on port 8001
+- ✅ **AI Service** on port 8001
 - ✅ **Auto-reload** on file changes
 - ✅ **Cross-platform** (Windows, Mac, Linux)
 
@@ -252,21 +250,18 @@ DATABASE_URL=sqlite:./conhub.db
 ### Backend (Port 3001)
 - **Rust + Actix Web** for high performance
 - **Authentication** and authorization
-- **Service orchestration**
+- **Native data connectors** (GitHub, Bitbucket, Google Drive, Notion, URLs)
+- **Service orchestration** and MCP server
 
 ### Lexor Service (Port 3002)
 - **Rust + Tantivy** for code indexing
 - **Tree-sitter** syntax analysis
 - **Git integration** and history tracking
 
-### LangChain Service (Port 3003)
-- **Node.js + TypeScript**
-- **Multi-source data connectors**
-- **AI agent integration**
-- **Vector embeddings** and semantic search
-
-### Haystack Service (Port 8001)
+### AI Service (Port 8001)
 - **Python + FastAPI**
+- **Unified AI agent management** (GitHub Copilot, Amazon Q, OpenAI, Anthropic)
+- **Vector embeddings** and semantic search
 - **Document processing** and Q&A
 - **Local embedding models**
 

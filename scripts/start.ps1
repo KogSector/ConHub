@@ -32,8 +32,8 @@ function Stop-ProcessOnPort {
 Write-Host "🔍 Checking for port conflicts..." -ForegroundColor Yellow
 Stop-ProcessOnPort -Port 3000 -ServiceName "Frontend"
 Stop-ProcessOnPort -Port 3001 -ServiceName "Backend" 
-Stop-ProcessOnPort -Port 3002 -ServiceName "LangChain"
-Stop-ProcessOnPort -Port 8001 -ServiceName "Haystack"
+Stop-ProcessOnPort -Port 3002 -ServiceName "Lexor"
+Stop-ProcessOnPort -Port 8001 -ServiceName "AI Service"
 
 # Start the service monitor in background
 Write-Host "🔍 Starting service monitor..." -ForegroundColor Cyan
@@ -51,7 +51,7 @@ $null = Register-ObjectEvent -InputObject ([Console]) -EventName "CancelKeyPress
 
 try {
     # Start concurrently with better error handling
-    npx concurrently --kill-others --names "Frontend,Backend,LangChain,Haystack" --prefix-colors "cyan,blue,magenta,yellow" --restart-tries 3 "npm run dev:frontend" "npm run dev:backend" "npm run dev:langchain" "npm run dev:haystack"
+    npx concurrently --kill-others --names "Frontend,Backend,Lexor,AI" --prefix-colors "cyan,blue,magenta,yellow" --restart-tries 3 "npm run dev:frontend" "npm run dev:backend" "npm run dev:lexor" "npm run dev:ai"
 } catch {
     Write-Host "❌ Error starting services: $_" -ForegroundColor Red
     exit 1

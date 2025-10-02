@@ -99,3 +99,6 @@ tokio-test = "0.4"
 oauth2 = "4.4"
 base64 = "0.21"
 anyhow = "1.0"
+
+# URL encoding for connectors
+urlencoding = "2.1"

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useToast } from "@/hooks/use-toast";
+import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,26 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [branches, setBranches] = useState<string[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [isFetchingBranches, setIsFetchingBranches] = useState(false);
+  const [fetchBranchesError, setFetchBranchesError] = useState<string | null>(null);
+
+  const isUrlValid = useMemo(() => {
+    if (!repositoryUrl) return false;
+    try {
+      // Basic check for URL structure. More complex git URLs are also handled.
+      new URL(repositoryUrl);
+      return true;
+    } catch (e) {
+      // Handle git@... URLs which are not standard URLs
+      if (repositoryUrl.startsWith('git@')) {
+        return repositoryUrl.includes(':') && repositoryUrl.length > 10;
+      }
+      return false;
+    }
+  }, [repositoryUrl]);
 
   // Extract repository name from URL
   const extractRepoName = (url: string): string => {
@@ -45,6 +66,49 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       return url;
     } catch {
       return url;
+    }
+  };
+
+  const handleFetchBranches = async () => {
+    if (!repositoryUrl) {
+      setFetchBranchesError("Please enter a repository URL first.");
+      return;
+    }
+    setIsFetchingBranches(true);
+    setFetchBranchesError(null);
+    setBranches([]);
+
+    try {
+      const response = await fetch('/api/repositories/fetch-branches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          repoUrl: repositoryUrl,
+          credentials: credentials 
+        }),
+      });
+
+      if (!response.ok) {
+        const { error } = await response.json();
+        throw new Error(error || "Failed to fetch branches.");
+      }
+
+      const { branches: fetchedBranches, defaultBranch } = await response.json();
+      
+      if (fetchedBranches.length === 0) {
+        setFetchBranchesError("No branches found. Please check the repository URL and permissions.");
+        setBranches(['main']); // fallback
+        setConfig(prev => ({ ...prev, defaultBranch: 'main' }));
+      } else {
+        setBranches(fetchedBranches);
+        setConfig(prev => ({ ...prev, defaultBranch: defaultBranch || fetchedBranches[0] }));
+      }
+    } catch (err: any) {
+      setFetchBranchesError(err.message);
+      setBranches(['main']); // fallback
+      setConfig(prev => ({ ...prev, defaultBranch: 'main' }));
+    } finally {
+      setIsFetchingBranches(false);
     }
   };
 
@@ -300,19 +364,22 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
           {provider && (
             <div className="space-y-3">
               <Label htmlFor="repositoryUrl" className="text-sm font-medium">Repository URL</Label>
-              <Input
-                id="repositoryUrl"
-                value={repositoryUrl}
-                onChange={(e) => setRepositoryUrl(e.target.value)}
-                placeholder={provider === 'github' ? 'https://github.com/owner/repo' : 'https://bitbucket.org/workspace/repo'}
-                className="mt-2"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                {provider === 'github' 
-                  ? 'Full GitHub repository URL (e.g., https://github.com/microsoft/vscode)'
-                  : 'Full Bitbucket repository URL (e.g., https://bitbucket.org/atlassian/stash)'
-                }
-              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="repositoryUrl"
+                  placeholder="https://github.com/user/repo.git"
+                  value={repositoryUrl}
+                  onChange={(e) => setRepositoryUrl(e.target.value)}
+                />
+                <Button
+                  variant="outline"
+                  onClick={handleFetchBranches}
+                  disabled={isFetchingBranches || !isUrlValid}
+                >
+                  {isFetchingBranches ? 'Checking...' : 'Check'}
+                </Button>
+              </div>
+              {fetchBranchesError && <p className="text-sm text-red-500 mt-2">{fetchBranchesError}</p>}
             </div>
           )}
 

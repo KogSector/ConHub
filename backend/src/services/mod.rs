@@ -19,3 +19,5 @@ pub mod mcp_server;
 pub mod mcp_client;
 pub mod github_copilot_integration;
 pub mod enhanced_repository;
+pub mod connectors;
+pub mod data_source_service;

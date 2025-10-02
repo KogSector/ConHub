@@ -89,6 +89,24 @@ const features = [
     title: "Smart Routing",
     description: "Intelligent context routing ensures AI agents get the most relevant information from all sources.",
     badge: "Intelligent"
+  },
+  {
+    icon: Star,
+    title: "Community Driven",
+    description: "Contribute to and benefit from a growing library of community-sourced integrations and tools.",
+    badge: "Community"
+  },
+  {
+    icon: FileText,
+    title: "Exportable Context",
+    description: "Easily export and share context snapshots for debugging, collaboration, or analysis.",
+    badge: "Utility"
+  },
+  {
+    icon: Shield,
+    title: "Audit Trails",
+    description: "Keep track of all activities and data access with comprehensive and immutable audit logs.",
+    badge: "Security"
   }
 ];
 

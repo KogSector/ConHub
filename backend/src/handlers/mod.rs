@@ -10,6 +10,7 @@ mod repositories;
 mod mcp;
 mod github_copilot;
 mod social;
+mod data_sources;
 // mod rule_bank;
 
 use actix_web::web;
@@ -20,6 +21,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
         web::scope("/api")
             .configure(auth::configure)
             .configure(data_source_handlers::configure)
+            .configure(data_sources::configure)
             .configure(documents::configure)
             .configure(agents::configure)
             .configure(repositories::configure_routes)
