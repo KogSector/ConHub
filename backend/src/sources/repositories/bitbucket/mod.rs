@@ -1,4 +1,3 @@
-use super::{ConnectorInterface, DataSource, Document, Repository, SyncResult};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -6,6 +5,8 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use tracing::info;
 use base64::Engine;
+
+use crate::sources::core::{DataSourceConnector, DataSource, Document, Repository, SyncResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BitbucketUser {
@@ -42,17 +43,6 @@ pub struct BitbucketCloneLink {
     pub href: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BitbucketBranch {
-    pub name: String,
-    pub target: BitbucketCommit,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BitbucketCommit {
-    pub hash: String,
-}
-
 pub struct BitbucketConnector {
     client: Client,
     username: Option<String>,
@@ -77,7 +67,7 @@ impl BitbucketConnector {
 }
 
 #[async_trait]
-impl ConnectorInterface for BitbucketConnector {
+impl DataSourceConnector for BitbucketConnector {
     async fn validate(&self, credentials: &HashMap<String, String>) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         let username = credentials.get("username")
             .ok_or("Bitbucket username is required")?;
@@ -115,6 +105,7 @@ impl ConnectorInterface for BitbucketConnector {
         Ok(true)
     }
 
+    #[allow(dead_code)]
     async fn sync(&self, data_source: &DataSource) -> Result<SyncResult, Box<dyn std::error::Error + Send + Sync>> {
         let auth_header = self.get_auth_header()?;
         let mut documents = Vec::new();
@@ -217,5 +208,11 @@ impl ConnectorInterface for BitbucketConnector {
             let error_text = response.text().await.unwrap_or_default();
             Err(format!("Failed to fetch branches ({}): {}", status, error_text).into())
         }
+    }
+}
+
+impl Default for BitbucketConnector {
+    fn default() -> Self {
+        Self::new()
     }
 }

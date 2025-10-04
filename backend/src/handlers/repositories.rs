@@ -357,11 +357,92 @@ pub async fn get_repository_stats() -> Result<HttpResponse> {
     }))
 }
 
+/// Fetch branches from a repository URL (for frontend)
+#[derive(serde::Deserialize)]
+pub struct FetchBranchesRequest {
+    pub repo_url: String,
+    pub credentials: RepositoryCredentials,
+}
+
+#[derive(serde::Serialize)]
+pub struct FetchBranchesResponse {
+    pub branches: Vec<String>,
+    pub default_branch: Option<String>,
+}
+
+pub async fn fetch_branches(
+    req: web::Json<FetchBranchesRequest>,
+) -> Result<HttpResponse> {
+    use crate::services::vcs_connector::VcsConnectorFactory;
+    use crate::services::vcs_detector::VcsDetector;
+    
+    let (vcs_type, _provider) = match VcsDetector::detect_from_url(&req.repo_url) {
+        Ok(result) => result,
+        Err(e) => {
+            return Ok(HttpResponse::BadRequest().json(ApiResponse::<()> {
+                success: false,
+                message: "Invalid repository URL".to_string(),
+                data: None,
+                error: Some(e),
+            }));
+        }
+    };
+    
+    let connector = VcsConnectorFactory::create_connector(&vcs_type);
+    
+    match connector.list_branches(&req.repo_url, &req.credentials).await {
+        Ok(branch_info) => {
+            let branches: Vec<String> = branch_info.iter().map(|b| b.name.clone()).collect();
+            let default_branch = branch_info.iter()
+                .find(|b| b.is_default)
+                .map(|b| b.name.clone())
+                .or_else(|| {
+                    // Fallback to common default branch names
+                    if branches.contains(&"main".to_string()) {
+                        Some("main".to_string())
+                    } else if branches.contains(&"master".to_string()) {
+                        Some("master".to_string())
+                    } else {
+                        branches.first().cloned()
+                    }
+                });
+            
+            Ok(HttpResponse::Ok().json(ApiResponse {
+                success: true,
+                message: format!("Retrieved {} branches", branches.len()),
+                data: Some(FetchBranchesResponse {
+                    branches,
+                    default_branch,
+                }),
+                error: None,
+            }))
+        }
+        Err(e) => {
+            let (mut status, error_msg) = match e {
+                crate::services::vcs_connector::VcsError::AuthenticationFailed(msg) => (HttpResponse::Unauthorized(), msg),
+                crate::services::vcs_connector::VcsError::RepositoryNotFound(msg) => (HttpResponse::NotFound(), msg),
+                crate::services::vcs_connector::VcsError::InvalidCredentials(msg) => (HttpResponse::BadRequest(), msg),
+                crate::services::vcs_connector::VcsError::InvalidUrl(msg) => (HttpResponse::BadRequest(), msg),
+                crate::services::vcs_connector::VcsError::PermissionDenied(msg) => (HttpResponse::Forbidden(), msg),
+                _ => (HttpResponse::InternalServerError(), e.to_string()),
+            };
+            
+            Ok(status.json(ApiResponse::<()> {
+                success: false,
+                message: "Failed to fetch branches".to_string(),
+                data: None,
+                error: Some(error_msg),
+            }))
+        }
+    }
+}
+
 /// Configure repository routes
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/repositories")
             .route("/connect", web::post().to(connect_repository))
+            .route("/fetch-branches", web::post().to(fetch_branches))
             .route("/stats", web::get().to(get_repository_stats))
             .route("/validate-credentials", web::post().to(validate_credentials))
             .route("", web::get().to(list_repositories))

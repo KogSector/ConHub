@@ -11,6 +11,7 @@ import time
 import logging
 from pathlib import Path
 import uuid
+import asyncio
 
 # Import our enhanced logging
 from .utils.logging import (
@@ -21,7 +22,7 @@ from .utils.logging import (
 )
 
 from .core.document_manager import DocumentManager
-from .services import ai_agent_service, vector_store_service, AgentQuery, AgentResponse
+from .services import vector_store_service
 from .models.schemas import (
     DocumentResponse, 
     SearchRequest, 
@@ -224,26 +225,102 @@ async def get_document(doc_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving document: {str(e)}")
 
-# AI Agent endpoints
-@app.get("/ai/agents")
-async def get_ai_agents():
-    """Get all AI agents"""
-    try:
-        agents = await ai_agent_service.get_agents()
-        return {"agents": [agent.dict() for agent in agents]}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting agents: {str(e)}")
 
-@app.post("/ai/query")
-async def query_ai_agent(query: AgentQuery):
-    """Query an AI agent"""
+# Enhanced indexing endpoints
+from .services.url_indexer import url_indexing_service
+
+@app.post("/index/repository")
+async def index_repository_content(content: str = Form(...), metadata: str = Form("{}")):
+    """Index repository content for semantic search"""
     try:
-        response = await ai_agent_service.query_agent(query)
-        return response.dict()
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        metadata_dict = json.loads(metadata) if metadata else {}
+        metadata_dict["source_type"] = "repository"
+        
+        doc_id = f"repo-{uuid.uuid4()}"
+        document = await vector_store_service.add_document(doc_id, content, metadata_dict)
+        
+        return {
+            "id": document.id, 
+            "message": "Repository content indexed successfully", 
+            "success": True
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error querying agent: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error indexing repository content: {str(e)}")
+
+@app.post("/index/urls")
+async def index_urls(urls: str = Form(...), config: str = Form("{}")):
+    """Index URLs by crawling and extracting content"""
+    try:
+        url_list = json.loads(urls) if isinstance(urls, str) else [urls]
+        config_dict = json.loads(config) if config else {}
+        
+        # Start background indexing
+        job_id = await url_indexing_service.start_url_indexing(url_list, config_dict)
+        
+        return {
+            "job_id": job_id,
+            "message": "URL indexing started",
+            "success": True,
+            "urls_count": len(url_list)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error starting URL indexing: {str(e)}")
+
+@app.get("/index/urls/{job_id}/status")
+async def get_url_indexing_status(job_id: str):
+    """Get the status of a URL indexing job"""
+    try:
+        status = url_indexing_service.get_job_status(job_id)
+        if not status:
+            raise HTTPException(status_code=404, detail="Job not found")
+            
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting job status: {str(e)}")
+
+@app.get("/index/urls/{job_id}/results")
+async def get_url_indexing_results(job_id: str):
+    """Get the results of a completed URL indexing job"""
+    try:
+        results = url_indexing_service.get_job_results(job_id)
+        if results is None:
+            raise HTTPException(status_code=404, detail="Job not found")
+            
+        # Index the results in vector store
+        indexed_count = 0
+        for doc in results:
+            try:
+                metadata = {
+                    "source_type": "url",
+                    "url": doc["url"],
+                    "title": doc["title"],
+                    "description": doc.get("description"),
+                    "size": doc["size"]
+                }
+                
+                await vector_store_service.add_document(doc["id"], doc["content"], metadata)
+                indexed_count += 1
+                
+            except Exception as e:
+                logger.error(f"Failed to index document {doc['id']}: {e}")
+                
+        return {
+            "job_id": job_id,
+            "documents": results,
+            "total_documents": len(results),
+            "indexed_documents": indexed_count
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting job results: {str(e)}")
+
+@app.get("/index/urls/jobs")
+async def list_url_indexing_jobs():
+    """List all URL indexing jobs"""
+    try:
+        jobs = url_indexing_service.list_jobs()
+        return {"jobs": jobs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing jobs: {str(e)}")
 
 # Vector store endpoints
 @app.post("/vector/documents")
@@ -257,6 +334,132 @@ async def add_vector_document(content: str = Form(...), metadata: str = Form("{}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error adding document to vector store: {str(e)}")
 
+# Document source management
+from .services.document_connectors import connector_manager
+
+@app.post("/sources/dropbox")
+async def connect_dropbox(access_token: str = Form(...), folder_path: str = Form("/")):
+    """Connect Dropbox as a document source"""
+    try:
+        connector = connector_manager.create_connector("dropbox")
+        credentials = {
+            "access_token": access_token,
+            "folder_path": folder_path
+        }
+        
+        success = await connector.connect(credentials)
+        if success:
+            # Start background sync
+            asyncio.create_task(sync_connector_documents(connector))
+            
+            return {
+                "source_id": connector.connector_id,
+                "message": "Dropbox connected successfully",
+                "success": True,
+                "folder_path": folder_path
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to connect to Dropbox")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error connecting Dropbox: {str(e)}")
+
+@app.post("/sources/google-drive")
+async def connect_google_drive(credentials: str = Form(...), folder_id: str = Form(None)):
+    """Connect Google Drive as a document source"""
+    try:
+        connector = connector_manager.create_connector("google_drive")
+        creds = {
+            "credentials": credentials,
+            "folder_id": folder_id
+        }
+        
+        success = await connector.connect(creds)
+        if success:
+            # Start background sync
+            asyncio.create_task(sync_connector_documents(connector))
+            
+            return {
+                "source_id": connector.connector_id,
+                "message": "Google Drive connected successfully",
+                "success": True,
+                "folder_id": folder_id
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to connect to Google Drive")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error connecting Google Drive: {str(e)}")
+
+@app.post("/sources/onedrive")
+async def connect_onedrive(access_token: str = Form(...), folder_path: str = Form("/")):
+    """Connect Microsoft OneDrive as a document source"""
+    try:
+        connector = connector_manager.create_connector("onedrive")
+        credentials = {
+            "access_token": access_token,
+            "folder_path": folder_path
+        }
+        
+        success = await connector.connect(credentials)
+        if success:
+            # Start background sync
+            asyncio.create_task(sync_connector_documents(connector))
+            
+            return {
+                "source_id": connector.connector_id,
+                "message": "OneDrive connected successfully",
+                "success": True,
+                "folder_path": folder_path
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to connect to OneDrive")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error connecting OneDrive: {str(e)}")
+
+@app.post("/sources/local-files")
+async def upload_local_files(files: List[UploadFile] = File(...)):
+    """Upload and index local files"""
+    try:
+        # Create or get local file connector
+        connector = connector_manager.create_connector("local_files")
+        await connector.connect({"upload_path": "./uploads"})
+        
+        indexed_files = []
+        
+        for file in files:
+            content = await file.read()
+            
+            # Save file using connector
+            file_info = await connector.save_uploaded_file(content, file.filename)
+            
+            # Process different file types
+            if file.filename.endswith(('.txt', '.md', '.py', '.js', '.ts', '.rs', '.go', '.java')):
+                text_content = content.decode('utf-8')
+                
+                metadata = {
+                    "filename": file.filename,
+                    "content_type": file.content_type,
+                    "source_type": "local_file",
+                    "file_size": len(content),
+                    "file_path": file_info["path"]
+                }
+                
+                doc_id = f"local-{uuid.uuid4()}"
+                document = await vector_store_service.add_document(doc_id, text_content, metadata)
+                indexed_files.append({
+                    "id": document.id,
+                    "filename": file.filename,
+                    "size": len(content),
+                    "path": file_info["path"]
+                })
+        
+        return {
+            "message": f"Successfully indexed {len(indexed_files)} files",
+            "success": True,
+            "files": indexed_files
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error uploading local files: {str(e)}")
+
 @app.post("/vector/search")
 async def vector_search(query: str = Form(...), k: int = Form(5)):
     """Perform vector similarity search"""
@@ -264,11 +467,98 @@ async def vector_search(query: str = Form(...), k: int = Form(5)):
         results = await vector_store_service.similarity_search(query, k)
         return {
             "query": query,
-            "results": [result.dict() for result in results],
+            "results": [{
+                "content": result.content,
+                "metadata": result.metadata,
+                "score": getattr(result, 'score', 0.8)  # Default score if not available
+            } for result in results],
             "total_results": len(results)
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error performing vector search: {str(e)}")
+
+# Context aggregation endpoint
+@app.post("/context/aggregate")
+async def aggregate_context(query: str = Form(...), sources: str = Form("all")):
+    """Aggregate context from multiple sources for AI agents"""
+    try:
+        source_list = sources.split(",") if sources != "all" else ["documents", "repositories", "urls"]
+        
+        aggregated_context = {
+            "query": query,
+            "sources": {},
+            "total_results": 0
+        }
+        
+        # Search documents
+        if "documents" in source_list:
+            doc_results = await vector_store_service.similarity_search(query, 5)
+            aggregated_context["sources"]["documents"] = [{
+                "content": result.content,
+                "metadata": result.metadata,
+                "score": getattr(result, 'score', 0.8)
+            } for result in doc_results]
+            aggregated_context["total_results"] += len(doc_results)
+        
+        return aggregated_context
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error aggregating context: {str(e)}")
+
+
+# Background sync function
+async def sync_connector_documents(connector):
+    """Background task to sync documents from a connector"""
+    try:
+        documents = await connector.sync_documents()
+        
+        for doc in documents:
+            try:
+                metadata = {
+                    "source_type": doc["source"],
+                    "filename": doc["name"],
+                    "file_path": doc["path"],
+                    "file_size": doc["size"],
+                    "modified": doc["modified"]
+                }
+                
+                doc_id = doc["id"]
+                await vector_store_service.add_document(doc_id, doc["content"], metadata)
+                document_logger.info(f"Successfully indexed document: {doc['name']}", extra={'category': 'indexing'})
+                
+            except Exception as e:
+                document_logger.error(f"Failed to index document {doc['name']}: {e}", extra={'category': 'indexing'})
+                
+    except Exception as e:
+        document_logger.error(f"Failed to sync documents for connector {connector.connector_id}: {e}", extra={'category': 'indexing'})
+
+# Document source management endpoints
+@app.get("/sources")
+async def list_sources():
+    """List all connected document sources"""
+    try:
+        connectors = connector_manager.list_connectors()
+        return {
+            "sources": connectors,
+            "total": len(connectors)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing sources: {str(e)}")
+
+@app.delete("/sources/{source_id}")
+async def disconnect_source(source_id: str):
+    """Disconnect a document source"""
+    try:
+        success = connector_manager.remove_connector(source_id)
+        if success:
+            # TODO: Remove indexed documents from vector store
+            return {
+                "message": "Source disconnected successfully",
+                "success": True
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Source not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error disconnecting source: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

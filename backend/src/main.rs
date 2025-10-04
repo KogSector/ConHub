@@ -1,20 +1,24 @@
 mod config;
+mod errors;
 mod handlers;
 mod middleware;
 mod models;
 mod services;
 mod utils;
+mod sources;
+mod agents;
 
 use actix_web::{web, App, HttpServer, middleware::Logger};
 use actix_cors::Cors;
 use sqlx::PgPool;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use config::AppConfig;
 use services::auth_service::AuthService;
 use services::session_service::{SessionService, session_cleanup_task};
 use services::feature_toggle_service::{FeatureToggleService, watch_feature_toggles};
 use services::social_integration_service::SocialIntegrationService;
 use services::rule_bank::AIRuleBankService;
+use services::ai_service::AIAgentManager;
 use middleware::auth::AuthMiddlewareFactory;
 use utils::logging::{init_logging, LoggingConfig, PerformanceMonitor, log_startup_info, log_config_info};
 use tracing::{info, error};
@@ -78,6 +82,10 @@ async fn main() -> std::io::Result<()> {
     // Initialize AI Rule Bank service
     let rule_bank_service = Arc::new(AIRuleBankService::new(db_pool.clone()));
     info!("AI Rule Bank service initialized");
+
+    // Initialize AI Agent Manager
+    let ai_agent_manager = Arc::new(Mutex::new(AIAgentManager::new()));
+    info!("AI Agent Manager initialized");
     
     // Initialize feature toggles
     if let Err(e) = feature_toggle_service.init().await {
@@ -106,6 +114,7 @@ async fn main() -> std::io::Result<()> {
     let rule_bank_service_data = web::Data::new((*rule_bank_service).clone());
     let social_service = web::Data::new(SocialIntegrationService::new(db_pool.clone()));
     let db_data = web::Data::new(db_pool);
+    let ai_agent_manager_data = web::Data::from(ai_agent_manager.clone());
     
     info!(port = 3001, "Starting ConHub Backend server");
     info!("Configuring HTTP server with CORS and middleware");
@@ -127,6 +136,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(rule_bank_service_data.clone())
             .app_data(social_service.clone())
             .app_data(db_data.clone())
+            .app_data(ai_agent_manager_data.clone())
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(AuthMiddlewareFactory::new(Arc::new(auth_service.clone())))

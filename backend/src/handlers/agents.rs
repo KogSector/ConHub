@@ -1,465 +1,357 @@
 use actix_web::{web, HttpResponse, Result};
 use serde_json::json;
-use std::collections::HashMap;
-use std::sync::Mutex;
-use uuid::Uuid;
-use chrono::Utc;
+use reqwest::Client;
 
-use crate::models::{
-    AgentRecord, CreateAgentRequest, UpdateAgentRequest, AgentInvokeRequest, 
-    AgentStatus, AgentUsageStats, ApiResponse,
-    AgentContext, RepositoryContext, DocumentContext, UrlContext
-};
-use crate::services::ai_agents::AgentService;
 
-// In-memory storage for demonstration (replace with actual database)
-static AGENTS: Mutex<Option<HashMap<String, AgentRecord>>> = Mutex::new(None);
+use crate::models::ApiResponse;
 
-fn get_agents_store() -> Result<std::sync::MutexGuard<'static, Option<HashMap<String, AgentRecord>>>> {
-    Ok(AGENTS.lock().unwrap())
+#[derive(serde::Deserialize)]
+pub struct AgentQueryRequest {
+    pub query: String,
+    pub agent_type: Option<String>,
+    pub include_code: Option<bool>,
+    pub include_documents: Option<bool>,
+    pub max_results: Option<usize>,
 }
 
-// Get all agents for a user
-pub async fn get_agents() -> Result<HttpResponse> {
-    let mut agents_guard = get_agents_store()?;
-    if agents_guard.is_none() {
-        *agents_guard = Some(HashMap::new());
-    }
-    let agents = agents_guard.as_ref().unwrap();
-    let agent_list: Vec<&AgentRecord> = agents.values().collect();
-    
-    Ok(HttpResponse::Ok().json(ApiResponse {
-        success: true,
-        message: "Agents retrieved successfully".to_string(),
-        data: Some(agent_list),
-        error: None,
-    }))
+#[derive(serde::Serialize)]
+pub struct AgentQueryResponse {
+    pub query: String,
+    pub context: AgentContext,
+    pub response: Option<String>,
+    pub sources: Vec<ContextSource>,
 }
 
-// Get specific agent by ID
-pub async fn get_agent(path: web::Path<String>) -> Result<HttpResponse> {
-    let agent_id = path.into_inner();
-    let mut agents_guard = get_agents_store()?;
-    if agents_guard.is_none() {
-        *agents_guard = Some(HashMap::new());
-    }
-    let agents = agents_guard.as_ref().unwrap();
-    
-    match agents.get(&agent_id) {
-        Some(agent) => Ok(HttpResponse::Ok().json(ApiResponse {
-            success: true,
-            message: "Agent retrieved successfully".to_string(),
-            data: Some(agent),
-            error: None,
-        })),
-        None => Ok(HttpResponse::NotFound().json(ApiResponse::<()> {
-            success: false,
-            message: "Agent not found".to_string(),
-            data: None,
-            error: Some("Agent with the specified ID does not exist".to_string()),
-        })),
-    }
+#[derive(serde::Serialize)]
+pub struct AgentContext {
+    pub code_results: Vec<CodeSearchResult>,
+    pub document_results: Vec<DocumentSearchResult>,
+    pub total_sources: usize,
 }
 
-// Create a new agent
-pub async fn create_agent(req: web::Json<CreateAgentRequest>) -> Result<HttpResponse> {
-    let mut agents_guard = get_agents_store()?;
-    if agents_guard.is_none() {
-        *agents_guard = Some(HashMap::new());
-    }
-    let agents = agents_guard.as_mut().unwrap();
-    let agent_id = Uuid::new_v4().to_string();
-    let now = Utc::now().to_rfc3339();
-    
-    // Validate agent type
-    let valid_types = vec!["openai", "anthropic", "claude", "custom"];
-    if !valid_types.contains(&req.agent_type.as_str()) {
-        return Ok(HttpResponse::BadRequest().json(ApiResponse::<()> {
-            success: false,
-            message: "Invalid agent type".to_string(),
-            data: None,
-            error: Some("Agent type must be one of: openai, anthropic, claude, custom".to_string()),
-        }));
-    }
-    
-    // Validate permissions
-    let valid_permissions = vec!["read", "write", "context", "repositories", "documents", "urls"];
-    for permission in &req.permissions {
-        if !valid_permissions.contains(&permission.as_str()) {
-            return Ok(HttpResponse::BadRequest().json(ApiResponse::<()> {
-                success: false,
-                message: "Invalid permission".to_string(),
-                data: None,
-                error: Some(format!("Invalid permission: {}", permission)),
-            }));
-        }
-    }
-    
-    let agent = AgentRecord {
-        id: agent_id.clone(),
-        user_id: "default_user".to_string(), // TODO: Get from auth context
-        name: req.name.clone(),
-        agent_type: req.agent_type.clone(),
-        endpoint: req.endpoint.clone(),
-        api_key: req.api_key.clone(), // TODO: Encrypt this
-        permissions: req.permissions.clone(),
-        status: AgentStatus::Pending,
-        config: req.config.clone(),
-        created_at: now.clone(),
-        updated_at: now.clone(),
-        last_used: None,
-        usage_stats: AgentUsageStats {
-            total_requests: 0,
-            total_tokens: 0,
-            avg_response_time: None,
-            last_error: None,
-        },
-    };
-    
-    agents.insert(agent_id.clone(), agent.clone());
-    
-    Ok(HttpResponse::Created().json(ApiResponse {
-        success: true,
-        message: "Agent created successfully".to_string(),
-        data: Some(agent),
-        error: None,
-    }))
+#[derive(serde::Serialize)]
+pub struct CodeSearchResult {
+    pub file_path: String,
+    pub content: String,
+    pub language: String,
+    pub repository: String,
+    pub relevance_score: f32,
 }
 
-// Update an existing agent
-pub async fn update_agent(
-    path: web::Path<String>,
-    req: web::Json<UpdateAgentRequest>,
+#[derive(serde::Serialize)]
+pub struct DocumentSearchResult {
+    pub title: String,
+    pub content: String,
+    pub source_type: String,
+    pub url: Option<String>,
+    pub relevance_score: f32,
+}
+
+#[derive(serde::Serialize)]
+pub struct ContextSource {
+    pub source_type: String,
+    pub source_id: String,
+    pub title: String,
+    pub relevance_score: f32,
+}
+
+/// Unified context retrieval endpoint for AI agents
+pub async fn query_agents(
+    req: web::Json<AgentQueryRequest>,
 ) -> Result<HttpResponse> {
-    let agent_id = path.into_inner();
-    let mut agents_guard = get_agents_store()?;
-    if agents_guard.is_none() {
-        *agents_guard = Some(HashMap::new());
-    }
-    let agents = agents_guard.as_mut().unwrap();
-    
-    match agents.get_mut(&agent_id) {
-        Some(agent) => {
-            let now = Utc::now().to_rfc3339();
-            
-            if let Some(name) = &req.name {
-                agent.name = name.clone();
-            }
-            if let Some(endpoint) = &req.endpoint {
-                agent.endpoint = Some(endpoint.clone());
-            }
-            if let Some(api_key) = &req.api_key {
-                agent.api_key = api_key.clone(); // TODO: Encrypt this
-            }
-            if let Some(permissions) = &req.permissions {
-                agent.permissions = permissions.clone();
-            }
-            if let Some(config) = &req.config {
-                agent.config = config.clone();
-            }
-            if let Some(status) = &req.status {
-                agent.status = status.clone();
-            }
-            agent.updated_at = now;
-            
-            Ok(HttpResponse::Ok().json(ApiResponse {
-                success: true,
-                message: "Agent updated successfully".to_string(),
-                data: Some(agent.clone()),
-                error: None,
-            }))
-        }
-        None => Ok(HttpResponse::NotFound().json(ApiResponse::<()> {
-            success: false,
-            message: "Agent not found".to_string(),
-            data: None,
-            error: Some("Agent with the specified ID does not exist".to_string()),
-        })),
-    }
-}
+    let client = Client::new();
+    let lexor_url = std::env::var("LEXOR_SERVICE_URL")
+        .unwrap_or_else(|_| "http://localhost:3002".to_string());
+    let ai_service_url = std::env::var("AI_SERVICE_URL")
+        .unwrap_or_else(|_| "http://localhost:8001".to_string());
 
-// Delete an agent
-pub async fn delete_agent(path: web::Path<String>) -> Result<HttpResponse> {
-    let agent_id = path.into_inner();
-    let mut agents_guard = get_agents_store()?;
-    if agents_guard.is_none() {
-        *agents_guard = Some(HashMap::new());
-    }
-    let agents = agents_guard.as_mut().unwrap();
-    
-    match agents.remove(&agent_id) {
-        Some(_) => Ok(HttpResponse::Ok().json(ApiResponse::<()> {
-            success: true,
-            message: "Agent deleted successfully".to_string(),
-            data: None,
-            error: None,
-        })),
-        None => Ok(HttpResponse::NotFound().json(ApiResponse::<()> {
-            success: false,
-            message: "Agent not found".to_string(),
-            data: None,
-            error: Some("Agent with the specified ID does not exist".to_string()),
-        })),
-    }
-}
+    let include_code = req.include_code.unwrap_or(true);
+    let include_documents = req.include_documents.unwrap_or(true);
+    let max_results = req.max_results.unwrap_or(10);
 
-// Get context for an agent (filtered by permissions)
-pub async fn get_agent_context(path: web::Path<String>) -> Result<HttpResponse> {
-    let agent_id = path.into_inner();
-    let mut agents_guard = get_agents_store()?;
-    if agents_guard.is_none() {
-        *agents_guard = Some(HashMap::new());
-    }
-    let agents = agents_guard.as_ref().unwrap();
-    
-    match agents.get(&agent_id) {
-        Some(agent) => {
-            let mut context = AgentContext {
-                repositories: vec![],
-                documents: vec![],
-                urls: vec![],
-            };
-            
-            // Filter context based on agent permissions
-            if agent.permissions.contains(&"repositories".to_string()) {
-                context.repositories = vec![
-                    RepositoryContext {
-                        id: "repo1".to_string(),
-                        name: "ConHub".to_string(),
-                        description: Some("Universal context hub for developers".to_string()),
-                        language: "TypeScript/Rust".to_string(),
-                        recent_files: vec!["src/main.rs".to_string(), "frontend/app/page.tsx".to_string()],
-                        recent_commits: vec!["feat: add agent integration".to_string()],
-                    }
-                ];
-            }
-            
-            if agent.permissions.contains(&"documents".to_string()) {
-                context.documents = vec![
-                    DocumentContext {
-                        id: "doc1".to_string(),
-                        name: "API Documentation".to_string(),
-                        doc_type: "markdown".to_string(),
-                        summary: Some("ConHub API reference".to_string()),
-                        tags: vec!["api".to_string(), "docs".to_string()],
-                    }
-                ];
-            }
-            
-            if agent.permissions.contains(&"urls".to_string()) {
-                context.urls = vec![
-                    UrlContext {
-                        id: "url1".to_string(),
-                        url: "https://github.com/openai/openai-api".to_string(),
-                        title: Some("OpenAI API Documentation".to_string()),
-                        summary: Some("Official OpenAI API reference".to_string()),
-                        tags: vec!["openai".to_string(), "api".to_string()],
-                    }
-                ];
-            }
-            
-            Ok(HttpResponse::Ok().json(ApiResponse {
-                success: true,
-                message: "Agent context retrieved successfully".to_string(),
-                data: Some(context),
-                error: None,
-            }))
-        }
-        None => Ok(HttpResponse::NotFound().json(ApiResponse::<()> {
-            success: false,
-            message: "Agent not found".to_string(),
-            data: None,
-            error: Some("Agent with the specified ID does not exist".to_string()),
-        })),
-    }
-}
+    let mut code_results = Vec::new();
+    let mut document_results = Vec::new();
+    let mut sources = Vec::new();
 
-// Invoke an agent (send message and get response)
-pub async fn invoke_agent(
-    path: web::Path<String>,
-    req: web::Json<AgentInvokeRequest>,
-) -> Result<HttpResponse> {
-    let agent_id = path.into_inner();
-    let mut agents_guard = get_agents_store()?;
-    if agents_guard.is_none() {
-        *agents_guard = Some(HashMap::new());
-    }
-    let agents = agents_guard.as_mut().unwrap();
-    
-    match agents.get_mut(&agent_id) {
-        Some(agent) => {
-            let agent_service = AgentService::new();
-            
-            // Get context based on agent permissions and request
-            let context = get_filtered_context(agent, &req.context_type);
-            
-            match agent_service.invoke_agent(agent, &req, context.as_ref()).await {
-                Ok(response) => {
-                    // Update usage stats
-                    agent.usage_stats.total_requests += 1;
-                    agent.usage_stats.total_tokens += response.usage.tokens_used as u64;
-                    agent.last_used = Some(Utc::now().to_rfc3339());
-                    
-                    // Update average response time
-                    let current_avg = agent.usage_stats.avg_response_time.unwrap_or(0.0);
-                    let new_avg = if agent.usage_stats.total_requests == 1 {
-                        response.usage.response_time_ms as f32
-                    } else {
-                        (current_avg * (agent.usage_stats.total_requests - 1) as f32 + response.usage.response_time_ms as f32) 
-                        / agent.usage_stats.total_requests as f32
-                    };
-                    agent.usage_stats.avg_response_time = Some(new_avg);
-                    
-                    Ok(HttpResponse::Ok().json(ApiResponse {
-                        success: true,
-                        message: "Agent invoked successfully".to_string(),
-                        data: Some(response),
-                        error: None,
-                    }))
-                }
-                Err(e) => {
-                    agent.usage_stats.last_error = Some(e.to_string());
-                    Ok(HttpResponse::InternalServerError().json(ApiResponse::<()> {
-                        success: false,
-                        message: "Failed to invoke agent".to_string(),
-                        data: None,
-                        error: Some(e.to_string()),
-                    }))
+    // Perform code search using Lexor service
+    if include_code {
+        match perform_code_search(&client, &lexor_url, &req.query, max_results).await {
+            Ok(results) => {
+                for result in results {
+                    sources.push(ContextSource {
+                        source_type: "code".to_string(),
+                        source_id: result.file_path.clone(),
+                        title: result.file_path.clone(),
+                        relevance_score: result.relevance_score,
+                    });
+                    code_results.push(result);
                 }
             }
+            Err(e) => {
+                eprintln!("Code search failed: {}", e);
+            }
         }
-        None => Ok(HttpResponse::NotFound().json(ApiResponse::<()> {
-            success: false,
-            message: "Agent not found".to_string(),
-            data: None,
-            error: Some("Agent with the specified ID does not exist".to_string()),
-        })),
     }
-}
 
-fn get_filtered_context(agent: &AgentRecord, context_type: &Option<String>) -> Option<AgentContext> {
-    let mut context = AgentContext {
-        repositories: vec![],
-        documents: vec![],
-        urls: vec![],
+    // Perform document search using AI service
+    if include_documents {
+        match perform_document_search(&client, &ai_service_url, &req.query, max_results).await {
+            Ok(results) => {
+                for result in results {
+                    sources.push(ContextSource {
+                        source_type: "document".to_string(),
+                        source_id: result.title.clone(),
+                        title: result.title.clone(),
+                        relevance_score: result.relevance_score,
+                    });
+                    document_results.push(result);
+                }
+            }
+            Err(e) => {
+                eprintln!("Document search failed: {}", e);
+            }
+        }
+    }
+
+    let context = AgentContext {
+        code_results,
+        document_results,
+        total_sources: sources.len(),
     };
-    
-    let include_all = context_type.is_none() || context_type.as_ref().unwrap() == "all";
-    
-    // Filter context based on agent permissions and requested context type
-    if (include_all || context_type.as_ref().unwrap() == "repositories") 
-       && agent.permissions.contains(&"repositories".to_string()) {
-        context.repositories = vec![
-            RepositoryContext {
-                id: "repo1".to_string(),
-                name: "ConHub".to_string(),
-                description: Some("Universal context hub for developers".to_string()),
-                language: "TypeScript/Rust".to_string(),
-                recent_files: vec!["src/main.rs".to_string(), "frontend/app/page.tsx".to_string()],
-                recent_commits: vec!["feat: add agent integration".to_string()],
+
+    // Generate AI response if agent type is specified
+    let ai_response = if let Some(agent_type) = &req.agent_type {
+        match generate_ai_response(&client, &ai_service_url, &req.query, &context, agent_type).await {
+            Ok(response) => Some(response),
+            Err(e) => {
+                eprintln!("AI response generation failed: {}", e);
+                None
             }
-        ];
-    }
-    
-    if (include_all || context_type.as_ref().unwrap() == "documents") 
-       && agent.permissions.contains(&"documents".to_string()) {
-        context.documents = vec![
-            DocumentContext {
-                id: "doc1".to_string(),
-                name: "API Documentation".to_string(),
-                doc_type: "markdown".to_string(),
-                summary: Some("ConHub API reference".to_string()),
-                tags: vec!["api".to_string(), "docs".to_string()],
-            }
-        ];
-    }
-    
-    if (include_all || context_type.as_ref().unwrap() == "urls") 
-       && agent.permissions.contains(&"urls".to_string()) {
-        context.urls = vec![
-            UrlContext {
-                id: "url1".to_string(),
-                url: "https://github.com/openai/openai-api".to_string(),
-                title: Some("OpenAI API Documentation".to_string()),
-                summary: Some("Official OpenAI API reference".to_string()),
-                tags: vec!["openai".to_string(), "api".to_string()],
-            }
-        ];
-    }
-    
-    // Return context only if it has any data
-    if !context.repositories.is_empty() || !context.documents.is_empty() || !context.urls.is_empty() {
-        Some(context)
+        }
     } else {
         None
-    }
+    };
+
+    let response = AgentQueryResponse {
+        query: req.query.clone(),
+        context,
+        response: ai_response,
+        sources,
+    };
+
+    Ok(HttpResponse::Ok().json(ApiResponse {
+        success: true,
+        message: "Context retrieved successfully".to_string(),
+        data: Some(response),
+        error: None,
+    }))
 }
 
-// Test agent connection
-pub async fn test_agent(path: web::Path<String>) -> Result<HttpResponse> {
-    let agent_id = path.into_inner();
-    let mut agents_guard = get_agents_store()?;
-    if agents_guard.is_none() {
-        *agents_guard = Some(HashMap::new());
+/// Perform code search using Lexor service
+async fn perform_code_search(
+    client: &Client,
+    lexor_url: &str,
+    query: &str,
+    max_results: usize,
+) -> Result<Vec<CodeSearchResult>, Box<dyn std::error::Error>> {
+    let search_payload = json!({
+        "query": query,
+        "limit": max_results,
+        "search_type": "semantic"
+    });
+
+    let response = client
+        .post(&format!("{}/api/search", lexor_url))
+        .json(&search_payload)
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(format!("Lexor search failed: {}", response.status()).into());
     }
-    let agents = agents_guard.as_mut().unwrap();
+
+    let search_results: serde_json::Value = response.json().await?;
+    let mut results = Vec::new();
+
+    if let Some(hits) = search_results["results"].as_array() {
+        for hit in hits {
+            results.push(CodeSearchResult {
+                file_path: hit["file_path"].as_str().unwrap_or("").to_string(),
+                content: hit["content"].as_str().unwrap_or("").to_string(),
+                language: hit["language"].as_str().unwrap_or("").to_string(),
+                repository: hit["project_name"].as_str().unwrap_or("").to_string(),
+                relevance_score: hit["score"].as_f64().unwrap_or(0.0) as f32,
+            });
+        }
+    }
+
+    Ok(results)
+}
+
+/// Perform document search using AI service
+async fn perform_document_search(
+    client: &Client,
+    ai_service_url: &str,
+    query: &str,
+    max_results: usize,
+) -> Result<Vec<DocumentSearchResult>, Box<dyn std::error::Error>> {
+    let _search_payload = json!({
+        "query": query,
+        "k": max_results
+    });
+
+    let response = client
+        .post(&format!("{}/vector/search", ai_service_url))
+        .form(&[
+            ("query", query),
+            ("k", &max_results.to_string()),
+        ])
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(format!("AI service search failed: {}", response.status()).into());
+    }
+
+    let search_results: serde_json::Value = response.json().await?;
+    let mut results = Vec::new();
+
+    if let Some(hits) = search_results["results"].as_array() {
+        for hit in hits {
+            results.push(DocumentSearchResult {
+                title: hit["metadata"]["title"].as_str()
+                    .or(hit["metadata"]["filename"].as_str())
+                    .unwrap_or("Untitled").to_string(),
+                content: hit["content"].as_str().unwrap_or("").to_string(),
+                source_type: hit["metadata"]["source_type"].as_str().unwrap_or("document").to_string(),
+                url: hit["metadata"]["url"].as_str().map(|s| s.to_string()),
+                relevance_score: hit["score"].as_f64().unwrap_or(0.0) as f32,
+            });
+        }
+    }
+
+    Ok(results)
+}
+
+/// Generate AI response using the gathered context
+async fn generate_ai_response(
+    client: &Client,
+    ai_service_url: &str,
+    query: &str,
+    context: &AgentContext,
+    agent_type: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    // Format context for AI model
+    let formatted_context = format_context_for_agent(context, agent_type);
     
-    match agents.get_mut(&agent_id) {
-        Some(agent) => {
-            let agent_service = AgentService::new();
+    let ai_payload = json!({
+        "agent_type": agent_type,
+        "query": query,
+        "context": formatted_context
+    });
+
+    let response = client
+        .post(&format!("{}/ai/query", ai_service_url))
+        .json(&ai_payload)
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(format!("AI query failed: {}", response.status()).into());
+    }
+
+    let ai_result: serde_json::Value = response.json().await?;
+    Ok(ai_result["response"].as_str().unwrap_or("No response generated").to_string())
+}
+
+/// Format context for specific AI agent types
+fn format_context_for_agent(context: &AgentContext, agent_type: &str) -> String {
+    let mut formatted = String::new();
+
+    match agent_type {
+        "github_copilot" => {
+            formatted.push_str("# Code Context\n\n");
+            for code_result in &context.code_results {
+                formatted.push_str(&format!(
+                    "## File: {} ({})\n```{}\n{}\n```\n\n",
+                    code_result.file_path,
+                    code_result.repository,
+                    code_result.language,
+                    code_result.content
+                ));
+            }
             
-            match agent_service.test_agent_connection(agent).await {
-                Ok(connected) => {
-                    if connected {
-                        agent.status = AgentStatus::Connected;
-                        Ok(HttpResponse::Ok().json(ApiResponse {
-                            success: true,
-                            message: "Agent connection test successful".to_string(),
-                            data: Some(json!({"connected": true})),
-                            error: None,
-                        }))
-                    } else {
-                        agent.status = AgentStatus::Error;
-                        agent.usage_stats.last_error = Some("Connection test failed".to_string());
-                        Ok(HttpResponse::BadRequest().json(ApiResponse {
-                            success: false,
-                            message: "Agent connection test failed".to_string(),
-                            data: Some(json!({"connected": false})),
-                            error: Some("Could not establish connection to agent".to_string()),
-                        }))
-                    }
-                }
-                Err(e) => {
-                    agent.status = AgentStatus::Error;
-                    agent.usage_stats.last_error = Some(e.to_string());
-                    Ok(HttpResponse::InternalServerError().json(ApiResponse {
-                        success: false,
-                        message: "Agent connection test failed".to_string(),
-                        data: Some(json!({"connected": false})),
-                        error: Some(e.to_string()),
-                    }))
+            if !context.document_results.is_empty() {
+                formatted.push_str("# Documentation Context\n\n");
+                for doc_result in &context.document_results {
+                    formatted.push_str(&format!(
+                        "## {}\n{}\n\n",
+                        doc_result.title,
+                        doc_result.content
+                    ));
                 }
             }
         }
-        None => Ok(HttpResponse::NotFound().json(ApiResponse::<()> {
-            success: false,
-            message: "Agent not found".to_string(),
-            data: None,
-            error: Some("Agent with the specified ID does not exist".to_string()),
-        })),
+        _ => {
+            // Generic formatting
+            if !context.code_results.is_empty() {
+                formatted.push_str("Code Results:\n");
+                for code_result in &context.code_results {
+                    formatted.push_str(&format!("- {}: {}\n", code_result.file_path, code_result.content));
+                }
+            }
+            
+            if !context.document_results.is_empty() {
+                formatted.push_str("Document Results:\n");
+                for doc_result in &context.document_results {
+                    formatted.push_str(&format!("- {}: {}\n", doc_result.title, doc_result.content));
+                }
+            }
+        }
     }
+
+    formatted
 }
 
-pub fn configure(cfg: &mut web::ServiceConfig) {
+/// Get available AI agents
+pub async fn get_agents() -> Result<HttpResponse> {
+    let agents = vec![
+        json!({
+            "id": "github_copilot",
+            "name": "GitHub Copilot",
+            "description": "AI pair programmer for code assistance",
+            "capabilities": ["code_completion", "code_explanation", "bug_fixing"],
+            "status": "available"
+        }),
+        json!({
+            "id": "openai_gpt",
+            "name": "OpenAI GPT",
+            "description": "General purpose AI assistant",
+            "capabilities": ["text_generation", "question_answering", "summarization"],
+            "status": "available"
+        }),
+        json!({
+            "id": "anthropic_claude",
+            "name": "Anthropic Claude",
+            "description": "AI assistant for analysis and reasoning",
+            "capabilities": ["analysis", "reasoning", "writing"],
+            "status": "available"
+        })
+    ];
+
+    Ok(HttpResponse::Ok().json(ApiResponse {
+        success: true,
+        message: "Available AI agents retrieved successfully".to_string(),
+        data: Some(agents),
+        error: None,
+    }))
+}
+
+/// Configure agent routes
+pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/agents")
+            .route("/query", web::post().to(query_agents))
             .route("", web::get().to(get_agents))
-            .route("", web::post().to(create_agent))
-            .route("/{id}", web::get().to(get_agent))
-            .route("/{id}", web::put().to(update_agent))
-            .route("/{id}", web::delete().to(delete_agent))
-            .route("/{id}/context", web::get().to(get_agent_context))
-            .route("/{id}/invoke", web::post().to(invoke_agent))
-            .route("/{id}/test", web::post().to(test_agent))
     );
 }

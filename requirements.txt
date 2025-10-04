@@ -25,6 +25,13 @@ markdown>=3.5.0
 beautifulsoup4>=4.12.0
 # lxml>=4.9.0  # Commented out due to Windows build issues
 
+# HTTP client and web crawling
+aiohttp>=3.9.0
+aiofiles>=23.2.0
+
+# Additional utilities
+html2text>=2020.1.16
+
 # Optional vector database clients
 # qdrant-client==1.7.0
 # pinecone-client==2.2.4
@@ -36,3 +43,6 @@ pytest-asyncio==0.21.1
 black==23.11.0
 flake8==6.1.0
 mypy==1.7.1
+
+# Logging and monitoring
+structlog>=23.2.0

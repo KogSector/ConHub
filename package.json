@@ -31,7 +31,9 @@
     "health": "node scripts/diagnose-performance.js",
     "install:all": "npm install",
     "architecture:summary": "powershell -ExecutionPolicy Bypass -File scripts/architecture-summary.ps1",
-    "cleanup:langchain": "powershell -ExecutionPolicy Bypass -File scripts/cleanup-langchain.ps1"
+    "cleanup:langchain": "powershell -ExecutionPolicy Bypass -File scripts/cleanup-langchain.ps1",
+    "test:complete": "node test-complete-functionality.js",
+    "test:functionality": "node test-complete-functionality.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

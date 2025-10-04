@@ -21,6 +21,7 @@ pub struct AgentService {
 
 /// MCP-enhanced context for AI agents
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct McpEnhancedContext {
     pub traditional_context: Option<AgentContext>,
     pub mcp_contexts: Vec<McpContext>,
@@ -90,6 +91,7 @@ pub struct AnthropicUsage {
 }
 
 impl AgentService {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         let client = Client::builder()
             .timeout(Duration::from_secs(60))
@@ -147,6 +149,7 @@ impl AgentService {
     }
 
     /// Create MCP-enhanced context for an agent
+    #[allow(dead_code)]
     pub async fn create_mcp_context(
         &self,
         agent: &AgentRecord,
@@ -189,6 +192,7 @@ impl AgentService {
     }
 
     /// Create repository context using MCP
+    #[allow(dead_code)]
     async fn create_repository_context(&self) -> Result<McpContext, McpError> {
         let context_id = uuid::Uuid::new_v4().to_string();
         let now = chrono::Utc::now();
@@ -224,6 +228,7 @@ impl AgentService {
     }
 
     /// Create document context using MCP
+    #[allow(dead_code)]
     async fn create_document_context(&self) -> Result<McpContext, McpError> {
         let context_id = uuid::Uuid::new_v4().to_string();
         let now = chrono::Utc::now();
@@ -258,6 +263,7 @@ impl AgentService {
     }
 
     /// Create URL context using MCP
+    #[allow(dead_code)]
     async fn create_url_context(&self) -> Result<McpContext, McpError> {
         let context_id = uuid::Uuid::new_v4().to_string();
         let now = chrono::Utc::now();
@@ -291,6 +297,7 @@ impl AgentService {
         Ok(context)
     }
 
+    #[allow(dead_code)]
     pub async fn invoke_agent(
         &self,
         agent: &AgentRecord,
@@ -322,6 +329,7 @@ impl AgentService {
     }
 
     /// OpenAI invocation with MCP-enhanced context
+    #[allow(dead_code)]
     async fn invoke_openai_with_mcp(
         &self,
         agent: &AgentRecord,
@@ -404,6 +412,7 @@ impl AgentService {
     }
 
     /// Anthropic invocation with MCP-enhanced context
+    #[allow(dead_code)]
     async fn invoke_anthropic_with_mcp(
         &self,
         agent: &AgentRecord,
@@ -476,6 +485,7 @@ impl AgentService {
     }
 
     /// Custom agent invocation with MCP-enhanced context
+    #[allow(dead_code)]
     async fn invoke_custom_with_mcp(
         &self,
         agent: &AgentRecord,
@@ -539,6 +549,7 @@ impl AgentService {
     }
 
     /// Format MCP context for OpenAI
+    #[allow(dead_code)]
     fn format_mcp_context_for_openai(&self, mcp_context: &McpEnhancedContext) -> String {
         let mut context_str = String::new();
 
@@ -589,6 +600,7 @@ impl AgentService {
     }
 
     /// Format MCP context for Anthropic
+    #[allow(dead_code)]
     fn format_mcp_context_for_anthropic(&self, mcp_context: &McpEnhancedContext) -> String {
         let mut context_str = String::new();
 
@@ -618,6 +630,7 @@ impl AgentService {
     }
 
     /// Format MCP context for custom agents
+    #[allow(dead_code)]
     fn format_mcp_context_for_custom(&self, mcp_context: &McpEnhancedContext) -> serde_json::Value {
         json!({
             "mcp_contexts": mcp_context.mcp_contexts.len(),
@@ -894,6 +907,7 @@ impl AgentService {
         self.format_context_for_openai(context)
     }
 
+    #[allow(dead_code)]
     pub async fn test_agent_connection(&self, agent: &AgentRecord) -> Result<bool, Box<dyn std::error::Error>> {
         match agent.agent_type.as_str() {
             "openai" => self.test_openai_connection(agent).await,
@@ -903,6 +917,7 @@ impl AgentService {
         }
     }
 
+    #[allow(dead_code)]
     async fn test_openai_connection(&self, agent: &AgentRecord) -> Result<bool, Box<dyn std::error::Error>> {
         let response = self.client
             .get("https://api.openai.com/v1/models")
@@ -913,6 +928,7 @@ impl AgentService {
         Ok(response.status().is_success())
     }
 
+    #[allow(dead_code)]
     async fn test_anthropic_connection(&self, agent: &AgentRecord) -> Result<bool, Box<dyn std::error::Error>> {
         // Anthropic doesn't have a simple health check endpoint, so we'll make a minimal request
         let messages = vec![AnthropicMessage {
@@ -939,6 +955,7 @@ impl AgentService {
         Ok(response.status().is_success())
     }
 
+    #[allow(dead_code)]
     async fn test_custom_connection(&self, agent: &AgentRecord) -> Result<bool, Box<dyn std::error::Error>> {
         let endpoint = agent.endpoint.as_ref().ok_or("Custom agent requires endpoint")?;
         

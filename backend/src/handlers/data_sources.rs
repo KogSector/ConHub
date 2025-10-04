@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use tracing::{error, info};
 
-use crate::services::data_source_service::DataSourceService;
+use crate::sources::DataSourceFactory;
 
 #[derive(Debug, Deserialize)]
 pub struct ConnectDataSourceRequest {
@@ -41,22 +41,32 @@ pub async fn connect_data_source(
 ) -> Result<HttpResponse> {
     info!("Connecting data source: {}", req.source_type);
 
-    let service = DataSourceService::new();
-    
-    match service.connect_data_source(&req.source_type, req.credentials.clone(), req.config.clone()).await {
-        Ok(_) => {
-            info!("Successfully connected to {} data source", req.source_type);
-            Ok(HttpResponse::Ok().json(ConnectResponse {
-                success: true,
-                message: format!("Successfully connected to {} data source", req.source_type),
-                error: None,
-            }))
+    match DataSourceFactory::create_connector(&req.source_type) {
+        Ok(mut connector) => {
+            match connector.connect(&req.credentials, &req.config).await {
+                Ok(_) => {
+                    info!("Successfully connected to {} data source", req.source_type);
+                    Ok(HttpResponse::Ok().json(ConnectResponse {
+                        success: true,
+                        message: format!("Successfully connected to {} data source", req.source_type),
+                        error: None,
+                    }))
+                }
+                Err(e) => {
+                    error!("Failed to connect to {} data source: {}", req.source_type, e);
+                    Ok(HttpResponse::BadRequest().json(ConnectResponse {
+                        success: false,
+                        message: "Failed to connect data source".to_string(),
+                        error: Some(e.to_string()),
+                    }))
+                }
+            }
         }
         Err(e) => {
-            error!("Failed to connect to {} data source: {}", req.source_type, e);
+            error!("Unsupported data source type: {}", req.source_type);
             Ok(HttpResponse::BadRequest().json(ConnectResponse {
                 success: false,
-                message: "Failed to connect data source".to_string(),
+                message: "Unsupported data source type".to_string(),
                 error: Some(e.to_string()),
             }))
         }
@@ -84,30 +94,48 @@ pub async fn fetch_branches(
     // For now, use empty credentials - in a real implementation, you'd get these from the request or session
     let credentials = req.credentials.clone().unwrap_or_default();
 
-    let service = DataSourceService::new();
-    
-    match service.fetch_branches(source_type, &req.repo_url, credentials).await {
-        Ok(branches) => {
-            let default_branch = if branches.contains(&"main".to_string()) {
-                Some("main".to_string())
-            } else if branches.contains(&"master".to_string()) {
-                Some("master".to_string())
-            } else {
-                branches.first().cloned()
-            };
+    match DataSourceFactory::create_connector(source_type) {
+        Ok(mut connector) => {
+            if let Err(e) = connector.connect(&credentials, &serde_json::Value::Null).await {
+                return Ok(HttpResponse::BadRequest().json(FetchBranchesResponse {
+                    branches: vec![],
+                    default_branch: None,
+                    error: Some(format!("Failed to connect: {}", e)),
+                }));
+            }
+            
+            match connector.fetch_branches(&req.repo_url).await {
+                Ok(branches) => {
+                    let default_branch = if branches.contains(&"main".to_string()) {
+                        Some("main".to_string())
+                    } else if branches.contains(&"master".to_string()) {
+                        Some("master".to_string())
+                    } else {
+                        branches.first().cloned()
+                    };
 
-            info!("Successfully fetched {} branches for repository: {}", branches.len(), req.repo_url);
-            Ok(HttpResponse::Ok().json(FetchBranchesResponse {
-                branches,
-                default_branch,
-                error: None,
-            }))
+                    info!("Successfully fetched {} branches for repository: {}", branches.len(), req.repo_url);
+                    Ok(HttpResponse::Ok().json(FetchBranchesResponse {
+                        branches,
+                        default_branch,
+                        error: None,
+                    }))
+                }
+                Err(e) => {
+                    error!("Failed to fetch branches for repository {}: {}", req.repo_url, e);
+                    Ok(HttpResponse::BadRequest().json(FetchBranchesResponse {
+                        branches: vec!["main".to_string()], // Fallback
+                        default_branch: Some("main".to_string()),
+                        error: Some(e.to_string()),
+                    }))
+                }
+            }
         }
         Err(e) => {
-            error!("Failed to fetch branches for repository {}: {}", req.repo_url, e);
+            error!("Unsupported repository type: {}", source_type);
             Ok(HttpResponse::BadRequest().json(FetchBranchesResponse {
-                branches: vec!["main".to_string()], // Fallback
-                default_branch: Some("main".to_string()),
+                branches: vec![],
+                default_branch: None,
                 error: Some(e.to_string()),
             }))
         }

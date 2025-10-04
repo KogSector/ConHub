@@ -19,5 +19,9 @@ pub mod mcp_server;
 pub mod mcp_client;
 pub mod github_copilot_integration;
 pub mod enhanced_repository;
-pub mod connectors;
-pub mod data_source_service;
+// Legacy connectors - use sources module instead
+// pub mod connectors;
+// pub mod data_source_service;
+pub mod indexing_orchestrator;
+pub mod ai_service;
+pub mod vector_db;

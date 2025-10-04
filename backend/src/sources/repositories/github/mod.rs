@@ -1,4 +1,3 @@
-use super::{ConnectorInterface, DataSource, Document, Repository, SyncResult};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -6,6 +5,8 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use tracing::{info, warn};
 use base64::Engine;
+
+use crate::sources::core::{DataSourceConnector, DataSource, Document, Repository, SyncResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GitHubUser {
@@ -114,7 +115,7 @@ impl GitHubConnector {
 }
 
 #[async_trait]
-impl ConnectorInterface for GitHubConnector {
+impl DataSourceConnector for GitHubConnector {
     async fn validate(&self, credentials: &HashMap<String, String>) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         let token = credentials.get("accessToken")
             .ok_or("GitHub access token is required")?;
@@ -154,6 +155,7 @@ impl ConnectorInterface for GitHubConnector {
         Ok(true)
     }
 
+    #[allow(dead_code)]
     async fn sync(&self, data_source: &DataSource) -> Result<SyncResult, Box<dyn std::error::Error + Send + Sync>> {
         let token = self.token.as_ref().ok_or("GitHub not connected")?;
         let mut documents = Vec::new();
@@ -274,5 +276,11 @@ impl ConnectorInterface for GitHubConnector {
             let error_text = response.text().await.unwrap_or_default();
             Err(self.get_error_message(status, &error_text).into())
         }
+    }
+}
+
+impl Default for GitHubConnector {
+    fn default() -> Self {
+        Self::new()
     }
 }

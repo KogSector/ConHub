@@ -8,7 +8,7 @@ use crate::services::connectors::{
 };
 use serde_json::Value;
 use std::collections::HashMap;
-use tracing::{error, info};
+use tracing::info;
 
 pub struct DataSourceService;
 

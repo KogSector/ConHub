@@ -5,6 +5,7 @@ mod settings;
 mod data_source_handlers;
 mod documents;
 mod agents;
+pub mod ai_agents;
 mod urls;
 mod repositories;
 mod mcp;
@@ -23,7 +24,8 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .configure(data_source_handlers::configure)
             .configure(data_sources::configure)
             .configure(documents::configure)
-            .configure(agents::configure)
+            .configure(agents::configure_routes)
+            .configure(ai_agents::configure_routes)
             .configure(repositories::configure_routes)
             .configure(mcp::configure)
             .configure(github_copilot::configure_copilot_routes)

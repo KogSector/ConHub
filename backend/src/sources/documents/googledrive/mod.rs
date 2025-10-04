@@ -1,10 +1,11 @@
-use super::{ConnectorInterface, DataSource, Document, SyncResult};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use tracing::info;
+
+use crate::sources::core::{DataSourceConnector, DataSource, Document, Repository, SyncResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoogleDriveFile {
@@ -87,7 +88,7 @@ impl GoogleDriveConnector {
 }
 
 #[async_trait]
-impl ConnectorInterface for GoogleDriveConnector {
+impl DataSourceConnector for GoogleDriveConnector {
     async fn validate(&self, credentials: &HashMap<String, String>) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         let client_id = credentials.get("clientId")
             .ok_or("Google Drive client ID is required")?;
@@ -118,6 +119,7 @@ impl ConnectorInterface for GoogleDriveConnector {
         Ok(true)
     }
 
+    #[allow(dead_code)]
     async fn sync(&self, data_source: &DataSource) -> Result<SyncResult, Box<dyn std::error::Error + Send + Sync>> {
         let token = self.access_token.as_ref().ok_or("Google Drive not connected")?;
         let mut documents = Vec::new();
@@ -192,5 +194,11 @@ impl ConnectorInterface for GoogleDriveConnector {
 
     async fn fetch_branches(&self, _repo_url: &str) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
         Err("Google Drive does not support branches".into())
+    }
+}
+
+impl Default for GoogleDriveConnector {
+    fn default() -> Self {
+        Self::new()
     }
 }

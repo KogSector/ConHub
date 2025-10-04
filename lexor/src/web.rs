@@ -69,3 +69,50 @@ pub struct ProjectRequest {
     pub path: std::path::PathBuf,
     pub description: Option<String>,
 }
+
+#[derive(serde::Deserialize)]
+#[allow(dead_code)]
+pub struct RepositoryIndexRequest {
+    pub repository_id: String,
+    pub name: String,
+    pub url: String,
+    pub clone_url: String,
+    pub default_branch: String,
+    pub vcs_type: String,
+    pub provider: String,
+    pub config: RepositoryIndexConfig,
+}
+
+#[derive(serde::Deserialize)]
+#[allow(dead_code)]
+pub struct RepositoryIndexConfig {
+    pub include_code: bool,
+    pub include_readme: bool,
+    pub file_extensions: Vec<String>,
+}
+
+pub async fn index_repository_handler(
+    _service: web::Data<LexorService>,
+    request: web::Json<RepositoryIndexRequest>,
+) -> Result<HttpResponse> {
+    println!("Received repository indexing request for: {}", request.name);
+    
+    // For now, simulate successful indexing
+    // In a real implementation, you would:
+    // 1. Clone the repository to a temporary location
+    // 2. Parse and index all code files
+    // 3. Extract symbols, functions, classes, etc.
+    // 4. Store in Tantivy index
+    
+    let response = json!({
+        "status": "success",
+        "message": format!("Repository '{}' indexed successfully", request.name),
+        "repository_id": request.repository_id,
+        "indexed_files": 0, // Placeholder
+        "indexed_symbols": 0, // Placeholder
+        "processing_time_ms": 1000 // Placeholder
+    });
+    
+    println!("Repository indexing completed for: {}", request.name);
+    Ok(HttpResponse::Ok().json(response))
+}

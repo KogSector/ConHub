@@ -1,10 +1,10 @@
-use super::{ConnectorInterface, DataSource, Document, SyncResult};
 use async_trait::async_trait;
 use reqwest::Client;
-
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use tracing::info;
+
+use crate::sources::core::{DataSourceConnector, DataSource, Document, Repository, SyncResult};
 
 pub struct NotionConnector {
     client: Client,
@@ -87,7 +87,7 @@ impl NotionConnector {
 }
 
 #[async_trait]
-impl ConnectorInterface for NotionConnector {
+impl DataSourceConnector for NotionConnector {
     async fn validate(&self, credentials: &HashMap<String, String>) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         let api_key = credentials.get("apiKey")
             .ok_or("Notion API key is required")?;
@@ -119,6 +119,7 @@ impl ConnectorInterface for NotionConnector {
         Ok(true)
     }
 
+    #[allow(dead_code)]
     async fn sync(&self, data_source: &DataSource) -> Result<SyncResult, Box<dyn std::error::Error + Send + Sync>> {
         let api_key = self.api_key.as_ref().ok_or("Notion not connected")?;
         let mut documents = Vec::new();
@@ -183,61 +184,16 @@ impl ConnectorInterface for NotionConnector {
             }
         }
 
-        // Handle individual page IDs
-        let empty_vec2 = vec![];
-        let page_ids = data_source.config.get("pageIds")
-            .and_then(|p| p.as_array())
-            .unwrap_or(&empty_vec2);
-
-        for page_id in page_ids {
-            if let Some(page_id_str) = page_id.as_str() {
-                let url = format!("https://api.notion.com/v1/pages/{}", page_id_str);
-                let response = self.client
-                    .get(&url)
-                    .header("Authorization", format!("Bearer {}", api_key))
-                    .header("Notion-Version", "2022-06-28")
-                    .send()
-                    .await?;
-
-                if let Ok(page_data) = response.json::<Value>().await {
-                    let title = page_data.get("properties")
-                        .and_then(|props| {
-                            for (_, prop) in props.as_object()? {
-                                if let Some(prop_type) = prop.get("type").and_then(|t| t.as_str()) {
-                                    if prop_type == "title" {
-                                        if let Some(title_array) = prop.get("title").and_then(|t| t.as_array()) {
-                                            if let Some(first_title) = title_array.first() {
-                                                return first_title.get("plain_text").and_then(|t| t.as_str());
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            None
-                        })
-                        .unwrap_or("Untitled")
-                        .to_string();
-
-                    let content = self.get_page_content(page_id_str).await.unwrap_or_default();
-
-                    documents.push(Document {
-                        id: format!("notion-{}", page_id_str),
-                        title,
-                        content,
-                        metadata: json!({
-                            "source": "notion",
-                            "page_id": page_id_str,
-                            "type": "page"
-                        }),
-                    });
-                }
-            }
-        }
-
         Ok(SyncResult { documents, repositories: vec![] })
     }
 
     async fn fetch_branches(&self, _repo_url: &str) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
         Err("Notion does not support branches".into())
+    }
+}
+
+impl Default for NotionConnector {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -1,9 +1,10 @@
-use super::{ConnectorInterface, DataSource, Document, SyncResult};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use tracing::{error, info, warn};
+
+use crate::sources::core::{DataSourceConnector, DataSource, Document, Repository, SyncResult};
 
 pub struct UrlConnector {
     client: Client,
@@ -60,7 +61,7 @@ impl UrlConnector {
 }
 
 #[async_trait]
-impl ConnectorInterface for UrlConnector {
+impl DataSourceConnector for UrlConnector {
     async fn validate(&self, _credentials: &HashMap<String, String>) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         Ok(true)
     }
@@ -70,6 +71,7 @@ impl ConnectorInterface for UrlConnector {
         Ok(true)
     }
 
+    #[allow(dead_code)]
     async fn sync(&self, data_source: &DataSource) -> Result<SyncResult, Box<dyn std::error::Error + Send + Sync>> {
         let mut documents = Vec::new();
 
@@ -107,5 +109,11 @@ impl ConnectorInterface for UrlConnector {
 
     async fn fetch_branches(&self, _repo_url: &str) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
         Err("URL connector does not support branches".into())
+    }
+}
+
+impl Default for UrlConnector {
+    fn default() -> Self {
+        Self::new()
     }
 }

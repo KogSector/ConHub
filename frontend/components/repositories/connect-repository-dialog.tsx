@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { GitBranch, Github, GitlabIcon as Bitbucket, AlertCircle } from 'lucide-react';
+import { GitBranch, Github, GitlabIcon, GitlabIcon as Bitbucket, AlertCircle } from 'lucide-react';
 
 interface ConnectRepositoryDialogProps {
   open: boolean;
@@ -70,30 +70,65 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   };
 
   const handleFetchBranches = async () => {
-    if (!repositoryUrl) {
-      setFetchBranchesError("Please enter a repository URL first.");
+    if (!repositoryUrl || !provider) {
+      setFetchBranchesError("Please enter a repository URL and select a provider first.");
       return;
     }
+    
+    // Validate credentials based on provider
+    if ((provider === 'github' || provider === 'gitlab') && !credentials.accessToken) {
+      setFetchBranchesError(`Please enter your ${provider === 'github' ? 'GitHub' : 'GitLab'} access token first.`);
+      return;
+    }
+    if (provider === 'bitbucket' && (!credentials.username || !credentials.appPassword)) {
+      setFetchBranchesError("Please enter your Bitbucket username and app password first.");
+      return;
+    }
+    
     setIsFetchingBranches(true);
     setFetchBranchesError(null);
     setBranches([]);
 
     try {
+      // Prepare credentials based on provider
+      let credentialsPayload;
+      if (provider === 'github' || provider === 'gitlab') {
+        credentialsPayload = {
+          credential_type: {
+            PersonalAccessToken: {
+              token: credentials.accessToken
+            }
+          },
+          expires_at: null
+        };
+      } else if (provider === 'bitbucket') {
+        credentialsPayload = {
+          credential_type: {
+            AppPassword: {
+              username: credentials.username,
+              app_password: credentials.appPassword
+            }
+          },
+          expires_at: null
+        };
+      }
+
       const response = await fetch('/api/repositories/fetch-branches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          repoUrl: repositoryUrl,
-          credentials: credentials 
+          repo_url: repositoryUrl,
+          credentials: credentialsPayload
         }),
       });
 
-      if (!response.ok) {
-        const { error } = await response.json();
-        throw new Error(error || "Failed to fetch branches.");
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || "Failed to fetch branches.");
       }
 
-      const { branches: fetchedBranches, defaultBranch } = await response.json();
+      const { branches: fetchedBranches, default_branch } = data.data;
       
       if (fetchedBranches.length === 0) {
         setFetchBranchesError("No branches found. Please check the repository URL and permissions.");
@@ -101,7 +136,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         setConfig(prev => ({ ...prev, defaultBranch: 'main' }));
       } else {
         setBranches(fetchedBranches);
-        setConfig(prev => ({ ...prev, defaultBranch: defaultBranch || fetchedBranches[0] }));
+        setConfig(prev => ({ ...prev, defaultBranch: default_branch || fetchedBranches[0] }));
       }
     } catch (err: any) {
       setFetchBranchesError(err.message);
@@ -190,13 +225,18 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   const renderCredentialFields = () => {
     switch (provider) {
       case 'github':
+      case 'gitlab':
+        const isGitHub = provider === 'github';
         return (
           <div className="space-y-6">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label htmlFor="accessToken" className="text-sm font-medium">GitHub Access Token</Label>
+                <Label htmlFor="accessToken" className="text-sm font-medium">{isGitHub ? 'GitHub' : 'GitLab'} Access Token</Label>
                 <a 
-                  href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token" 
+                  href={isGitHub 
+                    ? "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token"
+                    : "https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html"
+                  } 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-xs text-blue-600 hover:text-blue-800 underline"
@@ -207,7 +247,10 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
               <Input
                 id="accessToken"
                 type="password"
-                placeholder="ghp_xxxxxxxxxxxxxxxxxxxx or github_pat_xxxxxxxxxx"
+                placeholder={isGitHub 
+                  ? "ghp_xxxxxxxxxxxxxxxxxxxx or github_pat_xxxxxxxxxx"
+                  : "glpat-xxxxxxxxxxxxxxxxxxxx"
+                }
                 value={credentials.accessToken || ''}
                 onChange={(e) => setCredentials({ ...credentials, accessToken: e.target.value })}
                 className="mt-2"
@@ -215,36 +258,69 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
               <div className="space-y-2 text-xs text-muted-foreground">
                 <p className="font-medium">Token Requirements:</p>
                 <ul className="space-y-1 ml-4">
-                  <li>• <strong>Classic tokens (ghp_*):</strong> Need <code>repo</code> scope for private repos, <code>public_repo</code> for public repos</li>
-                  <li>• <strong>Fine-grained tokens (github_pat_*):</strong> Need repository access and Contents/Metadata permissions</li>
+                  {isGitHub ? (
+                    <>
+                      <li>• <strong>Classic tokens (ghp_*):</strong> Need <code>repo</code> scope for private repos, <code>public_repo</code> for public repos</li>
+                      <li>• <strong>Fine-grained tokens (github_pat_*):</strong> Need repository access and Contents/Metadata permissions</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>• <strong>Personal Access Tokens (glpat_*):</strong> Need <code>read_repository</code> scope minimum</li>
+                      <li>• <strong>For private repos:</strong> Also need <code>read_api</code> scope</li>
+                    </>
+                  )}
                   <li>• <strong>Token must not be expired</strong></li>
                   <li>• <strong>Account must have access to the repository</strong></li>
                 </ul>
                 <div className="flex gap-4 pt-2">
-                  <a 
-                    href="https://github.com/settings/tokens" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Manage Classic Tokens
-                  </a>
-                  <a 
-                    href="https://github.com/settings/personal-access-tokens/new" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Create Fine-grained Token
-                  </a>
+                  {isGitHub ? (
+                    <>
+                      <a 
+                        href="https://github.com/settings/tokens" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline"
+                      >
+                        Manage Classic Tokens
+                      </a>
+                      <a 
+                        href="https://github.com/settings/personal-access-tokens/new" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline"
+                      >
+                        Create Fine-grained Token
+                      </a>
+                    </>
+                  ) : (
+                    <a 
+                      href="https://gitlab.com/-/profile/personal_access_tokens" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Create GitLab Token
+                    </a>
+                  )}
                 </div>
                 <div className="mt-3 p-3 bg-muted/50 rounded-md">
                   <p className="font-medium text-foreground">Quick Setup:</p>
                   <ol className="mt-1 space-y-1 ml-4">
-                    <li>1. Click "Manage Classic Tokens" above</li>
-                    <li>2. Generate new token (classic)</li>
-                    <li>3. Select <code>public_repo</code> or <code>repo</code> scope</li>
-                    <li>4. Copy the token and paste it above</li>
+                    {isGitHub ? (
+                      <>
+                        <li>1. Click "Manage Classic Tokens" above</li>
+                        <li>2. Generate new token (classic)</li>
+                        <li>3. Select <code>public_repo</code> or <code>repo</code> scope</li>
+                        <li>4. Copy the token and paste it above</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>1. Click "Create GitLab Token" above</li>
+                        <li>2. Enter token name and expiration</li>
+                        <li>3. Select <code>read_repository</code> and <code>read_api</code> scopes</li>
+                        <li>4. Copy the token and paste it above</li>
+                      </>
+                    )}
                   </ol>
                 </div>
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
@@ -351,6 +427,12 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                     GitHub
                   </div>
                 </SelectItem>
+                <SelectItem value="gitlab">
+                  <div className="flex items-center gap-2">
+                    <GitlabIcon className="w-4 h-4" />
+                    GitLab
+                  </div>
+                </SelectItem>
                 <SelectItem value="bitbucket">
                   <div className="flex items-center gap-2">
                     <Bitbucket className="w-4 h-4" />
@@ -374,9 +456,9 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                 <Button
                   variant="outline"
                   onClick={handleFetchBranches}
-                  disabled={isFetchingBranches || !isUrlValid}
+                  disabled={isFetchingBranches || !isUrlValid || !provider}
                 >
-                  {isFetchingBranches ? 'Checking...' : 'Check'}
+                  {isFetchingBranches ? 'Fetching...' : 'Fetch Branches'}
                 </Button>
               </div>
               {fetchBranchesError && <p className="text-sm text-red-500 mt-2">{fetchBranchesError}</p>}

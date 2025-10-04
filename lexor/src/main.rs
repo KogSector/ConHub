@@ -133,6 +133,10 @@ async fn main() -> std::io::Result<()> {
                     .route("/projects/{id}/index", post().to(web::index_project_handler))
                     .route("/stats", get().to(web::get_stats_handler))
             )
+            .service(
+                scope("/index")
+                    .route("/repository", post().to(web::index_repository_handler))
+            )
     })
     .bind("127.0.0.1:3002")?
     .run()
