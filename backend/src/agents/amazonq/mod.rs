@@ -8,6 +8,7 @@ use std::time::Instant;
 use crate::agents::core::{AIAgentConnector, AIAgent, AgentStatus, AgentQueryRequest, AgentQueryResponse, AgentUsage};
 
 pub struct AmazonQAgent {
+    #[allow(dead_code)]
     client: Client,
     credentials: Option<AmazonQCredentials>,
     agent_info: AIAgent,
@@ -18,6 +19,7 @@ struct AmazonQCredentials {
     access_key_id: String,
     secret_access_key: String,
     region: String,
+    #[allow(dead_code)]
     session_token: Option<String>,
 }
 
@@ -191,6 +193,7 @@ impl Default for AmazonQAgent {
 }
 
 /// Amazon Q specific query with AWS context
+#[allow(dead_code)]
 pub async fn query_with_aws_context(
     agent: &AmazonQAgent,
     request: AgentQueryRequest,

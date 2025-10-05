@@ -468,9 +468,9 @@ async def vector_search(query: str = Form(...), k: int = Form(5)):
         return {
             "query": query,
             "results": [{
-                "content": result.content,
-                "metadata": result.metadata,
-                "score": getattr(result, 'score', 0.8)  # Default score if not available
+                "content": result.document.content,
+                "metadata": result.document.metadata,
+                "score": result.score
             } for result in results],
             "total_results": len(results)
         }
@@ -523,13 +523,13 @@ async def sync_connector_documents(connector):
                 
                 doc_id = doc["id"]
                 await vector_store_service.add_document(doc_id, doc["content"], metadata)
-                document_logger.info(f"Successfully indexed document: {doc['name']}", extra={'category': 'indexing'})
+                logger.info(f"Successfully indexed document: {doc['name']}", extra={'category': 'indexing'})
                 
             except Exception as e:
-                document_logger.error(f"Failed to index document {doc['name']}: {e}", extra={'category': 'indexing'})
+                logger.error(f"Failed to index document {doc['name']}: {e}", extra={'category': 'indexing'})
                 
     except Exception as e:
-        document_logger.error(f"Failed to sync documents for connector {connector.connector_id}: {e}", extra={'category': 'indexing'})
+        logger.error(f"Failed to sync documents for connector {connector.connector_id}: {e}", extra={'category': 'indexing'})
 
 # Document source management endpoints
 @app.get("/sources")

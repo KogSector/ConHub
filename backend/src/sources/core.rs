@@ -7,6 +7,7 @@ use std::collections::HashMap;
 #[async_trait]
 pub trait DataSourceConnector: Send + Sync {
     /// Validate credentials for the data source
+    #[allow(dead_code)]
     async fn validate(&self, credentials: &HashMap<String, String>) -> Result<bool, Box<dyn std::error::Error + Send + Sync>>;
     
     /// Connect to the data source with credentials and configuration

@@ -11,6 +11,11 @@ if [ ! -f "package.json" ]; then
     exit 1
 fi
 
+# First, ensure all services are stopped
+echo "🛑 Ensuring all services are stopped before starting..."
+"$(dirname "$0")/stop.sh"
+sleep 3
+
 # Check if virtual environment exists
 if [ ! -d ".venv" ]; then
     echo "❌ Error: Virtual environment not found. Please create .venv first."

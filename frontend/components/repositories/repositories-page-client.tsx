@@ -6,9 +6,27 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { Footer } from "@/components/ui/footer";
-import { ArrowLeft, GitBranch, Plus, Settings, ExternalLink, Star, GitFork, RefreshCw } from "lucide-react";
+import { ArrowLeft, GitBranch, Plus, Settings, ExternalLink, Star, GitFork, RefreshCw, MoreHorizontal, Trash2, GitPullRequest } from "lucide-react";
 import Link from "next/link";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ConnectRepositoryDialog } from "./connect-repository-dialog";
+import { ChangeBranchDialog } from "./change-branch-dialog";
 
 interface Repository {
   id: string;
@@ -37,6 +55,10 @@ export function RepositoriesPageClient() {
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [dataSources, setDataSources] = useState<DataSource[]>([]);
   const [showConnectDialog, setShowConnectDialog] = useState(false);
+  const [showChangeBranchDialog, setShowChangeBranchDialog] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
+  const [currentBranch, setCurrentBranch] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Sample data for now - will be replaced with actual API calls
@@ -120,6 +142,28 @@ export function RepositoriesPageClient() {
   const handleRepositoryConnected = () => {
     fetchRepositories();
     fetchDataSources();
+  };
+
+  const openChangeBranchDialog = (repoId: string, branch: string) => {
+    setSelectedRepoId(repoId);
+    setCurrentBranch(branch);
+    setShowChangeBranchDialog(true);
+  };
+
+  const deleteRepository = async () => {
+    if (!selectedRepoId) return;
+    try {
+      // This is a placeholder. In a real application, you would make an API call to delete the repository.
+      console.log(`Deleting repository ${selectedRepoId}`);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      fetchRepositories();
+      fetchDataSources();
+    } catch (error) {
+      console.error('Error deleting repository:', error);
+    } finally {
+      setShowDeleteConfirm(false);
+      setSelectedRepoId(null);
+    }
   };
 
   const syncRepository = async (repoId: string) => {
@@ -343,10 +387,30 @@ export function RepositoriesPageClient() {
                         <RefreshCw className={`w-4 h-4 mr-1 ${repo.status === 'syncing' ? 'animate-spin' : ''}`} />
                         {repo.status === 'syncing' ? 'Syncing...' : 'Sync'}
                       </Button>
-                      <Button variant="outline" size="sm">
-                        <Settings className="w-4 h-4 mr-1" />
-                        Configure
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openChangeBranchDialog(repo.id, 'main')}>
+                            <GitPullRequest className="w-4 h-4 mr-2" />
+                            Change Branch
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-red-500"
+                            onClick={() => {
+                              setSelectedRepoId(repo.id);
+                              setShowDeleteConfirm(true);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </Card>
@@ -363,6 +427,33 @@ export function RepositoriesPageClient() {
         onOpenChange={setShowConnectDialog}
         onSuccess={handleRepositoryConnected}
       />
+      <ChangeBranchDialog
+        open={showChangeBranchDialog}
+        onOpenChange={setShowChangeBranchDialog}
+        repositoryId={selectedRepoId}
+        currentBranch={currentBranch}
+        onSuccess={() => {
+          fetchRepositories();
+          fetchDataSources();
+        }}
+      />
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              repository and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteRepository}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

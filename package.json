@@ -4,9 +4,10 @@
   "description": "ConHub - Unified development workflow platform",
   "private": true,
   "scripts": {
-    "start": "node scripts/check-platform.js",
-    "start:windows": "powershell -ExecutionPolicy Bypass -File scripts/start.ps1",
-    "start:linux": "./scripts/start.sh",
+    "start": "npm run stop && node scripts/check-platform.js",
+    "start:windows": "powershell -ExecutionPolicy Bypass -File scripts/stop.ps1 && powershell -ExecutionPolicy Bypass -File scripts/start.ps1",
+    "start:linux": "./scripts/stop.sh && ./scripts/start.sh",
+    "stop": "node scripts/check-platform.js stop",
     "stop:windows": "powershell -ExecutionPolicy Bypass -File scripts/stop.ps1",
     "stop:linux": "./scripts/stop.sh",
     "status": "powershell -ExecutionPolicy Bypass -File scripts/status.ps1",
@@ -32,8 +33,10 @@
     "install:all": "npm install",
     "architecture:summary": "powershell -ExecutionPolicy Bypass -File scripts/architecture-summary.ps1",
     "cleanup:langchain": "powershell -ExecutionPolicy Bypass -File scripts/cleanup-langchain.ps1",
-    "test:complete": "node test-complete-functionality.js",
-    "test:functionality": "node test-complete-functionality.js"
+    "test:complete": "node scripts/test-complete-functionality.js",
+    "test:functionality": "node scripts/test-complete-functionality.js",
+    "test:ai-agents": "node scripts/test-ai-agents.js",
+    "test:services": "node scripts/test-services-status.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

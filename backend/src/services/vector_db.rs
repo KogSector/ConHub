@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
+use qdrant_client::prelude::*;
+use qdrant_client::qdrant::{CreateCollection, VectorParams, VectorsConfig, Distance};
+use tokio::sync::OnceCell;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorDocument {
@@ -151,16 +155,64 @@ impl Default for VectorDatabase {
     }
 }
 
+/// Qdrant client singleton
+static QDRANT_CLIENT: OnceCell<Arc<QdrantClient>> = OnceCell::const_new();
+
+/// Initialize Qdrant client
+pub async fn init_qdrant() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let client = QdrantClient::from_url("http://localhost:6333").build()?;
+    
+    // Ensure collection exists
+    let collection_name = "conhub_documents";
+    let collections = client.list_collections().await?;
+    
+    let collection_exists = collections.collections.iter()
+        .any(|c| c.name == collection_name);
+    
+    if !collection_exists {
+        client.create_collection(&CreateCollection {
+            collection_name: collection_name.to_string(),
+            vectors_config: Some(VectorsConfig {
+                config: Some(qdrant_client::qdrant::vectors_config::Config::Params(
+                    VectorParams {
+                        size: 384,
+                        distance: Distance::Cosine.into(),
+                        ..Default::default()
+                    }
+                ))
+            }),
+            ..Default::default()
+        }).await?;
+    }
+    
+    QDRANT_CLIENT.set(Arc::new(client)).map_err(|_| "Failed to set Qdrant client")?;
+    Ok(())
+}
+
+/// Get Qdrant client
+fn get_qdrant_client() -> Arc<QdrantClient> {
+    QDRANT_CLIENT.get().expect("Qdrant client not initialized").clone()
+}
+
 /// Vector database service for managing embeddings and semantic search
 #[allow(dead_code)]
 pub struct VectorDbService {
     db: VectorDatabase,
+    use_qdrant: bool,
 }
 
 impl VectorDbService {
     pub fn new() -> Self {
         Self {
             db: VectorDatabase::new(),
+            use_qdrant: true,
+        }
+    }
+    
+    pub fn new_in_memory() -> Self {
+        Self {
+            db: VectorDatabase::new(),
+            use_qdrant: false,
         }
     }
 
@@ -179,7 +231,11 @@ impl VectorDbService {
         metadata.insert("repository_name".to_string(), repo_name.to_string());
         metadata.insert("file_path".to_string(), file_path.to_string());
         
-        self.db.add_document(content.to_string(), metadata).await
+        if self.use_qdrant {
+            self.add_to_qdrant(content, &metadata).await
+        } else {
+            self.db.add_document(content.to_string(), metadata).await
+        }
     }
 
     /// Index document content for semantic search
@@ -224,19 +280,22 @@ impl VectorDbService {
         limit: usize,
         source_type_filter: Option<&str>,
     ) -> Result<Vec<SearchResult>, Box<dyn std::error::Error + Send + Sync>> {
-        let mut results = self.db.search(query, limit * 2).await?;
-        
-        // Apply source type filter if specified
-        if let Some(filter) = source_type_filter {
-            results.retain(|result| {
-                result.document.metadata.get("source_type")
-                    .map(|s| s == filter)
-                    .unwrap_or(false)
-            });
+        if self.use_qdrant {
+            self.search_qdrant(query, limit as u64, source_type_filter).await
+        } else {
+            let mut results = self.db.search(query, limit * 2).await?;
+            
+            if let Some(filter) = source_type_filter {
+                results.retain(|result| {
+                    result.document.metadata.get("source_type")
+                        .map(|s| s == filter)
+                        .unwrap_or(false)
+                });
+            }
+            
+            results.truncate(limit);
+            Ok(results)
         }
-        
-        results.truncate(limit);
-        Ok(results)
     }
 
     /// Get statistics about indexed content
@@ -259,6 +318,107 @@ impl VectorDbService {
         }
         
         stats
+    }
+}
+
+    /// Add document to Qdrant
+    async fn add_to_qdrant(
+        &self,
+        content: &str,
+        metadata: &HashMap<String, String>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let client = get_qdrant_client();
+        let id = Uuid::new_v4().to_string();
+        
+        let embedding = self.generate_simple_embedding(content);
+        
+        let mut payload = Payload::new();
+        payload.insert("content", content.to_string());
+        for (key, value) in metadata {
+            payload.insert(key, value.clone());
+        }
+        payload.insert("created_at", chrono::Utc::now().to_rfc3339());
+        
+        let point = PointStruct::new(id.clone(), embedding, payload);
+        
+        client.upsert_points_blocking("conhub_documents", None, vec![point], None).await?;
+        
+        Ok(id)
+    }
+    
+    /// Search in Qdrant
+    async fn search_qdrant(
+        &self,
+        query: &str,
+        limit: u64,
+        source_filter: Option<&str>,
+    ) -> Result<Vec<SearchResult>, Box<dyn std::error::Error + Send + Sync>> {
+        let client = get_qdrant_client();
+        let query_embedding = self.generate_simple_embedding(query);
+        
+        let mut filter = None;
+        if let Some(source_type) = source_filter {
+            filter = Some(Filter::must([Condition::matches("source_type", source_type)]));
+        }
+        
+        let search_result = client.search_points(&SearchPoints {
+            collection_name: "conhub_documents".to_string(),
+            vector: query_embedding,
+            filter,
+            limit,
+            with_payload: Some(true.into()),
+            ..Default::default()
+        }).await?;
+        
+        let mut results = Vec::new();
+        for scored_point in search_result.result {
+            if let Some(payload) = scored_point.payload {
+                let content = payload.get("content")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("").to_string();
+                
+                let mut metadata = HashMap::new();
+                for (key, value) in payload {
+                    if key != "content" {
+                        if let Some(str_val) = value.as_str() {
+                            metadata.insert(key, str_val.to_string());
+                        }
+                    }
+                }
+                
+                let document = VectorDocument {
+                    id: scored_point.id.unwrap().to_string(),
+                    content,
+                    embedding: vec![],
+                    metadata,
+                    created_at: chrono::Utc::now(),
+                };
+                
+                results.push(SearchResult {
+                    document,
+                    similarity_score: scored_point.score,
+                });
+            }
+        }
+        
+        Ok(results)
+    }
+    
+    fn generate_simple_embedding(&self, text: &str) -> Vec<f32> {
+        let mut embedding = vec![0.0; 384];
+        for (i, byte) in text.bytes().enumerate() {
+            if i >= embedding.len() { break; }
+            embedding[i] = (byte as f32) / 255.0;
+        }
+        
+        let magnitude: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if magnitude > 0.0 {
+            for val in &mut embedding {
+                *val /= magnitude;
+            }
+        }
+        
+        embedding
     }
 }
 

@@ -130,6 +130,7 @@ impl Default for GitHubCopilotAgent {
 }
 
 /// GitHub Copilot specific query with code context
+#[allow(dead_code)]
 pub async fn query_with_code_context(
     agent: &GitHubCopilotAgent,
     request: AgentQueryRequest,

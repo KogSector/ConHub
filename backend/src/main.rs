@@ -19,6 +19,7 @@ use services::feature_toggle_service::{FeatureToggleService, watch_feature_toggl
 use services::social_integration_service::SocialIntegrationService;
 use services::rule_bank::AIRuleBankService;
 use services::ai_service::AIAgentManager;
+use services::vector_db::init_qdrant;
 use middleware::auth::AuthMiddlewareFactory;
 use utils::logging::{init_logging, LoggingConfig, PerformanceMonitor, log_startup_info, log_config_info};
 use tracing::{info, error};
@@ -58,6 +59,13 @@ async fn main() -> std::io::Result<()> {
         })?;
     
     info!("Database connection established successfully");
+    
+    // Initialize Qdrant vector database
+    if let Err(e) = init_qdrant().await {
+        error!(error = %e, "Failed to initialize Qdrant - falling back to in-memory vector store");
+    } else {
+        info!("Qdrant vector database initialized successfully");
+    }
     
     // Note: Database schema is already set up via scripts/database/schema.sql
     // Run migrations/setup only if needed for development

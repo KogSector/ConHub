@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use tracing::info;
 
-use crate::sources::core::{DataSourceConnector, DataSource, Document, Repository, SyncResult};
+use crate::sources::core::{DataSourceConnector, DataSource, Document, SyncResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoogleDriveFile {

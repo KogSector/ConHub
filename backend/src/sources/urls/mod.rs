@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use tracing::{error, info, warn};
 
-use crate::sources::core::{DataSourceConnector, DataSource, Document, Repository, SyncResult};
+use crate::sources::core::{DataSourceConnector, DataSource, Document, SyncResult};
 
 pub struct UrlConnector {
     client: Client,

@@ -37,6 +37,8 @@ impl AIAgentManager {
         let agent: Box<dyn AIAgentConnector> = match agent_type {
             "github_copilot" => Box::new(GitHubCopilotConnector::new(&agent_id)),
             "amazon_q" => Box::new(AmazonQConnector::new(&agent_id)),
+            "cline" => Box::new(ClineConnector::new(&agent_id)),
+            "cursor_ide" => Box::new(CursorIDEConnector::new(&agent_id)),
             _ => return Err(format!("Unsupported agent type: {}", agent_type).into()),
         };
 
@@ -123,10 +125,100 @@ impl AIAgentConnector for GitHubCopilotConnector {
     }
 }
 
+// --- Cline Connector ---
+
+struct ClineConnector {
+    agent: AIAgent,
+}
+
+impl ClineConnector {
+    pub fn new(agent_id: &str) -> Self {
+        Self {
+            agent: AIAgent {
+                id: agent_id.to_string(),
+                agent_type: "cline".to_string(),
+                is_connected: false,
+            },
+        }
+    }
+}
+
+#[async_trait]
+impl AIAgentConnector for ClineConnector {
+    async fn connect(&self, credentials: &HashMap<String, String>) -> Result<bool, Box<dyn Error>> {
+        // In a real implementation, you would use the credentials to authenticate with the Cline API.
+        // For now, we'll just simulate a successful connection.
+        println!("Connecting to Cline with credentials: {:?}", credentials);
+        Ok(true)
+    }
+
+    async fn disconnect(&self) -> Result<bool, Box<dyn Error>> {
+        Ok(true)
+    }
+
+    async fn query(&self, prompt: &str, context: Option<&str>) -> Result<String, Box<dyn Error>> {
+        // In a real implementation, you would send the prompt and context to the Cline API.
+        // For now, we'll just return a simulated response.
+        let response = format!(
+            "Cline response for: '{}' with context: '{}'",
+            prompt,
+            context.unwrap_or("None")
+        );
+        Ok(response)
+    }
+
+    fn get_agent(&self) -> AIAgent {
+        self.agent.clone()
+    }
+}
+
 // --- Amazon Q Connector ---
 
 struct AmazonQConnector {
     agent: AIAgent,
+}
+
+// --- Cursor IDE Connector ---
+
+struct CursorIDEConnector {
+    agent: AIAgent,
+}
+
+impl CursorIDEConnector {
+    pub fn new(agent_id: &str) -> Self {
+        Self {
+            agent: AIAgent {
+                id: agent_id.to_string(),
+                agent_type: "cursor_ide".to_string(),
+                is_connected: false,
+            },
+        }
+    }
+}
+
+#[async_trait]
+impl AIAgentConnector for CursorIDEConnector {
+    async fn connect(&self, credentials: &HashMap<String, String>) -> Result<bool, Box<dyn Error>> {
+        println!("Connecting to Cursor IDE with credentials: {:?}", credentials);
+        Ok(true)
+    }
+
+    async fn disconnect(&self) -> Result<bool, Box<dyn Error>> {
+        Ok(true)
+    }
+
+    async fn query(&self, prompt: &str, context: Option<&str>) -> Result<String, Box<dyn Error>> {
+        let response = format!(
+            "Cursor IDE response for: '{}' with context: '{}'",
+            prompt,
+            context.unwrap_or("None")
+        );
+        Ok(response)
+    }
+
+    fn get_agent(&self) -> AIAgent {
+        self.agent.clone()
+    }
 }
 
 impl AmazonQConnector {

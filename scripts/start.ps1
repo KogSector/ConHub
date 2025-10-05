@@ -7,33 +7,10 @@ if (-not (Test-Path "package.json")) {
     exit 1
 }
 
-# Function to check if a port is in use and kill the process if needed
-function Stop-ProcessOnPort {
-    param([int]$Port, [string]$ServiceName)
-    
-    try {
-        $connection = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-        if ($connection) {
-            $process = Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue
-            if ($process) {
-                Write-Host "⚠️  Port $Port is already in use by process '$($process.ProcessName)' (PID: $($process.Id))" -ForegroundColor Yellow
-                Write-Host "🔄 Stopping existing process to free up port for $ServiceName..." -ForegroundColor Cyan
-                Stop-Process -Id $process.Id -Force
-                Start-Sleep -Seconds 2
-                Write-Host "✅ Port $Port is now available for $ServiceName" -ForegroundColor Green
-            }
-        }
-    } catch {
-        # Port is likely free, continue
-    }
-}
-
-# Check and free up ports if needed
-Write-Host "🔍 Checking for port conflicts..." -ForegroundColor Yellow
-Stop-ProcessOnPort -Port 3000 -ServiceName "Frontend"
-Stop-ProcessOnPort -Port 3001 -ServiceName "Backend" 
-Stop-ProcessOnPort -Port 3002 -ServiceName "Lexor"
-Stop-ProcessOnPort -Port 8001 -ServiceName "AI Service"
+# First, ensure all services are stopped
+Write-Host "🛑 Ensuring all services are stopped before starting..." -ForegroundColor Yellow
+& "$PSScriptRoot\stop.ps1"
+Start-Sleep -Seconds 3
 
 # Start the service monitor in background
 Write-Host "🔍 Starting service monitor..." -ForegroundColor Cyan

@@ -111,7 +111,7 @@ export default function Dashboard() {
                   </div>
                 </Link>
                 
-                <Link href="/ai-agents" className="group">
+                <Link href="/agents" className="group">
                   <div className="relative transform transition-all duration-300 hover:scale-105 hover:-translate-y-2">
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl blur-xl opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
                     <div className="relative bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-pink-600 text-white rounded-2xl p-6 shadow-2xl border border-purple-400/20 backdrop-blur-sm transition-all duration-300">

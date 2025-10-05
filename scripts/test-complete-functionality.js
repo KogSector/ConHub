@@ -241,7 +241,7 @@ class ConHubTester {
             };
 
             try {
-                const response = await axios.post(`${BACKEND_URL}/api/agents/query`, payload);
+                const response = await axios.post(`${BACKEND_URL}/api/agents/query/test-agent`, payload);
                 // This might fail if no agents are connected, but we're testing the endpoint
             } catch (error) {
                 if (error.response && error.response.status === 404) {

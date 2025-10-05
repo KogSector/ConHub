@@ -102,3 +102,6 @@ anyhow = "1.0"
 
 # URL encoding for connectors
 urlencoding = "2.1"
+
+# Qdrant vector database
+qdrant-client = "1.7"
