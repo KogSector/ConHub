@@ -1,4 +1,4 @@
-use crate::services::ai_service::{AIAgentManager, AIAgent};
+use crate::services::ai_service::AIAgentManager;
 use actix_web::{web, HttpResponse, Responder};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -11,7 +11,7 @@ pub async fn create_agent(
     agent_type: web::Path<String>,
     data: web::Data<AppState>,
 ) -> impl Responder {
-    let mut manager = data.agent_manager.lock().unwrap();
+    let manager = data.agent_manager.lock().unwrap();
     match manager.create_agent(&agent_type) {
         Ok(agent) => HttpResponse::Ok().json(agent),
         Err(e) => HttpResponse::BadRequest().body(e.to_string()),

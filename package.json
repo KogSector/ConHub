@@ -36,7 +36,8 @@
     "test:complete": "node scripts/test-complete-functionality.js",
     "test:functionality": "node scripts/test-complete-functionality.js",
     "test:ai-agents": "node scripts/test-ai-agents.js",
-    "test:services": "node scripts/test-services-status.js"
+    "test:services": "node scripts/test-services-status.js",
+    "test:qdrant": "node scripts/test-qdrant-integration.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

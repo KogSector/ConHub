@@ -18,7 +18,8 @@ pub mod vcs_connector;
 pub mod mcp_server;
 pub mod mcp_client;
 pub mod github_copilot_integration;
-pub mod enhanced_repository;
+pub mod repository_service;
+pub mod legacy_repository;
 // Legacy connectors - use sources module instead
 // pub mod connectors;
 // pub mod data_source_service;

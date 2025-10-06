@@ -32,10 +32,8 @@ aiofiles>=23.2.0
 # Additional utilities
 html2text>=2020.1.16
 
-# Optional vector database clients
-# qdrant-client==1.7.0
-# pinecone-client==2.2.4
-# weaviate-client==3.25.3
+# Vector database clients
+qdrant-client==1.7.0
 
 # Development dependencies
 pytest==7.4.3

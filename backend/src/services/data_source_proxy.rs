@@ -1,7 +1,7 @@
 use reqwest::Client;
 use serde_json::json;
 use serde::{Deserialize, Serialize};
-use crate::services::enhanced_repository::RepositoryService;
+use crate::services::repository_service::RepositoryService;
 use crate::services::indexing_orchestrator::{IndexingOrchestrator, IndexingRequest};
 use crate::models::{VcsType, VcsProvider, CredentialType, RepositoryCredentials, ConnectRepositoryRequest, DataSourceType};
 use crate::errors::AppError;

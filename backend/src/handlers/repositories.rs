@@ -5,7 +5,7 @@ use crate::models::{
     ApiResponse, ConnectRepositoryRequest,
     RepositoryConfig, RepositoryCredentials
 };
-use crate::services::enhanced_repository::{RepositoryService, CredentialValidator};
+use crate::services::repository_service::{RepositoryService, CredentialValidator};
 use crate::services::vcs_connector::VcsError;
 
 /// Connect a new repository
@@ -357,11 +357,81 @@ pub async fn get_repository_stats() -> Result<HttpResponse> {
     }))
 }
 
+/// Validate repository URL
+#[derive(serde::Deserialize)]
+pub struct ValidateUrlRequest {
+    pub repo_url: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct ValidateUrlResponse {
+    pub valid: bool,
+    pub provider: Option<String>,
+    pub vcs_type: Option<String>,
+    pub owner: Option<String>,
+    pub repo_name: Option<String>,
+    pub is_public: bool,
+}
+
+pub async fn validate_repository_url(
+    req: web::Json<ValidateUrlRequest>,
+) -> Result<HttpResponse> {
+    use crate::services::vcs_detector::VcsDetector;
+    
+    let url = &req.repo_url;
+    
+    // Basic URL validation
+    if url.is_empty() {
+        return Ok(HttpResponse::BadRequest().json(ApiResponse::<()> {
+            success: false,
+            message: "Repository URL is required".to_string(),
+            data: None,
+            error: Some("URL cannot be empty".to_string()),
+        }));
+    }
+    
+    // Detect VCS type and provider
+    let (vcs_type, provider) = match VcsDetector::detect_from_url(url) {
+        Ok(result) => result,
+        Err(e) => {
+            return Ok(HttpResponse::BadRequest().json(ApiResponse::<()> {
+                success: false,
+                message: "Invalid repository URL".to_string(),
+                data: None,
+                error: Some(e),
+            }));
+        }
+    };
+    
+    // Extract repository info
+    let (owner, repo_name) = match VcsDetector::extract_repo_info(url) {
+        Ok((o, r)) => (Some(o), Some(r)),
+        Err(_) => (None, None),
+    };
+    
+    // For now, assume public repos (we'll add auth checks later)
+    let is_public = true;
+    
+    Ok(HttpResponse::Ok().json(ApiResponse {
+        success: true,
+        message: "Repository URL validated successfully".to_string(),
+        data: Some(ValidateUrlResponse {
+            valid: true,
+            provider: Some(format!("{:?}", provider)),
+            vcs_type: Some(format!("{:?}", vcs_type)),
+            owner,
+            repo_name,
+            is_public,
+        }),
+        error: None,
+    }))
+}
+
 /// Fetch branches from a repository URL (for frontend)
 #[derive(serde::Deserialize)]
 pub struct FetchBranchesRequest {
     pub repo_url: String,
-    pub credentials: RepositoryCredentials,
+    pub credentials: Option<RepositoryCredentials>,
 }
 
 #[derive(serde::Serialize)]
@@ -390,7 +460,13 @@ pub async fn fetch_branches(
     
     let connector = VcsConnectorFactory::create_connector(&vcs_type);
     
-    match connector.list_branches(&req.repo_url, &req.credentials).await {
+    // Use empty credentials for public repos if none provided
+    let credentials = req.credentials.as_ref().unwrap_or(&RepositoryCredentials {
+        credential_type: crate::models::CredentialType::None,
+        expires_at: None,
+    });
+    
+    match connector.list_branches(&req.repo_url, credentials).await {
         Ok(branch_info) => {
             let branches: Vec<String> = branch_info.iter().map(|b| b.name.clone()).collect();
             let default_branch = branch_info.iter()
@@ -442,6 +518,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/repositories")
             .route("/connect", web::post().to(connect_repository))
+            .route("/validate-url", web::post().to(validate_repository_url))
             .route("/fetch-branches", web::post().to(fetch_branches))
             .route("/stats", web::get().to(get_repository_stats))
             .route("/validate-credentials", web::post().to(validate_credentials))

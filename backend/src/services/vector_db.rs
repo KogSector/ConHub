@@ -319,7 +319,6 @@ impl VectorDbService {
         
         stats
     }
-}
 
     /// Add document to Qdrant
     async fn add_to_qdrant(

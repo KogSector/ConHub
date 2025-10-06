@@ -31,6 +31,7 @@ from .models.schemas import (
     QuestionResponse,
     StatsResponse
 )
+from .api.qdrant import router as qdrant_router
 
 # Setup logging first
 setup_logging()
@@ -101,6 +102,9 @@ app.add_middleware(
 
 # Initialize document manager
 doc_manager = DocumentManager()
+
+# Include Qdrant router
+app.include_router(qdrant_router)
 
 @app.get("/health")
 async def health_check():

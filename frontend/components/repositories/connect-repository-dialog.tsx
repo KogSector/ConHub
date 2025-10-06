@@ -70,8 +70,15 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   };
 
   const handleFetchBranches = async () => {
+    // Comprehensive validation checks
     if (!repositoryUrl || !provider) {
       setFetchBranchesError("Please enter a repository URL and select a provider first.");
+      return;
+    }
+    
+    // URL format validation
+    if (!isUrlValid) {
+      setFetchBranchesError("Please enter a valid repository URL.");
       return;
     }
     
@@ -85,6 +92,22 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       return;
     }
     
+    // Token format validation for GitHub/GitLab
+    if (provider === 'github' && credentials.accessToken) {
+      const token = credentials.accessToken.trim();
+      if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+        setFetchBranchesError("GitHub token should start with 'ghp_' (classic) or 'github_pat_' (fine-grained).");
+        return;
+      }
+    }
+    if (provider === 'gitlab' && credentials.accessToken) {
+      const token = credentials.accessToken.trim();
+      if (!token.startsWith('glpat-')) {
+        setFetchBranchesError("GitLab token should start with 'glpat-'.");
+        return;
+      }
+    }
+    
     setIsFetchingBranches(true);
     setFetchBranchesError(null);
     setBranches([]);
@@ -96,7 +119,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         credentialsPayload = {
           credential_type: {
             PersonalAccessToken: {
-              token: credentials.accessToken
+              token: credentials.accessToken.trim()
             }
           },
           expires_at: null
@@ -105,19 +128,32 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         credentialsPayload = {
           credential_type: {
             AppPassword: {
-              username: credentials.username,
-              app_password: credentials.appPassword
+              username: credentials.username.trim(),
+              app_password: credentials.appPassword.trim()
             }
           },
           expires_at: null
         };
       }
 
+      // First validate the URL format
+      const urlValidationResponse = await fetch('/api/repositories/validate-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo_url: repositoryUrl.trim() }),
+      });
+      
+      const urlValidation = await urlValidationResponse.json();
+      if (!urlValidation.success) {
+        throw new Error(urlValidation.error || "Invalid repository URL format.");
+      }
+
+      // Then fetch branches
       const response = await fetch('/api/repositories/fetch-branches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          repo_url: repositoryUrl,
+          repo_url: repositoryUrl.trim(),
           credentials: credentialsPayload
         }),
       });
@@ -130,17 +166,33 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
 
       const { branches: fetchedBranches, default_branch } = data.data;
       
-      if (fetchedBranches.length === 0) {
+      if (!fetchedBranches || fetchedBranches.length === 0) {
         setFetchBranchesError("No branches found. Please check the repository URL and permissions.");
-        setBranches(['main']); // fallback
+        setBranches(['main', 'master']); // fallback options
         setConfig(prev => ({ ...prev, defaultBranch: 'main' }));
       } else {
         setBranches(fetchedBranches);
         setConfig(prev => ({ ...prev, defaultBranch: default_branch || fetchedBranches[0] }));
+        // Success message
+        console.log(`Successfully fetched ${fetchedBranches.length} branches from ${repositoryUrl}`);
       }
     } catch (err: any) {
-      setFetchBranchesError(err.message);
-      setBranches(['main']); // fallback
+      console.error('Branch fetching error:', err);
+      let errorMessage = err.message;
+      
+      // Provide more specific error messages
+      if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+        errorMessage = "Authentication failed. Please check your credentials and token permissions.";
+      } else if (errorMessage.includes('404') || errorMessage.includes('Not Found')) {
+        errorMessage = "Repository not found. Please check the URL and ensure you have access.";
+      } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+        errorMessage = "Access denied. Please check your token permissions and repository access.";
+      } else if (errorMessage.includes('rate limit')) {
+        errorMessage = "API rate limit exceeded. Please wait a few minutes before trying again.";
+      }
+      
+      setFetchBranchesError(errorMessage);
+      setBranches(['main', 'master']); // fallback options
       setConfig(prev => ({ ...prev, defaultBranch: 'main' }));
     } finally {
       setIsFetchingBranches(false);
@@ -454,14 +506,23 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   onChange={(e) => setRepositoryUrl(e.target.value)}
                 />
                 <Button
-                  variant="outline"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                   onClick={handleFetchBranches}
                   disabled={isFetchingBranches || !isUrlValid || !provider}
                 >
-                  {isFetchingBranches ? 'Fetching...' : 'Fetch Branches'}
+                  {isFetchingBranches ? 'Validating...' : 'Check'}
                 </Button>
               </div>
-              {fetchBranchesError && <p className="text-sm text-red-500 mt-2">{fetchBranchesError}</p>}
+              {fetchBranchesError && (
+                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm text-red-700">{fetchBranchesError}</p>
+                </div>
+              )}
+              {branches.length > 0 && !fetchBranchesError && (
+                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                  <p className="text-sm text-green-700">✓ Successfully found {branches.length} branches</p>
+                </div>
+              )}
             </div>
           )}
 

@@ -12,13 +12,13 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { AlertCircle, Github, Key, Zap, Shield, Users, Check } from 'lucide-react';
 
-interface EnhancedConnectRepositoryDialogProps {
+interface AdvancedRepositoryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }
 
-export function EnhancedConnectRepositoryDialog({ open, onOpenChange, onSuccess }: EnhancedConnectRepositoryDialogProps) {
+export function AdvancedRepositoryDialog({ open, onOpenChange, onSuccess }: AdvancedRepositoryDialogProps) {
   const [authMethod, setAuthMethod] = useState<'token' | 'oauth' | 'app'>('token');
   const [provider, setProvider] = useState('github');
   const [repositoryUrl, setRepositoryUrl] = useState('');
@@ -178,7 +178,7 @@ export function EnhancedConnectRepositoryDialog({ open, onOpenChange, onSuccess 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Github className="w-5 h-5" />
-            Enhanced Repository Connection
+            Advanced Repository Connection
           </DialogTitle>
         </DialogHeader>
         
