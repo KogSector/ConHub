@@ -1,6 +1,6 @@
 mod config;
 mod indexer;
-mod search_simple;
+mod search_unified;
 mod parser;
 mod analyzer;
 mod xref;
@@ -8,11 +8,9 @@ mod history;
 mod web;
 mod types;
 mod utils;
-mod enhanced_search;
 mod ai_integration;
-mod performance;
 
-use search_simple as search;
+use search_unified as search;
 
 use actix_web::{web::{Data, get, post, scope}, App, HttpResponse, HttpServer, Result, middleware::Logger};
 use actix_cors::Cors;
@@ -26,9 +24,7 @@ pub struct LexorService {
     pub config: LexorConfig,
     pub indexer: indexer::IndexerEngine,
     pub search_engine: search::SearchEngine,
-    pub enhanced_search: enhanced_search::EnhancedSearchEngine,
     pub ai_context: ai_integration::AIContextEngine,
-    pub performance: performance::PerformanceOptimizer,
 }
 
 impl LexorService {
@@ -39,17 +35,13 @@ impl LexorService {
         
         let indexer = indexer::IndexerEngine::new(config.clone())?;
         let search_engine = search::SearchEngine::new(index.clone(), schema.clone())?;
-        let enhanced_search = enhanced_search::EnhancedSearchEngine::new(index.clone(), schema.clone())?;
         let ai_context = ai_integration::AIContextEngine::new();
-        let performance = performance::PerformanceOptimizer::new();
         
         Ok(Self {
             config,
             indexer,
             search_engine,
-            enhanced_search,
             ai_context,
-            performance,
         })
     }
 }

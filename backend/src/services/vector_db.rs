@@ -5,6 +5,13 @@ use qdrant_client::prelude::*;
 use qdrant_client::qdrant::{CreateCollection, VectorParams, VectorsConfig, Distance};
 use tokio::sync::OnceCell;
 use std::sync::Arc;
+use log::{info, error};
+
+/// Public function to index documents
+pub async fn index_documents() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut db = get_vector_db().await?;
+    db.index_documents().await
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorDocument {
@@ -33,6 +40,14 @@ impl VectorDatabase {
         Self {
             documents: HashMap::new(),
         }
+    }
+    
+    /// Index documents from data sources
+    pub async fn index_documents(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        info!("Starting vector database indexing");
+        // In a real implementation, this would fetch documents from data sources
+        // and index them in the vector database
+        Ok(())
     }
 
     /// Add a document to the vector database
@@ -371,33 +386,36 @@ impl VectorDbService {
         
         let mut results = Vec::new();
         for scored_point in search_result.result {
-            if let Some(payload) = scored_point.payload {
-                let content = payload.get("content")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("").to_string();
-                
-                let mut metadata = HashMap::new();
-                for (key, value) in payload {
-                    if key != "content" {
-                        if let Some(str_val) = value.as_str() {
-                            metadata.insert(key, str_val.to_string());
-                        }
+            if scored_point.payload.is_none() {
+                continue;
+            }
+            
+            let payload = scored_point.payload.clone().unwrap();
+            let content = payload.get("content")
+                .and_then(|v| v.as_str())
+                .unwrap_or("").to_string();
+            
+            let mut metadata = HashMap::new();
+            for (key, value) in payload {
+                if key != "content" {
+                    if let Some(str_val) = value.as_str() {
+                        metadata.insert(key, str_val.to_string());
                     }
                 }
-                
-                let document = VectorDocument {
-                    id: scored_point.id.unwrap().to_string(),
-                    content,
-                    embedding: vec![],
-                    metadata,
-                    created_at: chrono::Utc::now(),
-                };
-                
-                results.push(SearchResult {
-                    document,
-                    similarity_score: scored_point.score,
-                });
             }
+            
+            let document = VectorDocument {
+                id: format!("{:?}", scored_point.id.unwrap()),
+                content,
+                    embedding: vec![],
+                metadata,
+                created_at: chrono::Utc::now(),
+            };
+            
+            results.push(SearchResult {
+                document,
+                similarity_score: scored_point.score,
+            });
         }
         
         Ok(results)
