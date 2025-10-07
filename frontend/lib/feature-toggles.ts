@@ -5,7 +5,7 @@ export const isFeatureEnabled = (feature: string): boolean => {
 }
 
 export const isLoginEnabled = (): boolean => {
-  return isFeatureEnabled('Login')
+  return true // Login is always enabled now
 }
 
 export const isHeavyModeEnabled = (): boolean => {

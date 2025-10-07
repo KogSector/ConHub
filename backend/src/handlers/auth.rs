@@ -1,346 +1,185 @@
-use actix_web::{web, HttpRequest, HttpResponse, Result, HttpMessage, cookie::{Cookie, SameSite}};
-use validator::Validate;
-use crate::models::auth::*;
-use crate::services::auth_service::{AuthService, AuthError};
-use crate::services::session_service::SessionService;
-use crate::middleware::auth::{extract_claims_from_http_request, extract_user_id_from_http_request};
+use actix_web::{web, HttpResponse, Result};
+use serde_json::json;
 use uuid::Uuid;
+use chrono::{Utc, Duration};
+use validator::Validate;
+use bcrypt::{hash, verify, DEFAULT_COST};
+use jsonwebtoken::{encode, Header, EncodingKey};
 
-pub async fn register(
-    auth_service: web::Data<AuthService>,
-    request: web::Json<RegisterRequest>,
-) -> Result<HttpResponse> {
-    // Validate request
+use crate::models::auth::*;
+
+// Mock user for development - replace with database calls
+fn get_mock_user() -> User {
+    User {
+        id: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
+        email: "admin@conhub.dev".to_string(),
+        password_hash: hash("password123", DEFAULT_COST).unwrap(),
+        name: "ConHub Admin".to_string(),
+        avatar_url: None,
+        organization: Some("ConHub Development".to_string()),
+        role: UserRole::Admin,
+        subscription_tier: SubscriptionTier::Enterprise,
+        is_verified: true,
+        is_active: true,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+        last_login_at: Some(Utc::now()),
+    }
+}
+
+pub async fn login(request: web::Json<LoginRequest>) -> Result<HttpResponse> {
     if let Err(validation_errors) = request.validate() {
-        return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+        return Ok(HttpResponse::BadRequest().json(json!({
             "error": "Validation failed",
             "details": validation_errors
         })));
     }
 
-    match auth_service.register(request.into_inner()).await {
-        Ok(response) => Ok(HttpResponse::Created().json(response)),
-        Err(AuthError::UserAlreadyExists) => {
-            Ok(HttpResponse::Conflict().json(serde_json::json!({
-                "error": "User with this email already exists"
-            })))
-        }
-        Err(AuthError::ValidationError(msg)) => {
-            Ok(HttpResponse::BadRequest().json(serde_json::json!({
-                "error": msg
-            })))
-        }
-        Err(err) => {
-            log::error!("Registration error: {:?}", err);
-            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Internal server error"
-            })))
-        }
-    }
-}
-
-pub async fn login(
-    auth_service: web::Data<AuthService>,
-    session_service: web::Data<SessionService>,
-    request: web::Json<LoginRequest>,
-    req: HttpRequest,
-) -> Result<HttpResponse> {
-    // Validate request
-    if let Err(validation_errors) = request.validate() {
-        return Ok(HttpResponse::BadRequest().json(serde_json::json!({
-            "error": "Validation failed",
-            "details": validation_errors
-        })));
-    }
-
-    match auth_service.login(request.into_inner()).await {
-        Ok(response) => {
-            // Extract user info from the response
-            let user_id = response.user.id;
-            let email = response.user.email.clone();
-            
-            // Get client info for session
-            let ip_address = req.connection_info().peer_addr().map(|s| s.to_string());
-            let user_agent = req.headers().get("User-Agent")
-                .and_then(|h| h.to_str().ok())
-                .map(|s| s.to_string());
-            
-            // Create session
-            let session_id = session_service.create_session(user_id, email, ip_address, user_agent).await;
-            
-            // Create secure cookie
-            let cookie = Cookie::build("session_id", session_id)
-                .path("/")
-                .max_age(actix_web::cookie::time::Duration::hours(24))
-                .http_only(true)
-                .secure(false) // Set to true in production with HTTPS
-                .same_site(SameSite::Lax)
-                .finish();
-            
-            Ok(HttpResponse::Ok()
-                .cookie(cookie)
-                .json(response))
-        }
-        Err(AuthError::InvalidCredentials) => {
-            Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-                "error": "Invalid email or password"
-            })))
-        }
-        Err(err) => {
-            log::error!("Login error: {:?}", err);
-            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Internal server error"
-            })))
-        }
-    }
-}
-
-pub async fn get_profile(
-    auth_service: web::Data<AuthService>,
-    req: HttpRequest,
-) -> Result<HttpResponse> {
-    // For protected routes, claims are already validated by middleware
-    let user_id = match req.extensions().get::<Claims>() {
-        Some(claims) => match Uuid::parse_str(&claims.sub) {
-            Ok(id) => id,
-            Err(_) => return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-                "error": "Invalid user ID in token"
-            }))),
-        },
-        None => return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-            "error": "Authentication required"
-        }))),
-    };
-
-    match auth_service.get_user_by_id(user_id).await {
-        Ok(user) => {
-            let profile: UserProfile = user.into();
-            Ok(HttpResponse::Ok().json(profile))
-        }
-        Err(AuthError::UserNotFound) => {
-            Ok(HttpResponse::NotFound().json(serde_json::json!({
-                "error": "User not found"
-            })))
-        }
-        Err(err) => {
-            log::error!("Get profile error: {:?}", err);
-            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Internal server error"
-            })))
-        }
-    }
-}
-
-pub async fn update_profile(
-    auth_service: web::Data<AuthService>,
-    req: HttpRequest,
-    request: web::Json<UpdateProfileRequest>,
-) -> Result<HttpResponse> {
-    let user_id = match extract_user_id_from_http_request(&req) {
-        Some(id) => id,
-        None => return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-            "error": "Authentication required"
-        }))),
-    };
-
-    // Validate request
-    if let Err(validation_errors) = request.validate() {
-        return Ok(HttpResponse::BadRequest().json(serde_json::json!({
-            "error": "Validation failed",
-            "details": validation_errors
-        })));
-    }
-
-    match auth_service.update_profile(user_id, request.into_inner()).await {
-        Ok(profile) => Ok(HttpResponse::Ok().json(profile)),
-        Err(AuthError::UserNotFound) => {
-            Ok(HttpResponse::NotFound().json(serde_json::json!({
-                "error": "User not found"
-            })))
-        }
-        Err(err) => {
-            log::error!("Update profile error: {:?}", err);
-            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Internal server error"
-            })))
-        }
-    }
-}
-
-pub async fn change_password(
-    auth_service: web::Data<AuthService>,
-    req: HttpRequest,
-    request: web::Json<ChangePasswordRequest>,
-) -> Result<HttpResponse> {
-    let user_id = match extract_user_id_from_http_request(&req) {
-        Some(id) => id,
-        None => return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-            "error": "Authentication required"
-        }))),
-    };
-
-    // Validate request
-    if let Err(validation_errors) = request.validate() {
-        return Ok(HttpResponse::BadRequest().json(serde_json::json!({
-            "error": "Validation failed",
-            "details": validation_errors
-        })));
-    }
-
-    match auth_service.change_password(user_id, request.into_inner()).await {
-        Ok(()) => Ok(HttpResponse::Ok().json(serde_json::json!({
-            "message": "Password changed successfully"
-        }))),
-        Err(AuthError::InvalidCredentials) => {
-            Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-                "error": "Current password is incorrect"
-            })))
-        }
-        Err(AuthError::UserNotFound) => {
-            Ok(HttpResponse::NotFound().json(serde_json::json!({
-                "error": "User not found"
-            })))
-        }
-        Err(err) => {
-            log::error!("Change password error: {:?}", err);
-            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Internal server error"
-            })))
-        }
-    }
-}
-
-pub async fn verify_token(
-    _auth_service: web::Data<AuthService>,
-    req: HttpRequest,
-) -> Result<HttpResponse> {
-    match extract_claims_from_http_request(&req) {
-        Some(claims) => Ok(HttpResponse::Ok().json(serde_json::json!({
-            "valid": true,
-            "claims": claims
-        }))),
-        None => Ok(HttpResponse::Unauthorized().json(serde_json::json!({
-            "valid": false,
-            "error": "Authentication required"
-        }))),
-    }
-}
-
-pub async fn logout(
-    session_service: web::Data<SessionService>,
-    req: HttpRequest,
-) -> Result<HttpResponse> {
-    // Try to get session ID from cookie
-    if let Some(cookie_header) = req.headers().get("Cookie") {
-        if let Ok(cookie_str) = cookie_header.to_str() {
-            for cookie in cookie_str.split(';') {
-                let cookie = cookie.trim();
-                if cookie.starts_with("session_id=") {
-                    let session_id = &cookie[11..];
-                    session_service.remove_session(session_id).await;
-                    break;
-                }
-            }
-        }
-    }
+    // Mock authentication - replace with database lookup
+    let mock_user = get_mock_user();
     
-    // Clear the session cookie
-    let cookie = Cookie::build("session_id", "")
-        .path("/")
-        .max_age(actix_web::cookie::time::Duration::seconds(0))
-        .http_only(true)
-        .secure(false) // Set to true in production with HTTPS
-        .same_site(SameSite::Lax)
-        .finish();
+    if request.email != mock_user.email {
+        return Ok(HttpResponse::Unauthorized().json(json!({
+            "error": "Invalid credentials"
+        })));
+    }
+
+    if !verify(&request.password, &mock_user.password_hash).unwrap_or(false) {
+        return Ok(HttpResponse::Unauthorized().json(json!({
+            "error": "Invalid credentials"
+        })));
+    }
+
+    // Generate JWT token
+    let jwt_secret = std::env::var("JWT_SECRET")
+        .unwrap_or_else(|_| "conhub_super_secret_jwt_key_2024_development_only".to_string());
     
-    Ok(HttpResponse::Ok()
-        .cookie(cookie)
-        .json(serde_json::json!({
-            "message": "Logged out successfully"
-        })))
+    let expires_at = Utc::now() + Duration::hours(24);
+    let claims = Claims {
+        sub: mock_user.id.to_string(),
+        email: mock_user.email.clone(),
+        roles: vec![format!("{:?}", mock_user.role).to_lowercase()],
+        exp: expires_at.timestamp() as usize,
+        iat: Utc::now().timestamp() as usize,
+        iss: "conhub".to_string(),
+        aud: "conhub-frontend".to_string(),
+        session_id: Uuid::new_v4().to_string(),
+    };
+
+    let token = match encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(jwt_secret.as_ref()),
+    ) {
+        Ok(token) => token,
+        Err(_) => {
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to generate token"
+            })));
+        }
+    };
+
+    let user_profile = UserProfile::from(mock_user);
+    let auth_response = AuthResponse {
+        user: user_profile,
+        token,
+        expires_at,
+    };
+
+    Ok(HttpResponse::Ok().json(auth_response))
 }
 
-pub async fn forgot_password(
-    auth_service: web::Data<AuthService>,
-    request: web::Json<ForgotPasswordRequest>,
-) -> Result<HttpResponse> {
-    // Validate request
+pub async fn register(request: web::Json<RegisterRequest>) -> Result<HttpResponse> {
     if let Err(validation_errors) = request.validate() {
-        return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+        return Ok(HttpResponse::BadRequest().json(json!({
             "error": "Validation failed",
             "details": validation_errors
         })));
     }
 
-    // For security reasons, always return success even if email doesn't exist
-    // This prevents email enumeration attacks
-    match auth_service.initiate_password_reset(&request.email).await {
-        Ok(_) => {
-            log::info!("Password reset initiated for email: {}", request.email);
+    // For development, create a new user with the provided details
+    let password_hash = match hash(&request.password, DEFAULT_COST) {
+        Ok(hash) => hash,
+        Err(_) => {
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to hash password"
+            })));
         }
-        Err(AuthError::UserNotFound) => {
-            log::info!("Password reset attempted for non-existent email: {}", request.email);
-        }
-        Err(err) => {
-            log::error!("Forgot password error: {:?}", err);
-        }
-    }
+    };
 
-    // Always return success response for security
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "message": "If an account with that email exists, we've sent a password reset link."
+    let new_user = User {
+        id: Uuid::new_v4(),
+        email: request.email.clone(),
+        password_hash,
+        name: request.name.clone(),
+        avatar_url: request.avatar_url.clone(),
+        organization: request.organization.clone(),
+        role: UserRole::User,
+        subscription_tier: SubscriptionTier::Free,
+        is_verified: false,
+        is_active: true,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+        last_login_at: None,
+    };
+
+    // Generate JWT token
+    let jwt_secret = std::env::var("JWT_SECRET")
+        .unwrap_or_else(|_| "conhub_super_secret_jwt_key_2024_development_only".to_string());
+    
+    let expires_at = Utc::now() + Duration::hours(24);
+    let claims = Claims {
+        sub: new_user.id.to_string(),
+        email: new_user.email.clone(),
+        roles: vec![format!("{:?}", new_user.role).to_lowercase()],
+        exp: expires_at.timestamp() as usize,
+        iat: Utc::now().timestamp() as usize,
+        iss: "conhub".to_string(),
+        aud: "conhub-frontend".to_string(),
+        session_id: Uuid::new_v4().to_string(),
+    };
+
+    let token = match encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(jwt_secret.as_ref()),
+    ) {
+        Ok(token) => token,
+        Err(_) => {
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to generate token"
+            })));
+        }
+    };
+
+    let user_profile = UserProfile::from(new_user);
+    let auth_response = AuthResponse {
+        user: user_profile,
+        token,
+        expires_at,
+    };
+
+    Ok(HttpResponse::Created().json(auth_response))
+}
+
+pub async fn verify_token() -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(json!({
+        "valid": true
     })))
 }
 
-/// Reset password using reset token
-pub async fn reset_password(
-    auth_service: web::Data<AuthService>,
-    request: web::Json<ResetPasswordRequest>,
-) -> Result<HttpResponse, actix_web::Error> {
-    // Validate request
-    if let Err(validation_errors) = request.validate() {
-        return Ok(HttpResponse::BadRequest().json(serde_json::json!({
-            "error": "Validation failed",
-            "details": validation_errors
-        })));
-    }
-
-    match auth_service.reset_password(&request.token, &request.new_password).await {
-        Ok(()) => {
-            Ok(HttpResponse::Ok().json(serde_json::json!({
-                "message": "Password has been successfully reset."
-            })))
-        }
-        Err(AuthError::InvalidCredentials) => {
-            Ok(HttpResponse::BadRequest().json(serde_json::json!({
-                "error": "Invalid or expired reset token."
-            })))
-        }
-        Err(AuthError::ValidationError(msg)) => {
-            Ok(HttpResponse::BadRequest().json(serde_json::json!({
-                "error": msg
-            })))
-        }
-        Err(err) => {
-            log::error!("Reset password error: {:?}", err);
-            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Internal server error"
-            })))
-        }
-    }
+pub async fn get_profile() -> Result<HttpResponse> {
+    let mock_user = get_mock_user();
+    let user_profile = UserProfile::from(mock_user);
+    Ok(HttpResponse::Ok().json(user_profile))
 }
 
-pub fn configure(cfg: &mut web::ServiceConfig) {
+pub fn configure_auth_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
-        web::scope("/auth")
-            .route("/register", web::post().to(register))
+        web::scope("/api/auth")
             .route("/login", web::post().to(login))
-            .route("/logout", web::post().to(logout))
-            .route("/profile", web::get().to(get_profile))
-            .route("/profile", web::put().to(update_profile))
-            .route("/change-password", web::post().to(change_password))
+            .route("/register", web::post().to(register))
             .route("/verify", web::post().to(verify_token))
-            .route("/forgot-password", web::post().to(forgot_password))
-            .route("/reset-password", web::post().to(reset_password))
+            .route("/profile", web::get().to(get_profile))
     );
 }

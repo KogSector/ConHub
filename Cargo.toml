@@ -75,6 +75,7 @@ bcrypt = "0.15"
 jsonwebtoken = "9.2"
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"] }
 validator = { version = "0.18", features = ["derive"] }
+rust_decimal = { version = "1.33", features = ["serde"] }
 futures-util = "0.3"
 actix-session = "0.9"
 redis = { version = "0.24", features = ["tokio-comp"] }

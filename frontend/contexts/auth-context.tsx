@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { isLoginEnabled } from '@/lib/feature-toggles'
 
 export interface User {
   id: string
@@ -43,49 +42,96 @@ interface AuthResponse {
   expires_at: string
 }
 
+interface SessionData {
+  token: string
+  expires_at: string
+  last_activity: string
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const SESSION_TIMEOUT = 2 * 60 * 60 * 1000 // 2 hours in milliseconds
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
-  const loginEnabled = isLoginEnabled()
 
-  // Mock user for when login is disabled
-  const mockUser: User = {
-    id: 'dev-user',
-    name: 'Development User',
-    email: 'dev@conhub.local',
-    avatar_url: undefined,
-    organization: 'ConHub Dev',
-    role: 'admin',
-    subscription_tier: 'enterprise',
-    is_verified: true,
-    created_at: new Date().toISOString(),
-    last_login_at: new Date().toISOString(),
+  // Session management functions
+  const saveSession = (token: string, expiresAt: string) => {
+    const sessionData: SessionData = {
+      token,
+      expires_at: expiresAt,
+      last_activity: new Date().toISOString()
+    }
+    localStorage.setItem('auth_session', JSON.stringify(sessionData))
+    localStorage.setItem('auth_token', token) // Keep for backward compatibility
+  }
+
+  const getSession = (): SessionData | null => {
+    try {
+      const sessionStr = localStorage.getItem('auth_session')
+      if (!sessionStr) return null
+      return JSON.parse(sessionStr)
+    } catch {
+      return null
+    }
+  }
+
+  const updateLastActivity = () => {
+    const session = getSession()
+    if (session) {
+      session.last_activity = new Date().toISOString()
+      localStorage.setItem('auth_session', JSON.stringify(session))
+    }
+  }
+
+  const isSessionValid = (session: SessionData): boolean => {
+    const now = new Date().getTime()
+    const lastActivity = new Date(session.last_activity).getTime()
+    const expiresAt = new Date(session.expires_at).getTime()
+    
+    return now < expiresAt && (now - lastActivity) < SESSION_TIMEOUT
+  }
+
+  const clearSession = () => {
+    localStorage.removeItem('auth_session')
+    localStorage.removeItem('auth_token')
+    setToken(null)
+    setUser(null)
   }
 
   useEffect(() => {
-    if (!loginEnabled) {
-      // When login is disabled, set mock user and finish loading
-      setUser(mockUser)
-      setToken('mock-token')
-      setIsLoading(false)
-      return
-    }
-
-    // Check for stored token on mount (only when login is enabled)
-    const storedToken = localStorage.getItem('auth_token')
-    if (storedToken) {
-      setToken(storedToken)
-      verifyToken(storedToken)
+    // Check for stored session on mount
+    const session = getSession()
+    if (session && isSessionValid(session)) {
+      setToken(session.token)
+      updateLastActivity()
+      verifyToken(session.token)
     } else {
+      clearSession()
       setIsLoading(false)
     }
-  }, [loginEnabled])
+  }, [])
+
+  // Update activity on user interaction
+  useEffect(() => {
+    if (token) {
+      const handleActivity = () => updateLastActivity()
+      
+      window.addEventListener('mousedown', handleActivity)
+      window.addEventListener('keydown', handleActivity)
+      window.addEventListener('scroll', handleActivity)
+      
+      return () => {
+        window.removeEventListener('mousedown', handleActivity)
+        window.removeEventListener('keydown', handleActivity)
+        window.removeEventListener('scroll', handleActivity)
+      }
+    }
+  }, [token])
 
   const verifyToken = async (tokenToVerify: string) => {
     try {
@@ -148,12 +194,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const login = async (email: string, password: string) => {
-    if (!loginEnabled) {
-      // When login is disabled, just redirect to dashboard
-      router.push('/dashboard')
-      return
-    }
-
     setIsLoading(true)
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
@@ -168,7 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data: AuthResponse = await response.json()
         setUser(data.user)
         setToken(data.token)
-        localStorage.setItem('auth_token', data.token)
+        saveSession(data.token, data.expires_at)
         router.push('/dashboard')
       } else {
         const error = await response.json()
@@ -183,12 +223,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const register = async (data: RegisterData) => {
-    if (!loginEnabled) {
-      // When login is disabled, just redirect to dashboard
-      router.push('/dashboard')
-      return
-    }
-
     setIsLoading(true)
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
@@ -203,7 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const authData: AuthResponse = await response.json()
         setUser(authData.user)
         setToken(authData.token)
-        localStorage.setItem('auth_token', authData.token)
+        saveSession(authData.token, authData.expires_at)
         router.push('/dashboard')
       } else {
         const error = await response.json()
@@ -218,25 +252,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
-    if (!loginEnabled) {
-      // When login is disabled, just redirect to homepage
-      router.push('/')
-      return
-    }
-
-    setUser(null)
-    setToken(null)
-    localStorage.removeItem('auth_token')
+    clearSession()
     router.push('/')
   }
 
   const updateProfile = async (data: Partial<User>) => {
-    if (!loginEnabled) {
-      // When login is disabled, update the mock user
-      setUser(prev => prev ? { ...prev, ...data } : null)
-      return
-    }
-
     if (!token) throw new Error('No authentication token')
 
     try {
@@ -263,11 +283,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const changePassword = async (currentPassword: string, newPassword: string) => {
-    if (!loginEnabled) {
-      // When login is disabled, just return success (no-op)
-      return
-    }
-
     if (!token) throw new Error('No authentication token')
 
     try {

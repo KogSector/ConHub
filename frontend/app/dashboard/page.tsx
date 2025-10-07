@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { Footer } from "@/components/ui/footer";
+import { AuthGuard } from "@/components/auth/auth-guard";
 import Link from "next/link";
 import { 
   Bot, 
@@ -23,9 +24,9 @@ import {
 } from "lucide-react";
 
 export default function Dashboard() {
-
   return (
-    <div className="min-h-screen bg-background">
+    <AuthGuard>
+      <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -393,7 +394,8 @@ export default function Dashboard() {
         </div>
       </div>
       
-      <Footer />
-    </div>
+        <Footer />
+      </div>
+    </AuthGuard>
   );
 }

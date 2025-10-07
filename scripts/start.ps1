@@ -28,7 +28,7 @@ $null = Register-ObjectEvent -InputObject ([Console]) -EventName "CancelKeyPress
 
 try {
     # Start concurrently with better error handling
-    npx concurrently --kill-others --names "Frontend,Backend,Lexor,AI" --prefix-colors "cyan,blue,magenta,yellow" --restart-tries 3 "npm run dev:frontend" "npm run dev:backend" "npm run dev:lexor" "npm run dev:ai"
+    .\node_modules\.bin\concurrently.cmd --kill-others --names "Frontend,Backend,Lexor,AI" --prefix-colors "cyan,blue,magenta,yellow" --restart-tries 3 "npm run dev:frontend" "npm run dev:backend" "npm run dev:lexor" "npm run dev:ai"
 } catch {
     Write-Host "Error starting services: $_" -ForegroundColor Red
     exit 1

@@ -1,6 +1,3 @@
-"""
-ConHub Haystack Service - Simplified Document Processing API
-"""
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -13,7 +10,6 @@ from pathlib import Path
 import uuid
 import asyncio
 
-# Import our enhanced logging
 from .utils.logging import (
     performance_monitor, 
     document_logger, 
@@ -33,18 +29,15 @@ from .models.schemas import (
 )
 from .api.qdrant import router as qdrant_router
 
-# Setup logging first
 setup_logging()
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
 app = FastAPI(
     title="ConHub Haystack Service",
     description="Document processing and search service for ConHub",
     version="1.0.0"
 )
 
-# Request logging middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     request_id = str(uuid.uuid4())
@@ -59,7 +52,6 @@ async def log_requests(request: Request, call_next):
         'user_agent': request.headers.get('user-agent')
     })
     
-    # Add request ID to request state
     request.state.request_id = request_id
     
     try:
@@ -91,7 +83,6 @@ async def log_requests(request: Request, call_next):
         
         raise
 
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -100,10 +91,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize document manager
 doc_manager = DocumentManager()
 
-# Include Qdrant router
 app.include_router(qdrant_router)
 
 @app.get("/health")
@@ -130,18 +119,13 @@ async def add_document(content: str = Form(...), metadata: str = Form("{}")) -> 
 async def upload_document(file: UploadFile = File(...), metadata: str = Form("{}")) -> DocumentResponse:
     """Upload and process a document file"""
     try:
-        # Read file content
         content = await file.read()
         
-        # Simple text extraction (you could add more sophisticated processing here)
         if file.filename.endswith('.txt'):
             text_content = content.decode('utf-8')
         elif file.filename.endswith('.pdf'):
-            # For PDF files, you'd need a PDF processing library
-            # For now, just return an error message
             raise HTTPException(status_code=400, detail="PDF processing not implemented yet")
         else:
-            # Try to decode as text
             try:
                 text_content = content.decode('utf-8')
             except UnicodeDecodeError:
@@ -230,7 +214,6 @@ async def get_document(doc_id: str):
         raise HTTPException(status_code=500, detail=f"Error retrieving document: {str(e)}")
 
 
-# Enhanced indexing endpoints
 from .services.url_indexer import url_indexing_service
 
 @app.post("/index/repository")
@@ -258,7 +241,6 @@ async def index_urls(urls: str = Form(...), config: str = Form("{}")):
         url_list = json.loads(urls) if isinstance(urls, str) else [urls]
         config_dict = json.loads(config) if config else {}
         
-        # Start background indexing
         job_id = await url_indexing_service.start_url_indexing(url_list, config_dict)
         
         return {
@@ -290,7 +272,6 @@ async def get_url_indexing_results(job_id: str):
         if results is None:
             raise HTTPException(status_code=404, detail="Job not found")
             
-        # Index the results in vector store
         indexed_count = 0
         for doc in results:
             try:
@@ -326,7 +307,6 @@ async def list_url_indexing_jobs():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listing jobs: {str(e)}")
 
-# Vector store endpoints
 @app.post("/vector/documents")
 async def add_vector_document(content: str = Form(...), metadata: str = Form("{}")):
     """Add a document to the vector store"""
@@ -338,7 +318,6 @@ async def add_vector_document(content: str = Form(...), metadata: str = Form("{}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error adding document to vector store: {str(e)}")
 
-# Document source management
 from .services.document_connectors import connector_manager
 
 @app.post("/sources/dropbox")
@@ -353,7 +332,6 @@ async def connect_dropbox(access_token: str = Form(...), folder_path: str = Form
         
         success = await connector.connect(credentials)
         if success:
-            # Start background sync
             asyncio.create_task(sync_connector_documents(connector))
             
             return {
@@ -379,7 +357,6 @@ async def connect_google_drive(credentials: str = Form(...), folder_id: str = Fo
         
         success = await connector.connect(creds)
         if success:
-            # Start background sync
             asyncio.create_task(sync_connector_documents(connector))
             
             return {
@@ -405,7 +382,6 @@ async def connect_onedrive(access_token: str = Form(...), folder_path: str = For
         
         success = await connector.connect(credentials)
         if success:
-            # Start background sync
             asyncio.create_task(sync_connector_documents(connector))
             
             return {
@@ -423,7 +399,6 @@ async def connect_onedrive(access_token: str = Form(...), folder_path: str = For
 async def upload_local_files(files: List[UploadFile] = File(...)):
     """Upload and index local files"""
     try:
-        # Create or get local file connector
         connector = connector_manager.create_connector("local_files")
         await connector.connect({"upload_path": "./uploads"})
         
@@ -432,10 +407,8 @@ async def upload_local_files(files: List[UploadFile] = File(...)):
         for file in files:
             content = await file.read()
             
-            # Save file using connector
             file_info = await connector.save_uploaded_file(content, file.filename)
             
-            # Process different file types
             if file.filename.endswith(('.txt', '.md', '.py', '.js', '.ts', '.rs', '.go', '.java')):
                 text_content = content.decode('utf-8')
                 
@@ -481,7 +454,6 @@ async def vector_search(query: str = Form(...), k: int = Form(5)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error performing vector search: {str(e)}")
 
-# Context aggregation endpoint
 @app.post("/context/aggregate")
 async def aggregate_context(query: str = Form(...), sources: str = Form("all")):
     """Aggregate context from multiple sources for AI agents"""
@@ -494,7 +466,6 @@ async def aggregate_context(query: str = Form(...), sources: str = Form("all")):
             "total_results": 0
         }
         
-        # Search documents
         if "documents" in source_list:
             doc_results = await vector_store_service.similarity_search(query, 5)
             aggregated_context["sources"]["documents"] = [{
@@ -509,7 +480,6 @@ async def aggregate_context(query: str = Form(...), sources: str = Form("all")):
         raise HTTPException(status_code=500, detail=f"Error aggregating context: {str(e)}")
 
 
-# Background sync function
 async def sync_connector_documents(connector):
     """Background task to sync documents from a connector"""
     try:
@@ -535,7 +505,6 @@ async def sync_connector_documents(connector):
     except Exception as e:
         logger.error(f"Failed to sync documents for connector {connector.connector_id}: {e}", extra={'category': 'indexing'})
 
-# Document source management endpoints
 @app.get("/sources")
 async def list_sources():
     """List all connected document sources"""
@@ -554,7 +523,6 @@ async def disconnect_source(source_id: str):
     try:
         success = connector_manager.remove_connector(source_id)
         if success:
-            # TODO: Remove indexed documents from vector store
             return {
                 "message": "Source disconnected successfully",
                 "success": True

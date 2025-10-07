@@ -4,7 +4,7 @@
   "description": "ConHub - Unified development workflow platform",
   "private": true,
   "scripts": {
-    "start": "npm run stop && node scripts/check-platform.js",
+    "start": "node scripts/check-platform.js start",
     "start:windows": "powershell -ExecutionPolicy Bypass -File scripts/stop.ps1 && powershell -ExecutionPolicy Bypass -File scripts/start.ps1",
     "start:linux": "./scripts/stop.sh && ./scripts/start.sh",
     "stop": "node scripts/check-platform.js stop",
@@ -14,7 +14,7 @@
     "status:linux": "./scripts/status.sh",
     "check:services": "node scripts/check-platform.js check",
     "dev": "npm start",
-    "frontend:dev": "next dev -p 3000",
+    "frontend:dev": "cd frontend && next dev -p 3000",
     "frontend:build": "next build",
     "frontend:start": "next start -p 3000",
     "frontend:lint": "next lint",
