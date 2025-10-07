@@ -1,8 +1,7 @@
 use crate::types::*;
-use crate::utils::*;
 
-use tantivy::{Index, IndexReader, Searcher, Document, Score, TantivyDocument};
-use tantivy::query::{QueryParser, Query, BooleanQuery, Occur, TermQuery, FuzzyTermQuery, RegexQuery};
+use tantivy::{Index, IndexReader, Searcher, Score, TantivyDocument};
+use tantivy::query::{QueryParser, Query, BooleanQuery, Occur, TermQuery, RegexQuery};
 use tantivy::collector::TopDocs;
 use tantivy::schema::*;
 use tantivy::Term;
@@ -15,7 +14,6 @@ use dashmap::DashMap;
 
 /// Unified search engine that combines functionality from search.rs, search_optimizations.rs, and search_simple.rs
 pub struct SearchEngine {
-    index: Index,
     reader: IndexReader,
     schema: Schema,
     query_parser: QueryParser,
@@ -38,7 +36,6 @@ impl SearchEngine {
         query_parser.set_field_boost(schema.get_field("file_name").unwrap(), 2.0);
         
         Ok(Self {
-            index,
             reader,
             schema,
             query_parser,
@@ -172,51 +169,20 @@ impl SearchEngine {
 
     fn build_definition_query(&self, query: &SearchQuery) -> Result<Box<dyn Query>, Box<dyn std::error::Error>> {
         let symbol_field = self.schema.get_field("symbol_name").unwrap();
-        let is_definition_field = self.schema.get_field("is_definition").unwrap();
-        
-        let mut clauses = Vec::new();
-        
-        // Symbol name clause
         let term = Term::from_field_text(symbol_field, &query.query);
-        clauses.push((Occur::Must, Box::new(TermQuery::new(term, IndexRecordOption::Basic)) as Box<dyn Query>));
-        
-        // Is definition clause
-        let term = Term::from_field_text(is_definition_field, "true");
-        clauses.push((Occur::Must, Box::new(TermQuery::new(term, IndexRecordOption::Basic)) as Box<dyn Query>));
-        
-        Ok(Box::new(BooleanQuery::from(clauses)))
+        Ok(Box::new(TermQuery::new(term, IndexRecordOption::Basic)))
     }
 
     fn build_reference_query(&self, query: &SearchQuery) -> Result<Box<dyn Query>, Box<dyn std::error::Error>> {
         let symbol_field = self.schema.get_field("symbol_name").unwrap();
-        let is_reference_field = self.schema.get_field("is_reference").unwrap();
-        
-        let mut clauses = Vec::new();
-        
-        // Symbol name clause
         let term = Term::from_field_text(symbol_field, &query.query);
-        clauses.push((Occur::Must, Box::new(TermQuery::new(term, IndexRecordOption::Basic)) as Box<dyn Query>));
-        
-        // Is reference clause
-        let term = Term::from_field_text(is_reference_field, "true");
-        clauses.push((Occur::Must, Box::new(TermQuery::new(term, IndexRecordOption::Basic)) as Box<dyn Query>));
-        
-        Ok(Box::new(BooleanQuery::from(clauses)))
+        Ok(Box::new(TermQuery::new(term, IndexRecordOption::Basic)))
     }
 
     fn build_history_query(&self, query: &SearchQuery) -> Result<Box<dyn Query>, Box<dyn std::error::Error>> {
         let path_field = self.schema.get_field("file_path").unwrap();
-        let _timestamp_field = self.schema.get_field("timestamp").unwrap();
-        
-        let mut clauses = Vec::new();
-        
-        // Path clause
         let term = Term::from_field_text(path_field, &query.query);
-        clauses.push((Occur::Must, Box::new(TermQuery::new(term, IndexRecordOption::Basic)) as Box<dyn Query>));
-        
-        // TODO: Add timestamp range if needed
-        
-        Ok(Box::new(BooleanQuery::from(clauses)))
+        Ok(Box::new(TermQuery::new(term, IndexRecordOption::Basic)))
     }
 
     fn build_regex_query(&self, regex_str: &str) -> Result<Box<dyn Query>, Box<dyn std::error::Error>> {
@@ -476,6 +442,7 @@ impl SearchOptimizations {
     }
 
     /// Find files by extension with performance optimization
+    #[allow(dead_code)]
     pub fn find_files_by_extension(&self, extension: &str) -> Vec<Uuid> {
         let key = extension.to_lowercase();
         

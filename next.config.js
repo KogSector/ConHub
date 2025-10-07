@@ -2,6 +2,10 @@ const path = require('path')
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Set the source directory to frontend
+  experimental: {
+    appDir: true
+  },
   // Performance optimizations
   swcMinify: true,
   compiler: {
@@ -156,7 +160,9 @@ const nextConfig = {
       delete envVars.NODE_ENV;
       return envVars;
     })()
-  }
+  },
+  
+
 }
 
 module.exports = nextConfig

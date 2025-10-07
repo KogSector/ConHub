@@ -6,9 +6,13 @@ mod models;
 mod handlers;
 mod services;
 mod middleware;
+mod errors;
 
 use handlers::auth::configure_auth_routes;
 use handlers::billing::configure_billing_routes;
+mod rulesets {
+    pub use crate::handlers::rulesets::configure;
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -34,6 +38,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .configure(configure_auth_routes)
             .configure(configure_billing_routes)
+            .configure(rulesets::configure)
             .route("/health", web::get().to(health_check))
     })
     .bind(("0.0.0.0", port))?

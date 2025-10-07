@@ -15,8 +15,8 @@ if (!fs.existsSync(pidDir)) {
 function killProcessOnPort(port) {
   try {
     // For Windows
-    const command = `powershell -Command "Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id (Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).Id -Force -ErrorAction SilentlyContinue }"`;
-    execSync(command);
+    const command = `powershell -Command "Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id (Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).Id -Force -ErrorAction SilentlyContinue }" 2>$null`;
+    execSync(command, { stdio: 'pipe' });
     console.log(`Killed process on port ${port}`);
   } catch (error) {
     console.log(`No process found on port ${port}`);
@@ -39,7 +39,7 @@ pidFiles.forEach(file => {
     const pid = fs.readFileSync(pidPath, 'utf8').trim();
     try {
       // For Windows
-      execSync(`powershell -Command "Stop-Process -Id ${pid} -Force -ErrorAction SilentlyContinue"`);
+      execSync(`powershell -Command "Stop-Process -Id ${pid} -Force -ErrorAction SilentlyContinue"`, { stdio: 'pipe' });
       console.log(`Killed process with PID ${pid}`);
     } catch (error) {
       console.log(`Process with PID ${pid} not found or already terminated`);

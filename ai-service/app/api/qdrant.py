@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional
 import json
 import logging
 
-from ..services.qdrant_service import qdrant_service
+from ..services.qdrant_service import get_qdrant_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/qdrant", tags=["qdrant"])
@@ -22,7 +22,7 @@ def get_embeddings(texts):
 async def get_collections_info():
     """Get information about all Qdrant collections"""
     try:
-        info = qdrant_service.get_collection_info()
+        info = get_qdrant_service().get_collection_info()
         return {"success": True, "collections": info}
     except Exception as e:
         logger.error(f"Error getting collection info: {e}")
@@ -46,7 +46,7 @@ async def add_code_vectors(
             "repository": repository
         }]
         
-        success = qdrant_service.add_code_vectors(vectors)
+        success = get_qdrant_service().add_code_vectors(vectors)
         if success:
             return {"success": True, "message": "Code vectors added"}
         else:
@@ -64,7 +64,7 @@ async def search_vectors(
     """Search vectors in specified collection"""
     try:
         query_embeddings = get_embeddings([query])
-        results = qdrant_service.search_vectors(
+        results = get_qdrant_service().search_vectors(
             query_vector=query_embeddings[0],
             collection_type=collection_type,
             limit=limit

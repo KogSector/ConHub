@@ -15,33 +15,44 @@ logger = logging.getLogger(__name__)
 
 class QdrantService:
     def __init__(self):
-        self.client = QdrantClient(
-            url=os.getenv("QDRANT_URL", "http://localhost:6333"),
-            api_key=os.getenv("QDRANT_API_KEY")
-        )
-        
-        # Collection names for different data types
-        self.collections = {
-            "code": os.getenv("QDRANT_COLLECTION_CODE", "conhub_code"),
-            "documents": os.getenv("QDRANT_COLLECTION_DOCS", "conhub_documents"),
-            "urls": os.getenv("QDRANT_COLLECTION_URLS", "conhub_urls"),
-            "conversations": os.getenv("QDRANT_COLLECTION_CONVERSATIONS", "conhub_conversations")
-        }
-        
-        self._ensure_collections()
+        try:
+            self.client = QdrantClient(
+                url=os.getenv("QDRANT_URL", "http://localhost:6333"),
+                api_key=os.getenv("QDRANT_API_KEY")
+            )
+            
+            # Collection names for different data types
+            self.collections = {
+                "code": os.getenv("QDRANT_COLLECTION_CODE", "conhub_code"),
+                "documents": os.getenv("QDRANT_COLLECTION_DOCS", "conhub_documents"),
+                "urls": os.getenv("QDRANT_COLLECTION_URLS", "conhub_urls"),
+                "conversations": os.getenv("QDRANT_COLLECTION_CONVERSATIONS", "conhub_conversations")
+            }
+            
+            self._ensure_collections()
+        except Exception as e:
+            logger.warning(f"Qdrant connection failed: {e}. Running in offline mode.")
+            self.client = None
+            self.collections = {}
     
     def _ensure_collections(self):
         """Create collections if they don't exist"""
+        if not self.client:
+            return
+            
         for collection_type, collection_name in self.collections.items():
             try:
                 self.client.get_collection(collection_name)
                 logger.info(f"Collection {collection_name} exists")
             except Exception:
-                logger.info(f"Creating collection {collection_name}")
-                self.client.create_collection(
-                    collection_name=collection_name,
-                    vectors_config=VectorParams(size=384, distance=Distance.COSINE)
-                )
+                try:
+                    logger.info(f"Creating collection {collection_name}")
+                    self.client.create_collection(
+                        collection_name=collection_name,
+                        vectors_config=VectorParams(size=384, distance=Distance.COSINE)
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to create collection {collection_name}: {e}")
     
     def _generate_id(self, content: str) -> str:
         """Generate consistent ID from content"""
@@ -224,5 +235,11 @@ class QdrantService:
                 info[collection_type] = {"error": str(e)}
         return info
 
-# Global instance
-qdrant_service = QdrantService()
+# Global instance - lazy initialization
+qdrant_service = None
+
+def get_qdrant_service():
+    global qdrant_service
+    if qdrant_service is None:
+        qdrant_service = QdrantService()
+    return qdrant_service

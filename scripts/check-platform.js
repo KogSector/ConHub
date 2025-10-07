@@ -40,12 +40,15 @@ if (command === 'start') {
             [
                 '--kill-others',
                 '--names',
-                'Frontend',
+                'Frontend,Backend,Lexor,AI',
                 '--prefix-colors',
-                'cyan',
+                'cyan,green,yellow,magenta',
                 '--restart-tries',
                 '3',
-                'npm:dev:frontend'
+                'npm:dev:frontend',
+                'npm:dev:backend',
+                'npm:dev:lexor',
+                'npm:dev:ai'
             ],
             {
                 stdio: 'inherit',

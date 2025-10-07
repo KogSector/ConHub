@@ -1,0 +1,5 @@
+[build]
+rustflags = ["-A", "warnings"]
+
+[env]
+RUST_LOG = "error"
