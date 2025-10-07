@@ -2,15 +2,16 @@
 Write-Host "[STATUS] Checking ConHub services..." -ForegroundColor Cyan
 
 $services = @(
-    @{Name="Frontend"; Port=3000; Process="node"},
-    @{Name="Backend"; Port=3001; Process="conhub-backend"},
-    @{Name="Lexor"; Port=3002; Process="lexor"},
-    @{Name="AI Service"; Port=8001; Process="python"}
+    @{Name="Frontend"; Port=3000},
+    @{Name="Backend"; Port=3001},
+    @{Name="Lexor"; Port=3002},
+    @{Name="Doc Search"; Port=8001},
+    @{Name="Langchain Service"; Port=8002}
 )
 
 foreach ($service in $services) {
     try {
-        $response = Invoke-WebRequest -Uri "http://localhost:$($service.Port)/health" -TimeoutSec 2 -ErrorAction SilentlyContinue
+        $response = Invoke-WebRequest -Uri "http://localhost:$($service.Port)" -TimeoutSec 2 -ErrorAction SilentlyContinue
         if ($response.StatusCode -eq 200) {
             Write-Host "✓ $($service.Name) - Running on port $($service.Port)" -ForegroundColor Green
         } else {

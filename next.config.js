@@ -6,6 +6,8 @@ const nextConfig = {
   experimental: {
     appDir: true
   },
+  // Point Next.js to frontend directory
+  distDir: 'frontend/.next',
   // Performance optimizations
   swcMinify: true,
   compiler: {

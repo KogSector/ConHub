@@ -17,7 +17,7 @@ import githubRoutes from './routes/github';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.LANGCHAIN_PORT || 8002;
 
 logger.info('Initializing LangChain service', { port: PORT });
 

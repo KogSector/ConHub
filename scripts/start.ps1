@@ -1,32 +1,23 @@
-# ConHub - Start All Services
-Write-Host "[START] Starting ConHub Services..." -ForegroundColor Green
+Write-Host "Starting ConHub..." -ForegroundColor Green
 
-# Check if we're in the right directory
 if (-not (Test-Path "package.json")) {
-    Write-Host "[ERROR] Please run this script from the project root directory" -ForegroundColor Red
+    Write-Host "Error: Run from project root" -ForegroundColor Red
     exit 1
 }
 
-# Stop existing services
-Write-Host "[STOP] Stopping existing services..." -ForegroundColor Yellow
-& "$PSScriptRoot\force-stop.ps1" *>$null
-Start-Sleep -Seconds 2
+& "$PSScriptRoot\cleanup-ports.ps1"
 
-# Build Rust binaries if needed
 $backendBinary = "target\debug\conhub-backend.exe"
 $lexorBinary = "target\debug\lexor.exe"
 
 if (-not (Test-Path $backendBinary) -or -not (Test-Path $lexorBinary)) {
-    Write-Host "[BUILD] Building Rust binaries..." -ForegroundColor Cyan
+    Write-Host "Building binaries..." -ForegroundColor Cyan
     cargo build --bin conhub-backend --bin lexor --quiet
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] Failed to build binaries" -ForegroundColor Red
+        Write-Host "Build failed" -ForegroundColor Red
         exit 1
     }
 }
 
-Write-Host "[OK] All binaries ready" -ForegroundColor Green
-Write-Host "[SERVICES] Starting all services..." -ForegroundColor Cyan
-
 # Start services using concurrently
-.\node_modules\.bin\concurrently.cmd --kill-others --names "Frontend,Backend,Lexor,AI" --prefix-colors "cyan,blue,magenta,yellow" --restart-tries 1 "npm run dev:frontend" "npm run dev:backend" "npm run dev:lexor" "npm run dev:ai"
+.\node_modules\.bin\concurrently.cmd --names "Frontend,Backend,Lexor,DocSearch,Langchain" --prefix-colors "cyan,blue,magenta,yellow,green" --restart-tries 3 "npm run dev:frontend" "npm run dev:backend" "npm run dev:lexor" "npm run dev:doc-search" "npm run dev:langchain"
