@@ -109,7 +109,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session && isSessionValid(session)) {
       setToken(session.token)
       updateLastActivity()
-      verifyToken(session.token)
+      // Add timeout to prevent hanging on backend calls
+      const timeoutId = setTimeout(() => {
+        setIsLoading(false)
+      }, 3000) // 3 second timeout
+      
+      verifyToken(session.token).finally(() => {
+        clearTimeout(timeoutId)
+      })
     } else {
       clearSession()
       setIsLoading(false)
@@ -135,13 +142,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyToken = async (tokenToVerify: string) => {
     try {
+      // Add timeout to prevent hanging
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 2000) // 2 second timeout
+      
       const response = await fetch(`${API_BASE_URL}/api/auth/verify`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${tokenToVerify}`,
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
       })
+
+      clearTimeout(timeoutId)
 
       if (response.ok) {
         const data = await response.json()
@@ -150,21 +164,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await fetchUserProfile(tokenToVerify)
         } else {
           // Token is invalid, clear it
-          localStorage.removeItem('auth_token')
-          setToken(null)
-          setUser(null)
+          clearSession()
         }
       } else {
         // Token verification failed
-        localStorage.removeItem('auth_token')
-        setToken(null)
-        setUser(null)
+        clearSession()
       }
     } catch (error) {
       console.error('Token verification failed:', error)
-      localStorage.removeItem('auth_token')
-      setToken(null)
-      setUser(null)
+      // If it's a network error or timeout, don't clear the session immediately
+      // The user might be offline or the backend might be starting up
+      if (error.name === 'AbortError') {
+        console.log('Token verification timed out, keeping session for offline use')
+        // Set user to null but keep token for when backend comes online
+        setUser(null)
+      } else {
+        clearSession()
+      }
     } finally {
       setIsLoading(false)
     }

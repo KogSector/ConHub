@@ -6,7 +6,7 @@ $services = @(
     @{Name="Backend"; Port=3001},
     @{Name="Lexor"; Port=3002},
     @{Name="Doc Search"; Port=8001},
-    @{Name="Langchain Service"; Port=8002}
+    @{Name="Langchain Service"; Port=8003}
 )
 
 foreach ($service in $services) {

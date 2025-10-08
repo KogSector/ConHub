@@ -4,10 +4,11 @@
   "description": "ConHub - Unified development workflow platform",
   "private": true,
   "scripts": {
-    "start": "powershell -ExecutionPolicy Bypass -File scripts/services/start.ps1",
+    "dev": "next dev frontend -p 3000",
+    "dev:all": "powershell -ExecutionPolicy Bypass -File scripts/services/start.ps1",
+    "start": "npm run dev:all",
     "stop": "powershell -ExecutionPolicy Bypass -File scripts/services/stop.ps1",
     "status": "powershell -ExecutionPolicy Bypass -File scripts/services/status.ps1",
-    "dev": "npm start",
     "dev:frontend": "next dev frontend -p 3000",
     "dev:backend": "powershell -ExecutionPolicy Bypass -File scripts/services/run-backend.ps1",
     "dev:lexor": "powershell -ExecutionPolicy Bypass -File scripts/services/run-lexor.ps1",
@@ -16,6 +17,9 @@
     "build": "npm run build:frontend && npm run build:backend",
     "build:frontend": "next build frontend",
     "build:backend": "cargo build --release --bin conhub-backend --bin lexor",
+    "db:clear": "powershell -ExecutionPolicy Bypass -File scripts/database/clear-database.ps1",
+    "db:reset-password": "powershell -ExecutionPolicy Bypass -File scripts/database/reset-postgres-password.ps1",
+    "db:docker": "powershell -ExecutionPolicy Bypass -File scripts/database/start-docker-postgres.ps1",
     "lint": "next lint frontend --config frontend/.eslintrc.json",
     "lint:fix": "next lint --fix frontend --config frontend/.eslintrc.json"
   },

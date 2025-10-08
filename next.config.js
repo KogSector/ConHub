@@ -1,5 +1,8 @@
 const path = require('path')
 
+// Load feature toggles
+const featureToggles = require('./feature-toggles.json')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
@@ -22,16 +25,18 @@ const nextConfig = {
     '@radix-ui/react-icons'
   ],
   
-  // Image optimization
-  images: {
+  // Image optimization - simplified when Heavy mode is off
+  images: featureToggles.Heavy ? {
     formats: ['image/webp', 'image/avif'],
     minimumCacheTTL: 60,
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  } : {
+    minimumCacheTTL: 60,
   },
   
-  // Bundle optimization
-  experimental: {
+  // Bundle optimization - only enable when Heavy mode is on
+  experimental: featureToggles.Heavy ? {
     optimizePackageImports: [
       '@/components/ui',
       'lucide-react',
@@ -42,13 +47,14 @@ const nextConfig = {
         canvas: './empty-module.js',
       },
     },
-  },
+  } : {},
   
-  // Webpack optimizations
+  // Webpack optimizations - simplified when Heavy mode is off
   webpack: (config, { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack }) => {
     config.resolve.alias['@'] = path.join(__dirname, 'frontend');
-    // Performance optimizations
-    if (!dev && !isServer) {
+    
+    // Only apply heavy optimizations when Heavy mode is enabled
+    if (featureToggles.Heavy && !dev && !isServer) {
       config.optimization.splitChunks = {
         chunks: 'all',
         cacheGroups: {
@@ -90,13 +96,13 @@ const nextConfig = {
           },
         },
       }
+      
+      // Tree shaking optimization
+      config.optimization.usedExports = true
+      config.optimization.sideEffects = false
     }
     
-    // Tree shaking optimization
-    config.optimization.usedExports = true
-    config.optimization.sideEffects = false
-    
-    // Preload/prefetch optimization
+    // Basic fallbacks for all modes
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
