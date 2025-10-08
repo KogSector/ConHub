@@ -13,13 +13,17 @@ export const metadata: Metadata = {
   title: 'ConHub',
   description: 'Unify your repositories with AI for better microservices development',
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
     apple: '/favicon.ico',
   },
   manifest: '/manifest.json',
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
   themeColor: '#000000',
-  viewport: 'width=device-width, initial-scale=1',
 }
 
 export default function RootLayout({
@@ -29,13 +33,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="shortcut icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/favicon.ico" />
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#000000" />
-      </head>
+
       <body className={`${inter.className} ${orbitron.variable}`}>
         <Providers>
           <TooltipProvider>
