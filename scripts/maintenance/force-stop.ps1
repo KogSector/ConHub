@@ -9,6 +9,7 @@ foreach ($proc in $processes) {
                 $_.CommandLine -like "*3001*" -or
                 $_.CommandLine -like "*3002*" -or
                 $_.CommandLine -like "*8001*" -or
+                $_.CommandLine -like "*8002*" -or
                 $_.CommandLine -like "*conhub*" -or
                 $_.CommandLine -like "*lexor*" -or
                 $_.CommandLine -like "*uvicorn*"
@@ -20,7 +21,7 @@ foreach ($proc in $processes) {
 }
 
 # Kill by port
-$ports = @(3000, 3001, 3002, 8001)
+$ports = @(3000, 3001, 3002, 8001, 8002)
 foreach ($port in $ports) {
     try {
         $pid = (netstat -ano | findstr ":$port " | ForEach-Object { ($_ -split '\s+')[-1] } | Select-Object -First 1)

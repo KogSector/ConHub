@@ -3,8 +3,8 @@
     "target": "es2020",
     "module": "commonjs",
     "moduleResolution": "node",
-    "outDir": "./langchain-service/dist",
-    "rootDir": "./langchain-service/src",
+    "outDir": "./indexers/langchain-service/dist",
+    "rootDir": "./indexers/langchain-service/src",
     "strict": false,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -16,13 +16,13 @@
     "sourceMap": true
   },
   "include": [
-    "langchain-service/src/**/*.ts"
+    "indexers/langchain-service/src/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     "frontend",
     "backend",
-    "lexor",
+    "indexers",
     "haystack-service"
   ]
 }

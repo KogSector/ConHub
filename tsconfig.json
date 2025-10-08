@@ -29,13 +29,13 @@
     "frontend/next-env.d.ts",
     "frontend/**/*.ts",
     "frontend/**/*.tsx",
-    "langchain-service/**/*.ts",
+    "indexers/langchain-service/**/*.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     "backend",
-    "lexor",
-    "ai-service"
+    "indexers/lexor",
+    "indexers/doc-search"
   ]
 }

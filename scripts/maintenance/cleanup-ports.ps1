@@ -16,7 +16,7 @@ foreach ($port in $ports) {
 }
 
 # Clean up Lexor index lock
-$lockFile = "lexor_data\index\.tantivy-writer.lock"
+$lockFile = "indexers\lexor_data\index\.tantivy-writer.lock"
 if (Test-Path $lockFile) {
     Remove-Item $lockFile -Force
     Write-Host "Removed Lexor index lock" -ForegroundColor Yellow

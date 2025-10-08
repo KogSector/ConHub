@@ -2,12 +2,8 @@ const path = require('path')
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Set the source directory to frontend
-  experimental: {
-    appDir: true
-  },
   // Point Next.js to frontend directory
-  distDir: 'frontend/.next',
+  distDir: '.next',
   // Performance optimizations
   swcMinify: true,
   compiler: {
@@ -33,6 +29,7 @@ const nextConfig = {
   
   // Bundle optimization
   experimental: {
+    appDir: true,
     optimizePackageImports: [
       '@/components/ui',
       'lucide-react',
