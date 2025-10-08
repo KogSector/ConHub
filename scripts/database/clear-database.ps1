@@ -6,6 +6,8 @@ param(
     [string]$DatabaseName = "conhub",
     [string]$Username = "postgres",
     [string]$Password = "",
+    [string]$DatabaseHost = "localhost", # Renamed from 'Host' to avoid conflict with the built-in PowerShell automatic variable
+    [string]$Port = "5432",
     [switch]$Confirm
 )
 
@@ -30,10 +32,10 @@ $env:PGPASSWORD = $Password
 
 try {
     Write-Host "[EXECUTING] Running database cleanup script..." -ForegroundColor Cyan
+    Write-Host "[CONNECTION] Connecting to: ${DatabaseHost}:$Port as user: $Username" -ForegroundColor Yellow
     
     # Execute the SQL script
-    psql -h localhost -p 5432 -U $Username -d $DatabaseName -f "$PSScriptRoot\clear-database.sql"
-    
+    psql -h $DatabaseHost -p $Port -U $Username -d $DatabaseName -f "$PSScriptRoot\clear-database.sql"
     if ($LASTEXITCODE -eq 0) {
         Write-Host "[SUCCESS] Database cleared successfully!" -ForegroundColor Green
     } else {
