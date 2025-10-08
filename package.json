@@ -8,16 +8,16 @@
     "stop": "powershell -ExecutionPolicy Bypass -File scripts/services/stop.ps1",
     "status": "powershell -ExecutionPolicy Bypass -File scripts/services/status.ps1",
     "dev": "npm start",
-    "dev:frontend": "cd frontend && next dev -p 3000",
+    "dev:frontend": "next dev frontend -p 3000",
     "dev:backend": "powershell -ExecutionPolicy Bypass -File scripts/services/run-backend.ps1",
     "dev:lexor": "powershell -ExecutionPolicy Bypass -File scripts/services/run-lexor.ps1",
     "dev:doc-search": "cd indexers/doc-search && python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload --log-level error",
-    "dev:langchain": "cross-env LANGCHAIN_PORT=8002 npx ts-node indexers/langchain-service/src/index.ts",
+    "dev:langchain": "cross-env LANGCHAIN_PORT=8003 npx ts-node indexers/langchain-service/src/index.ts",
     "build": "npm run build:frontend && npm run build:backend",
-    "build:frontend": "next build",
+    "build:frontend": "next build frontend",
     "build:backend": "cargo build --release --bin conhub-backend --bin lexor",
-    "lint": "next lint",
-    "lint:fix": "next lint --fix"
+    "lint": "next lint frontend",
+    "lint:fix": "next lint --fix frontend"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.17",

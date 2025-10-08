@@ -1,5 +1,5 @@
 # Clean up ports before starting services
-$ports = @(3000, 3001, 3002, 8001, 8002)
+$ports = @(3000, 3001, 3002, 8001, 8003)
 
 foreach ($port in $ports) {
     try {

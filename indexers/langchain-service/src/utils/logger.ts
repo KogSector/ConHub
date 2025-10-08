@@ -325,6 +325,6 @@ logger.info('LangChain service starting', {
   platform: process.platform,
   arch: process.arch,
   environment: process.env.NODE_ENV,
-  port: process.env.LANGCHAIN_PORT || 8002,
+  port: process.env.LANGCHAIN_PORT || 8003,
   category: 'startup'
 });

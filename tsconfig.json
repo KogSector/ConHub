@@ -3,9 +3,9 @@
     "target": "ES2020",
     "module": "CommonJS",
     "moduleResolution": "node",
-    "baseUrl": ".",
+    "baseUrl": "frontend",
     "paths": {
-      "@/*": ["./frontend/*"]
+      "@/*": ["./*"]
     },
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -26,11 +26,11 @@
     ]
   },
   "include": [
-    "frontend/next-env.d.ts",
-    "frontend/**/*.ts",
-    "frontend/**/*.tsx",
-    "indexers/langchain-service/**/*.ts",
-    ".next/types/**/*.ts"
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "../indexers/langchain-service/**/*.ts",
+    "../.next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

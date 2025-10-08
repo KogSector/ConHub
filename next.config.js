@@ -2,6 +2,10 @@ const path = require('path')
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  typescript: {
+    tsconfigPath: './frontend/tsconfig.json',
+    ignoreBuildErrors: false,
+  },
   // Point Next.js to frontend directory
   distDir: '.next',
   // Performance optimizations
@@ -29,7 +33,6 @@ const nextConfig = {
   
   // Bundle optimization
   experimental: {
-    appDir: true,
     optimizePackageImports: [
       '@/components/ui',
       'lucide-react',
@@ -44,6 +47,7 @@ const nextConfig = {
   
   // Webpack optimizations
   webpack: (config, { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack }) => {
+    config.resolve.alias['@'] = path.join(__dirname, 'frontend');
     // Performance optimizations
     if (!dev && !isServer) {
       config.optimization.splitChunks = {

@@ -1,6 +1,9 @@
 {
   "extends": ["next/core-web-vitals", "@typescript-eslint/recommended"],
   "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  },
   "plugins": ["@typescript-eslint"],
   "root": true,
   "ignorePatterns": ["backend/**", "lexor/**", "haystack-service/**", "node_modules/**", "dist/**", ".next/**"]

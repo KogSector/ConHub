@@ -26,7 +26,7 @@ Write-Host "   Frontend: http://localhost:3000" -ForegroundColor White
 Write-Host "   Backend:  http://localhost:3001" -ForegroundColor White
 Write-Host "   Lexor:    http://localhost:3002" -ForegroundColor White
 Write-Host "   DocSearch: http://localhost:8001" -ForegroundColor White
-Write-Host "   LangChain: http://localhost:8002" -ForegroundColor White
+Write-Host "   LangChain: http://localhost:8003" -ForegroundColor White
 Write-Host ""
 
 # Start services using concurrently
