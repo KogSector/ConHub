@@ -16,8 +16,8 @@
     "build": "npm run build:frontend && npm run build:backend",
     "build:frontend": "next build frontend",
     "build:backend": "cargo build --release --bin conhub-backend --bin lexor",
-    "lint": "next lint frontend",
-    "lint:fix": "next lint --fix frontend"
+    "lint": "next lint frontend --config frontend/.eslintrc.json",
+    "lint:fix": "next lint --fix frontend --config frontend/.eslintrc.json"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.17",

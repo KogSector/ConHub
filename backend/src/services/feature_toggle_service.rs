@@ -85,6 +85,12 @@ impl FeatureToggleService {
         toggles.login
     }
 
+    /// Check if heavy mode is enabled
+    pub async fn is_heavy_enabled(&self) -> bool {
+        let toggles = self.toggles.read().await;
+        toggles.heavy
+    }
+
     /// Enable/disable login feature
     #[allow(dead_code)]
     pub async fn set_login_enabled(&self, enabled: bool) -> Result<(), Box<dyn std::error::Error>> {

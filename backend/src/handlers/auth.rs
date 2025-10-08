@@ -89,6 +89,72 @@ pub async fn login(request: web::Json<LoginRequest>) -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().json(auth_response))
 }
 
+pub async fn forgot_password(request: web::Json<ForgotPasswordRequest>) -> Result<HttpResponse> {
+    if let Err(validation_errors) = request.validate() {
+        return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Validation failed",
+            "details": validation_errors
+        })));
+    }
+
+    // For security reasons, always return success regardless of whether email exists
+    // This prevents email enumeration attacks
+    
+    // In a real implementation, you would:
+    // 1. Check if user exists in database
+    // 2. Generate a secure reset token
+    // 3. Store token with expiration time
+    // 4. Send email with reset link
+    // 5. Return success message
+    
+    info!("Password reset requested for email: {}", request.email);
+    
+    // Mock email sending - in production, integrate with email service
+    tokio::spawn(async move {
+        // Simulate email sending delay
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        info!("Password reset email sent to: {}", request.email);
+    });
+
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "If an account with that email exists, we've sent a password reset link."
+    })))
+}
+
+pub async fn reset_password(request: web::Json<ResetPasswordRequest>) -> Result<HttpResponse> {
+    if let Err(validation_errors) = request.validate() {
+        return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Validation failed",
+            "details": validation_errors
+        })));
+    }
+
+    // In a real implementation, you would:
+    // 1. Validate the reset token
+    // 2. Check if token is not expired
+    // 3. Hash the new password
+    // 4. Update user's password in database
+    // 5. Invalidate the reset token
+    
+    info!("Password reset attempted for token: {}", request.token);
+    
+    // Mock password reset - in production, implement proper token validation
+    let new_password_hash = match hash(&request.new_password, DEFAULT_COST) {
+        Ok(hash) => hash,
+        Err(_) => {
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to hash password"
+            })));
+        }
+    };
+
+    info!("Password successfully reset");
+
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "Password has been reset successfully. You can now log in with your new password."
+    })))
+}
+
 pub async fn register(request: web::Json<RegisterRequest>) -> Result<HttpResponse> {
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
@@ -179,6 +245,8 @@ pub fn configure_auth_routes(cfg: &mut web::ServiceConfig) {
         web::scope("/api/auth")
             .route("/login", web::post().to(login))
             .route("/register", web::post().to(register))
+            .route("/forgot-password", web::post().to(forgot_password))
+            .route("/reset-password", web::post().to(reset_password))
             .route("/verify", web::post().to(verify_token))
             .route("/profile", web::get().to(get_profile))
     );

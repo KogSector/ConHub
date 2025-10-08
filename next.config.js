@@ -3,7 +3,6 @@ const path = require('path')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
-    tsconfigPath: './frontend/tsconfig.json',
     ignoreBuildErrors: false,
   },
   // Point Next.js to frontend directory
