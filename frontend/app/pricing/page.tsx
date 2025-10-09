@@ -130,7 +130,7 @@ export default function Pricing() {
                       }`}
                       variant={plan.popular ? 'default' : 'outline'}
                     >
-                      {plan.name === 'Free' ? 'Get Started Free' : 
+                      {plan.name === 'Free' ? 'Get Started' : 
                        plan.name === 'Enterprise' ? 'Contact Sales' : 
                        'Start Free Trial'}
                     </Button>

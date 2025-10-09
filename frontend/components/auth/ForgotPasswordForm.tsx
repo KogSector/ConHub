@@ -20,7 +20,6 @@ export function ForgotPasswordForm() {
     setIsLoading(true)
 
     try {
-      // TODO: Implement forgot password API call
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/forgot-password`, {
         method: 'POST',
         headers: {
@@ -29,11 +28,19 @@ export function ForgotPasswordForm() {
         body: JSON.stringify({ email }),
       })
 
-      // For security reasons, always show success regardless of response
-      // This prevents email enumeration attacks
-      setIsSubmitted(true)
+      const data = await response.json()
+      
+      if (response.ok) {
+        console.log('Password reset email sent successfully:', data)
+        setIsSubmitted(true)
+      } else {
+        console.error('Failed to send reset email:', data)
+        // For security reasons, still show success to prevent email enumeration
+        setIsSubmitted(true)
+      }
       
     } catch (err) {
+      console.error('Network error sending reset email:', err)
       // Even on network errors, show success for security
       setIsSubmitted(true)
     } finally {

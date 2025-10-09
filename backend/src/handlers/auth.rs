@@ -7,6 +7,8 @@ use bcrypt::{hash, verify, DEFAULT_COST};
 use jsonwebtoken::{encode, Header, EncodingKey};
 
 use crate::models::auth::*;
+use crate::services::email_service::EmailService;
+use crate::services::password_reset_service::PASSWORD_RESET_SERVICE;
 
 // Mock user for development - replace with database calls
 fn get_mock_user() -> User {
@@ -97,27 +99,43 @@ pub async fn forgot_password(request: web::Json<ForgotPasswordRequest>) -> Resul
         })));
     }
 
+    let email = &request.email;
+    log::info!("Password reset requested for email: {}", email);
+    
     // For security reasons, always return success regardless of whether email exists
     // This prevents email enumeration attacks
     
-    // In a real implementation, you would:
-    // 1. Check if user exists in database
-    // 2. Generate a secure reset token
-    // 3. Store token with expiration time
-    // 4. Send email with reset link
-    // 5. Return success message
-    
-    info!("Password reset requested for email: {}", request.email);
-    
-    // Mock email sending - in production, integrate with email service
-    tokio::spawn(async move {
-        // Simulate email sending delay
-        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-        info!("Password reset email sent to: {}", request.email);
-    });
+    // Generate reset token
+    match PASSWORD_RESET_SERVICE.generate_reset_token(email) {
+        Ok(token) => {
+            // Send email asynchronously
+            let email_clone = email.clone();
+            let token_clone = token.clone();
+            
+            tokio::spawn(async move {
+                match EmailService::new() {
+                    Ok(email_service) => {
+                        if let Err(e) = email_service.send_password_reset_email(&email_clone, &token_clone).await {
+                            log::error!("Failed to send password reset email to {}: {}", email_clone, e);
+                        } else {
+                            log::info!("Password reset email sent successfully to: {}", email_clone);
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Failed to initialize email service: {}", e);
+                    }
+                }
+            });
+        }
+        Err(e) => {
+            log::error!("Failed to generate reset token for {}: {}", email, e);
+            // Still return success for security reasons
+        }
+    }
 
     Ok(HttpResponse::Ok().json(json!({
-        "message": "If an account with that email exists, we've sent a password reset link."
+        "message": "If an account with that email exists, we've sent a password reset link.",
+        "success": true
     })))
 }
 
@@ -129,29 +147,44 @@ pub async fn reset_password(request: web::Json<ResetPasswordRequest>) -> Result<
         })));
     }
 
-    // In a real implementation, you would:
-    // 1. Validate the reset token
-    // 2. Check if token is not expired
-    // 3. Hash the new password
-    // 4. Update user's password in database
-    // 5. Invalidate the reset token
+    let token = &request.token;
+    let new_password = &request.new_password;
     
-    info!("Password reset attempted for token: {}", request.token);
+    log::info!("Password reset attempted for token: {}", token);
     
-    // Mock password reset - in production, implement proper token validation
-    let new_password_hash = match hash(&request.new_password, DEFAULT_COST) {
+    // Validate the reset token
+    let email = match PASSWORD_RESET_SERVICE.validate_token(token) {
+        Ok(email) => email,
+        Err(e) => {
+            log::warn!("Invalid password reset token: {}", e);
+            return Ok(HttpResponse::BadRequest().json(json!({
+                "error": "Invalid or expired reset token",
+                "details": e
+            })));
+        }
+    };
+    
+    // Hash the new password
+    let new_password_hash = match hash(new_password, DEFAULT_COST) {
         Ok(hash) => hash,
-        Err(_) => {
+        Err(e) => {
+            log::error!("Failed to hash password: {}", e);
             return Ok(HttpResponse::InternalServerError().json(json!({
-                "error": "Failed to hash password"
+                "error": "Failed to process password reset"
             })));
         }
     };
 
-    info!("Password successfully reset");
+    // In a real implementation, update the user's password in the database
+    // For now, we'll just log the successful reset
+    log::info!("Password successfully reset for email: {}", email);
+    
+    // TODO: Update user password in database
+    // let updated_user = update_user_password(&email, &new_password_hash).await?;
 
     Ok(HttpResponse::Ok().json(json!({
-        "message": "Password has been reset successfully. You can now log in with your new password."
+        "message": "Password has been reset successfully. You can now log in with your new password.",
+        "success": true
     })))
 }
 
