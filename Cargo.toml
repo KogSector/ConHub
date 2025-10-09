@@ -68,13 +68,13 @@ dashmap = "5.5"
 futures = "0.3"
 actix-multipart = "0.7"
 actix-files = "0.6"
-num_cpus = "1.16"
+num_cpus = "1.15"
 tempfile = "3.8"
 
 # Authentication dependencies
 bcrypt = "0.15"
 jsonwebtoken = "9.2"
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "migrate"] }
 validator = { version = "0.18", features = ["derive"] }
 rust_decimal = { version = "1.33", features = ["serde"] }
 futures-util = "0.3"
@@ -108,13 +108,12 @@ urlencoding = "2.1"
 # Qdrant vector database
 qdrant-client = "1.7"
 
-# Email dependencies
-lettre = { version = "0.11", features = ["tokio1-rustls-tls", "smtp-transport", "builder", "hostname"] }
+# Email dependencies (commented out for now)
+# lettre = { version = "0.11", features = ["tokio1-rustls-tls", "smtp-transport", "builder", "hostname"] }
 
 # Additional indexing dependencies
-regex = "1.10"
-tokio = { version = "1.0", features = ["full", "fs"] }
 
-# Payment processing dependencies
-stripe-rust = { version = "0.25", features = ["async", "webhook-events"] }
-rust_decimal = { version = "1.33", features = ["serde"] }
+# Payment processing dependencies (commented out for now)
+# stripe-rust = { version = "0.12", features = ["async"] }
+
+# Database dependencies (includes existing sqlx with additional features)

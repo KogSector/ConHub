@@ -1,6 +1,6 @@
 # Run ConHub Backend
 $env:RUST_LOG = "info"
-$env:DATABASE_URL = "postgresql://postgres:password@localhost:5432/conhub"
+# DATABASE_URL will be loaded from .env file by the Rust application
 
 # Ensure binary exists
 if (-not (Test-Path "target\debug\conhub-backend.exe")) {

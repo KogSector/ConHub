@@ -204,6 +204,9 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
 CREATE TRIGGER update_social_connections_updated_at BEFORE UPDATE ON social_connections
     FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
