@@ -6,19 +6,20 @@ Supercharge Your Development with AI - Unify repositories, docs, and URLs with A
 
 ConHub is a comprehensive AI-powered platform that connects multiple knowledge sources (repositories, documents, URLs) with AI agents through the Model Context Protocol (MCP) for enhanced development context. It provides semantic search, code indexing, document processing, AI-powered Q&A, and seamless AI assistant integration across all your connected data sources.
 
-## Architecture
 
-ConHub consists of 4 integrated services working together to deliver a complete AI development platform:
+ConHub consists of 5 integrated services working together to deliver a complete AI development platform:
 
 -   **Frontend** (Next.js, Port 3000) - Modern user interface and dashboard.
--   **Backend** (Rust, Port 3001) - High-performance API, authentication, data connectors, and MCP server.
+-   **Backend** (Rust, Port 3001) - High-performance API, authentication, data connectors, and core services.
 -   **Lexor** (Rust, Port 3002) - Lightning-fast code indexing and semantic search.
 -   **AI Service** (Python, Port 8001) - Unified AI agents, vector search, and document processing.
+-   **MCP Service** (Node.js, Port 3004) - Model Context Protocol hub for AI agent connectivity, protocols, rules, and logic.
 
 ## Key Features
 
 ### 🔗 Data Source Integration
 
+{{ ... }}
 -   **Version Control Systems**: Connect repositories from GitHub, GitLab, BitBucket with full branch support, automatic indexing, and real-time sync.
 -   **Cloud Storage**: Integrate with Google Drive, Dropbox, Microsoft OneDrive for documents, spreadsheets, and presentations.
 -   **Web Content**: Crawl public URLs and documentation sites with configurable depth.
@@ -221,6 +222,11 @@ curl -X POST http://localhost:3000/api/ai-agents/cursor/query \
 - **Technology**: Python, FastAPI, Haystack
 - **Features**: Document processing, vector search, AI integrations
 
+### MCP Service (Port 3004)
+- **Technology**: Node.js, Express, WebSocket
+- **Features**: Model Context Protocol implementation, AI agent connectivity, rules engine, backend integration
+- **Key Components**: Protocol handlers, connection management, security rules, webhook processing
+
 ## Security & Performance Optimizations
 
 ### Security Features
@@ -316,19 +322,19 @@ npm run build:backend      # Build backend only
          │                       │                       │
          └───────────────────────┼───────────────────────┘
                                  │
-                    ┌─────────────────┐
-                    │   AI Service    │
-                    │   (Python)      │
-                    │   Port 8001     │
-                    └─────────────────┘
-                             │
-                    ┌─────────────────┐
-                    │   AI Agents     │
-                    │ • Amazon Q      │
-                    │ • GitHub Copilot│
-                    │ • Cline         │
-                    │ • Cursor IDE    │
-                    └─────────────────┘
+                    ┌─────────────────┐    ┌─────────────────┐
+                    │   AI Service    │    │   MCP Service   │
+                    │   (Python)      │◄──►│   (Node.js)     │
+                    │   Port 8001     │    │   Port 3004     │
+                    └─────────────────┘    └─────────────────┘
+                                                    │
+                                          ┌─────────────────┐
+                                          │   AI Agents     │
+                                          │ • Amazon Q      │
+                                          │ • GitHub Copilot│
+                                          │ • Cline         │
+                                          │ • Custom Agents │
+                                          └─────────────────┘
 ```
 
 ## Contributing

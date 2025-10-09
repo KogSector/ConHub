@@ -273,6 +273,45 @@ pub async fn get_profile() -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().json(user_profile))
 }
 
+pub async fn test_email(request: web::Json<serde_json::Value>) -> Result<HttpResponse> {
+    let email = request.get("email")
+        .and_then(|e| e.as_str())
+        .unwrap_or("test@conhub.dev");
+    
+    log::info!("Testing email service for: {}", email);
+    
+    match EmailService::new() {
+        Ok(email_service) => {
+            let test_token = "test-token-123";
+            match email_service.send_password_reset_email(email, test_token).await {
+                Ok(_) => {
+                    Ok(HttpResponse::Ok().json(json!({
+                        "success": true,
+                        "message": "Test email sent successfully",
+                        "email": email
+                    })))
+                }
+                Err(e) => {
+                    log::error!("Failed to send test email: {}", e);
+                    Ok(HttpResponse::InternalServerError().json(json!({
+                        "success": false,
+                        "error": "Failed to send test email",
+                        "details": e
+                    })))
+                }
+            }
+        }
+        Err(e) => {
+            log::error!("Failed to initialize email service: {}", e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "success": false,
+                "error": "Failed to initialize email service",
+                "details": e
+            })))
+        }
+    }
+}
+
 pub fn configure_auth_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/auth")
@@ -282,5 +321,6 @@ pub fn configure_auth_routes(cfg: &mut web::ServiceConfig) {
             .route("/reset-password", web::post().to(reset_password))
             .route("/verify", web::post().to(verify_token))
             .route("/profile", web::get().to(get_profile))
+            .route("/test-email", web::post().to(test_email))
     );
 }

@@ -202,7 +202,7 @@ storybook-static/
 # === Service-Specific ===
 # Haystack
 .haystack/
-models/
+# models/ - commented out to track backend models
 data/
 uploads/
 

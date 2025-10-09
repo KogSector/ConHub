@@ -1,5 +1,14 @@
 use serde::{Deserialize, Serialize};
 use std::env;
+use lettre::{
+    message::{header::ContentType, Mailbox, Message},
+    transport::smtp::{
+        authentication::Credentials,
+        client::{Tls, TlsParameters},
+        SmtpTransport,
+    },
+    AsyncSmtpTransport, AsyncTransport, Tokio1Executor,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EmailConfig {
@@ -19,8 +28,8 @@ impl EmailConfig {
                 .unwrap_or_else(|_| "587".to_string())
                 .parse()
                 .map_err(|_| "Invalid SMTP_PORT")?,
-            smtp_username: env::var("SMTP_USERNAME").unwrap_or_else(|_| "noreply@conhub.dev".to_string()),
-            smtp_password: env::var("SMTP_PASSWORD").unwrap_or_else(|_| "your-app-password".to_string()),
+            smtp_username: env::var("GMAIL_USER").unwrap_or_else(|_| "noreply@conhub.dev".to_string()),
+            smtp_password: env::var("GMAIL_APP_PASSWORD").unwrap_or_else(|_| "your-app-password".to_string()),
             from_email: env::var("FROM_EMAIL").unwrap_or_else(|_| "noreply@conhub.dev".to_string()),
             from_name: env::var("FROM_NAME").unwrap_or_else(|_| "ConHub".to_string()),
         })
@@ -114,8 +123,8 @@ The ConHub Team
         log::info!("Token: {}", reset_token);
         log::info!("=== END EMAIL ===");
         
-        // Try to send actual email
-        match self.send_via_smtp(to_email, subject, &html_body, &text_body).await {
+        // Try to send actual email via SMTP
+        match self.send_via_lettre_smtp(to_email, subject, &html_body, &text_body).await {
             Ok(_) => {
                 log::info!("Email sent successfully to: {}", to_email);
                 Ok(())
@@ -126,31 +135,69 @@ The ConHub Team
                 Ok(())
             }
         }
-
-        // In production, implement actual email sending using lettre or similar
-        // For now, we'll use a simple HTTP request to a service like SendGrid, Mailgun, etc.
-        self.send_via_http_service(to_email, subject, &html_body, &text_body).await
     }
 
-    async fn send_via_smtp(&self, to_email: &str, subject: &str, html_body: &str, text_body: &str) -> Result<(), String> {
-        // Use our Node.js email service
+    async fn send_via_lettre_smtp(&self, to_email: &str, subject: &str, html_body: &str, text_body: &str) -> Result<(), String> {
+        // Parse email addresses
+        let from_mailbox: Mailbox = format!("{} <{}>", self.config.from_name, self.config.from_email)
+            .parse()
+            .map_err(|e| format!("Invalid from email: {}", e))?;
+        
+        let to_mailbox: Mailbox = to_email
+            .parse()
+            .map_err(|e| format!("Invalid to email: {}", e))?;
+
+        // Build the email message
+        let email = Message::builder()
+            .from(from_mailbox)
+            .to(to_mailbox)
+            .subject(subject)
+            .multipart(
+                lettre::message::MultiPart::alternative()
+                    .singlepart(
+                        lettre::message::SinglePart::builder()
+                            .header(ContentType::TEXT_PLAIN)
+                            .body(text_body.to_string()),
+                    )
+                    .singlepart(
+                        lettre::message::SinglePart::builder()
+                            .header(ContentType::TEXT_HTML)
+                            .body(html_body.to_string()),
+                    ),
+            )
+            .map_err(|e| format!("Failed to build email: {}", e))?;
+
+        // Create SMTP transport
+        let creds = Credentials::new(
+            self.config.smtp_username.clone(),
+            self.config.smtp_password.clone(),
+        );
+
+        let mailer: AsyncSmtpTransport<Tokio1Executor> = AsyncSmtpTransport::<Tokio1Executor>::relay(&self.config.smtp_host)
+            .map_err(|e| format!("Failed to create SMTP transport: {}", e))?
+            .credentials(creds)
+            .port(self.config.smtp_port)
+            .build();
+
+        // Send the email
+        match mailer.send(email).await {
+            Ok(_) => {
+                log::info!("Email sent successfully via SMTP to: {}", to_email);
+                Ok(())
+            }
+            Err(e) => {
+                log::error!("Failed to send email via SMTP: {}", e);
+                Err(format!("SMTP send failed: {}", e))
+            }
+        }
+    }
+
+    // Fallback method for sending via external service
+    pub async fn send_via_external_service(&self, to_email: &str, reset_token: &str) -> Result<(), String> {
         let email_service_url = env::var("EMAIL_SERVICE_URL")
             .unwrap_or_else(|_| "http://localhost:3003".to_string());
         
         let client = reqwest::Client::new();
-        
-        // Extract token from reset link for the email service
-        let reset_token = if let Some(start) = html_body.find("token=") {
-            let token_start = start + 6; // "token=".len()
-            if let Some(end) = html_body[token_start..].find('"') {
-                html_body[token_start..token_start + end].to_string()
-            } else {
-                "unknown".to_string()
-            }
-        } else {
-            "unknown".to_string()
-        };
-        
         let payload = serde_json::json!({
             "to_email": to_email,
             "reset_token": reset_token
@@ -168,22 +215,16 @@ The ConHub Team
         {
             Ok(response) => {
                 if response.status().is_success() {
-                    log::info!("Email sent successfully via email service to: {}", to_email);
+                    log::info!("Email sent successfully via external service to: {}", to_email);
                     Ok(())
                 } else {
                     let error_text = response.text().await.unwrap_or_default();
-                    Err(format!("Email service returned error: {}", error_text))
+                    Err(format!("External email service returned error: {}", error_text))
                 }
             }
             Err(e) => {
-                Err(format!("Failed to send email via email service: {}", e))
+                Err(format!("Failed to send email via external service: {}", e))
             }
         }
-    }
-    
-    async fn send_via_http_service(&self, to_email: &str, subject: &str, html_body: &str, text_body: &str) -> Result<(), String> {
-        // Fallback method - just log for now
-        log::info!("Sending email to {} with subject: {}", to_email, subject);
-        Ok(())
     }
 }

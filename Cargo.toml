@@ -107,3 +107,14 @@ urlencoding = "2.1"
 
 # Qdrant vector database
 qdrant-client = "1.7"
+
+# Email dependencies
+lettre = { version = "0.11", features = ["tokio1-rustls-tls", "smtp-transport", "builder", "hostname"] }
+
+# Additional indexing dependencies
+regex = "1.10"
+tokio = { version = "1.0", features = ["full", "fs"] }
+
+# Payment processing dependencies
+stripe-rust = { version = "0.25", features = ["async", "webhook-events"] }
+rust_decimal = { version = "1.33", features = ["serde"] }
