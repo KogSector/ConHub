@@ -1,5 +1,6 @@
 # Run ConHub Backend
 $env:RUST_LOG = "info"
+$env:RUST_BACKTRACE = "1"
 # DATABASE_URL will be loaded from .env file by the Rust application
 
 # Ensure binary exists

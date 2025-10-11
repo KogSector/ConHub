@@ -12,8 +12,8 @@ pub struct User {
     pub name: String,
     pub avatar_url: Option<String>,
     pub organization: Option<String>,
-    pub role: UserRole,
-    pub subscription_tier: SubscriptionTier,
+    pub role: String,
+    pub subscription_tier: String,
     pub is_verified: bool,
     pub is_active: bool,
     pub created_at: DateTime<Utc>,
@@ -21,22 +21,6 @@ pub struct User {
     pub last_login_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(rename_all = "lowercase")]
-pub enum UserRole {
-    Admin,
-    User,
-    Moderator,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(rename_all = "lowercase")]
-pub enum SubscriptionTier {
-    Free,
-    Personal,
-    Team,
-    Enterprise,
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserProfile {
@@ -45,9 +29,10 @@ pub struct UserProfile {
     pub name: String,
     pub avatar_url: Option<String>,
     pub organization: Option<String>,
-    pub role: UserRole,
-    pub subscription_tier: SubscriptionTier,
+    pub role: String,
+    pub subscription_tier: String,
     pub is_verified: bool,
+    pub is_active: bool,
     pub created_at: DateTime<Utc>,
     pub last_login_at: Option<DateTime<Utc>>,
 }
@@ -127,34 +112,12 @@ impl From<User> for UserProfile {
             name: user.name,
             avatar_url: user.avatar_url,
             organization: user.organization,
-            role: user.role,
-            subscription_tier: user.subscription_tier,
+            role: user.role.clone(),
+            subscription_tier: user.subscription_tier.clone(),
             is_verified: user.is_verified,
+            is_active: user.is_active,
             created_at: user.created_at,
             last_login_at: user.last_login_at,
-        }
-    }
-}
-
-#[allow(dead_code)]
-impl UserRole {
-    pub fn can_access_admin(&self) -> bool {
-        matches!(self, UserRole::Admin | UserRole::Moderator)
-    }
-}
-
-#[allow(dead_code)]
-impl SubscriptionTier {
-    pub fn can_use_github_apps(&self) -> bool {
-        matches!(self, SubscriptionTier::Team | SubscriptionTier::Enterprise)
-    }
-    
-    pub fn max_repositories(&self) -> Option<u32> {
-        match self {
-            SubscriptionTier::Free => Some(3),
-            SubscriptionTier::Personal => Some(20),
-            SubscriptionTier::Team => Some(100),
-            SubscriptionTier::Enterprise => None, // unlimited
         }
     }
 }

@@ -37,8 +37,20 @@ async fn main() -> std::io::Result<()> {
     
     println!("✅ Database connection established");
 
-    // Skip migrations for now (schema already exists)
-    println!("⏭️ Skipping migrations (schema already exists)");
+    // Check if migrations are needed
+    println!("🔄 Checking database migrations...");
+    match sqlx::migrate!("backend/migrations").run(&pool).await {
+        Ok(_) => println!("✅ Migrations completed successfully"),
+        Err(e) => {
+            // If migrations fail due to existing schema, that's okay
+            if e.to_string().contains("already exists") {
+                println!("⏭️ Database schema already exists, skipping migrations");
+            } else {
+                println!("⚠️ Migration warning: {}", e);
+                println!("⏭️ Continuing with existing schema...");
+            }
+        }
+    }
 
     println!("🚀 Starting ConHub Backend on port {}", port);
 

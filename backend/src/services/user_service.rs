@@ -15,58 +15,31 @@ impl UserService {
         Self { pool }
     }
 
-    /// Create a new user in the database
     pub async fn create_user(&self, request: &RegisterRequest) -> Result<User> {
-        log::info!("Creating user with email: {}", request.email);
-        
-        // Check if user already exists
         if self.find_by_email(&request.email).await.is_ok() {
-            log::warn!("User creation failed: email {} already exists", request.email);
             return Err(anyhow!("User with this email already exists"));
         }
 
-        // Hash the password
         let password_hash = hash(&request.password, DEFAULT_COST)
             .map_err(|e| anyhow!("Failed to hash password: {}", e))?;
 
         let user_id = Uuid::new_v4();
         let now = Utc::now();
+        sqlx::query!(
+            "INSERT INTO users (id, email, password_hash, name, avatar_url, organization, role, subscription_tier, is_verified, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, 'user'::user_role, 'free'::subscription_tier, $7, $8, $9, $10)",
+            user_id, request.email, password_hash, request.name, request.avatar_url, request.organization, false, true, now, now
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|e| anyhow!("Failed to create user: {}", e))?;
 
-        log::info!("Inserting user {} into database with ID: {}", request.email, user_id);
-
-        // Insert user into database
         let row = sqlx::query!(
-            r#"
-            INSERT INTO users (
-                id, email, password_hash, name, avatar_url, organization,
-                role, subscription_tier, is_verified, is_active, created_at, updated_at
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            RETURNING id, email, password_hash, name, avatar_url, organization,
-                      role as "role: UserRole", subscription_tier as "subscription_tier: SubscriptionTier",
-                      is_verified, is_active, created_at, updated_at, last_login_at
-            "#,
-            user_id,
-            request.email,
-            password_hash,
-            request.name,
-            request.avatar_url,
-            request.organization,
-            UserRole::User as UserRole,
-            SubscriptionTier::Free as SubscriptionTier,
-            false, // is_verified
-            true,  // is_active
-            now,
-            now
+            "SELECT id, email, password_hash, name, avatar_url, organization, role::text as role, subscription_tier::text as subscription_tier, is_verified, is_active, created_at, updated_at, last_login_at FROM users WHERE id = $1",
+            user_id
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| {
-            log::error!("Database error creating user {}: {}", request.email, e);
-            anyhow!("Failed to create user: {}", e)
-        })?;
-
-        log::info!("Successfully created user {} with ID: {}", request.email, row.id);
+        .map_err(|e| anyhow!("Failed to fetch created user: {}", e))?;
 
         Ok(User {
             id: row.id,
@@ -90,7 +63,7 @@ impl UserService {
         let row = sqlx::query!(
             r#"
             SELECT id, email, password_hash, name, avatar_url, organization,
-                   role as "role: UserRole", subscription_tier as "subscription_tier: SubscriptionTier",
+                   role::text as role, subscription_tier::text as subscription_tier,
                    is_verified, is_active, created_at, updated_at, last_login_at
             FROM users
             WHERE email = $1 AND is_active = true
@@ -123,7 +96,7 @@ impl UserService {
         let row = sqlx::query!(
             r#"
             SELECT id, email, password_hash, name, avatar_url, organization,
-                   role as "role: UserRole", subscription_tier as "subscription_tier: SubscriptionTier",
+                   role::text as role, subscription_tier::text as subscription_tier,
                    is_verified, is_active, created_at, updated_at, last_login_at
             FROM users
             WHERE id = $1 AND is_active = true
@@ -220,7 +193,7 @@ impl UserService {
                 updated_at = $5
             WHERE id = $1
             RETURNING id, email, password_hash, name, avatar_url, organization,
-                      role as "role: UserRole", subscription_tier as "subscription_tier: SubscriptionTier",
+                      role, subscription_tier,
                       is_verified, is_active, created_at, updated_at, last_login_at
             "#,
             user_id,
@@ -279,7 +252,7 @@ impl UserService {
         let rows = sqlx::query!(
             r#"
             SELECT id, email, password_hash, name, avatar_url, organization,
-                   role as "role: UserRole", subscription_tier as "subscription_tier: SubscriptionTier",
+                   role::text as role, subscription_tier::text as subscription_tier,
                    is_verified, is_active, created_at, updated_at, last_login_at
             FROM users
             WHERE is_active = true

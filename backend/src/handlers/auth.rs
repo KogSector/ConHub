@@ -8,7 +8,6 @@ use jsonwebtoken::{encode, Header, EncodingKey};
 use sqlx::{PgPool, Row};
 
 use crate::models::auth::*;
-// use crate::services::email_service::EmailService;
 use crate::services::password_reset_service::PASSWORD_RESET_SERVICE;
 use crate::services::user_service::UserService;
 
@@ -111,14 +110,8 @@ pub async fn forgot_password(
     
     // Generate reset token
     match PASSWORD_RESET_SERVICE.generate_reset_token(email) {
-        Ok(token) => {
-            // Email functionality commented out for now
-            log::info!("Password reset token generated: {} (email sending disabled)", token);
-        }
-        Err(e) => {
-            log::error!("Failed to generate reset token for {}: {}", email, e);
-            // Still return success for security reasons
-        }
+        Ok(_) => {},
+        Err(_) => {}
     }
 
     Ok(HttpResponse::Ok().json(json!({
@@ -293,103 +286,7 @@ pub async fn list_users(pool: web::Data<PgPool>) -> Result<HttpResponse> {
     }
 }
 
-pub async fn test_database(pool: web::Data<PgPool>) -> Result<HttpResponse> {
-    log::info!("Testing database connection and operations...");
-    
-    // Test 1: Basic connectivity
-    let connectivity_test = match sqlx::query("SELECT 1 as test, NOW() as current_time")
-        .fetch_one(pool.get_ref())
-        .await 
-    {
-        Ok(row) => {
-            let test_val: i32 = row.get("test");
-            let current_time: chrono::DateTime<chrono::Utc> = row.get("current_time");
-            json!({
-                "status": "success",
-                "test_value": test_val,
-                "db_time": current_time
-            })
-        }
-        Err(e) => {
-            log::error!("Database connectivity test failed: {}", e);
-            json!({
-                "status": "failed",
-                "error": e.to_string()
-            })
-        }
-    };
 
-    // Test 2: Check if users table exists and get structure
-    let table_test = match sqlx::query(
-        "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'users' ORDER BY ordinal_position"
-    ).fetch_all(pool.get_ref()).await {
-        Ok(rows) => {
-            let columns: Vec<serde_json::Value> = rows.into_iter().map(|row| {
-                json!({
-                    "column": row.get::<String, _>("column_name"),
-                    "type": row.get::<String, _>("data_type")
-                })
-            }).collect();
-            json!({
-                "status": "success",
-                "columns": columns
-            })
-        }
-        Err(e) => {
-            log::error!("Users table structure test failed: {}", e);
-            json!({
-                "status": "failed",
-                "error": e.to_string()
-            })
-        }
-    };
-
-    // Test 3: Count existing users
-    let user_count_test = match sqlx::query("SELECT COUNT(*) as count FROM users")
-        .fetch_one(pool.get_ref())
-        .await 
-    {
-        Ok(row) => {
-            let count: i64 = row.get("count");
-            json!({
-                "status": "success",
-                "user_count": count
-            })
-        }
-        Err(e) => {
-            log::error!("User count test failed: {}", e);
-            json!({
-                "status": "failed",
-                "error": e.to_string()
-            })
-        }
-    };
-
-    Ok(HttpResponse::Ok().json(json!({
-        "database_tests": {
-            "connectivity": connectivity_test,
-            "users_table": table_test,
-            "user_count": user_count_test
-        }
-    })))
-}
-
-pub async fn test_email(request: web::Json<serde_json::Value>) -> Result<HttpResponse> {
-    let email = request.get("email")
-        .and_then(|e| e.as_str())
-        .unwrap_or("test@conhub.dev");
-    
-    log::info!("Testing email service for: {}", email);
-    
-    // Email service commented out for now
-    log::info!("Email test requested for: {} (email service disabled)", email);
-    
-    Ok(HttpResponse::Ok().json(json!({
-        "message": "Email service is currently disabled",
-        "email": email,
-        "status": "disabled"
-    })))
-}
 
 pub fn configure_auth_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -401,7 +298,5 @@ pub fn configure_auth_routes(cfg: &mut web::ServiceConfig) {
             .route("/verify", web::post().to(verify_token))
             .route("/profile", web::get().to(get_profile))
             .route("/users", web::get().to(list_users))
-            .route("/test-db", web::get().to(test_database))
-            .route("/test-email", web::post().to(test_email))
     );
 }
