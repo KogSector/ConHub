@@ -3,7 +3,7 @@ use anyhow::Result;
 use bcrypt::{hash, verify, DEFAULT_COST};
 
 use crate::models::auth::{User, RegisterRequest, LoginRequest};
-use crate::services::user_service::UserService;
+use crate::services::auth::users::UserService;
 
 pub struct LocalAuthService {
     user_service: UserService,

@@ -7,13 +7,28 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- User role enum
-CREATE TYPE user_role AS ENUM ('admin', 'user', 'moderator');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+        CREATE TYPE user_role AS ENUM ('admin', 'user', 'moderator');
+    END IF;
+END$$;
 
 -- Subscription tier enum
-CREATE TYPE subscription_tier AS ENUM ('free', 'personal', 'team', 'enterprise');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'subscription_tier') THEN
+        CREATE TYPE subscription_tier AS ENUM ('free', 'personal', 'team', 'enterprise');
+    END IF;
+END$$;
 
 -- Social platform enum
-CREATE TYPE social_platform AS ENUM ('slack', 'notion', 'google_drive', 'gmail', 'dropbox', 'linkedin');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'social_platform') THEN
+        CREATE TYPE social_platform AS ENUM ('slack', 'notion', 'google_drive', 'gmail', 'dropbox', 'linkedin');
+    END IF;
+END$$;
 
 -- Users table
 CREATE TABLE users (

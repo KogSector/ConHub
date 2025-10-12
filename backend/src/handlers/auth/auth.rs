@@ -7,8 +7,8 @@ use bcrypt::{hash, verify, DEFAULT_COST};
 use jsonwebtoken::{encode, Header, EncodingKey};
 
 use crate::models::auth::*;
-use crate::services::password_reset_service::PASSWORD_RESET_SERVICE;
-use crate::services::user_service::UserService;
+use crate::services::auth::password_reset::PASSWORD_RESET_SERVICE;
+use crate::services::auth::users::UserService;
 
 // Helper function to generate JWT token
 pub fn generate_jwt_token(user: &User) -> Result<(String, DateTime<Utc>), String> {

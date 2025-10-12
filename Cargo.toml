@@ -1,17 +1,11 @@
-[package]
-name = "conhub"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = [
+    "backend",
+    "indexers"
+]
+resolver = "2"
 
-[[bin]]
-name = "conhub-backend"
-path = "backend/src/main.rs"
-
-[[bin]]
-name = "lexor"
-path = "indexers/lexor/src/main.rs"
-
-[dependencies]
+[workspace.dependencies]
 # Shared dependencies
 actix-web = "4.4"
 actix-cors = "0.7"

@@ -11,13 +11,12 @@ mod errors;
 use handlers::auth::configure_auth_routes;
 // use handlers::billing::configure_billing_routes;
 mod rulesets {
-    pub use crate::handlers::rulesets::configure;
+    pub use crate::handlers::security::rulesets::configure;
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
-    dotenv::dotenv().ok();
 
     let port = env::var("BACKEND_PORT")
         .unwrap_or_else(|_| "3001".to_string())
