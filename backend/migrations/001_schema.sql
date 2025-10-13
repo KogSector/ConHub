@@ -9,8 +9,8 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
-        CREATE TYPE user_role AS ENUM ('admin', 'user', 'moderator');
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'userrole') THEN
+        CREATE TYPE userrole AS ENUM ('admin', 'user', 'moderator');
     END IF;
 END$$;
 
@@ -38,7 +38,7 @@ CREATE TABLE users (
     name VARCHAR(255) NOT NULL,
     avatar_url VARCHAR(512),
     organization VARCHAR(255),
-    role user_role NOT NULL DEFAULT 'user',
+    role userrole NOT NULL DEFAULT 'user',
     subscription_tier subscription_tier NOT NULL DEFAULT 'free',
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,

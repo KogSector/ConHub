@@ -6,6 +6,7 @@ SET session_replication_role = replica;
 
 
 DROP TABLE IF EXISTS
+    _sqlx_migrations,
     social_tokens,
     social_connections,
     users,
@@ -34,6 +35,9 @@ CASCADE;
 DROP TYPE IF EXISTS user_role CASCADE;
 DROP TYPE IF EXISTS subscription_tier CASCADE;
 DROP TYPE IF EXISTS social_platform CASCADE;
+DROP TYPE IF EXISTS payment_status CASCADE;
+DROP TYPE IF EXISTS subscription_status CASCADE;
+DROP TYPE IF EXISTS invoice_status CASCADE;
 
 
 SET session_replication_role = DEFAULT;
