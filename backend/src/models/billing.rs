@@ -162,7 +162,7 @@ pub struct BillingAddress {
     pub updated_at: DateTime<Utc>,
 }
 
-// Request/Response DTOs
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreateSubscriptionRequest {
     pub plan_id: Uuid,

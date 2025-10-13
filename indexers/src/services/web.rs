@@ -38,7 +38,7 @@ impl WebIndexingService {
         job.start();
         self.jobs.insert(job_id.clone(), job.clone());
 
-        // Spawn background task
+        
         let jobs = self.jobs.clone();
         let chunking_service = self.chunking_service.clone();
 
@@ -90,7 +90,7 @@ impl WebIndexingService {
                     total_docs += 1;
                     total_chunks += chunks;
 
-                    // Add discovered links for crawling
+                    
                     if depth < max_depth {
                         for link in links {
                             if !visited.contains(&link) {
@@ -135,24 +135,24 @@ impl WebIndexingService {
 
         let html = response.text().await?;
         
-        // Parse HTML
+        
         let document = scraper::Html::parse_document(&html);
         
-        // Extract text content
+        
         let text = Self::extract_text_from_html(&document)?;
         
-        // Chunk the content
+        
         let chunks = chunking_service.chunk_text(&text)?;
         let chunk_count = chunks.len();
 
-        // Extract links
+        
         let links = Self::extract_links(&document, url)?;
 
         Ok((chunk_count, links))
     }
 
     fn extract_text_from_html(document: &scraper::Html) -> Result<String, Box<dyn std::error::Error>> {
-        // Remove script and style tags
+        
         let selector = scraper::Selector::parse("body").unwrap();
         
         let mut text = String::new();
@@ -160,7 +160,7 @@ impl WebIndexingService {
             text.push_str(&element.text().collect::<Vec<_>>().join(" "));
         }
         
-        // Clean up whitespace
+        
         let cleaned = text
             .split_whitespace()
             .collect::<Vec<_>>()
@@ -177,9 +177,9 @@ impl WebIndexingService {
         
         for element in document.select(&selector) {
             if let Some(href) = element.value().attr("href") {
-                // Convert relative URLs to absolute
+                
                 if let Ok(absolute_url) = base.join(href) {
-                    // Only include HTTP/HTTPS links from the same domain
+                    
                     if absolute_url.scheme() == "http" || absolute_url.scheme() == "https" {
                         if absolute_url.domain() == base.domain() {
                             links.push(absolute_url.to_string());
@@ -200,7 +200,7 @@ impl WebIndexingService {
     ) -> Result<Vec<SearchResult>, Box<dyn std::error::Error>> {
         log::info!("Searching web content: {}", query);
         
-        // Placeholder implementation
+        
         let mut results = Vec::new();
         
         if !query.is_empty() {

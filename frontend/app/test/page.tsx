@@ -30,7 +30,7 @@ export default function ApiTestPage() {
   }, [])
 
   useEffect(() => {
-    // Test connection on page load
+    
     testConnection()
   }, [testConnection])
 

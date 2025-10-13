@@ -190,6 +190,6 @@ pub async fn index_code(
     state: web::Data<IndexerState>,
     request: web::Json<IndexRepositoryRequest>,
 ) -> Result<HttpResponse> {
-    // Alias for repository indexing for backward compatibility
+    
     index_repository(state, request).await
 }

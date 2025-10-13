@@ -5,25 +5,25 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load environment variables from root .env file
+
 dotenv.config({ path: path.resolve('../.env') });
 
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import winston from 'winston';
 
-// Import route handlers
+
 import mcpRoutes from './routes/mcp.js';
 import webhookRoutes from './routes/webhooks.js';
 import agentRoutes from './routes/agents.js';
 import healthRoutes from './routes/health.js';
 
-// Import services
+
 import { McpService } from './services/McpService.js';
 import { WebhookService } from './services/WebhookService.js';
 import { AgentManager } from './services/AgentManager.js';
 
-// Configure logger
+
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(
@@ -50,31 +50,31 @@ const wss = new WebSocketServer({ server });
 
 const PORT = process.env.MCP_SERVICE_PORT || 3004;
 
-// Security middleware
+
 app.use(helmet());
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3001'],
   credentials: true
 }));
 
-// Rate limiting
+
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000, 
+  max: 100, 
   message: 'Too many requests from this IP, please try again later.'
 });
 app.use(limiter);
 
-// Body parsing middleware
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Initialize services
+
 const mcpService = new McpService(logger);
 const webhookService = new WebhookService(logger);
 const agentManager = new AgentManager(logger, mcpService, webhookService);
 
-// WebSocket connection handling
+
 wss.on('connection', (ws, request) => {
   logger.info('New WebSocket connection established', { 
     ip: request.socket.remoteAddress,
@@ -104,7 +104,7 @@ wss.on('connection', (ws, request) => {
   });
 });
 
-// Request logging middleware
+
 app.use((req, res, next) => {
   logger.info('Incoming request', {
     method: req.method,
@@ -115,13 +115,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
+
 app.use('/api/health', healthRoutes);
 app.use('/api/mcp', mcpRoutes(mcpService));
 app.use('/api/webhooks', webhookRoutes(webhookService));
 app.use('/api/agents', agentRoutes(agentManager));
 
-// Global error handler
+
 app.use((error, req, res, next) => {
   logger.error('Unhandled error:', error);
   res.status(500).json({
@@ -130,7 +130,7 @@ app.use((error, req, res, next) => {
   });
 });
 
-// 404 handler
+
 app.use('*', (req, res) => {
   res.status(404).json({
     error: 'Not found',
@@ -138,7 +138,7 @@ app.use('*', (req, res) => {
   });
 });
 
-// Graceful shutdown
+
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
   server.close(() => {

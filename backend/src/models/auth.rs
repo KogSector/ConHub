@@ -94,14 +94,14 @@ pub struct AuthResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
-    pub sub: String,      // Subject (user ID)
-    pub email: String,    // User email
-    pub roles: Vec<String>, // User roles
-    pub exp: usize,       // Expiration time
-    pub iat: usize,       // Issued at
-    pub iss: String,      // Issuer
-    pub aud: String,      // Audience
-    pub session_id: String, // Session identifier
+    pub sub: String,      
+    pub email: String,    
+    pub roles: Vec<String>, 
+    pub exp: usize,       
+    pub iat: usize,       
+    pub iss: String,      
+    pub aud: String,      
+    pub session_id: String, 
 }
 
 impl From<User> for UserProfile {

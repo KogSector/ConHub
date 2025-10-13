@@ -8,7 +8,7 @@ use crate::models::{
 use crate::services::repository_service::{RepositoryService, CredentialValidator};
 use crate::services::vcs_connector::VcsError;
 
-/// Connect a new repository
+
 pub async fn connect_repository(
     req: web::Json<ConnectRepositoryRequest>,
 ) -> Result<HttpResponse> {
@@ -41,7 +41,7 @@ pub async fn connect_repository(
     }
 }
 
-/// Get repository by ID
+
 pub async fn get_repository(path: web::Path<String>) -> Result<HttpResponse> {
     let repo_id = path.into_inner();
     let repository_service = RepositoryService::new();
@@ -62,7 +62,7 @@ pub async fn get_repository(path: web::Path<String>) -> Result<HttpResponse> {
     }
 }
 
-/// List all connected repositories
+
 pub async fn list_repositories() -> Result<HttpResponse> {
     let repository_service = RepositoryService::new();
     let repositories = repository_service.list_repositories();
@@ -75,7 +75,7 @@ pub async fn list_repositories() -> Result<HttpResponse> {
     }))
 }
 
-/// Update repository configuration
+
 pub async fn update_repository_config(
     path: web::Path<String>,
     req: web::Json<RepositoryConfig>,
@@ -105,7 +105,7 @@ pub async fn update_repository_config(
     }
 }
 
-/// Test repository connection
+
 pub async fn test_repository_connection(path: web::Path<String>) -> Result<HttpResponse> {
     let repo_id = path.into_inner();
     let repository_service = RepositoryService::new();
@@ -136,7 +136,7 @@ pub async fn test_repository_connection(path: web::Path<String>) -> Result<HttpR
     }
 }
 
-/// Sync repository content
+
 pub async fn sync_repository(path: web::Path<String>) -> Result<HttpResponse> {
     let repo_id = path.into_inner();
     let repository_service = RepositoryService::new();
@@ -163,7 +163,7 @@ pub async fn sync_repository(path: web::Path<String>) -> Result<HttpResponse> {
     }
 }
 
-/// Disconnect repository
+
 pub async fn disconnect_repository(path: web::Path<String>) -> Result<HttpResponse> {
     let repo_id = path.into_inner();
     let repository_service = RepositoryService::new();
@@ -190,7 +190,7 @@ pub async fn disconnect_repository(path: web::Path<String>) -> Result<HttpRespon
     }
 }
 
-/// List repository branches
+
 pub async fn list_repository_branches(path: web::Path<String>) -> Result<HttpResponse> {
     let repo_id = path.into_inner();
     let repository_service = RepositoryService::new();
@@ -217,7 +217,7 @@ pub async fn list_repository_branches(path: web::Path<String>) -> Result<HttpRes
     }
 }
 
-/// Update repository credentials
+
 pub async fn update_repository_credentials(
     path: web::Path<String>,
     req: web::Json<RepositoryCredentials>,
@@ -247,7 +247,7 @@ pub async fn update_repository_credentials(
     }
 }
 
-/// Setup repository webhook
+
 #[derive(serde::Deserialize)]
 pub struct WebhookRequest {
     pub webhook_url: String,
@@ -282,7 +282,7 @@ pub async fn setup_repository_webhook(
     }
 }
 
-/// Validate VCS credentials
+
 #[derive(serde::Deserialize)]
 pub struct ValidateCredentialsRequest {
     pub vcs_type: crate::models::VcsType,
@@ -317,7 +317,7 @@ pub async fn validate_credentials(
     }
 }
 
-/// Get repository statistics
+
 pub async fn get_repository_stats() -> Result<HttpResponse> {
     let repository_service = RepositoryService::new();
     let repositories = repository_service.list_repositories();
@@ -357,7 +357,7 @@ pub async fn get_repository_stats() -> Result<HttpResponse> {
     }))
 }
 
-/// Validate repository URL
+
 #[derive(serde::Deserialize)]
 pub struct ValidateUrlRequest {
     pub repo_url: String,
@@ -380,7 +380,7 @@ pub async fn validate_repository_url(
     
     let url = &req.repo_url;
     
-    // Basic URL validation
+    
     if url.is_empty() {
         return Ok(HttpResponse::BadRequest().json(ApiResponse::<()> {
             success: false,
@@ -390,7 +390,7 @@ pub async fn validate_repository_url(
         }));
     }
     
-    // Detect VCS type and provider
+    
     let (vcs_type, provider) = match VcsDetector::detect_from_url(url) {
         Ok(result) => result,
         Err(e) => {
@@ -403,13 +403,13 @@ pub async fn validate_repository_url(
         }
     };
     
-    // Extract repository info
+    
     let (owner, repo_name) = match VcsDetector::extract_repo_info(url) {
         Ok((o, r)) => (Some(o), Some(r)),
         Err(_) => (None, None),
     };
     
-    // For now, assume public repos (we'll add auth checks later)
+    
     let is_public = true;
     
     Ok(HttpResponse::Ok().json(ApiResponse {
@@ -427,7 +427,7 @@ pub async fn validate_repository_url(
     }))
 }
 
-/// Fetch branches from a repository URL (for frontend)
+
 #[derive(serde::Deserialize)]
 pub struct FetchBranchesRequest {
     pub repo_url: String,
@@ -460,7 +460,7 @@ pub async fn fetch_branches(
     
     let connector = VcsConnectorFactory::create_connector(&vcs_type);
     
-    // Use empty credentials for public repos if none provided
+    
     let credentials = req.credentials.as_ref().unwrap_or(&RepositoryCredentials {
         credential_type: crate::models::CredentialType::None,
         expires_at: None,
@@ -473,7 +473,7 @@ pub async fn fetch_branches(
                 .find(|b| b.is_default)
                 .map(|b| b.name.clone())
                 .or_else(|| {
-                    // Fallback to common default branch names
+                    
                     if branches.contains(&"main".to_string()) {
                         Some("main".to_string())
                     } else if branches.contains(&"master".to_string()) {
@@ -513,7 +513,7 @@ pub async fn fetch_branches(
     }
 }
 
-/// Configure repository routes
+
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/repositories")

@@ -24,7 +24,7 @@ export class SettingsAPI {
     }
   }
 
-  // Profile Settings
+  
   static async getSettings(userId: string) {
     return this.request(`/api/settings/${userId}`);
   }
@@ -36,7 +36,7 @@ export class SettingsAPI {
     });
   }
 
-  // API Tokens
+  
   static async getApiTokens(userId: string) {
     return this.request(`/api/settings/${userId}/api-tokens`);
   }
@@ -54,7 +54,7 @@ export class SettingsAPI {
     });
   }
 
-  // Webhooks
+  
   static async getWebhooks(userId: string) {
     return this.request(`/api/settings/${userId}/webhooks`);
   }
@@ -72,7 +72,7 @@ export class SettingsAPI {
     });
   }
 
-  // Team Management
+  
   static async getTeamMembers(userId: string) {
     return this.request(`/api/settings/${userId}/team`);
   }
@@ -90,7 +90,7 @@ export class SettingsAPI {
     });
   }
 
-  // Billing (Mock endpoints for now)
+  
   static async getBillingInfo(userId: string) {
     return {
       success: true,
@@ -124,12 +124,12 @@ export class SettingsAPI {
     };
   }
 
-  // Notifications
+  
   static async updateNotificationSettings(userId: string, settings: any) {
     return this.updateSettings(userId, { notifications: settings });
   }
 
-  // Security
+  
   static async updateSecuritySettings(userId: string, settings: any) {
     return this.updateSettings(userId, { security: settings });
   }

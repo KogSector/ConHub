@@ -11,13 +11,13 @@ use crate::models::ApiResponse;
 use crate::services::mcp_server::ConHubMcpServer;
 use crate::services::mcp_client::{McpClient, AuthConfig, McpClientConfig};
 
-// Global MCP server instance using lazy_static for thread safety
+
 lazy_static! {
     static ref MCP_SERVER: Arc<Mutex<Option<Arc<ConHubMcpServer>>>> = Arc::new(Mutex::new(None));
     static ref MCP_CLIENT_MANAGER: Arc<Mutex<Option<Arc<McpClientManager>>>> = Arc::new(Mutex::new(None));
 }
 
-/// MCP Client Manager for handling multiple external connections
+
 pub struct McpClientManager {
     clients: tokio::sync::RwLock<HashMap<String, McpClient>>,
     client_configs: tokio::sync::RwLock<HashMap<String, McpClientConnection>>,
@@ -35,9 +35,9 @@ pub struct McpClientConnection {
     pub error_count: u32,
 }
 
-// ============================================================================
-// Request/Response Types
-// ============================================================================
+
+
+
 
 #[derive(Deserialize)]
 pub struct CreateMcpServerRequest {
@@ -131,11 +131,11 @@ impl McpClientManager {
     }
 }
 
-// ============================================================================
-// Handler Functions
-// ============================================================================
 
-/// Initialize MCP server
+
+
+
+
 pub async fn initialize_mcp_server(req: web::Json<CreateMcpServerRequest>) -> Result<HttpResponse> {
     let server_guard = MCP_SERVER.lock().unwrap();
     if server_guard.is_some() {
@@ -186,7 +186,7 @@ pub async fn initialize_mcp_server(req: web::Json<CreateMcpServerRequest>) -> Re
     }
 }
 
-/// Get MCP server status and information
+
 pub async fn get_mcp_server_status() -> Result<HttpResponse> {
     let server_guard = MCP_SERVER.lock().unwrap();
     match server_guard.as_ref() {
@@ -195,8 +195,8 @@ pub async fn get_mcp_server_status() -> Result<HttpResponse> {
                 server_info: server.server_info(),
                 capabilities: server.capabilities(),
                 status: "running".to_string(),
-                connections: 0, // Would be tracked in a real implementation
-                uptime: "N/A".to_string(), // Would calculate actual uptime
+                connections: 0, 
+                uptime: "N/A".to_string(), 
             };
 
             Ok(HttpResponse::Ok().json(ApiResponse {
@@ -215,7 +215,7 @@ pub async fn get_mcp_server_status() -> Result<HttpResponse> {
     }
 }
 
-/// Stop MCP server
+
 pub async fn stop_mcp_server() -> Result<HttpResponse> {
     let mut server_guard = MCP_SERVER.lock().unwrap();
     if server_guard.is_some() {
@@ -245,12 +245,12 @@ pub async fn stop_mcp_server() -> Result<HttpResponse> {
     }
 }
 
-/// Connect to external MCP server
+
 pub async fn connect_external_mcp(req: web::Json<ConnectExternalMcpRequest>) -> Result<HttpResponse> {
     let manager_guard = MCP_CLIENT_MANAGER.lock().unwrap();
     match manager_guard.as_ref() {
         Some(manager) => {
-            // Create auth config
+            
             let auth_config = match req.auth_method.as_str() {
                 "api_key" => {
                     let api_key = match req.credentials.get("api_key")
@@ -301,7 +301,7 @@ pub async fn connect_external_mcp(req: web::Json<ConnectExternalMcpRequest>) -> 
                     }
                 };
 
-                // Create MCP client
+                
                 let client = match McpClient::with_config(McpClientConfig::default()) {
                     Ok(client) => client,
                     Err(e) => {
@@ -314,7 +314,7 @@ pub async fn connect_external_mcp(req: web::Json<ConnectExternalMcpRequest>) -> 
                     }
                 };
 
-                // Connect to external server
+                
                 let server_id = match client.connect(req.endpoint.clone(), auth_config).await {
                     Ok(id) => id,
                     Err(e) => {
@@ -327,7 +327,7 @@ pub async fn connect_external_mcp(req: web::Json<ConnectExternalMcpRequest>) -> 
                     }
                 };
 
-                // Create connection record
+                
                 let connection = McpClientConnection {
                     id: server_id.clone(),
                     name: req.name.clone(),
@@ -339,7 +339,7 @@ pub async fn connect_external_mcp(req: web::Json<ConnectExternalMcpRequest>) -> 
                     error_count: 0,
                 };
 
-                // Store the connection
+                
                 manager.add_client(connection.clone(), client).await;
 
                 log::info!("Connected to external MCP server: {} ({})", req.name, req.endpoint);
@@ -360,7 +360,7 @@ pub async fn connect_external_mcp(req: web::Json<ConnectExternalMcpRequest>) -> 
     }
 }
 
-/// List external MCP connections
+
 pub async fn list_external_mcp_connections() -> Result<HttpResponse> {
     let manager_guard = MCP_CLIENT_MANAGER.lock().unwrap();
     match manager_guard.as_ref() {
@@ -383,7 +383,7 @@ pub async fn list_external_mcp_connections() -> Result<HttpResponse> {
     }
 }
 
-/// Disconnect from external MCP server
+
 pub async fn disconnect_external_mcp(path: web::Path<String>) -> Result<HttpResponse> {
     let connection_id = path.into_inner();
 
@@ -391,12 +391,12 @@ pub async fn disconnect_external_mcp(path: web::Path<String>) -> Result<HttpResp
     match manager_guard.as_ref() {
         Some(manager) => {
             if let Some(client) = manager.get_client(&connection_id).await {
-                // Disconnect the client
+                
                 if let Err(e) = client.disconnect(&connection_id).await {
                     log::warn!("Error during disconnection: {}", e);
                 }
 
-                // Remove from manager
+                
                 let removed = manager.remove_client(&connection_id).await;
 
                 if removed {
@@ -437,7 +437,7 @@ pub async fn disconnect_external_mcp(path: web::Path<String>) -> Result<HttpResp
     }
 }
 
-/// Create MCP context
+
 pub async fn create_mcp_context(req: web::Json<CreateContextRequest>) -> Result<HttpResponse> {
     let server_guard = MCP_SERVER.lock().unwrap();
     match server_guard.as_ref() {
@@ -453,7 +453,7 @@ pub async fn create_mcp_context(req: web::Json<CreateContextRequest>) -> Result<
                 other => ContextType::Custom(other.to_string()),
             };
 
-            // Create context create params
+            
             let params = ContextCreateParams {
                 name: req.name.clone(),
                 context_type,
@@ -461,7 +461,7 @@ pub async fn create_mcp_context(req: web::Json<CreateContextRequest>) -> Result<
                 metadata: req.metadata.clone(),
             };
 
-            // Use the server's handle_context_create method
+            
             match server.handle_context_create(Some(serde_json::to_value(params).unwrap())).await {
                 Ok(result) => {
                     let context_result: ContextCreateResult = match serde_json::from_value(result) {
@@ -497,10 +497,10 @@ pub async fn create_mcp_context(req: web::Json<CreateContextRequest>) -> Result<
     }
 }
 
-/// List MCP resources
+
 pub async fn list_mcp_resources(query: web::Query<ListResourcesRequest>) -> Result<HttpResponse> {
     if let Some(server_id) = &query.server_id {
-        // List resources from external server
+        
         let manager_guard = MCP_CLIENT_MANAGER.lock().unwrap();
         match manager_guard.as_ref() {
             Some(manager) => {
@@ -536,7 +536,7 @@ pub async fn list_mcp_resources(query: web::Query<ListResourcesRequest>) -> Resu
             })),
         }
     } else {
-        // List resources from internal server
+        
         let server_guard = MCP_SERVER.lock().unwrap();
         match server_guard.as_ref() {
             Some(server) => {
@@ -580,10 +580,10 @@ pub async fn list_mcp_resources(query: web::Query<ListResourcesRequest>) -> Resu
     }
 }
 
-/// Read MCP resource
+
 pub async fn read_mcp_resource(req: web::Json<ReadResourceRequest>) -> Result<HttpResponse> {
     if let Some(server_id) = &req.server_id {
-        // Read resource from external server
+        
         let manager_guard = MCP_CLIENT_MANAGER.lock().unwrap();
         match manager_guard.as_ref() {
             Some(manager) => {
@@ -619,7 +619,7 @@ pub async fn read_mcp_resource(req: web::Json<ReadResourceRequest>) -> Result<Ht
             })),
         }
     } else {
-        // Read resource from internal server
+        
         let server_guard = MCP_SERVER.lock().unwrap();
         match server_guard.as_ref() {
             Some(server) => {
@@ -663,10 +663,10 @@ pub async fn read_mcp_resource(req: web::Json<ReadResourceRequest>) -> Result<Ht
     }
 }
 
-/// Call MCP tool
+
 pub async fn call_mcp_tool(req: web::Json<CallToolRequest>) -> Result<HttpResponse> {
     if let Some(server_id) = &req.server_id {
-        // Call tool on external server
+        
         let manager_guard = MCP_CLIENT_MANAGER.lock().unwrap();
         match manager_guard.as_ref() {
             Some(manager) => {
@@ -702,7 +702,7 @@ pub async fn call_mcp_tool(req: web::Json<CallToolRequest>) -> Result<HttpRespon
             })),
         }
     } else {
-        // Call tool on internal server
+        
         let server_guard = MCP_SERVER.lock().unwrap();
         match server_guard.as_ref() {
             Some(server) => {
@@ -747,28 +747,28 @@ pub async fn call_mcp_tool(req: web::Json<CallToolRequest>) -> Result<HttpRespon
     }
 }
 
-/// Configure MCP routes
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/mcp")
-            // Server management
+            
             .route("/server/initialize", web::post().to(initialize_mcp_server))
             .route("/server/status", web::get().to(get_mcp_server_status))
             .route("/server/stop", web::post().to(stop_mcp_server))
             
-            // External server connections
+            
             .route("/external/connect", web::post().to(connect_external_mcp))
             .route("/external/connections", web::get().to(list_external_mcp_connections))
             .route("/external/{connection_id}/disconnect", web::delete().to(disconnect_external_mcp))
             
-            // Context management
+            
             .route("/contexts", web::post().to(create_mcp_context))
             
-            // Resource management
+            
             .route("/resources", web::get().to(list_mcp_resources))
             .route("/resources/read", web::post().to(read_mcp_resource))
             
-            // Tool execution
+            
             .route("/tools/call", web::post().to(call_mcp_tool))
     );
 }

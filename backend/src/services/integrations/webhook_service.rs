@@ -5,8 +5,8 @@ use serde_json::Value;
 
 #[derive(Clone)]
 pub struct WebhookService {
-    // In a real application, you would have a way to access your database or other services
-    // For now, we'll just log the events
+    
+    
 }
 
 impl WebhookService {
@@ -15,7 +15,7 @@ impl WebhookService {
     }
 
     pub async fn handle_github_webhook(&self, body: Value) -> Result<impl Reply, Rejection> {
-        // In a real application, you would verify the signature of the webhook
+        
         println!("Received GitHub webhook: {}", body);
         Ok(warp::reply::json(&"OK"))
     }

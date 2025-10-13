@@ -4,7 +4,7 @@ export async function POST(req: NextRequest) {
   try {
     const { prompt, context } = await req.json();
 
-    // Create the agent if it doesn't exist
+    
     await fetch('http://localhost:3001/api/agents/create/github_copilot', {
       method: 'POST',
     });

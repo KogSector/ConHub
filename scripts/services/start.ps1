@@ -25,9 +25,7 @@ Write-Host "[SERVICES] Starting all services..." -ForegroundColor Cyan
 Write-Host "   Frontend: http://localhost:3000" -ForegroundColor White
 Write-Host "   Backend:  http://localhost:3001" -ForegroundColor White
 Write-Host "   Lexor:    http://localhost:3002" -ForegroundColor White
-Write-Host "   DocSearch: http://localhost:8001" -ForegroundColor White
-Write-Host "   LangChain: http://localhost:8003" -ForegroundColor White
 Write-Host ""
 
-# Start services using concurrently
-.\node_modules\.bin\concurrently.cmd --names "Frontend,Backend,Lexor,DocSearch,Langchain" --prefix-colors "cyan,blue,magenta,yellow,green" --restart-tries 2 --kill-others-on-fail "npm run dev:frontend" "npm run dev:backend" "npm run dev:lexor" "npm run dev:doc-search" "npm run dev:langchain"
+
+.\node_modules\.bin\concurrently.cmd --names "Frontend,Backend,Lexor" --prefix-colors "cyan,blue,magenta" --restart-tries 2 --kill-others-on-fail "npm run dev:frontend" "npm run dev:backend" "npm run dev:lexor"

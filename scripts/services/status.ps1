@@ -1,4 +1,4 @@
-# Check ConHub Services Status
+
 Write-Host "[STATUS] Checking ConHub services..." -ForegroundColor Cyan
 
 $services = @(

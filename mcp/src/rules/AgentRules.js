@@ -1,11 +1,8 @@
-/**
- * AI Agent Rules and Policies
- * Defines rules, policies, and constraints for AI agent interactions
- */
 
-// Agent Connection Rules
+
+
 export const ConnectionRules = {
-  // Maximum concurrent connections per agent type
+  
   MAX_CONNECTIONS: {
     'github-copilot': 10,
     'amazon-q': 5,
@@ -13,16 +10,16 @@ export const ConnectionRules = {
     'generic': 2
   },
 
-  // Connection timeout settings
+  
   TIMEOUTS: {
-    CONNECTION: 30000,      // 30 seconds
-    HANDSHAKE: 10000,       // 10 seconds
-    HEARTBEAT: 60000,       // 1 minute
-    IDLE: 300000,           // 5 minutes
-    MAX_SESSION: 3600000    // 1 hour
+    CONNECTION: 30000,      
+    HANDSHAKE: 10000,       
+    HEARTBEAT: 60000,       
+    IDLE: 300000,           
+    MAX_SESSION: 3600000    
   },
 
-  // Rate limiting rules
+  
   RATE_LIMITS: {
     REQUESTS_PER_MINUTE: 60,
     REQUESTS_PER_HOUR: 1000,
@@ -30,64 +27,64 @@ export const ConnectionRules = {
     TOOL_CALLS_PER_MINUTE: 20
   },
 
-  // Authentication requirements
+  
   AUTHENTICATION: {
     REQUIRED: true,
-    TOKEN_EXPIRY: 86400000, // 24 hours
-    REFRESH_THRESHOLD: 3600000, // 1 hour before expiry
+    TOKEN_EXPIRY: 86400000, 
+    REFRESH_THRESHOLD: 3600000, 
     MAX_FAILED_ATTEMPTS: 3
   }
 };
 
-// Data Access Rules
+
 export const DataAccessRules = {
-  // Resource access permissions
+  
   RESOURCE_PERMISSIONS: {
     'github-copilot': {
       allowedResources: ['code', 'documentation', 'repositories'],
       deniedResources: ['secrets', 'credentials', 'private-keys'],
-      maxResourceSize: 10485760, // 10MB
+      maxResourceSize: 10485760, 
       allowedFileTypes: ['.js', '.ts', '.py', '.rs', '.go', '.java', '.cpp', '.c', '.md', '.txt']
     },
     'amazon-q': {
       allowedResources: ['code', 'documentation', 'logs', 'metrics'],
       deniedResources: ['secrets', 'credentials', 'private-keys', 'user-data'],
-      maxResourceSize: 5242880, // 5MB
+      maxResourceSize: 5242880, 
       allowedFileTypes: ['.js', '.ts', '.py', '.rs', '.go', '.java', '.cpp', '.c', '.md', '.txt', '.log']
     },
     'cline': {
       allowedResources: ['files', 'directories', 'terminal'],
       deniedResources: ['system-files', 'secrets', 'credentials'],
-      maxResourceSize: 1048576, // 1MB
+      maxResourceSize: 1048576, 
       allowedFileTypes: ['.js', '.ts', '.py', '.rs', '.sh', '.bat', '.md', '.txt', '.json', '.yaml']
     }
   },
 
-  // Context sharing rules
+  
   CONTEXT_SHARING: {
-    CROSS_AGENT: false,        // Don't share context between different agents
-    CROSS_SESSION: false,      // Don't share context between sessions
-    PERSISTENT: true,          // Allow persistent context within session
-    MAX_CONTEXT_SIZE: 1048576, // 1MB max context size
-    RETENTION_PERIOD: 86400000 // 24 hours
+    CROSS_AGENT: false,        
+    CROSS_SESSION: false,      
+    PERSISTENT: true,          
+    MAX_CONTEXT_SIZE: 1048576, 
+    RETENTION_PERIOD: 86400000 
   },
 
-  // Data retention policies
+  
   DATA_RETENTION: {
-    CONVERSATION_HISTORY: 2592000000, // 30 days
-    TOOL_CALL_LOGS: 604800000,        // 7 days
-    ERROR_LOGS: 2592000000,           // 30 days
-    METRICS: 7776000000,              // 90 days
-    WEBHOOK_LOGS: 604800000           // 7 days
+    CONVERSATION_HISTORY: 2592000000, 
+    TOOL_CALL_LOGS: 604800000,        
+    ERROR_LOGS: 2592000000,           
+    METRICS: 7776000000,              
+    WEBHOOK_LOGS: 604800000           
   }
 };
 
-// Security Rules
+
 export const SecurityRules = {
-  // Input validation rules
+  
   INPUT_VALIDATION: {
-    MAX_MESSAGE_LENGTH: 32768,     // 32KB
-    MAX_TOOL_ARGS_SIZE: 8192,      // 8KB
+    MAX_MESSAGE_LENGTH: 32768,     
+    MAX_TOOL_ARGS_SIZE: 8192,      
     ALLOWED_PROTOCOLS: ['https', 'wss'],
     BLOCKED_PATTERNS: [
       /password/i,
@@ -99,44 +96,44 @@ export const SecurityRules = {
     ]
   },
 
-  // Output sanitization rules
+  
   OUTPUT_SANITIZATION: {
     REMOVE_SECRETS: true,
     MASK_CREDENTIALS: true,
     FILTER_SYSTEM_INFO: true,
-    MAX_OUTPUT_SIZE: 65536 // 64KB
+    MAX_OUTPUT_SIZE: 65536 
   },
 
-  // Webhook security
+  
   WEBHOOK_SECURITY: {
     REQUIRE_SIGNATURE: true,
     SIGNATURE_ALGORITHMS: ['sha256', 'sha1'],
-    MAX_PAYLOAD_SIZE: 1048576, // 1MB
-    ALLOWED_IPS: [], // Empty means allow all, populate for IP restrictions
-    RATE_LIMIT_PER_IP: 100 // requests per hour
+    MAX_PAYLOAD_SIZE: 1048576, 
+    ALLOWED_IPS: [], 
+    RATE_LIMIT_PER_IP: 100 
   },
 
-  // Tool execution security
+  
   TOOL_EXECUTION: {
     SANDBOX_ENABLED: true,
-    TIMEOUT: 30000, // 30 seconds
-    MAX_MEMORY: 134217728, // 128MB
-    ALLOWED_COMMANDS: [], // Whitelist of allowed commands
+    TIMEOUT: 30000, 
+    MAX_MEMORY: 134217728, 
+    ALLOWED_COMMANDS: [], 
     BLOCKED_COMMANDS: ['rm', 'del', 'format', 'sudo', 'su']
   }
 };
 
-// Quality Rules
+
 export const QualityRules = {
-  // Response quality requirements
+  
   RESPONSE_QUALITY: {
     MIN_CONFIDENCE: 0.7,
-    MAX_RESPONSE_TIME: 5000, // 5 seconds
+    MAX_RESPONSE_TIME: 5000, 
     REQUIRE_CITATIONS: true,
     MAX_HALLUCINATION_SCORE: 0.3
   },
 
-  // Code quality requirements
+  
   CODE_QUALITY: {
     REQUIRE_SYNTAX_CHECK: true,
     REQUIRE_LINTING: true,
@@ -145,7 +142,7 @@ export const QualityRules = {
     REQUIRE_DOCUMENTATION: true
   },
 
-  // Content filtering
+  
   CONTENT_FILTERING: {
     BLOCK_HARMFUL_CONTENT: true,
     BLOCK_PERSONAL_INFO: true,
@@ -154,22 +151,22 @@ export const QualityRules = {
   }
 };
 
-// Monitoring Rules
+
 export const MonitoringRules = {
-  // Performance monitoring
+  
   PERFORMANCE: {
     TRACK_RESPONSE_TIMES: true,
     TRACK_ERROR_RATES: true,
     TRACK_RESOURCE_USAGE: true,
     ALERT_THRESHOLDS: {
-      RESPONSE_TIME: 10000, // 10 seconds
-      ERROR_RATE: 0.05,     // 5%
-      CPU_USAGE: 0.8,       // 80%
-      MEMORY_USAGE: 0.9     // 90%
+      RESPONSE_TIME: 10000, 
+      ERROR_RATE: 0.05,     
+      CPU_USAGE: 0.8,       
+      MEMORY_USAGE: 0.9     
     }
   },
 
-  // Usage monitoring
+  
   USAGE: {
     TRACK_API_CALLS: true,
     TRACK_TOOL_USAGE: true,
@@ -181,19 +178,19 @@ export const MonitoringRules = {
     }
   },
 
-  // Audit logging
+  
   AUDIT: {
     LOG_ALL_REQUESTS: true,
     LOG_TOOL_EXECUTIONS: true,
     LOG_RESOURCE_ACCESS: true,
     LOG_AUTHENTICATION: true,
-    RETENTION_PERIOD: 7776000000 // 90 days
+    RETENTION_PERIOD: 7776000000 
   }
 };
 
-// Compliance Rules
+
 export const ComplianceRules = {
-  // Privacy compliance
+  
   PRIVACY: {
     GDPR_COMPLIANT: true,
     CCPA_COMPLIANT: true,
@@ -202,7 +199,7 @@ export const ComplianceRules = {
     CONSENT_REQUIRED: true
   },
 
-  // Security compliance
+  
   SECURITY: {
     SOC2_COMPLIANT: true,
     ISO27001_COMPLIANT: true,
@@ -211,24 +208,21 @@ export const ComplianceRules = {
     ACCESS_LOGGING: true
   },
 
-  // Industry compliance
+  
   INDUSTRY: {
-    HIPAA_COMPLIANT: false, // Set to true if handling health data
-    PCI_COMPLIANT: false,   // Set to true if handling payment data
-    SOX_COMPLIANT: false    // Set to true if handling financial data
+    HIPAA_COMPLIANT: false, 
+    PCI_COMPLIANT: false,   
+    SOX_COMPLIANT: false    
   }
 };
 
-/**
- * Rule Validator
- * Validates agent actions against defined rules
- */
+
 export class RuleValidator {
   constructor(logger) {
     this.logger = logger;
   }
 
-  // Validate connection request
+  
   validateConnection(agentType, connectionCount) {
     const maxConnections = ConnectionRules.MAX_CONNECTIONS[agentType] || ConnectionRules.MAX_CONNECTIONS.generic;
     
@@ -243,7 +237,7 @@ export class RuleValidator {
     return { valid: true };
   }
 
-  // Validate resource access
+  
   validateResourceAccess(agentType, resourceType, resourceSize, fileType) {
     const permissions = DataAccessRules.RESOURCE_PERMISSIONS[agentType];
     
@@ -251,22 +245,22 @@ export class RuleValidator {
       return { valid: false, reason: 'Unknown agent type' };
     }
 
-    // Check allowed resources
+    
     if (!permissions.allowedResources.includes(resourceType)) {
       return { valid: false, reason: `Resource type '${resourceType}' not allowed` };
     }
 
-    // Check denied resources
+    
     if (permissions.deniedResources.includes(resourceType)) {
       return { valid: false, reason: `Resource type '${resourceType}' explicitly denied` };
     }
 
-    // Check resource size
+    
     if (resourceSize > permissions.maxResourceSize) {
       return { valid: false, reason: 'Resource size exceeds limit' };
     }
 
-    // Check file type
+    
     if (fileType && !permissions.allowedFileTypes.includes(fileType)) {
       return { valid: false, reason: `File type '${fileType}' not allowed` };
     }
@@ -274,14 +268,14 @@ export class RuleValidator {
     return { valid: true };
   }
 
-  // Validate input content
+  
   validateInput(content) {
-    // Check length
+    
     if (content.length > SecurityRules.INPUT_VALIDATION.MAX_MESSAGE_LENGTH) {
       return { valid: false, reason: 'Input too long' };
     }
 
-    // Check for blocked patterns
+    
     for (const pattern of SecurityRules.INPUT_VALIDATION.BLOCKED_PATTERNS) {
       if (pattern.test(content)) {
         return { valid: false, reason: 'Input contains blocked content' };
@@ -291,7 +285,7 @@ export class RuleValidator {
     return { valid: true };
   }
 
-  // Validate tool execution
+  
   validateToolExecution(toolName, args, agentType) {
     const permissions = DataAccessRules.RESOURCE_PERMISSIONS[agentType];
     
@@ -299,12 +293,12 @@ export class RuleValidator {
       return { valid: false, reason: 'Unknown agent type' };
     }
 
-    // Check if tool execution is allowed for this agent
+    
     if (SecurityRules.TOOL_EXECUTION.BLOCKED_COMMANDS.includes(toolName)) {
       return { valid: false, reason: `Tool '${toolName}' is blocked` };
     }
 
-    // Check argument size
+    
     const argsSize = JSON.stringify(args).length;
     if (argsSize > SecurityRules.INPUT_VALIDATION.MAX_TOOL_ARGS_SIZE) {
       return { valid: false, reason: 'Tool arguments too large' };
@@ -313,14 +307,14 @@ export class RuleValidator {
     return { valid: true };
   }
 
-  // Validate webhook request
+  
   validateWebhook(payload, signature, agentType) {
-    // Check payload size
+    
     if (payload.length > SecurityRules.WEBHOOK_SECURITY.MAX_PAYLOAD_SIZE) {
       return { valid: false, reason: 'Webhook payload too large' };
     }
 
-    // Check signature if required
+    
     if (SecurityRules.WEBHOOK_SECURITY.REQUIRE_SIGNATURE && !signature) {
       return { valid: false, reason: 'Webhook signature required' };
     }
@@ -328,7 +322,7 @@ export class RuleValidator {
     return { valid: true };
   }
 
-  // Check rate limits
+  
   checkRateLimit(agentType, requestType, currentCount, timeWindow) {
     const limits = ConnectionRules.RATE_LIMITS;
     let limit;
@@ -360,10 +354,7 @@ export class RuleValidator {
   }
 }
 
-/**
- * Rule Engine
- * Main engine for applying and enforcing rules
- */
+
 export class RuleEngine {
   constructor(logger) {
     this.logger = logger;
@@ -371,7 +362,7 @@ export class RuleEngine {
     this.rateLimiters = new Map();
   }
 
-  // Apply all relevant rules to an agent action
+  
   async applyRules(action, context) {
     const results = [];
 
@@ -410,7 +401,7 @@ export class RuleEngine {
         break;
     }
 
-    // Check rate limits
+    
     const rateLimitResult = this.checkAndUpdateRateLimit(
       action.agentType,
       action.type,
@@ -418,7 +409,7 @@ export class RuleEngine {
     );
     results.push(rateLimitResult);
 
-    // Return combined results
+    
     const failedRules = results.filter(r => !r.valid);
     
     if (failedRules.length > 0) {
@@ -436,7 +427,7 @@ export class RuleEngine {
     };
   }
 
-  // Check and update rate limits
+  
   checkAndUpdateRateLimit(agentType, requestType, timeWindow) {
     const key = `${agentType}:${requestType}:${timeWindow}`;
     const now = Date.now();
@@ -448,13 +439,13 @@ export class RuleEngine {
 
     const limiter = this.rateLimiters.get(key);
     
-    // Reset if window expired
+    
     if (now >= limiter.resetTime) {
       limiter.count = 0;
       limiter.resetTime = now + windowMs;
     }
 
-    // Check limit
+    
     const result = this.validator.checkRateLimit(agentType, requestType, limiter.count, timeWindow);
     
     if (result.valid) {
@@ -464,7 +455,7 @@ export class RuleEngine {
     return result;
   }
 
-  // Get current rule configuration
+  
   getRuleConfiguration() {
     return {
       connection: ConnectionRules,
@@ -476,7 +467,7 @@ export class RuleEngine {
     };
   }
 
-  // Update rule configuration
+  
   updateRuleConfiguration(ruleType, updates) {
     switch (ruleType) {
       case 'connection':

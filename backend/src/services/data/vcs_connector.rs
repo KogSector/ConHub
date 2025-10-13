@@ -8,10 +8,10 @@ use crate::models::{
 };
 use crate::services::vcs_detector::{VcsDetector, CloneUrls};
 
-/// Result type for VCS operations
+
 pub type VcsResult<T> = Result<T, VcsError>;
 
-/// VCS operation errors
+
 #[derive(Debug, thiserror::Error)]
 pub enum VcsError {
     #[error("Authentication failed: {0}")]
@@ -40,7 +40,7 @@ pub enum VcsError {
     OperationFailed(String),
 }
 
-/// Repository metadata retrieved from VCS
+
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct RepositoryMetadata {
@@ -57,7 +57,7 @@ pub struct RepositoryMetadata {
     pub clone_urls: CloneUrls,
 }
 
-/// File content from repository
+
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct FileContent {
@@ -68,7 +68,7 @@ pub struct FileContent {
     pub url: String,
 }
 
-/// Repository branch information
+
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct BranchInfo {
@@ -78,27 +78,27 @@ pub struct BranchInfo {
     pub is_default: bool,
 }
 
-/// VCS connector trait for different version control systems
+
 #[async_trait]
 pub trait VcsConnector: Send + Sync {
-    /// Test connection with the provided credentials
+    
     async fn test_connection(&self, credentials: &RepositoryCredentials) -> VcsResult<bool>;
     
-    /// Get repository metadata
+    
     async fn get_repository_metadata(
         &self, 
         url: &str, 
         credentials: &RepositoryCredentials
     ) -> VcsResult<RepositoryMetadata>;
     
-    /// List branches in the repository
+    
     async fn list_branches(
         &self, 
         url: &str, 
         credentials: &RepositoryCredentials
     ) -> VcsResult<Vec<BranchInfo>>;
     
-    /// Get file contents from repository
+    
     #[allow(dead_code)]
     async fn get_file_content(
         &self,
@@ -108,7 +108,7 @@ pub trait VcsConnector: Send + Sync {
         credentials: &RepositoryCredentials,
     ) -> VcsResult<FileContent>;
     
-    /// List files in repository directory
+    
     #[allow(dead_code)]
     async fn list_files(
         &self,
@@ -119,7 +119,7 @@ pub trait VcsConnector: Send + Sync {
         recursive: bool,
     ) -> VcsResult<Vec<String>>;
     
-    /// Clone or pull repository for local access
+    
     #[allow(dead_code)]
     async fn sync_repository(
         &self,
@@ -127,7 +127,7 @@ pub trait VcsConnector: Send + Sync {
         local_path: &str,
     ) -> VcsResult<()>;
     
-    /// Setup webhook for repository (if supported)
+    
     async fn setup_webhook(
         &self,
         url: &str,
@@ -137,7 +137,7 @@ pub trait VcsConnector: Send + Sync {
     ) -> VcsResult<String>;
 }
 
-/// Git connector implementation
+
 pub struct GitConnector {
     client: Client,
 }
@@ -149,7 +149,7 @@ impl GitConnector {
         }
     }
     
-    /// Get API base URL for different VCS providers
+    
     fn get_api_base_url(&self, provider: &VcsProvider, url: &str) -> VcsResult<String> {
         match provider {
             VcsProvider::GitHub => Ok("https://api.github.com".to_string()),
@@ -157,7 +157,7 @@ impl GitConnector {
                 if url.contains("gitlab.com") {
                     Ok("https://gitlab.com/api/v4".to_string())
                 } else {
-                    // Self-hosted GitLab instance
+                    
                     let base = url.split("/").take(3).collect::<Vec<_>>().join("/");
                     Ok(format!("{}/api/v4", base))
                 }
@@ -176,7 +176,7 @@ impl GitConnector {
         }
     }
     
-    /// Make authenticated API request
+    
     async fn make_api_request(
         &self,
         url: &str,
@@ -184,25 +184,25 @@ impl GitConnector {
     ) -> VcsResult<Value> {
         let mut request = self.client.get(url);
         
-        // Add authentication headers based on credential type and provider
+        
         match &credentials.credential_type {
             CredentialType::PersonalAccessToken { token } => {
                 println!("Making API request to: {}", url);
                 
                 if url.contains("gitlab") {
-                    // GitLab uses Bearer token authentication
+                    
                     println!("Using GitLab Bearer auth");
                     request = request.header("Authorization", format!("Bearer {}", token));
                 } else if token.starts_with("github_pat_") {
-                    // Fine-grained GitHub personal access token
+                    
                     println!("Using Bearer auth for fine-grained GitHub token");
                     request = request.header("Authorization", format!("Bearer {}", token));
                 } else if token.starts_with("ghp_") {
-                    // Classic GitHub personal access token
+                    
                     println!("Using token auth for classic GitHub token");
                     request = request.header("Authorization", format!("token {}", token));
                 } else {
-                    // Default to Bearer for unknown token types
+                    
                     println!("Using Bearer auth for unknown token type");
                     request = request.header("Authorization", format!("Bearer {}", token));
                 }
@@ -237,7 +237,7 @@ impl GitConnector {
 #[async_trait]
 impl VcsConnector for GitConnector {
     async fn test_connection(&self, credentials: &RepositoryCredentials) -> VcsResult<bool> {
-        // Test with GitHub user endpoint
+        
         match &credentials.credential_type {
             CredentialType::PersonalAccessToken { token } => {
                 println!("Testing connection with token starting with: {}", &token[..8]);
@@ -262,7 +262,7 @@ impl VcsConnector for GitConnector {
                 println!("Response status: {}", response.status());
                 Ok(response.status().is_success())
             }
-            _ => Ok(false), // Other credential types not supported for testing
+            _ => Ok(false), 
         }
     }
     
@@ -290,7 +290,7 @@ impl VcsConnector for GitConnector {
         
         println!("Successfully got repository metadata for: {}", api_url);
         
-        // Parse response based on provider
+        
         let metadata = match provider {
             VcsProvider::GitHub => {
                 RepositoryMetadata {
@@ -316,8 +316,8 @@ impl VcsConnector for GitConnector {
                     default_branch: repo_data["default_branch"].as_str().unwrap_or("main").to_string(),
                     branches: vec![],
                     tags: vec![],
-                    language: None, // GitLab doesn't provide primary language in project API
-                    size_kb: None,  // GitLab doesn't provide size in project API
+                    language: None, 
+                    size_kb: None,  
                     stars: repo_data["star_count"].as_u64().map(|n| n as u32),
                     forks: repo_data["forks_count"].as_u64().map(|n| n as u32),
                     clone_urls: VcsDetector::generate_clone_urls(url, &provider)
@@ -329,13 +329,13 @@ impl VcsConnector for GitConnector {
                     name: repo_data["name"].as_str().unwrap_or(&repo).to_string(),
                     description: repo_data["description"].as_str().map(|s| s.to_string()),
                     is_private: repo_data["is_private"].as_bool().unwrap_or(false),
-                    default_branch: "main".to_string(), // Bitbucket API doesn't provide default branch in repo info
+                    default_branch: "main".to_string(), 
                     branches: vec![],
                     tags: vec![],
                     language: repo_data["language"].as_str().map(|s| s.to_string()),
-                    size_kb: repo_data["size"].as_u64().map(|s| s / 1024), // Convert bytes to KB
-                    stars: None, // Bitbucket doesn't have stars
-                    forks: None, // Would need separate API call
+                    size_kb: repo_data["size"].as_u64().map(|s| s / 1024), 
+                    stars: None, 
+                    forks: None, 
                     clone_urls: VcsDetector::generate_clone_urls(url, &provider)
                         .map_err(|e| VcsError::InvalidUrl(e))?,
                 }
@@ -406,8 +406,8 @@ impl VcsConnector for GitConnector {
                             branches.push(BranchInfo {
                                 name: name.to_string(),
                                 sha: branch["target"]["hash"].as_str().unwrap_or("").to_string(),
-                                protected: false, // Bitbucket doesn't provide protection status in branch list
-                                is_default: false, // Would need separate API call
+                                protected: false, 
+                                is_default: false, 
                             });
                         }
                     }
@@ -426,8 +426,8 @@ impl VcsConnector for GitConnector {
         _branch: &str,
         _credentials: &RepositoryCredentials,
     ) -> VcsResult<FileContent> {
-        // Implementation for getting file content from Git repositories
-        // This would involve API calls to get file contents
+        
+        
         Err(VcsError::OperationFailed("Not implemented yet".to_string()))
     }
     
@@ -439,7 +439,7 @@ impl VcsConnector for GitConnector {
         _credentials: &RepositoryCredentials,
         _recursive: bool,
     ) -> VcsResult<Vec<String>> {
-        // Implementation for listing files in Git repositories
+        
         Err(VcsError::OperationFailed("Not implemented yet".to_string()))
     }
     
@@ -448,7 +448,7 @@ impl VcsConnector for GitConnector {
         _repo_info: &RepositoryInfo,
         _local_path: &str,
     ) -> VcsResult<()> {
-        // Implementation for cloning/pulling Git repositories
+        
         Err(VcsError::OperationFailed("Not implemented yet".to_string()))
     }
     
@@ -459,12 +459,12 @@ impl VcsConnector for GitConnector {
         _secret: &str,
         _credentials: &RepositoryCredentials,
     ) -> VcsResult<String> {
-        // Implementation for setting up webhooks
+        
         Err(VcsError::OperationFailed("Not implemented yet".to_string()))
     }
 }
 
-/// SVN connector implementation
+
 pub struct SvnConnector {
     #[allow(dead_code)]
     client: Client,
@@ -481,7 +481,7 @@ impl SvnConnector {
 #[async_trait]
 impl VcsConnector for SvnConnector {
     async fn test_connection(&self, _credentials: &RepositoryCredentials) -> VcsResult<bool> {
-        // SVN connection testing would require different approach
+        
         Err(VcsError::UnsupportedVcs(VcsType::Subversion))
     }
     
@@ -541,7 +541,7 @@ impl VcsConnector for SvnConnector {
     }
 }
 
-/// Factory for creating VCS connectors
+
 pub struct VcsConnectorFactory;
 
 impl VcsConnectorFactory {
@@ -549,10 +549,10 @@ impl VcsConnectorFactory {
         match vcs_type {
             VcsType::Git => Box::new(GitConnector::new()),
             VcsType::Subversion => Box::new(SvnConnector::new()),
-            VcsType::Mercurial => Box::new(SvnConnector::new()), // Placeholder
-            VcsType::Bazaar => Box::new(SvnConnector::new()),    // Placeholder
-            VcsType::Perforce => Box::new(SvnConnector::new()),  // Placeholder
-            VcsType::Unknown => Box::new(GitConnector::new()),   // Default to Git
+            VcsType::Mercurial => Box::new(SvnConnector::new()), 
+            VcsType::Bazaar => Box::new(SvnConnector::new()),    
+            VcsType::Perforce => Box::new(SvnConnector::new()),  
+            VcsType::Unknown => Box::new(GitConnector::new()),   
         }
     }
 }

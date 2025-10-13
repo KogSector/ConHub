@@ -1,19 +1,19 @@
--- Billing and Subscription Schema
--- PostgreSQL Database Schema for billing, subscriptions, and payments
 
--- Payment status enum
+
+
+
 CREATE TYPE payment_status AS ENUM ('pending', 'processing', 'completed', 'failed', 'cancelled', 'refunded');
 
--- Subscription status enum
+
 CREATE TYPE subscription_status AS ENUM ('active', 'cancelled', 'past_due', 'unpaid', 'trialing', 'incomplete');
 
--- Invoice status enum
+
 CREATE TYPE invoice_status AS ENUM ('draft', 'open', 'paid', 'void', 'uncollectible');
 
--- Payment method type enum
+
 CREATE TYPE payment_method_type AS ENUM ('card', 'bank_account', 'paypal', 'stripe');
 
--- Subscription plans table
+
 CREATE TABLE subscription_plans (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(100) NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE subscription_plans (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- User subscriptions table
+
 CREATE TABLE user_subscriptions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -44,10 +44,10 @@ CREATE TABLE user_subscriptions (
     metadata JSONB NOT NULL DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    UNIQUE(user_id) -- One subscription per user
+    UNIQUE(user_id) 
 );
 
--- Payment methods table
+
 CREATE TABLE payment_methods (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -64,7 +64,7 @@ CREATE TABLE payment_methods (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- Invoices table
+
 CREATE TABLE invoices (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -85,7 +85,7 @@ CREATE TABLE invoices (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- Invoice line items table
+
 CREATE TABLE invoice_line_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
@@ -97,7 +97,7 @@ CREATE TABLE invoice_line_items (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- Payments table
+
 CREATE TABLE payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -114,11 +114,11 @@ CREATE TABLE payments (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- Usage tracking table
+
 CREATE TABLE usage_tracking (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    resource_type VARCHAR(100) NOT NULL, -- repositories, ai_queries, storage_gb, etc.
+    resource_type VARCHAR(100) NOT NULL, 
     usage_count INTEGER NOT NULL DEFAULT 0,
     period_start TIMESTAMP WITH TIME ZONE NOT NULL,
     period_end TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -128,7 +128,7 @@ CREATE TABLE usage_tracking (
     UNIQUE(user_id, resource_type, period_start)
 );
 
--- Billing addresses table
+
 CREATE TABLE billing_addresses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -143,7 +143,7 @@ CREATE TABLE billing_addresses (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- Coupons table
+
 CREATE TABLE coupons (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     code VARCHAR(50) UNIQUE NOT NULL,
@@ -151,7 +151,7 @@ CREATE TABLE coupons (
     percent_off INTEGER CHECK (percent_off >= 0 AND percent_off <= 100),
     amount_off DECIMAL(10,2),
     currency VARCHAR(3),
-    duration VARCHAR(20) NOT NULL, -- once, repeating, forever
+    duration VARCHAR(20) NOT NULL, 
     duration_in_months INTEGER,
     max_redemptions INTEGER,
     times_redeemed INTEGER NOT NULL DEFAULT 0,
@@ -163,7 +163,7 @@ CREATE TABLE coupons (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- User coupon redemptions table
+
 CREATE TABLE user_coupon_redemptions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -173,7 +173,7 @@ CREATE TABLE user_coupon_redemptions (
     UNIQUE(user_id, coupon_id)
 );
 
--- Insert default subscription plans
+
 INSERT INTO subscription_plans (name, description, tier, price_monthly, price_yearly, features, limits) VALUES
 ('Free Plan', 'Perfect for getting started', 'free', 0.00, 0.00, 
  '{"repositories": 3, "ai_queries": 100, "storage_gb": 1, "support": "community"}',
@@ -188,7 +188,7 @@ INSERT INTO subscription_plans (name, description, tier, price_monthly, price_ye
  '{"repositories": "unlimited", "ai_queries": "unlimited", "storage_gb": 500, "support": "dedicated", "sso": true, "audit_logs": true, "custom_integrations": true}',
  '{"max_repositories": null, "max_ai_queries_per_month": null, "max_storage_gb": 500}');
 
--- Indexes for performance
+
 CREATE INDEX idx_user_subscriptions_user_id ON user_subscriptions(user_id);
 CREATE INDEX idx_user_subscriptions_status ON user_subscriptions(status);
 CREATE INDEX idx_user_subscriptions_period ON user_subscriptions(current_period_start, current_period_end);
@@ -213,7 +213,7 @@ CREATE INDEX idx_billing_addresses_default ON billing_addresses(user_id, is_defa
 CREATE INDEX idx_coupons_code ON coupons(code) WHERE is_active = TRUE;
 CREATE INDEX idx_coupons_valid ON coupons(valid_from, valid_until) WHERE is_active = TRUE;
 
--- Triggers for automatic timestamp updates
+
 CREATE TRIGGER update_subscription_plans_updated_at BEFORE UPDATE ON subscription_plans
     FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 

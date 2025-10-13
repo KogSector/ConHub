@@ -38,7 +38,7 @@ impl DocumentIndexingService {
         job.start();
         self.jobs.insert(job_id.clone(), job.clone());
 
-        // Spawn background task
+        
         let jobs = self.jobs.clone();
         let chunking_service = self.chunking_service.clone();
 
@@ -76,7 +76,7 @@ impl DocumentIndexingService {
         job.start();
         self.jobs.insert(job_id.clone(), job.clone());
 
-        // Spawn background task
+        
         let jobs = self.jobs.clone();
         let chunking_service = self.chunking_service.clone();
 
@@ -106,7 +106,7 @@ impl DocumentIndexingService {
     ) -> Result<(usize, usize, usize), Box<dyn std::error::Error>> {
         log::info!("Processing documentation: {}", doc_url);
 
-        // Fetch documentation content
+        
         let client = reqwest::Client::new();
         let response = client
             .get(doc_url)
@@ -120,10 +120,10 @@ impl DocumentIndexingService {
 
         let content = response.text().await?;
         
-        // Extract text from HTML
+        
         let text = Self::extract_text_from_html(&content)?;
         
-        // Chunk the content
+        
         let chunks = chunking_service.chunk_text(&text)?;
         let chunk_count = chunks.len();
 
@@ -143,10 +143,10 @@ impl DocumentIndexingService {
             return Err(format!("File not found: {}", file_path).into());
         }
 
-        // Read file content
+        
         let content = tokio::fs::read_to_string(path).await?;
         
-        // Chunk the content
+        
         let chunks = chunking_service.chunk_text(&content)?;
         let chunk_count = chunks.len();
 
@@ -156,10 +156,10 @@ impl DocumentIndexingService {
     }
 
     fn extract_text_from_html(html: &str) -> Result<String, Box<dyn std::error::Error>> {
-        // Use scraper to parse HTML
+        
         let document = scraper::Html::parse_document(html);
         
-        // Remove script and style tags
+        
         let selector = scraper::Selector::parse("body").unwrap();
         
         let mut text = String::new();
@@ -167,7 +167,7 @@ impl DocumentIndexingService {
             text.push_str(&element.text().collect::<Vec<_>>().join(" "));
         }
         
-        // Clean up whitespace
+        
         let cleaned = text
             .split_whitespace()
             .collect::<Vec<_>>()
@@ -184,7 +184,7 @@ impl DocumentIndexingService {
     ) -> Result<Vec<SearchResult>, Box<dyn std::error::Error>> {
         log::info!("Searching documents: {}", query);
         
-        // Placeholder implementation
+        
         let mut results = Vec::new();
         
         if !query.is_empty() {

@@ -106,7 +106,7 @@ where
     }
 }
 
-// Helper function to extract token from request
+
 #[allow(dead_code)]
 pub fn extract_token_from_request(req: &HttpRequest) -> Option<String> {
     req.headers()

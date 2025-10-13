@@ -39,7 +39,7 @@ impl CodeIndexingService {
         job.start();
         self.jobs.insert(job_id.clone(), job.clone());
 
-        // Spawn background task to process repository
+        
         let jobs = self.jobs.clone();
         let chunking_service = self.chunking_service.clone();
         let temp_dir = self.config.temp_dir.clone();
@@ -71,15 +71,15 @@ impl CodeIndexingService {
     ) -> Result<(usize, usize, usize), Box<dyn std::error::Error>> {
         log::info!("Processing repository: {} (branch: {})", repo_url, branch);
 
-        // Create temp directory for cloning
+        
         let repo_dir = format!("{}/{}", temp_dir, uuid::Uuid::new_v4());
         std::fs::create_dir_all(&repo_dir)?;
 
-        // Clone repository
+        
         log::info!("Cloning repository to: {}", repo_dir);
         let repo = git2::Repository::clone(repo_url, &repo_dir)?;
         
-        // Checkout specified branch
+        
         let (object, reference) = repo.revparse_ext(branch)?;
         repo.checkout_tree(&object, None)?;
         
@@ -87,7 +87,7 @@ impl CodeIndexingService {
             repo.set_head(reference.name().unwrap())?;
         }
 
-        // Index all code files
+        
         let mut documents_processed = 0;
         let mut total_chunks = 0;
 
@@ -98,12 +98,12 @@ impl CodeIndexingService {
         {
             let path = entry.path();
             
-            // Skip hidden files and directories
+            
             if path.to_str().unwrap_or("").contains("/.") {
                 continue;
             }
 
-            // Check if it's a code file
+            
             if let Some(extension) = path.extension() {
                 let ext = extension.to_str().unwrap_or("");
                 if Self::is_code_file(ext) {
@@ -120,12 +120,12 @@ impl CodeIndexingService {
             }
         }
 
-        // Clean up temp directory
+        
         let _ = std::fs::remove_dir_all(&repo_dir);
 
         log::info!("Repository processing complete: {} files, {} chunks", documents_processed, total_chunks);
         
-        // For now, embeddings count equals chunks count
+        
         Ok((documents_processed, total_chunks, total_chunks))
     }
 
@@ -135,11 +135,11 @@ impl CodeIndexingService {
     ) -> Result<usize, Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(path)?;
         
-        // Create chunks
+        
         let chunks = chunking_service.chunk_text(&content)?;
         
-        // Here you would store chunks in vector DB or search index
-        // For now, just log
+        
+        
         log::debug!("Indexed file {:?}: {} chunks", path, chunks.len());
         
         Ok(chunks.len())
@@ -162,11 +162,11 @@ impl CodeIndexingService {
     ) -> Result<Vec<SearchResult>, Box<dyn std::error::Error>> {
         log::info!("Searching code: {}", query);
         
-        // Placeholder implementation
-        // In a real implementation, this would search the Tantivy index
+        
+        
         let mut results = Vec::new();
         
-        // Return mock result for now
+        
         if !query.is_empty() {
             results.push(SearchResult {
                 id: uuid::Uuid::new_v4().to_string(),

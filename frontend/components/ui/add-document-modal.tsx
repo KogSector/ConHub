@@ -123,12 +123,12 @@ export function AddDocumentModal({ open, onOpenChange, onDocumentAdded }: AddDoc
     if (sourceId === "local") {
       setShowFileUpload(true);
     } else {
-      // For other sources, show connection flow
+      
       toast({
         title: "Connecting...",
         description: `Initiating connection to ${source?.name}`,
       });
-      // Here you would implement the OAuth flow for each service
+      
       setTimeout(() => {
         toast({
           title: "Success",
@@ -142,7 +142,7 @@ export function AddDocumentModal({ open, onOpenChange, onDocumentAdded }: AddDoc
 
   const handleFileUpload = async (files: File[]) => {
     try {
-      // Mock file upload process
+      
       for (const file of files) {
         console.log(`Uploading ${file.name} (${file.size} bytes)`);
       }

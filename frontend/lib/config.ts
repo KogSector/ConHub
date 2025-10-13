@@ -1,4 +1,4 @@
-// API Configuration for ConHub Frontend
+
 
 export const API_CONFIG = {
   baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
@@ -14,7 +14,7 @@ export const ENDPOINTS = {
   settings: '/api/settings',
 } as const;
 
-// Validate configuration on load
+
 if (typeof window !== 'undefined') {
   const isValidUrl = (url: string) => {
     try {
@@ -29,7 +29,7 @@ if (typeof window !== 'undefined') {
     console.error('Invalid API base URL:', API_CONFIG.baseUrl);
   }
 
-  // Log configuration in development
+  
   if (process.env.NODE_ENV === 'development') {
     console.log('ConHub API Configuration:', {
       baseUrl: API_CONFIG.baseUrl,

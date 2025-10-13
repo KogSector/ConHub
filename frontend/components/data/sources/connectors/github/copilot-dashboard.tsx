@@ -75,7 +75,7 @@ export default function GitHubCopilotDashboard() {
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_LANGCHAIN_SERVICE_URL || 'http://localhost:3001';
 
-  // Connect to GitHub
+  
   const connectToGitHub = async () => {
     if (!githubToken.trim()) {
       toast({
@@ -108,7 +108,7 @@ export default function GitHubCopilotDashboard() {
         description: `Connected to GitHub as ${data.data.login}`,
       });
 
-      // Load initial data
+      
       await Promise.all([
         loadRepositories(),
         loadOrganizations(),
@@ -124,7 +124,7 @@ export default function GitHubCopilotDashboard() {
     }
   };
 
-  // Load user repositories
+  
   const loadRepositories = async () => {
     try {
       const response = await fetch(`${apiBaseUrl}/api/github/repositories`, {
@@ -143,7 +143,7 @@ export default function GitHubCopilotDashboard() {
     }
   };
 
-  // Load user organizations
+  
   const loadOrganizations = async () => {
     try {
       const response = await fetch(`${apiBaseUrl}/api/github/organizations`, {
@@ -162,7 +162,7 @@ export default function GitHubCopilotDashboard() {
     }
   };
 
-  // Load Copilot usage for organization
+  
   const loadCopilotUsage = async (org: string) => {
     try {
       const response = await fetch(`${apiBaseUrl}/api/copilot/seats/${org}`, {
@@ -187,7 +187,7 @@ export default function GitHubCopilotDashboard() {
     }
   };
 
-  // Search repositories
+  
   const searchRepositories = async () => {
     if (!searchQuery.trim()) return;
 
@@ -215,7 +215,7 @@ export default function GitHubCopilotDashboard() {
     }
   };
 
-  // Handle organization selection for Copilot data
+  
   const handleOrganizationSelect = async (org: string) => {
     setSelectedOrg(org);
     if (org) {
@@ -223,7 +223,7 @@ export default function GitHubCopilotDashboard() {
     }
   };
 
-  // Disconnect from GitHub
+  
   const disconnect = () => {
     setGithubToken('');
     setIsConnected(false);
@@ -282,7 +282,7 @@ export default function GitHubCopilotDashboard() {
         </Card>
       ) : (
         <div className="space-y-6">
-          {/* User Profile */}
+          {}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

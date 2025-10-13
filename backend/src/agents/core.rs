@@ -3,31 +3,31 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 
-/// Core trait for all AI agent connectors
+
 #[async_trait]
 pub trait AIAgentConnector: Send + Sync {
-    /// Connect to the AI agent with credentials
+    
     #[allow(dead_code)]
     async fn connect(&self, credentials: &HashMap<String, String>) -> Result<bool, Box<dyn Error>>;
     
-    /// Disconnect from the AI agent
+    
     #[allow(dead_code)]
     async fn disconnect(&self) -> Result<bool, Box<dyn Error>>;
     
-    /// Query the AI agent with a prompt and optional context
+    
     #[allow(dead_code)]
     async fn query(&self, prompt: &str, context: Option<&str>) -> Result<String, Box<dyn Error>>;
     
-    /// Get agent information
+    
     #[allow(dead_code)]
     fn get_agent(&self) -> AIAgent;
     
-    /// Test the connection to the AI agent
+    
     #[allow(dead_code)]
     async fn test_connection(&self) -> Result<bool, Box<dyn Error>>;
 }
 
-/// AI Agent information
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AIAgent {
     pub id: String,
@@ -39,7 +39,7 @@ pub struct AIAgent {
     pub status: AgentStatus,
 }
 
-/// Agent connection status
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum AgentStatus {
     Connected,
@@ -48,7 +48,7 @@ pub enum AgentStatus {
     Connecting,
 }
 
-/// Agent query request
+
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 pub struct AgentQueryRequest {
@@ -58,7 +58,7 @@ pub struct AgentQueryRequest {
     pub temperature: Option<f32>,
 }
 
-/// Agent query response
+
 #[derive(Debug, Serialize)]
 pub struct AgentQueryResponse {
     pub response: String,
@@ -66,7 +66,7 @@ pub struct AgentQueryResponse {
     pub metadata: HashMap<String, serde_json::Value>,
 }
 
-/// Usage statistics for agent queries
+
 #[derive(Debug, Serialize)]
 pub struct AgentUsage {
     pub tokens_used: u32,
@@ -74,7 +74,7 @@ pub struct AgentUsage {
     pub model: Option<String>,
 }
 
-/// Factory for creating AI agent connectors
+
 #[allow(dead_code)]
 pub struct AIAgentFactory;
 

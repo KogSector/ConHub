@@ -1,4 +1,4 @@
-# Debug script to check database connectivity and user registration
+
 param(
     [Parameter(Mandatory=$false)]
     [string]$BackendUrl = "http://localhost:3001"
@@ -15,7 +15,7 @@ Write-ColorOutput "🔍 ConHub Database Debug Script" -Color Blue
 Write-ColorOutput "==============================" -Color Blue
 Write-Host ""
 
-# Test 1: Backend Health Check
+
 Write-ColorOutput "Step 1: Checking backend health..." ([System.ConsoleColor]::Yellow)
 try {
     $healthResponse = Invoke-RestMethod -Uri "$BackendUrl/health" -Method Get -TimeoutSec 10
@@ -35,7 +35,7 @@ catch {
 
 Write-Host ""
 
-# Test 2: Database Structure Check
+
 Write-ColorOutput "Step 2: Checking database structure..." ([System.ConsoleColor]::Yellow)
 try {
     $dbTestResponse = Invoke-RestMethod -Uri "$BackendUrl/api/auth/test-db" -Method Get -TimeoutSec 10
@@ -85,7 +85,7 @@ catch {
 
 Write-Host ""
 
-# Test 3: List Current Users
+
 Write-ColorOutput "Step 3: Listing current users..." ([System.ConsoleColor]::Yellow)
 try {
     $usersResponse = Invoke-RestMethod -Uri "$BackendUrl/api/auth/users" -Method Get -TimeoutSec 10
@@ -111,7 +111,7 @@ catch {
 
 Write-Host ""
 
-# Test 4: Try to register a test user
+
 Write-ColorOutput "Step 4: Testing user registration..." ([System.ConsoleColor]::Yellow)
 $testUser = @{
     name = "Debug Test User"
@@ -159,7 +159,7 @@ catch {
 
 Write-Host ""
 
-# Test 5: Check users again after registration attempt
+
 Write-ColorOutput "Step 5: Checking users after registration attempt..." ([System.ConsoleColor]::Yellow)
 try {
     $usersAfterResponse = Invoke-RestMethod -Uri "$BackendUrl/api/auth/users" -Method Get -TimeoutSec 10

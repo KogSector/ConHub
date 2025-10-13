@@ -52,7 +52,7 @@ pub async fn get_job_status(
 ) -> Result<HttpResponse> {
     let job_id = path.into_inner();
 
-    // Try to find the job in all indexers
+    
     if let Some(job) = state.code_indexer.get_job(&job_id).await {
         return Ok(HttpResponse::Ok().json(IndexingResultResponse {
             job_id: job.id,

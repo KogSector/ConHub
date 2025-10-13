@@ -12,8 +12,6 @@
     "dev:frontend": "next dev frontend -p 3000",
     "dev:backend": "powershell -ExecutionPolicy Bypass -File scripts/services/run-backend.ps1",
     "dev:lexor": "powershell -ExecutionPolicy Bypass -File scripts/services/run-lexor.ps1",
-    "dev:doc-search": "cd indexers/doc-search && python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload --log-level error",
-    "dev:langchain": "cross-env LANGCHAIN_PORT=8003 npx ts-node indexers/langchain-service/src/index.ts",
     "dev:mcp": "cd mcp && nodemon src/server.js",
     "start:mcp": "cd mcp && node src/server.js",
     "build": "npm run build:frontend && npm run build:backend",

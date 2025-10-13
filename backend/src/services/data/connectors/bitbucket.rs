@@ -149,7 +149,7 @@ impl ConnectorInterface for BitbucketConnector {
                         }),
                     });
 
-                    // Get README if requested
+                    
                     if data_source.config.get("includeReadme").and_then(|v| v.as_bool()).unwrap_or(false) {
                         let readme_url = format!("https://api.bitbucket.org/2.0/repositories/{}/src/main/README.md", repo_name);
                         if let Ok(readme_response) = self.client
@@ -183,7 +183,7 @@ impl ConnectorInterface for BitbucketConnector {
     async fn fetch_branches(&self, repo_url: &str) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
         let auth_header = self.get_auth_header()?;
         
-        // Extract workspace/repo from URL
+        
         let repo_name = if repo_url.contains("bitbucket.org") {
             repo_url.split("bitbucket.org/").nth(1)
                 .and_then(|s| s.split(".git").next())

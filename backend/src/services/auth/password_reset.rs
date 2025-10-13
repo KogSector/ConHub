@@ -12,8 +12,8 @@ pub struct PasswordResetToken {
     pub used: bool,
 }
 
-// In-memory storage for development
-// In production, use Redis or database
+
+
 type TokenStore = Arc<Mutex<HashMap<String, PasswordResetToken>>>;
 
 pub struct PasswordResetService {
@@ -29,7 +29,7 @@ impl PasswordResetService {
 
     pub fn generate_reset_token(&self, email: &str) -> Result<String, String> {
         let token = Uuid::new_v4().to_string();
-        let expires_at = Utc::now() + Duration::hours(1); // 1 hour expiry
+        let expires_at = Utc::now() + Duration::hours(1); 
         
         let reset_token = PasswordResetToken {
             token: token.clone(),
@@ -40,10 +40,10 @@ impl PasswordResetService {
 
         let mut tokens = self.tokens.lock().map_err(|_| "Failed to acquire lock")?;
         
-        // Clean up expired tokens
+        
         tokens.retain(|_, token| token.expires_at > Utc::now());
         
-        // Store new token
+        
         tokens.insert(token.clone(), reset_token);
         
         log::info!("Generated password reset token for email: {}", email);
@@ -64,7 +64,7 @@ impl PasswordResetService {
                     return Err("Token has expired".to_string());
                 }
                 
-                // Mark token as used
+                
                 reset_token.used = true;
                 
                 Ok(reset_token.email.clone())
@@ -86,8 +86,8 @@ impl PasswordResetService {
     }
 }
 
-// Global instance for development
-// In production, use dependency injection
+
+
 lazy_static::lazy_static! {
     pub static ref PASSWORD_RESET_SERVICE: PasswordResetService = PasswordResetService::new();
 }

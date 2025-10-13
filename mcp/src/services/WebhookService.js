@@ -1,10 +1,7 @@
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
 
-/**
- * Webhook Service for AI Agents
- * Handles webhooks from GitHub Copilot, Amazon Q, Cline, and other AI agents
- */
+
 export class WebhookService extends EventEmitter {
   constructor(logger) {
     super();
@@ -12,38 +9,36 @@ export class WebhookService extends EventEmitter {
     this.webhookHandlers = new Map();
     this.webhookSecrets = new Map();
     
-    // Initialize webhook handlers for different agents
+    
     this.initializeWebhookHandlers();
     
     this.logger.info('Webhook Service initialized');
   }
 
-  /**
-   * Initialize webhook handlers for different AI agents
-   */
+  
   initializeWebhookHandlers() {
-    // GitHub Copilot webhook handler
+    
     this.webhookHandlers.set('github-copilot', {
       handler: this.handleGitHubCopilotWebhook.bind(this),
       secret: process.env.GITHUB_COPILOT_WEBHOOK_SECRET,
       signatureHeader: 'x-hub-signature-256'
     });
 
-    // Amazon Q webhook handler
+    
     this.webhookHandlers.set('amazon-q', {
       handler: this.handleAmazonQWebhook.bind(this),
       secret: process.env.AMAZON_Q_WEBHOOK_SECRET,
       signatureHeader: 'x-amz-signature'
     });
 
-    // Cline webhook handler
+    
     this.webhookHandlers.set('cline', {
       handler: this.handleClineWebhook.bind(this),
       secret: process.env.CLINE_WEBHOOK_SECRET,
       signatureHeader: 'x-cline-signature'
     });
 
-    // Generic AI agent webhook handler
+    
     this.webhookHandlers.set('generic', {
       handler: this.handleGenericWebhook.bind(this),
       secret: process.env.GENERIC_WEBHOOK_SECRET,
@@ -51,9 +46,7 @@ export class WebhookService extends EventEmitter {
     });
   }
 
-  /**
-   * Verify webhook signature
-   */
+  
   verifyWebhookSignature(payload, signature, secret, algorithm = 'sha256') {
     if (!secret || !signature) {
       return false;
@@ -65,7 +58,7 @@ export class WebhookService extends EventEmitter {
         .update(payload, 'utf8')
         .digest('hex');
 
-      // Handle different signature formats
+      
       const cleanSignature = signature.replace(/^(sha256=|sha1=)/, '');
       
       return crypto.timingSafeEqual(
@@ -78,9 +71,7 @@ export class WebhookService extends EventEmitter {
     }
   }
 
-  /**
-   * Process incoming webhook
-   */
+  
   async processWebhook(agentType, headers, body, rawBody) {
     try {
       const handler = this.webhookHandlers.get(agentType);
@@ -88,7 +79,7 @@ export class WebhookService extends EventEmitter {
         throw new Error(`No webhook handler found for agent type: ${agentType}`);
       }
 
-      // Verify webhook signature if secret is configured
+      
       if (handler.secret && handler.signatureHeader) {
         const signature = headers[handler.signatureHeader];
         const isValid = this.verifyWebhookSignature(rawBody, signature, handler.secret);
@@ -98,7 +89,7 @@ export class WebhookService extends EventEmitter {
         }
       }
 
-      // Process the webhook
+      
       const result = await handler.handler(headers, body);
       
       this.logger.info('Webhook processed successfully', { 
@@ -106,7 +97,7 @@ export class WebhookService extends EventEmitter {
         eventType: body.event_type || body.action || 'unknown'
       });
 
-      // Emit webhook event for other services to listen
+      
       this.emit('webhookReceived', {
         agentType,
         headers,
@@ -125,9 +116,7 @@ export class WebhookService extends EventEmitter {
     }
   }
 
-  /**
-   * Handle GitHub Copilot webhooks
-   */
+  
   async handleGitHubCopilotWebhook(headers, body) {
     const eventType = headers['x-github-event'] || body.action;
     
@@ -153,9 +142,7 @@ export class WebhookService extends EventEmitter {
     }
   }
 
-  /**
-   * Handle Amazon Q webhooks
-   */
+  
   async handleAmazonQWebhook(headers, body) {
     const eventType = headers['x-amz-event-type'] || body.eventType;
     
@@ -178,9 +165,7 @@ export class WebhookService extends EventEmitter {
     }
   }
 
-  /**
-   * Handle Cline webhooks
-   */
+  
   async handleClineWebhook(headers, body) {
     const eventType = headers['x-cline-event'] || body.event;
     
@@ -203,15 +188,13 @@ export class WebhookService extends EventEmitter {
     }
   }
 
-  /**
-   * Handle generic AI agent webhooks
-   */
+  
   async handleGenericWebhook(headers, body) {
     const eventType = headers['x-event-type'] || body.type || 'generic';
     
     this.logger.info('Processing generic webhook', { eventType, body });
     
-    // Store webhook data for processing
+    
     const webhookData = {
       id: crypto.randomUUID(),
       agentType: 'generic',
@@ -222,20 +205,20 @@ export class WebhookService extends EventEmitter {
       processed: false
     };
 
-    // Emit for further processing
+    
     this.emit('genericWebhook', webhookData);
     
     return { status: 'received', id: webhookData.id };
   }
 
-  // GitHub Copilot event handlers
+  
   async handleCopilotUsageEvent(body) {
     this.logger.info('Copilot usage event received', { 
       user: body.user?.login,
       usage: body.usage 
     });
     
-    // Process usage analytics
+    
     this.emit('copilotUsage', {
       user: body.user,
       usage: body.usage,
@@ -251,7 +234,7 @@ export class WebhookService extends EventEmitter {
       suggestions: body.suggestions?.length || 0
     });
     
-    // Process code suggestions
+    
     this.emit('copilotSuggestion', {
       repository: body.repository,
       suggestions: body.suggestions,
@@ -267,7 +250,7 @@ export class WebhookService extends EventEmitter {
       messageCount: body.messages?.length || 0
     });
     
-    // Process chat interactions
+    
     this.emit('copilotChat', {
       user: body.user,
       messages: body.messages,
@@ -283,7 +266,7 @@ export class WebhookService extends EventEmitter {
       repository: body.repository?.name
     });
     
-    // Process repository changes
+    
     this.emit('repositoryChange', {
       action: body.action,
       repository: body.repository,
@@ -300,7 +283,7 @@ export class WebhookService extends EventEmitter {
       ref: body.ref
     });
     
-    // Process code push events
+    
     this.emit('codePush', {
       repository: body.repository,
       commits: body.commits,
@@ -311,7 +294,7 @@ export class WebhookService extends EventEmitter {
     return { status: 'processed', type: 'push' };
   }
 
-  // Amazon Q event handlers
+  
   async handleCodeAnalysisComplete(body) {
     this.logger.info('Amazon Q code analysis complete', {
       analysisId: body.analysisId,
@@ -373,7 +356,7 @@ export class WebhookService extends EventEmitter {
     return { status: 'processed', type: 'chat_interaction' };
   }
 
-  // Cline event handlers
+  
   async handleCommandExecuted(body) {
     this.logger.info('Cline command executed', {
       command: body.command,
@@ -438,9 +421,7 @@ export class WebhookService extends EventEmitter {
     return { status: 'processed', type: 'error_occurred' };
   }
 
-  /**
-   * Register custom webhook handler
-   */
+  
   registerWebhookHandler(agentType, handler, secret = null, signatureHeader = null) {
     this.webhookHandlers.set(agentType, {
       handler,
@@ -451,9 +432,7 @@ export class WebhookService extends EventEmitter {
     this.logger.info('Custom webhook handler registered', { agentType });
   }
 
-  /**
-   * Get webhook statistics
-   */
+  
   getWebhookStats() {
     return {
       registeredHandlers: Array.from(this.webhookHandlers.keys()),
@@ -462,9 +441,7 @@ export class WebhookService extends EventEmitter {
     };
   }
 
-  /**
-   * Health check for webhook service
-   */
+  
   getHealthStatus() {
     return {
       status: 'healthy',

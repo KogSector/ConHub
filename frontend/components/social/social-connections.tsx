@@ -107,10 +107,10 @@ export function SocialConnections() {
 
       if (response.ok) {
         const data = await response.json();
-        // Open OAuth URL in new window
+        
         window.open(data.auth_url, '_blank', 'width=500,height=600');
         
-        // Refresh connections after a delay to pick up the new connection
+        
         setTimeout(() => {
           fetchConnections();
         }, 3000);
@@ -230,7 +230,7 @@ export function SocialConnections() {
         </p>
       </div>
 
-      {/* Connected Platforms */}
+      {}
       {connections.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Connected Accounts</h3>
@@ -289,7 +289,7 @@ export function SocialConnections() {
         </div>
       )}
 
-      {/* Available Platforms */}
+      {}
       {availablePlatforms.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Available Platforms</h3>

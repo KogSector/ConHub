@@ -16,19 +16,19 @@ impl UserService {
     }
 
     pub async fn create_user(&self, request: &RegisterRequest) -> Result<User> {
-        // Check if user already exists
+        
         if self.find_by_email(&request.email).await.is_ok() {
             return Err(anyhow!("User with this email already exists"));
         }
 
-        // Hash password
+        
         let password_hash = hash(&request.password, DEFAULT_COST)
             .map_err(|e| anyhow!("Failed to hash password: {}", e))?;
 
         let user_id = Uuid::new_v4();
         let now = Utc::now();
         
-        // Insert user with explicit enum casting
+        
         let result = sqlx::query!(
             r#"
             INSERT INTO users (
@@ -51,7 +51,7 @@ impl UserService {
             return Err(anyhow!("Failed to create user in database: {}", e));
         }
 
-        // Fetch the created user
+        
         let row = sqlx::query!(
             r#"
             SELECT id, email, password_hash, name, avatar_url, organization,
@@ -88,7 +88,7 @@ impl UserService {
         })
     }
 
-    /// Find user by email
+    
     pub async fn find_by_email(&self, email: &str) -> Result<User> {
         let row = sqlx::query!(
             r#"
@@ -121,7 +121,7 @@ impl UserService {
         })
     }
 
-    /// Find user by ID
+    
     pub async fn find_by_id(&self, user_id: Uuid) -> Result<User> {
         let row = sqlx::query!(
             r#"
@@ -154,7 +154,7 @@ impl UserService {
         })
     }
 
-    /// Verify user's password
+    
     pub async fn verify_password(&self, email: &str, password: &str) -> Result<User> {
         let user = self.find_by_email(email).await?;
         
@@ -166,7 +166,7 @@ impl UserService {
         Ok(user)
     }
 
-    /// Update user's last login timestamp
+    
     pub async fn update_last_login(&self, user_id: Uuid) -> Result<()> {
         sqlx::query!(
             "UPDATE users SET last_login_at = $1, updated_at = $1 WHERE id = $2",
@@ -180,7 +180,7 @@ impl UserService {
         Ok(())
     }
 
-    /// Update user verification status
+    
     pub async fn verify_user(&self, user_id: Uuid) -> Result<()> {
         sqlx::query!(
             "UPDATE users SET is_verified = true, updated_at = $1 WHERE id = $2",
@@ -194,7 +194,7 @@ impl UserService {
         Ok(())
     }
 
-    /// Update user's password
+    
     pub async fn update_password(&self, user_id: Uuid, new_password: &str) -> Result<()> {
         let password_hash = hash(new_password, DEFAULT_COST)
             .map_err(|e| anyhow!("Failed to hash password: {}", e))?;
@@ -212,7 +212,7 @@ impl UserService {
         Ok(())
     }
 
-    /// Update user profile
+    
     pub async fn update_profile(&self, user_id: Uuid, name: Option<String>, avatar_url: Option<String>, organization: Option<String>) -> Result<User> {
         let row = sqlx::query!(
             r#"
@@ -253,7 +253,7 @@ impl UserService {
         })
     }
 
-    /// Deactivate user (soft delete)
+    
     pub async fn deactivate_user(&self, user_id: Uuid) -> Result<()> {
         sqlx::query!(
             "UPDATE users SET is_active = false, updated_at = $1 WHERE id = $2",
@@ -267,7 +267,7 @@ impl UserService {
         Ok(())
     }
 
-    /// Get user count
+    
     pub async fn get_user_count(&self) -> Result<i64> {
         let row = sqlx::query!("SELECT COUNT(*) as count FROM users WHERE is_active = true")
             .fetch_one(&self.pool)
@@ -277,7 +277,7 @@ impl UserService {
         Ok(row.count.unwrap_or(0))
     }
 
-    /// List users with pagination
+    
     pub async fn list_users(&self, limit: i64, offset: i64) -> Result<Vec<User>> {
         let rows = sqlx::query!(
             r#"

@@ -1,4 +1,4 @@
-// Enhanced logging configuration for ConHub frontend
+
 export interface LogEntry {
   timestamp: string;
   level: 'debug' | 'info' | 'warn' | 'error';
@@ -36,7 +36,7 @@ class ConHubLogger {
   private performanceBuffer: PerformanceMetric[] = [];
   private userActionBuffer: UserAction[] = [];
   private maxBufferSize = 100;
-  private flushInterval = 30000; // 30 seconds
+  private flushInterval = 30000; 
   private isProduction: boolean;
   private logLevel: string;
 
@@ -45,21 +45,21 @@ class ConHubLogger {
     this.isProduction = process.env.NODE_ENV === 'production';
     this.logLevel = process.env.NEXT_PUBLIC_LOG_LEVEL || 'info';
     
-    // Start periodic flush
+    
     setInterval(() => this.flush(), this.flushInterval);
     
-    // Flush on page unload
+    
     if (typeof window !== 'undefined') {
       window.addEventListener('beforeunload', () => this.flush());
       window.addEventListener('unload', () => this.flush());
       
-      // Track page performance
+      
       this.trackPagePerformance();
       
-      // Track user interactions
+      
       this.setupUserActionTracking();
       
-      // Track errors
+      
       this.setupErrorTracking();
     }
   }
@@ -115,7 +115,7 @@ class ConHubLogger {
       userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : ''
     };
 
-    // Console output in development
+    
     if (!this.isProduction) {
       const consoleMethod = console[level] || console.log;
       consoleMethod(`[${level.toUpperCase()}] ${source}: ${message}`, context || '');
@@ -137,7 +137,7 @@ class ConHubLogger {
     this.performanceBuffer.push(perfMetric);
     this.checkBufferLimit();
 
-    // Log slow operations
+    
     if (metric.includes('duration') && value > 1000) {
       this.warn(`Slow operation detected: ${metric}`, { value, ...context });
     }
@@ -163,7 +163,7 @@ class ConHubLogger {
   private trackPagePerformance() {
     if (typeof window === 'undefined' || !window.performance) return;
 
-    // Track page load performance
+    
     window.addEventListener('load', () => {
       setTimeout(() => {
         const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
@@ -173,7 +173,7 @@ class ConHubLogger {
           this.trackPerformance('first_byte', navigation.responseStart - navigation.fetchStart);
         }
 
-        // Track Largest Contentful Paint
+        
         if ('PerformanceObserver' in window) {
           const lcpObserver = new PerformanceObserver((list) => {
             const entries = list.getEntries();
@@ -182,7 +182,7 @@ class ConHubLogger {
           });
           lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
 
-          // Track First Input Delay
+          
           const fidObserver = new PerformanceObserver((list) => {
             for (const entry of list.getEntries()) {
               this.trackPerformance('first_input_delay', (entry as any).processingStart - entry.startTime);
@@ -197,7 +197,7 @@ class ConHubLogger {
   private setupUserActionTracking() {
     if (typeof window === 'undefined') return;
 
-    // Track clicks
+    
     document.addEventListener('click', (event) => {
       const target = event.target as HTMLElement;
       const elementInfo = this.getElementInfo(target);
@@ -207,7 +207,7 @@ class ConHubLogger {
       });
     });
 
-    // Track form submissions
+    
     document.addEventListener('submit', (event) => {
       const target = event.target as HTMLFormElement;
       const elementInfo = this.getElementInfo(target);
@@ -217,7 +217,7 @@ class ConHubLogger {
       });
     });
 
-    // Track input focus
+    
     document.addEventListener('focusin', (event) => {
       const target = event.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
@@ -232,7 +232,7 @@ class ConHubLogger {
   private setupErrorTracking() {
     if (typeof window === 'undefined') return;
 
-    // Global error handler
+    
     window.addEventListener('error', (event) => {
       this.error('JavaScript error', {
         message: event.message,
@@ -243,7 +243,7 @@ class ConHubLogger {
       }, 'global-error');
     });
 
-    // Unhandled promise rejection
+    
     window.addEventListener('unhandledrejection', (event) => {
       this.error('Unhandled promise rejection', {
         reason: event.reason,
@@ -318,13 +318,13 @@ class ConHubLogger {
       timestamp: new Date().toISOString()
     };
 
-    // Clear buffers
+    
     this.logBuffer = [];
     this.performanceBuffer = [];
     this.userActionBuffer = [];
 
     try {
-      // Send to backend logging endpoint
+      
       await fetch('/api/logs', {
         method: 'POST',
         headers: {
@@ -333,13 +333,13 @@ class ConHubLogger {
         body: JSON.stringify(payload)
       });
     } catch (error) {
-      // Fallback: store in localStorage for retry
+      
       if (typeof localStorage !== 'undefined') {
         const stored = localStorage.getItem('conhub_logs') || '[]';
         const logs = JSON.parse(stored);
         logs.push(payload);
         
-        // Keep only last 10 payloads
+        
         if (logs.length > 10) {
           logs.splice(0, logs.length - 10);
         }
@@ -349,7 +349,7 @@ class ConHubLogger {
     }
   }
 
-  // Method to retry failed logs from localStorage
+  
   public async retryFailedLogs() {
     if (typeof localStorage === 'undefined') return;
 
@@ -368,25 +368,25 @@ class ConHubLogger {
           body: JSON.stringify(payload)
         });
       } catch (error) {
-        // Keep failed logs for next retry
+        
         break;
       }
     }
 
-    // Clear successfully sent logs
+    
     localStorage.removeItem('conhub_logs');
   }
 }
 
-// Create global logger instance
+
 export const logger = new ConHubLogger();
 
-// React hook for logging
+
 export function useLogger() {
   return logger;
 }
 
-// API client with logging
+
 export async function apiCall(url: string, options: RequestInit = {}) {
   const startTime = performance.now();
   const method = options.method || 'GET';

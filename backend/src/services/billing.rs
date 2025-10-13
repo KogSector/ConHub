@@ -28,7 +28,7 @@ impl BillingService {
     }
 
     pub async fn get_subscription_plans(&self) -> Result<Vec<SubscriptionPlan>> {
-        // Mock data for development
+        
         Ok(vec![
             SubscriptionPlan {
                 id: Uuid::new_v4(),
@@ -60,12 +60,12 @@ impl BillingService {
     }
 
     pub async fn get_user_subscription(&self, user_id: Uuid) -> Result<Option<SubscriptionWithPlan>> {
-        // In a real implementation, fetch from database
-        // For now, return mock data
+        
+        
         Ok(None)
     }
 
-    /// Create a Stripe customer for a user
+    
     pub async fn create_customer(&self, user_id: Uuid, email: &str, name: &str) -> Result<String> {
         let mut create_customer = CreateCustomer::new();
         create_customer.email = Some(email);
@@ -82,7 +82,7 @@ impl BillingService {
         Ok(customer.id.to_string())
     }
 
-    /// Create a payment intent for one-time payments
+    
     pub async fn create_payment_intent(&self, amount: i64, currency: &str, customer_id: &str) -> Result<PaymentIntent> {
         let mut create_payment_intent = CreatePaymentIntent::new(amount, Currency::from_str(currency)?);
         create_payment_intent.customer = Some(customer_id.parse()?);
@@ -97,7 +97,7 @@ impl BillingService {
         Ok(payment_intent)
     }
 
-    /// Create a setup intent for saving payment methods
+    
     pub async fn create_setup_intent(&self, customer_id: &str) -> Result<SetupIntent> {
         let mut create_setup_intent = CreateSetupIntent::new();
         create_setup_intent.customer = Some(customer_id.parse()?);
@@ -109,7 +109,7 @@ impl BillingService {
         Ok(setup_intent)
     }
 
-    /// Create a subscription for a customer
+    
     pub async fn create_subscription(&self, customer_id: &str, price_id: &str) -> Result<Subscription> {
         let mut create_subscription = CreateSubscription::new(customer_id.parse()?);
         create_subscription.items = Some(vec![stripe::CreateSubscriptionItems {
@@ -131,7 +131,7 @@ impl BillingService {
         Ok(subscription)
     }
 
-    /// Cancel a subscription
+    
     pub async fn cancel_subscription(&self, subscription_id: &str) -> Result<Subscription> {
         let subscription = Subscription::delete(&self.stripe_client, &subscription_id.parse()?)
             .await
@@ -140,13 +140,13 @@ impl BillingService {
         Ok(subscription)
     }
 
-    /// Update subscription
+    
     pub async fn update_subscription(&self, subscription_id: &str, new_price_id: &str) -> Result<Subscription> {
-        // First get the current subscription
+        
         let subscription = Subscription::retrieve(&self.stripe_client, &subscription_id.parse()?, &[]).await
             .map_err(|e| anyhow!("Failed to retrieve subscription: {}", e))?;
 
-        // Update the subscription items
+        
         let mut update_subscription = stripe::UpdateSubscription::new();
         update_subscription.items = Some(vec![stripe::UpdateSubscriptionItems {
             id: subscription.items.data.first().map(|item| item.id.clone()),
@@ -161,7 +161,7 @@ impl BillingService {
         Ok(updated_subscription)
     }
 
-    /// Get customer's payment methods
+    
     pub async fn get_payment_methods(&self, customer_id: &str) -> Result<Vec<PaymentMethod>> {
         let payment_methods = PaymentMethod::list(&self.stripe_client, &stripe::ListPaymentMethods {
             customer: Some(customer_id.parse()?),
@@ -173,7 +173,7 @@ impl BillingService {
         Ok(payment_methods.data)
     }
 
-    /// Get customer's invoices
+    
     pub async fn get_invoices(&self, customer_id: &str) -> Result<Vec<Invoice>> {
         let invoices = Invoice::list(&self.stripe_client, &ListInvoices {
             customer: Some(customer_id.parse()?),
@@ -185,7 +185,7 @@ impl BillingService {
         Ok(invoices.data)
     }
 
-    /// Process webhook events
+    
     pub async fn handle_webhook_event(&self, payload: &str, signature: &str) -> Result<()> {
         let webhook_secret = std::env::var("STRIPE_WEBHOOK_SECRET")
             .map_err(|_| anyhow!("STRIPE_WEBHOOK_SECRET not set"))?;
@@ -196,23 +196,23 @@ impl BillingService {
         match event.type_ {
             stripe::EventType::CustomerSubscriptionCreated => {
                 log::info!("Subscription created: {:?}", event.data);
-                // Handle subscription creation
+                
             }
             stripe::EventType::CustomerSubscriptionUpdated => {
                 log::info!("Subscription updated: {:?}", event.data);
-                // Handle subscription update
+                
             }
             stripe::EventType::CustomerSubscriptionDeleted => {
                 log::info!("Subscription cancelled: {:?}", event.data);
-                // Handle subscription cancellation
+                
             }
             stripe::EventType::InvoicePaymentSucceeded => {
                 log::info!("Payment succeeded: {:?}", event.data);
-                // Handle successful payment
+                
             }
             stripe::EventType::InvoicePaymentFailed => {
                 log::warn!("Payment failed: {:?}", event.data);
-                // Handle failed payment
+                
             }
             _ => {
                 log::debug!("Unhandled webhook event: {:?}", event.type_);
@@ -223,7 +223,7 @@ impl BillingService {
     }
 
     pub async fn create_subscription(&self, _user_id: Uuid, _request: CreateSubscriptionRequest) -> Result<UserSubscription> {
-        // Mock subscription creation
+        
         Ok(UserSubscription {
             id: Uuid::new_v4(),
             user_id: _user_id,
@@ -243,17 +243,17 @@ impl BillingService {
     }
 
     pub async fn cancel_subscription(&self, _user_id: Uuid, _cancel_at_period_end: bool) -> Result<()> {
-        // Mock cancellation
+        
         Ok(())
     }
 
     pub async fn get_payment_methods(&self, _user_id: Uuid) -> Result<Vec<PaymentMethod>> {
-        // Mock empty payment methods
+        
         Ok(vec![])
     }
 
     pub async fn add_payment_method(&self, _user_id: Uuid, _request: CreatePaymentMethodRequest) -> Result<PaymentMethod> {
-        // Mock payment method creation
+        
         Ok(PaymentMethod {
             id: Uuid::new_v4(),
             user_id: _user_id,
@@ -272,12 +272,12 @@ impl BillingService {
     }
 
     pub async fn get_invoices(&self, _user_id: Uuid, _limit: Option<i64>) -> Result<Vec<Invoice>> {
-        // Mock empty invoices
+        
         Ok(vec![])
     }
 
     pub async fn get_usage_tracking(&self, _user_id: Uuid, _period_start: DateTime<Utc>) -> Result<Vec<UsageTracking>> {
-        // Mock usage data
+        
         Ok(vec![
             UsageTracking {
                 id: Uuid::new_v4(),
@@ -305,7 +305,7 @@ impl BillingService {
     }
 
     pub async fn track_usage(&self, _user_id: Uuid, _resource_type: &str, _count: i32) -> Result<()> {
-        // Mock usage tracking
+        
         Ok(())
     }
 
@@ -328,7 +328,7 @@ impl BillingService {
     }
 
     pub async fn check_usage_limits(&self, _user_id: Uuid, _resource_type: &str) -> Result<bool> {
-        // Mock - always allow for development
+        
         Ok(true)
     }
 }

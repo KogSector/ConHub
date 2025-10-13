@@ -2,13 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-/**
- * Advanced performance hooks for React optimization
- */
 
-/**
- * Debounced value hook with cleanup
- */
+
+
 export function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value)
 
@@ -25,9 +21,7 @@ export function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue
 }
 
-/**
- * Throttled callback hook for performance-critical operations
- */
+
 export function useThrottle<T extends (...args: any[]) => any>(
   callback: T,
   delay: number
@@ -45,9 +39,7 @@ export function useThrottle<T extends (...args: any[]) => any>(
   )
 }
 
-/**
- * Memoized async data fetching with caching
- */
+
 interface UseAsyncDataOptions<T> {
   initialData?: T
   cacheKey?: string
@@ -64,7 +56,7 @@ export function useAsyncData<T>(
   const {
     initialData,
     cacheKey,
-    cacheTTL = 300000, // 5 minutes
+    cacheTTL = 300000, 
     retryAttempts = 3,
     retryDelay = 1000
   } = options
@@ -76,7 +68,7 @@ export function useAsyncData<T>(
   const cache = useRef(new Map<string, { data: T; timestamp: number }>())
 
   const fetchData = useCallback(async () => {
-    // Check cache first
+    
     if (cacheKey && cache.current.has(cacheKey)) {
       const cached = cache.current.get(cacheKey)!
       if (Date.now() - cached.timestamp < cacheTTL) {
@@ -93,7 +85,7 @@ export function useAsyncData<T>(
         const result = await asyncFunction()
         setData(result)
         
-        // Cache the result
+        
         if (cacheKey) {
           cache.current.set(cacheKey, { data: result, timestamp: Date.now() })
         }
@@ -119,9 +111,7 @@ export function useAsyncData<T>(
   return { data, loading, error, refetch: fetchData }
 }
 
-/**
- * Performance-optimized infinite scroll hook
- */
+
 interface UseInfiniteScrollOptions {
   threshold?: number
   rootMargin?: string
@@ -146,7 +136,7 @@ export function useInfiniteScroll(
         if (entry.isIntersecting && !isFetching) {
           setIsFetching(true)
           callback()
-          setTimeout(() => setIsFetching(false), 100) // Prevent rapid firing
+          setTimeout(() => setIsFetching(false), 100) 
         }
       },
       { threshold, rootMargin }
@@ -160,9 +150,7 @@ export function useInfiniteScroll(
   return { sentinelRef, isFetching }
 }
 
-/**
- * Memory-efficient list state management for large datasets
- */
+
 export function useVirtualizedState<T>(
   items: T[],
   windowSize: number = 50
@@ -177,9 +165,9 @@ export function useVirtualizedState<T>(
   const updateVisibleRange = useCallback((containerHeight: number, itemHeight: number, scrollTop: number) => {
     const start = Math.floor(scrollTop / itemHeight)
     const visibleCount = Math.ceil(containerHeight / itemHeight)
-    const end = Math.min(start + visibleCount + 10, items.length) // 10 item buffer
+    const end = Math.min(start + visibleCount + 10, items.length) 
 
-    setVisibleRange({ start: Math.max(0, start - 5), end }) // 5 item pre-buffer
+    setVisibleRange({ start: Math.max(0, start - 5), end }) 
     setScrollTop(scrollTop)
   }, [items.length])
 
@@ -187,14 +175,12 @@ export function useVirtualizedState<T>(
     visibleItems,
     visibleRange,
     updateVisibleRange,
-    totalHeight: items.length * 50, // Default item height
+    totalHeight: items.length * 50, 
     scrollTop
   }
 }
 
-/**
- * Performance monitoring hook
- */
+
 export function usePerformanceMonitor(componentName: string) {
   const renderCount = useRef(0)
   const startTime = useRef(performance.now())
@@ -214,9 +200,7 @@ export function usePerformanceMonitor(componentName: string) {
   return { renderCount: renderCount.current }
 }
 
-/**
- * Optimized state updates with batching
- */
+
 export function useBatchedState<T>(initialState: T) {
   const [state, setState] = useState(initialState)
   const pendingUpdates = useRef<Partial<T>[]>([])
@@ -239,7 +223,7 @@ export function useBatchedState<T>(initialState: T) {
         pendingUpdates.current = []
         return { ...prevState, ...finalUpdate }
       })
-    }, 16) // Next frame
+    }, 16) 
   }, [state])
 
   useEffect(() => {
@@ -253,9 +237,7 @@ export function useBatchedState<T>(initialState: T) {
   return [state, batchedSetState] as const
 }
 
-/**
- * Web Worker hook for CPU-intensive operations
- */
+
 export function useWebWorker<T, R>(
   workerFunction: (data: T) => R,
   dependencies: React.DependencyList = []
@@ -270,7 +252,7 @@ export function useWebWorker<T, R>(
     setError(null)
 
     return new Promise((resolve, reject) => {
-      // Create worker from function
+      
       const workerScript = `
         self.onmessage = function(e) {
           try {

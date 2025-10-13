@@ -142,7 +142,7 @@ export function AgentChatModal({ agent, open, onOpenChange }: AgentChatModalProp
           </div>
         </DialogHeader>
 
-        {/* Context Selection */}
+        {}
         <div className="flex-shrink-0 border-b pb-4">
           <div className="flex items-center gap-4">
             <label htmlFor="context-select" className="text-sm font-medium">
@@ -163,7 +163,7 @@ export function AgentChatModal({ agent, open, onOpenChange }: AgentChatModalProp
           </div>
         </div>
 
-        {/* Messages */}
+        {}
         <ScrollArea className="flex-1 pr-4">
           <div className="space-y-4 py-4">
             {messages.length === 0 ? (
@@ -259,7 +259,7 @@ export function AgentChatModal({ agent, open, onOpenChange }: AgentChatModalProp
           </div>
         </ScrollArea>
 
-        {/* Input */}
+        {}
         <form onSubmit={handleSendMessage} className="flex-shrink-0 border-t pt-4">
           <div className="flex gap-2">
             <Input

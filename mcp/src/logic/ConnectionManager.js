@@ -1,16 +1,11 @@
-/**
- * Connection Manager
- * Manages all AI agent connections, sessions, and communication logic
- */
+
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
 import { McpProtocolHandler, McpMessageBuilder, ErrorCode } from '../protocols/McpProtocol.js';
 import { RuleEngine } from '../rules/AgentRules.js';
 
-/**
- * Connection States
- */
+
 export const ConnectionState = {
   DISCONNECTED: 'disconnected',
   CONNECTING: 'connecting',
@@ -21,10 +16,7 @@ export const ConnectionState = {
   TIMEOUT: 'timeout'
 };
 
-/**
- * Agent Connection
- * Represents a connection to a specific AI agent
- */
+
 export class AgentConnection extends EventEmitter {
   constructor(agentId, agentType, config, logger) {
     super();
@@ -56,7 +48,7 @@ export class AgentConnection extends EventEmitter {
   }
 
   setupProtocolHandlers() {
-    // Register custom handlers for this agent type
+    
     this.protocol.registerHandler('resources/list', this.handleResourcesList.bind(this));
     this.protocol.registerHandler('resources/read', this.handleResourcesRead.bind(this));
     this.protocol.registerHandler('tools/list', this.handleToolsList.bind(this));
@@ -72,15 +64,15 @@ export class AgentConnection extends EventEmitter {
       agentType: this.agentType
     });
 
-    // Setup WebSocket event handlers
+    
     this.websocket.on('message', this.handleMessage.bind(this));
     this.websocket.on('close', this.handleDisconnect.bind(this));
     this.websocket.on('error', this.handleError.bind(this));
     
-    // Start connection timeout
+    
     this.startConnectionTimeout();
     
-    // Send initialization message
+    
     await this.sendInitialize();
   }
 
@@ -133,13 +125,13 @@ export class AgentConnection extends EventEmitter {
         id: message.id
       });
 
-      // Handle initialization response
+      
       if (message.method === 'initialize' || (message.result && message.id === 'init')) {
         await this.handleInitializeResponse(message);
         return;
       }
 
-      // Process message through protocol handler
+      
       const response = await this.protocol.handleMessage(message);
       
       if (response) {
@@ -185,7 +177,7 @@ export class AgentConnection extends EventEmitter {
   }
 
   async handleResourcesList(message) {
-    // Get resources specific to this agent type
+    
     const resources = await this.getAgentResources();
     return { resources };
   }
@@ -195,19 +187,19 @@ export class AgentConnection extends EventEmitter {
     
     this.metrics.resourceReadsCount++;
     
-    // Validate resource access
+    
     const validation = await this.validateResourceAccess(uri);
     if (!validation.allowed) {
       throw new Error(`Resource access denied: ${validation.reason}`);
     }
 
-    // Read resource content
+    
     const content = await this.readResource(uri);
     return { contents: [content] };
   }
 
   async handleToolsList(message) {
-    // Get tools specific to this agent type
+    
     const tools = await this.getAgentTools();
     return { tools };
   }
@@ -217,19 +209,19 @@ export class AgentConnection extends EventEmitter {
     
     this.metrics.toolCallsCount++;
     
-    // Validate tool execution
+    
     const validation = await this.validateToolExecution(name, args);
     if (!validation.allowed) {
       throw new Error(`Tool execution denied: ${validation.reason}`);
     }
 
-    // Execute tool
+    
     const result = await this.executeTool(name, args);
     return { content: [{ type: 'text', text: result }] };
   }
 
   async getAgentResources() {
-    // Override in subclasses or implement agent-specific logic
+    
     const resourceMap = {
       'github-copilot': [
         {
@@ -279,7 +271,7 @@ export class AgentConnection extends EventEmitter {
   }
 
   async getAgentTools() {
-    // Override in subclasses or implement agent-specific logic
+    
     const toolMap = {
       'github-copilot': [
         {
@@ -364,17 +356,17 @@ export class AgentConnection extends EventEmitter {
   }
 
   async validateResourceAccess(uri) {
-    // Implement resource access validation logic
+    
     return { allowed: true };
   }
 
   async validateToolExecution(name, args) {
-    // Implement tool execution validation logic
+    
     return { allowed: true };
   }
 
   async readResource(uri) {
-    // Implement resource reading logic
+    
     return {
       uri,
       mimeType: 'application/json',
@@ -388,7 +380,7 @@ export class AgentConnection extends EventEmitter {
   }
 
   async executeTool(name, args) {
-    // Implement tool execution logic
+    
     return `Executed tool ${name} with arguments: ${JSON.stringify(args)}`;
   }
 
@@ -399,7 +391,7 @@ export class AgentConnection extends EventEmitter {
 
     this.heartbeatInterval = setInterval(() => {
       this.sendHeartbeat();
-    }, 30000); // 30 seconds
+    }, 30000); 
   }
 
   async sendHeartbeat() {
@@ -428,7 +420,7 @@ export class AgentConnection extends EventEmitter {
         });
         this.disconnect();
       }
-    }, 30000); // 30 seconds
+    }, 30000); 
   }
 
   clearConnectionTimeout() {
@@ -497,10 +489,7 @@ export class AgentConnection extends EventEmitter {
   }
 }
 
-/**
- * Connection Manager
- * Manages all agent connections and provides centralized connection logic
- */
+
 export class ConnectionManager extends EventEmitter {
   constructor(logger) {
     super();
@@ -520,7 +509,7 @@ export class ConnectionManager extends EventEmitter {
   }
 
   async createConnection(agentId, agentType, config, websocket) {
-    // Validate connection request
+    
     const currentConnections = this.getConnectionsByAgentType(agentType).length;
     const validation = await this.ruleEngine.applyRules({
       type: 'connect',
@@ -532,16 +521,16 @@ export class ConnectionManager extends EventEmitter {
       throw new Error(`Connection denied: ${validation.message}`);
     }
 
-    // Create new connection
+    
     const connection = new AgentConnection(agentId, agentType, config, this.logger);
     
-    // Setup event handlers
+    
     connection.on('connected', this.handleConnectionEstablished.bind(this));
     connection.on('disconnected', this.handleConnectionClosed.bind(this));
     connection.on('error', this.handleConnectionError.bind(this));
     connection.on('message', this.handleConnectionMessage.bind(this));
 
-    // Store connection
+    
     this.connections.set(connection.id, connection);
     
     if (!this.connectionsByAgent.has(agentType)) {
@@ -549,7 +538,7 @@ export class ConnectionManager extends EventEmitter {
     }
     this.connectionsByAgent.get(agentType).add(connection.id);
 
-    // Connect
+    
     await connection.connect(websocket);
     
     this.metrics.totalConnections++;
@@ -581,7 +570,7 @@ export class ConnectionManager extends EventEmitter {
   handleConnectionClosed(event) {
     const { connection } = event;
     
-    // Remove from tracking
+    
     this.connections.delete(connection.id);
     
     const agentConnections = this.connectionsByAgent.get(connection.agentType);

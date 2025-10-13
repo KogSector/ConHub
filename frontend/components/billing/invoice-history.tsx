@@ -190,7 +190,7 @@ export function InvoiceHistory() {
               </Table>
             </div>
 
-            {/* Mobile view */}
+            {}
             <div className="md:hidden space-y-4">
               {invoices.map((invoice) => (
                 <Card key={invoice.id}>

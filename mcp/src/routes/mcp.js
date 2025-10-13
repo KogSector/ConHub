@@ -3,7 +3,7 @@ import Joi from 'joi';
 
 const router = express.Router();
 
-// Validation schemas
+
 const initConnectionSchema = Joi.object({
   agentId: Joi.string().required(),
   config: Joi.object().optional()
@@ -25,10 +25,7 @@ const callToolSchema = Joi.object({
 });
 
 export default function mcpRoutes(mcpService) {
-  /**
-   * Initialize MCP connection
-   * POST /api/mcp/connections
-   */
+  
   router.post('/connections', async (req, res) => {
     try {
       const { error, value } = initConnectionSchema.validate(req.body);
@@ -61,10 +58,7 @@ export default function mcpRoutes(mcpService) {
     }
   });
 
-  /**
-   * Get all MCP connections
-   * GET /api/mcp/connections
-   */
+  
   router.get('/connections', async (req, res) => {
     try {
       const connections = mcpService.getConnections();
@@ -89,10 +83,7 @@ export default function mcpRoutes(mcpService) {
     }
   });
 
-  /**
-   * Get specific MCP connection
-   * GET /api/mcp/connections/:connectionId
-   */
+  
   router.get('/connections/:connectionId', async (req, res) => {
     try {
       const { connectionId } = req.params;
@@ -124,10 +115,7 @@ export default function mcpRoutes(mcpService) {
     }
   });
 
-  /**
-   * List resources from MCP connection
-   * GET /api/mcp/connections/:connectionId/resources
-   */
+  
   router.get('/connections/:connectionId/resources', async (req, res) => {
     try {
       const { connectionId } = req.params;
@@ -145,10 +133,7 @@ export default function mcpRoutes(mcpService) {
     }
   });
 
-  /**
-   * Read specific resource
-   * POST /api/mcp/resources/read
-   */
+  
   router.post('/resources/read', async (req, res) => {
     try {
       const { error, value } = readResourceSchema.validate(req.body);
@@ -174,10 +159,7 @@ export default function mcpRoutes(mcpService) {
     }
   });
 
-  /**
-   * Subscribe to resource changes
-   * POST /api/mcp/resources/subscribe
-   */
+  
   router.post('/resources/subscribe', async (req, res) => {
     try {
       const { error, value } = readResourceSchema.validate(req.body);
@@ -203,10 +185,7 @@ export default function mcpRoutes(mcpService) {
     }
   });
 
-  /**
-   * List tools from MCP connection
-   * GET /api/mcp/connections/:connectionId/tools
-   */
+  
   router.get('/connections/:connectionId/tools', async (req, res) => {
     try {
       const { connectionId } = req.params;
@@ -224,10 +203,7 @@ export default function mcpRoutes(mcpService) {
     }
   });
 
-  /**
-   * Call MCP tool
-   * POST /api/mcp/tools/call
-   */
+  
   router.post('/tools/call', async (req, res) => {
     try {
       const { error, value } = callToolSchema.validate(req.body);
@@ -253,10 +229,7 @@ export default function mcpRoutes(mcpService) {
     }
   });
 
-  /**
-   * Close MCP connection
-   * DELETE /api/mcp/connections/:connectionId
-   */
+  
   router.delete('/connections/:connectionId', async (req, res) => {
     try {
       const { connectionId } = req.params;
@@ -274,10 +247,7 @@ export default function mcpRoutes(mcpService) {
     }
   });
 
-  /**
-   * Get MCP service health
-   * GET /api/mcp/health
-   */
+  
   router.get('/health', async (req, res) => {
     try {
       const health = mcpService.getHealthStatus();

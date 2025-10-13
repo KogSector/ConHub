@@ -48,7 +48,7 @@ impl std::fmt::Display for SocialPlatform {
 pub struct SocialConnection {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub platform: String, // Store as string in DB
+    pub platform: String, 
     pub platform_user_id: String,
     pub access_token: String,
     pub refresh_token: Option<String>,
@@ -56,7 +56,7 @@ pub struct SocialConnection {
     pub scope: String,
     pub is_active: bool,
     pub last_sync_at: Option<DateTime<Utc>>,
-    pub metadata: Option<serde_json::Value>, // Store platform-specific data
+    pub metadata: Option<serde_json::Value>, 
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -152,7 +152,7 @@ pub struct LinkedInData {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DataSyncRequest {
     pub connection_id: Uuid,
-    pub sync_type: String, // "full" or "incremental"
+    pub sync_type: String, 
     pub options: Option<serde_json::Value>,
 }
 
@@ -162,7 +162,7 @@ pub struct DataSyncResponse {
     pub platform: SocialPlatform,
     pub sync_started_at: DateTime<Utc>,
     pub items_processed: u32,
-    pub status: String, // "success", "partial", "failed"
+    pub status: String, 
     pub error: Option<String>,
 }
 

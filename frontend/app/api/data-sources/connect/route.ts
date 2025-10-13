@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Helper function to extract repository name from URL
+
 function extractRepositoryName(url: string): string | null {
   try {
     const urlObj = new URL(url);
     const pathParts = urlObj.pathname.split('/').filter(Boolean);
     
-    // For GitHub: https://github.com/owner/repo
-    // For BitBucket: https://bitbucket.org/workspace/repo
+    
+    
     if (pathParts.length >= 2) {
       const owner = pathParts[pathParts.length - 2];
       const repo = pathParts[pathParts.length - 1].replace('.git', '');
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     console.log('API Route - Received request:', { type, url, credentials: credentials ? 'present' : 'missing', config });
 
-    // Validate required fields
+    
     if (!type) {
       console.log('API Route - Missing type');
       return NextResponse.json(
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate credentials based on type
+    
     if (type === 'github' && !credentials?.accessToken) {
       console.log('API Route - Missing GitHub token');
       return NextResponse.json(
@@ -60,15 +60,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract repository info from URL for GitHub/BitBucket
+    
     let processedConfig = config;
     if ((type === 'github' || type === 'bitbucket') && url) {
       const repoName = extractRepositoryName(url);
       if (repoName) {
         processedConfig = {
           ...config,
-          repositories: [repoName], // Convert single URL to repository list
-          url // Keep original URL for reference
+          repositories: [repoName], 
+          url 
         };
         console.log('API Route - Extracted repository:', repoName);
       } else {
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Forward to backend service
+    
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
     console.log('API Route - Forwarding to backend:', backendUrl);
     

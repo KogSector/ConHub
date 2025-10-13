@@ -26,13 +26,13 @@ export function HeroSection() {
 
   return (
     <section className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
-      {/* Enhanced Background decoration */}
+      {}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
       <div className="absolute top-1/4 -left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-primary/5 to-transparent rounded-full" />
       
-      {/* Floating particles */}
+      {}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <div
@@ -50,7 +50,7 @@ export function HeroSection() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left Column - Enhanced Content */}
+          {}
           <div className="space-y-8 animate-fade-in-up">
             <div className="flex items-center gap-4">
               <Badge variant="secondary" className="w-fit bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors">
@@ -81,7 +81,7 @@ export function HeroSection() {
               </p>
             </div>
 
-            {/* Enhanced feature grid */}
+            {}
             <div className="grid grid-cols-2 gap-4 animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-card/50 border border-border/50 hover:bg-card transition-colors">
                 <Shield className="w-5 h-5 text-accent" />
@@ -101,7 +101,7 @@ export function HeroSection() {
               </div>
             </div>
 
-            {/* Enhanced CTA buttons */}
+            {}
             <div className="flex flex-col sm:flex-row gap-4 animate-fade-in-up" style={{ animationDelay: '1s' }}>
               <Button 
                 size="lg" 
@@ -123,7 +123,7 @@ export function HeroSection() {
               </Button>
             </div>
 
-            {/* Enhanced stats */}
+            {}
             <div className="flex items-center gap-8 text-sm animate-fade-in-up" style={{ animationDelay: '1.2s' }}>
               <div className="text-center">
                 <div className="font-bold text-2xl bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">1000+</div>
@@ -140,17 +140,17 @@ export function HeroSection() {
             </div>
           </div>
 
-          {/* Right Column - Enhanced Hero Visual */}
+          {}
           <div className="relative animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
             <div className="relative rounded-2xl overflow-hidden shadow-2xl">
               <div className="relative">
                 <Globe className="w-full h-auto" />
-                {/* Glow effect around globe */}
+                {}
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-accent/20 rounded-2xl blur-xl -z-10" />
               </div>
             </div>
             
-            {/* Enhanced floating elements */}
+            {}
             <div className="absolute -top-6 -right-6 bg-gradient-to-r from-card to-card/90 backdrop-blur-sm border border-border/50 rounded-xl p-4 shadow-xl animate-fade-in-up" style={{ animationDelay: '1.5s' }}>
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
@@ -181,7 +181,7 @@ export function HeroSection() {
               </div>
             </div>
 
-            {/* New floating element */}
+            {}
             <div className="absolute top-8 left-8 bg-gradient-to-r from-card to-card/90 backdrop-blur-sm border border-border/50 rounded-xl p-3 shadow-xl animate-fade-in-up" style={{ animationDelay: '2.1s' }}>
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-yellow-500" />

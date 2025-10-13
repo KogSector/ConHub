@@ -61,7 +61,7 @@ export function AIAgentSettings() {
 
   return (
     <div className="space-y-6">
-      {/* Add New Agent */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -137,7 +137,7 @@ export function AIAgentSettings() {
         </CardContent>
       </Card>
 
-      {/* Connected Agents */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -179,7 +179,7 @@ export function AIAgentSettings() {
                 </div>
               </div>
 
-              {/* Agent Details */}
+              {}
               <div className="grid gap-4 md:grid-cols-2 pt-3 border-t border-border">
                 <div className="space-y-2">
                   <Label className="text-sm flex items-center gap-2">
@@ -218,7 +218,7 @@ export function AIAgentSettings() {
                 </div>
               </div>
 
-              {/* Agent-specific settings */}
+              {}
               <div className="mt-4 pt-3 border-t border-border">
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="flex items-center justify-between">
@@ -240,7 +240,7 @@ export function AIAgentSettings() {
         </CardContent>
       </Card>
 
-      {/* Global AI Settings */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -311,7 +311,7 @@ export function AIAgentSettings() {
         </CardContent>
       </Card>
 
-      {/* Custom Prompts */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -341,7 +341,7 @@ export function AIAgentSettings() {
         </CardContent>
       </Card>
 
-      {/* Save Changes */}
+      {}
       <div className="flex justify-end gap-4">
         <Button variant="outline">Cancel</Button>
         <Button>Save Changes</Button>

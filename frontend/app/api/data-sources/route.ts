@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
-    // Forward to backend service
+    
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
     const response = await fetch(`${backendUrl}/api/data-sources`, {
       method: 'GET',

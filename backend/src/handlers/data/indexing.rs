@@ -39,7 +39,7 @@ pub struct IndexFileRequest {
     pub file_type: Option<String>,
 }
 
-/// API PROXY: Index repository via unified indexer service
+
 pub async fn index_repository(request: web::Json<IndexRepositoryRequest>) -> Result<HttpResponse> {
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
@@ -83,7 +83,7 @@ pub async fn index_repository(request: web::Json<IndexRepositoryRequest>) -> Res
     }
 }
 
-/// API PROXY: Index documentation via unified indexer service
+
 pub async fn index_documentation(request: web::Json<IndexDocumentationRequest>) -> Result<HttpResponse> {
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
@@ -123,7 +123,7 @@ pub async fn index_documentation(request: web::Json<IndexDocumentationRequest>) 
     }
 }
 
-/// API PROXY: Index URL via unified indexer service
+
 pub async fn index_url(request: web::Json<IndexUrlRequest>) -> Result<HttpResponse> {
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
@@ -163,7 +163,7 @@ pub async fn index_url(request: web::Json<IndexUrlRequest>) -> Result<HttpRespon
     }
 }
 
-/// API PROXY: Index file via unified indexer service
+
 pub async fn index_file(request: web::Json<IndexFileRequest>) -> Result<HttpResponse> {
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
@@ -203,7 +203,7 @@ pub async fn index_file(request: web::Json<IndexFileRequest>) -> Result<HttpResp
     }
 }
 
-/// API PROXY: Get indexing status from unified indexer service
+
 pub async fn get_indexing_status() -> Result<HttpResponse> {
     let indexer_url = env::var("UNIFIED_INDEXER_URL")
         .unwrap_or_else(|_| "http://localhost:8080".to_string());

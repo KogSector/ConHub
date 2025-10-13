@@ -1,12 +1,12 @@
--- ConHub Database Schema
--- PostgreSQL Database Schema for the ConHub project
 
--- Enable extensions
+
+
+
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- User role enum
+
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
@@ -14,7 +14,7 @@ BEGIN
     END IF;
 END$$;
 
--- Subscription tier enum
+
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'subscription_tier') THEN
@@ -22,7 +22,7 @@ BEGIN
     END IF;
 END$$;
 
--- Social platform enum
+
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'social_platform') THEN
@@ -30,7 +30,7 @@ BEGIN
     END IF;
 END$$;
 
--- Users table
+
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE users (
     last_login_at TIMESTAMP WITH TIME ZONE
 );
 
--- Social connections table
+
 CREATE TABLE social_connections (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -66,11 +66,11 @@ CREATE TABLE social_connections (
     UNIQUE(user_id, platform, platform_user_id)
 );
 
--- Social tokens table (for storing refresh tokens securely)
+
 CREATE TABLE social_tokens (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     connection_id UUID NOT NULL REFERENCES social_connections(id) ON DELETE CASCADE,
-    token_type VARCHAR(50) NOT NULL, -- 'access', 'refresh', 'id'
+    token_type VARCHAR(50) NOT NULL, 
     token_value TEXT NOT NULL,
     expires_at TIMESTAMP WITH TIME ZONE,
     scope TEXT,
@@ -78,12 +78,12 @@ CREATE TABLE social_tokens (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- Social data table (for storing synced data from platforms)
+
 CREATE TABLE social_data (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     connection_id UUID NOT NULL REFERENCES social_connections(id) ON DELETE CASCADE,
     platform VARCHAR(50) NOT NULL,
-    data_type VARCHAR(100) NOT NULL, -- message, channel, page, file, document, etc.
+    data_type VARCHAR(100) NOT NULL, 
     external_id VARCHAR(255) NOT NULL,
     title TEXT,
     content TEXT,
@@ -95,7 +95,7 @@ CREATE TABLE social_data (
     UNIQUE(connection_id, external_id)
 );
 
--- API tokens table (for user API access)
+
 CREATE TABLE api_tokens (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -109,7 +109,7 @@ CREATE TABLE api_tokens (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- Webhooks table (for webhook management)
+
 CREATE TABLE webhooks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -123,7 +123,7 @@ CREATE TABLE webhooks (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- AI Rules table for storing instructions and behavioral rules
+
 CREATE TABLE ai_rules (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
@@ -138,11 +138,11 @@ CREATE TABLE ai_rules (
     is_active BOOLEAN DEFAULT true,
     tags TEXT[] DEFAULT '{}',
     
-    -- Indexes for performance
+    
     CONSTRAINT ai_rules_priority_check CHECK (priority >= -100 AND priority <= 100)
 );
 
--- AI Agent Profiles for different types of agents
+
 CREATE TABLE ai_agent_profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
@@ -156,7 +156,7 @@ CREATE TABLE ai_agent_profiles (
     is_active BOOLEAN DEFAULT true
 );
 
--- AI Memory Bank for storing context and learning data
+
 CREATE TABLE ai_memory_bank (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
@@ -170,19 +170,19 @@ CREATE TABLE ai_memory_bank (
     is_active BOOLEAN DEFAULT true
 );
 
--- Rule Application History for tracking usage
+
 CREATE TABLE ai_rule_applications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     rule_id UUID NOT NULL REFERENCES ai_rules(id) ON DELETE CASCADE,
     agent_type VARCHAR(100) NOT NULL,
-    context_hash VARCHAR(64), -- Hash of the context for privacy
+    context_hash VARCHAR(64), 
     applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     success BOOLEAN,
     feedback_rating INTEGER CHECK (feedback_rating >= 1 AND feedback_rating <= 5),
     notes TEXT
 );
 
--- Indexes for better performance
+
 CREATE INDEX idx_social_connections_user_id ON social_connections(user_id);
 CREATE INDEX idx_social_connections_platform ON social_connections(platform);
 CREATE INDEX idx_social_tokens_connection_id ON social_tokens(connection_id);
@@ -210,7 +210,7 @@ CREATE INDEX idx_ai_memory_content_search ON ai_memory_bank USING GIN(to_tsvecto
 CREATE INDEX idx_ai_rule_applications_rule ON ai_rule_applications(rule_id, applied_at DESC);
 CREATE INDEX idx_ai_rule_applications_agent ON ai_rule_applications(agent_type, applied_at DESC);
 
--- Triggers for automatic timestamp updates
+
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN

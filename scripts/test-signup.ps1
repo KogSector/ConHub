@@ -1,5 +1,5 @@
-# Test script for user signup functionality
-# This script tests the user registration and database storage
+
+
 
 param(
     [Parameter(Mandatory=$false)]
@@ -8,7 +8,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Colors for output
+
 function Write-ColorOutput {
     param([string]$Message, [System.ConsoleColor]$Color = [System.ConsoleColor]::White)
     Write-Host $Message -ForegroundColor $Color
@@ -18,7 +18,7 @@ Write-ColorOutput "🧪 Testing ConHub User Signup Functionality" ([System.Conso
 Write-ColorOutput "==========================================" ([System.ConsoleColor]::Blue)
 Write-Host ""
 
-# Test data
+
 $testUser = @{
     name = "Test User"
     email = "test@conhub.dev"
@@ -33,7 +33,7 @@ Write-Host "Email: $($testUser.email)"
 Write-Host "Organization: $($testUser.organization)"
 Write-Host ""
 
-# Test 1: Check if backend is running
+
 Write-ColorOutput "🔍 Step 1: Checking backend health..." ([System.ConsoleColor]::Yellow)
 try {
     $healthResponse = Invoke-RestMethod -Uri "$BackendUrl/health" -Method Get -TimeoutSec 10
@@ -45,7 +45,7 @@ catch {
     exit 1
 }
 
-# Test 2: List existing users (should be empty initially)
+
 Write-ColorOutput "🔍 Step 2: Checking existing users..." ([System.ConsoleColor]::Yellow)
 try {
     $usersResponse = Invoke-RestMethod -Uri "$BackendUrl/api/auth/users" -Method Get -TimeoutSec 10
@@ -64,7 +64,7 @@ catch {
 
 Write-Host ""
 
-# Test 3: Register new user
+
 Write-ColorOutput "🔍 Step 3: Registering new user..." ([System.ConsoleColor]::Yellow)
 try {
     $registerBody = $testUser | ConvertTo-Json -Depth 10
@@ -99,7 +99,7 @@ catch {
 
 Write-Host ""
 
-# Test 4: Verify user was stored in database
+
 Write-ColorOutput "🔍 Step 4: Verifying user was stored in database..." ([System.ConsoleColor]::Yellow)
 try {
     $usersAfterResponse = Invoke-RestMethod -Uri "$BackendUrl/api/auth/users" -Method Get -TimeoutSec 10
@@ -124,7 +124,7 @@ catch {
 
 Write-Host ""
 
-# Test 5: Test login with new user
+
 Write-ColorOutput "🔍 Step 5: Testing login with new user..." ([System.ConsoleColor]::Yellow)
 try {
     $loginBody = @{
@@ -155,7 +155,7 @@ catch {
 
 Write-Host ""
 
-# Test 6: Try duplicate registration (should fail)
+
 Write-ColorOutput "🔍 Step 6: Testing duplicate registration (should fail)..." ([System.ConsoleColor]::Yellow)
 try {
     $duplicateBody = $testUser | ConvertTo-Json -Depth 10

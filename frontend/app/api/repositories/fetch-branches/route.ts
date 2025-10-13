@@ -8,7 +8,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Repository URL is required.' }, { status: 400 });
     }
 
-    // First validate the URL
+    
     const validateResponse = await fetch('http://localhost:3001/api/repositories/validate-url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -23,13 +23,13 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Then fetch branches
+    
     const branchesResponse = await fetch('http://localhost:3001/api/repositories/fetch-branches', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         repo_url: repoUrl,
-        credentials: null // For public repos
+        credentials: null 
       })
     });
 

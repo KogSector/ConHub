@@ -1,5 +1,5 @@
-# Clear ConHub PostgreSQL Database
-# WARNING: This will delete ALL data from the database
+
+
 
 param(
     [string]$DatabaseUrl = "postgresql://localhost:5432/conhub",
@@ -21,13 +21,13 @@ if (-not $Confirm) {
     }
 }
 
-# Check if psql is available
+
 if (-not (Get-Command psql -ErrorAction SilentlyContinue)) {
     Write-Host "[ERROR] PostgreSQL client (psql) not found. Please install PostgreSQL or add it to PATH." -ForegroundColor Red
     exit 1
 }
 
-# Build connection string
+
 $env:PGPASSWORD = $Password
 
 try {

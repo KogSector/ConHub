@@ -4,8 +4,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::collections::HashMap;
 
-/// Auto-indexing trigger service
-/// Automatically triggers indexing when data sources are connected or synced
+
+
 pub struct AutoIndexTriggerService {
     indexer_url: String,
     client: reqwest::Client,
@@ -32,7 +32,7 @@ impl AutoIndexTriggerService {
         }
     }
 
-    /// Trigger indexing when a data source is connected
+    
     pub async fn on_source_connected(
         &self,
         connection_id: Uuid,
@@ -54,7 +54,7 @@ impl AutoIndexTriggerService {
 
         self.active_jobs.write().await.insert(connection_id, job_status);
 
-        // Spawn background task to index
+        
         let indexer_url = self.indexer_url.clone();
         let client = self.client.clone();
         let source_type = source_type.to_string();
@@ -83,7 +83,7 @@ impl AutoIndexTriggerService {
         Ok(())
     }
 
-    /// Trigger indexing when a data source is synced
+    
     pub async fn on_source_synced(
         &self,
         connection_id: Uuid,
@@ -96,12 +96,12 @@ impl AutoIndexTriggerService {
             source_type
         );
 
-        // Same as on_source_connected for now
-        // In the future, this could do incremental indexing
+        
+        
         self.on_source_connected(connection_id, source_type, source_url).await
     }
 
-    /// Trigger indexing via webhook
+    
     pub async fn on_webhook_received(
         &self,
         source_type: &str,
@@ -115,11 +115,11 @@ impl AutoIndexTriggerService {
             source_type
         );
 
-        // Index the source
+        
         Self::index_source(&self.client, &self.indexer_url, source_type, source_url).await
     }
 
-    /// Index a source based on its type
+    
     async fn index_source(
         client: &reqwest::Client,
         indexer_url: &str,
@@ -130,7 +130,7 @@ impl AutoIndexTriggerService {
             "github" | "gitlab" | "bitbucket" | "repository" => "/api/index/repository",
             "notion" | "confluence" | "documentation" => "/api/index/documentation",
             "url" | "web" | "website" => "/api/index/url",
-            _ => "/api/index/url", // Default fallback
+            _ => "/api/index/url", 
         };
 
         let request_body = serde_json::json!({
@@ -149,7 +149,7 @@ impl AutoIndexTriggerService {
         let response = client
             .post(&format!("{}{}", indexer_url, endpoint))
             .json(&request_body)
-            .timeout(std::time::Duration::from_secs(5)) // Quick timeout for async operation
+            .timeout(std::time::Duration::from_secs(5)) 
             .send()
             .await?;
 
@@ -168,12 +168,12 @@ impl AutoIndexTriggerService {
         Ok(())
     }
 
-    /// Get status of active indexing jobs
+    
     pub async fn get_active_jobs(&self) -> HashMap<Uuid, IndexingJobStatus> {
         self.active_jobs.read().await.clone()
     }
 
-    /// Schedule periodic re-indexing for a source
+    
     pub async fn schedule_periodic_reindex(
         &self,
         connection_id: Uuid,

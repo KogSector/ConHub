@@ -1,10 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { EventEmitter } from 'events';
 
-/**
- * Agent Manager
- * Manages AI agent connections, sessions, and orchestrates MCP and webhook services
- */
+
 export class AgentManager extends EventEmitter {
   constructor(logger, mcpService, webhookService) {
     super();
@@ -16,7 +13,7 @@ export class AgentManager extends EventEmitter {
     this.sessions = new Map();
     this.webSocketConnections = new Map();
     
-    // Agent configurations
+    
     this.agentConfigs = {
       'github-copilot': {
         name: 'GitHub Copilot',
@@ -63,11 +60,9 @@ export class AgentManager extends EventEmitter {
     this.logger.info('Agent Manager initialized');
   }
 
-  /**
-   * Setup event listeners for MCP and webhook services
-   */
+  
   setupEventListeners() {
-    // MCP service events
+    
     this.mcpService.on('connectionEstablished', (connection) => {
       this.handleMcpConnectionEstablished(connection);
     });
@@ -76,12 +71,12 @@ export class AgentManager extends EventEmitter {
       this.handleMcpConnectionClosed(connection);
     });
 
-    // Webhook service events
+    
     this.webhookService.on('webhookReceived', (webhookData) => {
       this.handleWebhookReceived(webhookData);
     });
 
-    // Specific agent events
+    
     this.webhookService.on('copilotUsage', (data) => {
       this.handleCopilotUsage(data);
     });
@@ -95,9 +90,7 @@ export class AgentManager extends EventEmitter {
     });
   }
 
-  /**
-   * Register a new AI agent
-   */
+  
   async registerAgent(agentId, config = null) {
     try {
       const agentConfig = config || this.agentConfigs[agentId];
@@ -137,9 +130,7 @@ export class AgentManager extends EventEmitter {
     }
   }
 
-  /**
-   * Connect to an AI agent via MCP
-   */
+  
   async connectAgent(agentId, connectionConfig = {}) {
     try {
       const agent = this.agents.get(agentId);
@@ -147,7 +138,7 @@ export class AgentManager extends EventEmitter {
         throw new Error(`Agent ${agentId} not registered`);
       }
 
-      // Initialize MCP connection
+      
       const mcpConnection = await this.mcpService.initializeConnection(agentId, {
         ...agent.config,
         ...connectionConfig
@@ -174,9 +165,7 @@ export class AgentManager extends EventEmitter {
     }
   }
 
-  /**
-   * Create a new session with an AI agent
-   */
+  
   async createSession(agentId, userId, sessionConfig = {}) {
     try {
       const agent = this.agents.get(agentId);
@@ -217,9 +206,7 @@ export class AgentManager extends EventEmitter {
     }
   }
 
-  /**
-   * Send message to AI agent via MCP
-   */
+  
   async sendMessage(sessionId, message, options = {}) {
     try {
       const session = this.sessions.get(sessionId);
@@ -232,7 +219,7 @@ export class AgentManager extends EventEmitter {
         throw new Error(`Agent ${session.agentId} not connected`);
       }
 
-      // Add message to session
+      
       const messageObj = {
         id: uuidv4(),
         type: 'user',
@@ -247,7 +234,7 @@ export class AgentManager extends EventEmitter {
       agent.lastActivity = new Date();
       agent.metrics.totalRequests++;
 
-      // Process message based on agent capabilities
+      
       let response;
       if (agent.capabilities.includes('chat')) {
         response = await this.handleChatMessage(agent, session, messageObj);
@@ -257,7 +244,7 @@ export class AgentManager extends EventEmitter {
         response = await this.handleGenericMessage(agent, session, messageObj);
       }
 
-      // Add response to session
+      
       const responseObj = {
         id: uuidv4(),
         type: 'assistant',
@@ -287,13 +274,11 @@ export class AgentManager extends EventEmitter {
     }
   }
 
-  /**
-   * Handle chat messages
-   */
+  
   async handleChatMessage(agent, session, message) {
     const tools = await this.mcpService.listTools(agent.mcpConnection.id);
     
-    // Find appropriate tool for chat
+    
     const chatTool = tools.find(tool => 
       tool.name.includes('chat') || 
       tool.name.includes('conversation') ||
@@ -313,9 +298,7 @@ export class AgentManager extends EventEmitter {
     return `Chat response from ${agent.config.name}: ${message.content}`;
   }
 
-  /**
-   * Handle code completion requests
-   */
+  
   async handleCodeCompletion(agent, session, message) {
     const tools = await this.mcpService.listTools(agent.mcpConnection.id);
     
@@ -341,14 +324,12 @@ export class AgentManager extends EventEmitter {
     return `Code completion from ${agent.config.name} for: ${message.content}`;
   }
 
-  /**
-   * Handle generic messages
-   */
+  
   async handleGenericMessage(agent, session, message) {
     const tools = await this.mcpService.listTools(agent.mcpConnection.id);
     
     if (tools.length > 0) {
-      // Use the first available tool
+      
       const tool = tools[0];
       const result = await this.mcpService.callTool(
         agent.mcpConnection.id,
@@ -362,9 +343,7 @@ export class AgentManager extends EventEmitter {
     return `Response from ${agent.config.name}: Processed "${message.content}"`;
   }
 
-  /**
-   * Handle WebSocket messages
-   */
+  
   async handleWebSocketMessage(ws, data) {
     try {
       const { type, payload } = data;
@@ -401,11 +380,9 @@ export class AgentManager extends EventEmitter {
     }
   }
 
-  /**
-   * Handle WebSocket disconnection
-   */
+  
   handleWebSocketDisconnection(ws) {
-    // Clean up WebSocket connection data
+    
     for (const [connectionId, connection] of this.webSocketConnections.entries()) {
       if (connection.ws === ws) {
         this.webSocketConnections.delete(connectionId);
@@ -415,9 +392,7 @@ export class AgentManager extends EventEmitter {
     }
   }
 
-  /**
-   * Handle MCP connection established
-   */
+  
   handleMcpConnectionEstablished(connection) {
     const agent = this.agents.get(connection.agentId);
     if (agent) {
@@ -427,9 +402,7 @@ export class AgentManager extends EventEmitter {
     }
   }
 
-  /**
-   * Handle MCP connection closed
-   */
+  
   handleMcpConnectionClosed(connection) {
     const agent = this.agents.get(connection.agentId);
     if (agent) {
@@ -439,9 +412,7 @@ export class AgentManager extends EventEmitter {
     }
   }
 
-  /**
-   * Handle webhook received
-   */
+  
   handleWebhookReceived(webhookData) {
     const agent = this.agents.get(webhookData.agentType);
     if (agent) {
@@ -451,17 +422,13 @@ export class AgentManager extends EventEmitter {
     }
   }
 
-  /**
-   * Handle Copilot usage events
-   */
+  
   handleCopilotUsage(data) {
     this.logger.info('Copilot usage tracked', { user: data.user?.login });
     this.emit('copilotUsageTracked', data);
   }
 
-  /**
-   * Handle code analysis completion
-   */
+  
   handleCodeAnalysisComplete(data) {
     this.logger.info('Code analysis completed', { 
       analysisId: data.analysisId,
@@ -470,9 +437,7 @@ export class AgentManager extends EventEmitter {
     this.emit('codeAnalysisCompleted', data);
   }
 
-  /**
-   * Handle command execution
-   */
+  
   handleCommandExecuted(data) {
     this.logger.info('Command executed', { 
       command: data.command,
@@ -481,37 +446,27 @@ export class AgentManager extends EventEmitter {
     this.emit('commandExecutionTracked', data);
   }
 
-  /**
-   * Get agent by ID
-   */
+  
   getAgent(agentId) {
     return this.agents.get(agentId);
   }
 
-  /**
-   * Get all registered agents
-   */
+  
   getAgents() {
     return Array.from(this.agents.values());
   }
 
-  /**
-   * Get session by ID
-   */
+  
   getSession(sessionId) {
     return this.sessions.get(sessionId);
   }
 
-  /**
-   * Get all active sessions
-   */
+  
   getSessions() {
     return Array.from(this.sessions.values());
   }
 
-  /**
-   * Close session
-   */
+  
   async closeSession(sessionId) {
     const session = this.sessions.get(sessionId);
     if (session) {
@@ -529,9 +484,7 @@ export class AgentManager extends EventEmitter {
     }
   }
 
-  /**
-   * Disconnect agent
-   */
+  
   async disconnectAgent(agentId) {
     const agent = this.agents.get(agentId);
     if (agent && agent.mcpConnection) {
@@ -544,9 +497,7 @@ export class AgentManager extends EventEmitter {
     }
   }
 
-  /**
-   * Get service health status
-   */
+  
   getHealthStatus() {
     const agents = this.getAgents();
     const sessions = this.getSessions();
@@ -568,9 +519,7 @@ export class AgentManager extends EventEmitter {
     };
   }
 
-  /**
-   * Get service metrics
-   */
+  
   getMetrics() {
     const agents = this.getAgents();
     const totalRequests = agents.reduce((sum, agent) => sum + agent.metrics.totalRequests, 0);

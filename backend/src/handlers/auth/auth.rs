@@ -10,7 +10,7 @@ use crate::models::auth::*;
 use crate::services::auth::password_reset::PASSWORD_RESET_SERVICE;
 use crate::services::auth::users::UserService;
 
-// Helper function to generate JWT token
+
 pub fn generate_jwt_token(user: &User) -> Result<(String, DateTime<Utc>), String> {
     let jwt_secret = std::env::var("JWT_SECRET")
         .unwrap_or_else(|_| "conhub_super_secret_jwt_key_2024_development_only".to_string());
@@ -50,7 +50,7 @@ pub async fn login(
 
     let user_service = UserService::new(pool.get_ref().clone());
     
-    // Authenticate user with database
+    
     let user = match user_service.verify_password(&request.email, &request.password).await {
         Ok(user) => user,
         Err(_) => {
@@ -60,12 +60,12 @@ pub async fn login(
         }
     };
 
-    // Update last login timestamp
+    
     if let Err(e) = user_service.update_last_login(user.id).await {
         log::warn!("Failed to update last login for user {}: {}", user.id, e);
     }
 
-    // Generate JWT token
+    
     let (token, expires_at) = match generate_jwt_token(&user) {
         Ok((token, expires_at)) => (token, expires_at),
         Err(e) => {
@@ -101,13 +101,13 @@ pub async fn forgot_password(
     
     let user_service = UserService::new(pool.get_ref().clone());
     
-    // Check if user exists in database
+    
     let user_exists = match user_service.find_by_email(email).await {
         Ok(_) => true,
         Err(_) => false,
     };
     
-    // Generate reset token
+    
     match PASSWORD_RESET_SERVICE.generate_reset_token(email) {
         Ok(_) => {},
         Err(_) => {}
@@ -135,7 +135,7 @@ pub async fn reset_password(
     
     log::info!("Password reset attempted for token: {}", token);
     
-    // Validate the reset token
+    
     let email = match PASSWORD_RESET_SERVICE.validate_token(token) {
         Ok(email) => email,
         Err(e) => {
@@ -147,7 +147,7 @@ pub async fn reset_password(
         }
     };
     
-    // Hash the new password
+    
     let new_password_hash = match hash(new_password, DEFAULT_COST) {
         Ok(hash) => hash,
         Err(e) => {
@@ -160,7 +160,7 @@ pub async fn reset_password(
 
     let user_service = UserService::new(pool.get_ref().clone());
     
-    // Find user by email and update password
+    
     let user = match user_service.find_by_email(&email).await {
         Ok(user) => user,
         Err(_) => {
@@ -170,7 +170,7 @@ pub async fn reset_password(
         }
     };
     
-    // Update user password in database
+    
     if let Err(e) = user_service.update_password(user.id, new_password).await {
         log::error!("Failed to update password for user {}: {}", user.id, e);
         return Ok(HttpResponse::InternalServerError().json(json!({
@@ -199,7 +199,7 @@ pub async fn register(
 
     let user_service = UserService::new(pool.get_ref().clone());
     
-    // Create user in database
+    
     let new_user = match user_service.create_user(&request).await {
         Ok(user) => user,
         Err(e) => {
@@ -211,7 +211,7 @@ pub async fn register(
         }
     };
 
-    // Generate JWT token
+    
     let (token, expires_at) = match generate_jwt_token(&new_user) {
         Ok((token, expires_at)) => (token, expires_at),
         Err(e) => {
@@ -239,7 +239,7 @@ pub async fn verify_token() -> Result<HttpResponse> {
 }
 
 pub async fn get_profile(pool: web::Data<PgPool>) -> Result<HttpResponse> {
-    // For now, return the first user in the database as a test
+    
     let user_service = UserService::new(pool.get_ref().clone());
     
     match user_service.list_users(1, 0).await {

@@ -9,11 +9,11 @@ use chrono::Utc;
 
 use crate::models::mcp::*;
 
-/// MCP Client for connecting to external MCP servers
-/// 
-/// This client provides a robust interface for connecting to and interacting
-/// with external Model Context Protocol servers, including connection pooling,
-/// retry logic, error handling, and authentication management.
+
+
+
+
+
 #[derive(Clone)]
 pub struct McpClient {
     http_client: Client,
@@ -21,7 +21,7 @@ pub struct McpClient {
     config: McpClientConfig,
 }
 
-/// Configuration for MCP client
+
 #[derive(Debug, Clone)]
 pub struct McpClientConfig {
     pub timeout: Duration,
@@ -50,7 +50,7 @@ impl Default for McpClientConfig {
     }
 }
 
-/// Represents a connection to an MCP server
+
 #[derive(Debug, Clone)]
 pub struct McpConnection {
     #[allow(dead_code)]
@@ -67,14 +67,14 @@ pub struct McpConnection {
     pub connected_at: chrono::DateTime<Utc>,
 }
 
-/// Authentication configuration for MCP connections
+
 #[derive(Debug, Clone)]
 pub struct AuthConfig {
     pub method: AuthMethod,
     pub credentials: serde_json::Value,
 }
 
-/// Connection status
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConnectionStatus {
     Connecting,
@@ -85,7 +85,7 @@ pub enum ConnectionStatus {
     Timeout,
 }
 
-/// MCP client errors
+
 #[derive(Debug, Clone)]
 pub enum McpClientError {
     ConnectionError(String),
@@ -123,13 +123,13 @@ impl std::fmt::Debug for McpClient {
 }
 
 impl McpClient {
-    /// Create a new MCP client with default configuration
+    
     #[allow(dead_code)]
     pub fn new() -> Result<Self, McpClientError> {
         Self::with_config(McpClientConfig::default())
     }
 
-    /// Create a new MCP client with custom configuration
+    
     pub fn with_config(config: McpClientConfig) -> Result<Self, McpClientError> {
         let http_client = ClientBuilder::new()
             .timeout(config.timeout)
@@ -144,7 +144,7 @@ impl McpClient {
         })
     }
 
-    /// Connect to an MCP server
+    
     pub async fn connect(
         &self,
         endpoint: String,
@@ -152,7 +152,7 @@ impl McpClient {
     ) -> Result<ServerId, McpClientError> {
         let server_id = Uuid::new_v4().to_string();
         
-        // Create connection entry
+        
         let connection = McpConnection {
             server_id: server_id.clone(),
             endpoint: endpoint.clone(),
@@ -165,16 +165,16 @@ impl McpClient {
             connected_at: Utc::now(),
         };
 
-        // Store connection
+        
         {
             let mut connections = self.connections.write().await;
             connections.insert(server_id.clone(), connection);
         }
 
-        // Initialize the connection
+        
         match self.initialize_connection(&server_id).await {
             Ok(_) => {
-                // Update connection status
+                
                 let mut connections = self.connections.write().await;
                 if let Some(conn) = connections.get_mut(&server_id) {
                     conn.status = ConnectionStatus::Connected;
@@ -184,7 +184,7 @@ impl McpClient {
                 Ok(server_id)
             }
             Err(e) => {
-                // Update connection status with error
+                
                 let mut connections = self.connections.write().await;
                 if let Some(conn) = connections.get_mut(&server_id) {
                     conn.status = ConnectionStatus::Error(e.to_string());
@@ -197,7 +197,7 @@ impl McpClient {
         }
     }
 
-    /// Initialize connection by performing handshake
+    
     async fn initialize_connection(&self, server_id: &ServerId) -> Result<(), McpClientError> {
         let _endpoint = {
             let connections = self.connections.read().await;
@@ -206,7 +206,7 @@ impl McpClient {
             connection.endpoint.clone()
         };
 
-        // Prepare initialize request
+        
         let client_info = ClientInfo {
             name: "ConHub MCP Client".to_string(),
             version: "1.0.0".to_string(),
@@ -225,12 +225,12 @@ impl McpClient {
 
         let request = McpRequest::Initialize(init_params);
         
-        // Send initialize request
+        
         let response = self.send_request(&server_id, request).await?;
         
         match response {
             McpResponse::Initialize(init_result) => {
-                // Update connection with server info and capabilities
+                
                 let mut connections = self.connections.write().await;
                 if let Some(conn) = connections.get_mut(server_id) {
                     conn.server_info = Some(init_result.server_info);
@@ -247,7 +247,7 @@ impl McpClient {
         }
     }
 
-    /// Disconnect from an MCP server
+    
     pub async fn disconnect(&self, server_id: &ServerId) -> Result<(), McpClientError> {
         let mut connections = self.connections.write().await;
         
@@ -260,7 +260,7 @@ impl McpClient {
         Ok(())
     }
 
-    /// List available resources from a server
+    
     pub async fn list_resources(
         &self,
         server_id: &ServerId,
@@ -277,7 +277,7 @@ impl McpClient {
         }
     }
 
-    /// Read content from a resource
+    
     pub async fn read_resource(
         &self,
         server_id: &ServerId,
@@ -294,7 +294,7 @@ impl McpClient {
         }
     }
 
-    /// List available tools from a server
+    
     #[allow(dead_code)]
     pub async fn list_tools(
         &self,
@@ -312,7 +312,7 @@ impl McpClient {
         }
     }
 
-    /// Call a tool on a server
+    
     pub async fn call_tool(
         &self,
         server_id: &ServerId,
@@ -330,7 +330,7 @@ impl McpClient {
         }
     }
 
-    /// Create a context on a server
+    
     #[allow(dead_code)]
     pub async fn create_context(
         &self,
@@ -356,7 +356,7 @@ impl McpClient {
         }
     }
 
-    /// Get a context from a server
+    
     #[allow(dead_code)]
     pub async fn get_context(
         &self,
@@ -374,7 +374,7 @@ impl McpClient {
         }
     }
 
-    /// Ping a server to check connectivity
+    
     #[allow(dead_code)]
     pub async fn ping(&self, server_id: &ServerId) -> Result<PongResult, McpClientError> {
         let request = McpRequest::Ping(PingParams {});
@@ -383,7 +383,7 @@ impl McpClient {
         
         match response {
             McpResponse::Pong(result) => {
-                // Update last ping time
+                
                 let mut connections = self.connections.write().await;
                 if let Some(conn) = connections.get_mut(server_id) {
                     conn.last_ping = Some(Utc::now());
@@ -395,7 +395,7 @@ impl McpClient {
         }
     }
 
-    /// Send a request to an MCP server with retry logic
+    
     async fn send_request(
         &self,
         server_id: &ServerId,
@@ -422,7 +422,7 @@ impl McpClient {
         Err(last_error.unwrap_or_else(|| McpClientError::NetworkError("Unknown error".to_string())))
     }
 
-    /// Send a single request without retry
+    
     async fn send_request_once(
         &self,
         server_id: &ServerId,
@@ -433,7 +433,7 @@ impl McpClient {
             let connection = connections.get(server_id)
                 .ok_or_else(|| McpClientError::ConnectionError("Connection not found".to_string()))?;
             
-            // Check connection status
+            
             match &connection.status {
                 ConnectionStatus::Connected => {},
                 ConnectionStatus::Disconnected => {
@@ -453,7 +453,7 @@ impl McpClient {
             (connection.endpoint.clone(), connection.auth_config.clone())
         };
 
-        // Create JSON-RPC message
+        
         let message = McpMessage {
             jsonrpc: "2.0".to_string(),
             id: Some(json!(Uuid::new_v4().to_string())),
@@ -465,22 +465,22 @@ impl McpClient {
             error: None,
         };
 
-        // Build HTTP request
+        
         let mut http_request = self.http_client
             .post(&endpoint)
             .header("Content-Type", "application/json")
             .json(&message);
 
-        // Add authentication
+        
         http_request = self.add_authentication(http_request, &auth_config)?;
 
-        // Send request
+        
         let response = http_request
             .send()
             .await
             .map_err(|e| McpClientError::NetworkError(e.to_string()))?;
 
-        // Check HTTP status
+        
         if !response.status().is_success() {
             return Err(McpClientError::ServerError(format!(
                 "HTTP error: {}", 
@@ -488,25 +488,25 @@ impl McpClient {
             )));
         }
 
-        // Parse response
+        
         let response_message: McpMessage = response
             .json()
             .await
             .map_err(|e| McpClientError::InvalidResponse(format!("Failed to parse response: {}", e)))?;
 
-        // Handle protocol errors
+        
         if let Some(error) = response_message.error {
             return Err(McpClientError::ProtocolError(error));
         }
 
-        // Parse result
+        
         let result = response_message.result
             .ok_or_else(|| McpClientError::InvalidResponse("Missing result in response".to_string()))?;
 
         self.parse_response(request, result)
     }
 
-    /// Add authentication to HTTP request
+    
     fn add_authentication(
         &self,
         mut request: reqwest::RequestBuilder,
@@ -535,11 +535,11 @@ impl McpClient {
                 request = request.header("Authorization", format!("Bearer {}", access_token));
             }
             AuthMethod::Certificate => {
-                // Certificate authentication would require additional setup
+                
                 return Err(McpClientError::AuthenticationError("Certificate authentication not implemented".to_string()));
             }
             AuthMethod::Custom(_) => {
-                // Custom authentication would be handled based on specific requirements
+                
                 return Err(McpClientError::AuthenticationError("Custom authentication not implemented".to_string()));
             }
         }
@@ -547,7 +547,7 @@ impl McpClient {
         Ok(request)
     }
 
-    /// Get method name for request type
+    
     fn get_method_name(&self, request: &McpRequest) -> String {
         match request {
             McpRequest::Initialize(_) => "initialize".to_string(),
@@ -561,7 +561,7 @@ impl McpClient {
         }
     }
 
-    /// Parse response based on request type
+    
     fn parse_response(
         &self,
         request: &McpRequest,
@@ -611,21 +611,21 @@ impl McpClient {
         }
     }
 
-    /// Get connection status for a server
+    
     #[allow(dead_code)]
     pub async fn get_connection_status(&self, server_id: &ServerId) -> Option<ConnectionStatus> {
         let connections = self.connections.read().await;
         connections.get(server_id).map(|conn| conn.status.clone())
     }
 
-    /// List all active connections
+    
     #[allow(dead_code)]
     pub async fn list_connections(&self) -> Vec<McpConnection> {
         let connections = self.connections.read().await;
         connections.values().cloned().collect()
     }
 
-    /// Start background health monitoring for all connections
+    
     #[allow(dead_code)]
     pub async fn start_health_monitoring(&self) {
         let connections = Arc::clone(&self.connections);
@@ -647,7 +647,7 @@ impl McpClient {
                     if let Err(e) = client.ping(&server_id).await {
                         log::warn!("Health check failed for server {}: {}", server_id, e);
                         
-                        // Update connection status
+                        
                         let mut conns = connections.write().await;
                         if let Some(conn) = conns.get_mut(&server_id) {
                             conn.error_count += 1;
@@ -662,7 +662,7 @@ impl McpClient {
     }
 }
 
-/// Helper functions for creating auth configurations
+
 impl AuthConfig {
     pub fn api_key(api_key: String) -> Self {
         Self {

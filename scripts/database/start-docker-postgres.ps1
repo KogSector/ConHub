@@ -1,5 +1,5 @@
-# Start PostgreSQL using Docker
-# This creates a fresh PostgreSQL instance with known credentials
+
+
 
 param(
     [string]$Password = "postgres",
@@ -9,18 +9,18 @@ param(
 
 Write-Host "[DOCKER] Starting PostgreSQL with Docker..." -ForegroundColor Cyan
 
-# Check if Docker is available
+
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Host "[ERROR] Docker not found. Please install Docker Desktop." -ForegroundColor Red
     exit 1
 }
 
-# Stop existing container if running
+
 Write-Host "[CLEANUP] Stopping existing PostgreSQL container..." -ForegroundColor Yellow
 docker stop conhub-postgres 2>$null
 docker rm conhub-postgres 2>$null
 
-# Start new PostgreSQL container
+
 Write-Host "[STARTING] Starting PostgreSQL container..." -ForegroundColor Green
 docker run -d `
     --name conhub-postgres `

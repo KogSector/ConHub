@@ -1,13 +1,13 @@
 use std::path::Path;
 
-/// Detect file type from extension
+
 pub fn detect_file_type(path: &Path) -> Option<String> {
     path.extension()
         .and_then(|ext| ext.to_str())
         .map(|ext| ext.to_lowercase())
 }
 
-/// Check if a file is a code file
+
 pub fn is_code_file(extension: &str) -> bool {
     matches!(
         extension.to_lowercase().as_str(),
@@ -17,7 +17,7 @@ pub fn is_code_file(extension: &str) -> bool {
     )
 }
 
-/// Check if a file is a documentation file
+
 pub fn is_doc_file(extension: &str) -> bool {
     matches!(
         extension.to_lowercase().as_str(),
@@ -25,14 +25,14 @@ pub fn is_doc_file(extension: &str) -> bool {
     )
 }
 
-/// Extract repository name from URL
+
 pub fn extract_repo_name(url: &str) -> Option<String> {
     url.split('/')
         .last()
         .map(|name| name.trim_end_matches(".git").to_string())
 }
 
-/// Format bytes to human-readable string
+
 pub fn format_bytes(bytes: usize) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
     let mut size = bytes as f64;
@@ -46,7 +46,7 @@ pub fn format_bytes(bytes: usize) -> String {
     format!("{:.2} {}", size, UNITS[unit_index])
 }
 
-/// Sanitize filename for safe file system usage
+
 pub fn sanitize_filename(name: &str) -> String {
     name.chars()
         .map(|c| match c {

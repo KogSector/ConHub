@@ -2,36 +2,36 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 
-/// Model Context Protocol (MCP) Core Types
-/// 
-/// This module defines the core types and structures for implementing
-/// the Model Context Protocol in ConHub, enabling standardized context
-/// sharing between AI agents and various data sources.
 
-// ============================================================================
-// Core Protocol Types
-// ============================================================================
 
-/// MCP Protocol version
+
+
+
+
+
+
+
+
+
 pub const MCP_VERSION: &str = "2024-11-05";
 
-/// Unique identifier for MCP resources
+
 pub type ResourceId = String;
 
-/// Unique identifier for MCP contexts
+
 pub type ContextId = String;
 
-/// Unique identifier for MCP tools
+
 pub type ToolId = String;
 
-/// Unique identifier for MCP servers
+
 pub type ServerId = String;
 
-// ============================================================================
-// Resource Management
-// ============================================================================
 
-/// Represents a resource that can be accessed through MCP
+
+
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpResource {
     pub id: ResourceId,
@@ -46,7 +46,7 @@ pub struct McpResource {
     pub access_permissions: Vec<AccessPermission>,
 }
 
-/// Annotations for MCP resources
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceAnnotations {
     pub audience: Option<Vec<String>>,
@@ -56,7 +56,7 @@ pub struct ResourceAnnotations {
     pub confidence: Option<f32>,
 }
 
-/// Access permissions for resources
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AccessPermission {
     Read,
@@ -66,11 +66,11 @@ pub enum AccessPermission {
     ContextProvider,
 }
 
-// ============================================================================
-// Context Management
-// ============================================================================
 
-/// Represents contextual information in MCP format
+
+
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpContext {
     pub id: ContextId,
@@ -84,7 +84,7 @@ pub struct McpContext {
     pub access_level: AccessLevel,
 }
 
-/// Types of contexts available in MCP
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ContextType {
     Repository,
@@ -97,7 +97,7 @@ pub enum ContextType {
     Custom(String),
 }
 
-/// Resource reference within a context
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextResource {
     pub resource_id: ResourceId,
@@ -107,7 +107,7 @@ pub struct ContextResource {
     pub annotations: Option<ResourceAnnotations>,
 }
 
-/// Access levels for contexts
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AccessLevel {
     Public,
@@ -116,11 +116,11 @@ pub enum AccessLevel {
     Private,
 }
 
-// ============================================================================
-// Tool Definitions
-// ============================================================================
 
-/// MCP Tool definition
+
+
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpTool {
     pub id: ToolId,
@@ -133,7 +133,7 @@ pub struct McpTool {
     pub security_requirements: Vec<SecurityRequirement>,
 }
 
-/// Schema definition for MCP tools
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolSchema {
     pub input_schema: serde_json::Value,
@@ -141,7 +141,7 @@ pub struct ToolSchema {
     pub error_schema: Option<serde_json::Value>,
 }
 
-/// Capabilities that a tool provides
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ToolCapability {
     ContextRetrieval,
@@ -152,7 +152,7 @@ pub enum ToolCapability {
     Custom(String),
 }
 
-/// Security requirements for tool execution
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SecurityRequirement {
     Authentication,
@@ -162,11 +162,11 @@ pub enum SecurityRequirement {
     RateLimiting,
 }
 
-// ============================================================================
-// Server and Client Definitions
-// ============================================================================
 
-/// MCP Server configuration
+
+
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpServer {
     pub id: ServerId,
@@ -182,7 +182,7 @@ pub struct McpServer {
     pub last_heartbeat: Option<DateTime<Utc>>,
 }
 
-/// Capabilities exposed by an MCP server
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerCapabilities {
     pub resources: Option<ResourceCapabilities>,
@@ -191,32 +191,32 @@ pub struct ServerCapabilities {
     pub logging: Option<LoggingCapabilities>,
 }
 
-/// Resource-specific server capabilities
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceCapabilities {
     pub subscribe: bool,
     pub list_changed: bool,
 }
 
-/// Tool-specific server capabilities
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCapabilities {
     pub list_changed: bool,
 }
 
-/// Prompt-specific server capabilities
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PromptCapabilities {
     pub list_changed: bool,
 }
 
-/// Logging-specific server capabilities
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoggingCapabilities {
     pub level: LogLevel,
 }
 
-/// Server endpoint definition
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerEndpoint {
     pub path: String,
@@ -225,7 +225,7 @@ pub struct ServerEndpoint {
     pub schema: Option<serde_json::Value>,
 }
 
-/// HTTP methods supported
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum HttpMethod {
     GET,
@@ -235,7 +235,7 @@ pub enum HttpMethod {
     PATCH,
 }
 
-/// Server security configuration
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerSecurity {
     pub authentication_required: bool,
@@ -244,7 +244,7 @@ pub struct ServerSecurity {
     pub encryption: EncryptionConfig,
 }
 
-/// Authentication methods
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AuthMethod {
     ApiKey,
@@ -254,7 +254,7 @@ pub enum AuthMethod {
     Custom(String),
 }
 
-/// Rate limiting configuration
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RateLimitConfig {
     pub requests_per_minute: u32,
@@ -262,7 +262,7 @@ pub struct RateLimitConfig {
     pub per_client: bool,
 }
 
-/// Encryption configuration
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptionConfig {
     pub tls_required: bool,
@@ -270,7 +270,7 @@ pub struct EncryptionConfig {
     pub supported_ciphers: Vec<String>,
 }
 
-/// Server status
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ServerStatus {
     Starting,
@@ -281,7 +281,7 @@ pub enum ServerStatus {
     Stopped,
 }
 
-/// Log levels for MCP operations
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LogLevel {
     Debug,
@@ -291,14 +291,14 @@ pub enum LogLevel {
     Critical,
 }
 
-// ============================================================================
-// Protocol Messages
-// ============================================================================
 
-/// Base MCP protocol message
+
+
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpMessage {
-    pub jsonrpc: String, // Always "2.0"
+    pub jsonrpc: String, 
     pub id: Option<serde_json::Value>,
     pub method: Option<String>,
     pub params: Option<serde_json::Value>,
@@ -306,7 +306,7 @@ pub struct McpMessage {
     pub error: Option<McpError>,
 }
 
-/// MCP protocol error
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpError {
     pub code: i32,
@@ -314,7 +314,7 @@ pub struct McpError {
     pub data: Option<serde_json::Value>,
 }
 
-/// MCP request types
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "method", content = "params")]
 pub enum McpRequest {
@@ -328,7 +328,7 @@ pub enum McpRequest {
     Ping(PingParams),
 }
 
-/// MCP response types
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum McpResponse {
@@ -343,11 +343,11 @@ pub enum McpResponse {
     Error(McpError),
 }
 
-// ============================================================================
-// Protocol Parameters and Results
-// ============================================================================
 
-/// Initialize request parameters
+
+
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitializeParams {
     pub protocol_version: String,
@@ -355,21 +355,21 @@ pub struct InitializeParams {
     pub client_info: ClientInfo,
 }
 
-/// Client capabilities
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientCapabilities {
     pub experimental: Option<HashMap<String, serde_json::Value>>,
     pub sampling: Option<serde_json::Value>,
 }
 
-/// Client information
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientInfo {
     pub name: String,
     pub version: String,
 }
 
-/// Initialize response
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitializeResult {
     pub protocol_version: String,
@@ -377,39 +377,39 @@ pub struct InitializeResult {
     pub server_info: ServerInfo,
 }
 
-/// Server information
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerInfo {
     pub name: String,
     pub version: String,
 }
 
-/// Resources list parameters
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourcesListParams {
     pub cursor: Option<String>,
 }
 
-/// Resources list result
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourcesListResult {
     pub resources: Vec<McpResource>,
     pub next_cursor: Option<String>,
 }
 
-/// Resources read parameters
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourcesReadParams {
     pub uri: String,
 }
 
-/// Resources read result
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourcesReadResult {
     pub contents: Vec<ResourceContent>,
 }
 
-/// Resource content
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceContent {
     pub uri: String,
@@ -418,34 +418,34 @@ pub struct ResourceContent {
     pub blob: Option<String>,
 }
 
-/// Tools list parameters
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolsListParams {
     pub cursor: Option<String>,
 }
 
-/// Tools list result
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolsListResult {
     pub tools: Vec<McpTool>,
     pub next_cursor: Option<String>,
 }
 
-/// Tools call parameters
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolsCallParams {
     pub name: String,
     pub arguments: Option<serde_json::Value>,
 }
 
-/// Tools call result
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolsCallResult {
     pub content: Vec<ToolContent>,
     pub is_error: Option<bool>,
 }
 
-/// Tool content
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolContent {
     pub content_type: String,
@@ -453,7 +453,7 @@ pub struct ToolContent {
     pub annotations: Option<serde_json::Value>,
 }
 
-/// Context create parameters
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextCreateParams {
     pub name: String,
@@ -462,48 +462,48 @@ pub struct ContextCreateParams {
     pub metadata: Option<HashMap<String, serde_json::Value>>,
 }
 
-/// Context create result
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextCreateResult {
     pub context: McpContext,
 }
 
-/// Context get parameters
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextGetParams {
     pub context_id: ContextId,
 }
 
-/// Context get result
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextGetResult {
     pub context: McpContext,
 }
 
-/// Ping parameters
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PingParams {}
 
-/// Pong result
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PongResult {
     pub timestamp: DateTime<Utc>,
 }
 
-// ============================================================================
-// Trait Definitions
-// ============================================================================
 
-/// Trait for MCP context providers
+
+
+
+
 pub trait McpContextProvider: Send + Sync {
-    /// Get the provider's unique identifier
+    
     fn provider_id(&self) -> String;
     
-    /// Get the types of contexts this provider can handle
+    
     #[allow(dead_code)]
     fn supported_context_types(&self) -> Vec<ContextType>;
     
-    /// Create a context from available resources
+    
     #[allow(dead_code)]
     async fn create_context(
         &self,
@@ -512,29 +512,29 @@ pub trait McpContextProvider: Send + Sync {
         metadata: Option<HashMap<String, serde_json::Value>>,
     ) -> Result<McpContext, McpError>;
     
-    /// Get an existing context
+    
     #[allow(dead_code)]
     async fn get_context(&self, context_id: &ContextId) -> Result<McpContext, McpError>;
     
-    /// List available resources for this provider
+    
     #[allow(dead_code)]
     async fn list_resources(&self) -> Result<Vec<McpResource>, McpError>;
     
-    /// Read content from a specific resource
+    
     #[allow(dead_code)]
     async fn read_resource(&self, resource_id: &ResourceId) -> Result<ResourceContent, McpError>;
 }
 
-/// Trait for MCP tool providers
+
 pub trait McpToolProvider: Send + Sync {
-    /// Get the provider's unique identifier
+    
     fn provider_id(&self) -> String;
     
-    /// List available tools
+    
     #[allow(dead_code)]
     async fn list_tools(&self) -> Result<Vec<McpTool>, McpError>;
     
-    /// Execute a tool with given parameters
+    
     #[allow(dead_code)]
     async fn call_tool(
         &self,
@@ -543,32 +543,32 @@ pub trait McpToolProvider: Send + Sync {
     ) -> Result<ToolsCallResult, McpError>;
 }
 
-/// Trait for MCP servers
+
 pub trait McpServerTrait: Send + Sync {
-    /// Get server information
+    
     fn server_info(&self) -> ServerInfo;
     
-    /// Get server capabilities
+    
     fn capabilities(&self) -> ServerCapabilities;
     
-    /// Handle an MCP request
+    
     #[allow(dead_code)]
     async fn handle_request(&self, request: McpRequest) -> McpResponse;
     
-    /// Register a context provider
+    
     #[allow(dead_code)]
     fn register_context_provider(&mut self, provider: ContextProviderWrapper);
     
-    /// Register a tool provider
+    
     #[allow(dead_code)]
     fn register_tool_provider(&mut self, provider: ToolProviderWrapper);
 }
 
-// ============================================================================
-// Error Handling
-// ============================================================================
 
-/// Standard MCP error codes
+
+
+
+
 pub mod error_codes {
     #[allow(dead_code)]
     pub const PARSE_ERROR: i32 = -32700;
@@ -578,7 +578,7 @@ pub mod error_codes {
     pub const INVALID_PARAMS: i32 = -32602;
     pub const INTERNAL_ERROR: i32 = -32603;
     
-    // MCP-specific error codes
+    
     pub const RESOURCE_NOT_FOUND: i32 = -32001;
     pub const TOOL_NOT_FOUND: i32 = -32002;
     pub const CONTEXT_NOT_FOUND: i32 = -32003;
@@ -654,7 +654,7 @@ impl std::fmt::Display for McpError {
 
 impl std::error::Error for McpError {}
 
-/// Enum wrapper for context providers to avoid trait object issues
+
 #[derive(Debug, Clone)]
 pub enum ContextProviderWrapper {
     Repository(crate::services::mcp_server::RepositoryContextProvider),
@@ -714,7 +714,7 @@ impl ContextProviderWrapper {
     }
 }
 
-/// Enum wrapper for tool providers to avoid trait object issues
+
 #[derive(Debug, Clone)]
 pub enum ToolProviderWrapper {
     Search(crate::services::mcp_server::SearchToolProvider),

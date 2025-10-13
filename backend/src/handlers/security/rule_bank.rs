@@ -1,4 +1,4 @@
-// Simplified AI Rule Bank API Handlers
+
 use actix_web::{web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -32,7 +32,7 @@ pub struct RulesListResponse {
     pub message: String,
 }
 
-/// Store a new AI rule
+
 pub async fn store_rule(
     rule_bank: web::Data<AIRuleBankService>,
     req: web::Json<CreateRuleRequest>,
@@ -66,7 +66,7 @@ pub async fn store_rule(
     }
 }
 
-/// Get rules for a specific AI agent
+
 pub async fn get_rules_for_agent(
     rule_bank: web::Data<AIRuleBankService>,
     path: web::Path<String>,
@@ -92,7 +92,7 @@ pub async fn get_rules_for_agent(
     }
 }
 
-/// Health check for rule bank service
+
 pub async fn health_check(
     rule_bank: web::Data<AIRuleBankService>,
 ) -> Result<HttpResponse> {

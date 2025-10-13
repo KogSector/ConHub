@@ -1,4 +1,4 @@
-# Force stop all ConHub services
+
 $processes = @("node", "next-server", "conhub-backend", "lexor", "python", "uvicorn")
 
 foreach ($proc in $processes) {
@@ -20,7 +20,7 @@ foreach ($proc in $processes) {
     }
 }
 
-# Kill by port
+
 $ports = @(3000, 3001, 3002, 8001, 8003)
 foreach ($port in $ports) {
     try {

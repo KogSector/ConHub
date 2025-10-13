@@ -2,10 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { EventEmitter } from 'events';
 
-/**
- * Model Context Protocol (MCP) Service
- * Handles MCP protocol communication with AI agents
- */
+
 export class McpService extends EventEmitter {
   constructor(logger) {
     super();
@@ -15,15 +12,13 @@ export class McpService extends EventEmitter {
     this.tools = new Map();
     this.contexts = new Map();
     
-    // MCP Protocol version
+    
     this.protocolVersion = '2024-11-05';
     
     this.logger.info('MCP Service initialized');
   }
 
-  /**
-   * Initialize MCP connection with an AI agent
-   */
+  
   async initializeConnection(agentId, config) {
     try {
       const connectionId = uuidv4();
@@ -41,7 +36,7 @@ export class McpService extends EventEmitter {
 
       this.connections.set(connectionId, connection);
       
-      // Send initialization request
+      
       const initResponse = await this.sendMcpMessage(connectionId, {
         jsonrpc: '2.0',
         id: uuidv4(),
@@ -83,9 +78,7 @@ export class McpService extends EventEmitter {
     }
   }
 
-  /**
-   * List available resources from an agent
-   */
+  
   async listResources(connectionId) {
     try {
       const response = await this.sendMcpMessage(connectionId, {
@@ -98,7 +91,7 @@ export class McpService extends EventEmitter {
       if (response && response.result && response.result.resources) {
         const resources = response.result.resources;
         
-        // Cache resources
+        
         resources.forEach(resource => {
           this.resources.set(resource.uri, {
             ...resource,
@@ -118,9 +111,7 @@ export class McpService extends EventEmitter {
     }
   }
 
-  /**
-   * Read a specific resource
-   */
+  
   async readResource(connectionId, uri) {
     try {
       const response = await this.sendMcpMessage(connectionId, {
@@ -142,9 +133,7 @@ export class McpService extends EventEmitter {
     }
   }
 
-  /**
-   * List available tools from an agent
-   */
+  
   async listTools(connectionId) {
     try {
       const response = await this.sendMcpMessage(connectionId, {
@@ -157,7 +146,7 @@ export class McpService extends EventEmitter {
       if (response && response.result && response.result.tools) {
         const tools = response.result.tools;
         
-        // Cache tools
+        
         tools.forEach(tool => {
           this.tools.set(`${connectionId}:${tool.name}`, {
             ...tool,
@@ -177,9 +166,7 @@ export class McpService extends EventEmitter {
     }
   }
 
-  /**
-   * Call a tool on an agent
-   */
+  
   async callTool(connectionId, toolName, arguments_) {
     try {
       const response = await this.sendMcpMessage(connectionId, {
@@ -204,9 +191,7 @@ export class McpService extends EventEmitter {
     }
   }
 
-  /**
-   * Subscribe to resource changes
-   */
+  
   async subscribeToResource(connectionId, uri) {
     try {
       const response = await this.sendMcpMessage(connectionId, {
@@ -228,9 +213,7 @@ export class McpService extends EventEmitter {
     }
   }
 
-  /**
-   * Send MCP message to agent
-   */
+  
   async sendMcpMessage(connectionId, message) {
     const connection = this.connections.get(connectionId);
     if (!connection) {
@@ -238,11 +221,11 @@ export class McpService extends EventEmitter {
     }
 
     try {
-      // Update last activity
+      
       connection.lastActivity = new Date();
       
-      // For now, we'll simulate the response based on the agent type
-      // In a real implementation, this would send the message via WebSocket or HTTP
+      
+      
       const response = await this.simulateAgentResponse(connection, message);
       
       this.logger.debug('MCP message sent', { connectionId, method: message.method });
@@ -253,11 +236,9 @@ export class McpService extends EventEmitter {
     }
   }
 
-  /**
-   * Simulate agent responses for development
-   */
+  
   async simulateAgentResponse(connection, message) {
-    // Simulate different responses based on agent type and method
+    
     const { agentId } = connection;
     const { method } = message;
 
@@ -304,9 +285,7 @@ export class McpService extends EventEmitter {
     }
   }
 
-  /**
-   * Get simulated resources for different agents
-   */
+  
   getSimulatedResources(agentId) {
     const resourceMap = {
       'github-copilot': [
@@ -361,9 +340,7 @@ export class McpService extends EventEmitter {
     };
   }
 
-  /**
-   * Get simulated tools for different agents
-   */
+  
   getSimulatedTools(agentId) {
     const toolMap = {
       'github-copilot': [
@@ -453,9 +430,7 @@ export class McpService extends EventEmitter {
     };
   }
 
-  /**
-   * Get simulated resource content
-   */
+  
   getSimulatedResourceContent(agentId, uri) {
     return {
       jsonrpc: '2.0',
@@ -476,9 +451,7 @@ export class McpService extends EventEmitter {
     };
   }
 
-  /**
-   * Get simulated tool execution result
-   */
+  
   getSimulatedToolResult(agentId, toolName, arguments_) {
     return {
       jsonrpc: '2.0',
@@ -493,9 +466,7 @@ export class McpService extends EventEmitter {
     };
   }
 
-  /**
-   * Close MCP connection
-   */
+  
   async closeConnection(connectionId) {
     const connection = this.connections.get(connectionId);
     if (connection) {
@@ -507,23 +478,17 @@ export class McpService extends EventEmitter {
     }
   }
 
-  /**
-   * Get all active connections
-   */
+  
   getConnections() {
     return Array.from(this.connections.values());
   }
 
-  /**
-   * Get connection by ID
-   */
+  
   getConnection(connectionId) {
     return this.connections.get(connectionId);
   }
 
-  /**
-   * Health check for MCP service
-   */
+  
   getHealthStatus() {
     const connections = this.getConnections();
     const activeConnections = connections.filter(c => c.status === 'connected');

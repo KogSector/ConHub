@@ -33,7 +33,7 @@ impl OpenAIAgent {
 #[async_trait]
 impl AIAgentConnector for OpenAIAgent {
     async fn connect(&self, _credentials: &HashMap<String, String>) -> Result<bool, Box<dyn Error>> {
-        // Placeholder implementation
+        
         println!("OpenAI agent connection - Coming soon!");
         Ok(true)
     }
@@ -51,7 +51,7 @@ impl AIAgentConnector for OpenAIAgent {
     }
 
     async fn test_connection(&self) -> Result<bool, Box<dyn Error>> {
-        Ok(false) // Not implemented yet
+        Ok(false) 
     }
 }
 

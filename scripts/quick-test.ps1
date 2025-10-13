@@ -1,10 +1,10 @@
-# Quick test to check backend and database status
+
 $BackendUrl = "http://localhost:3001"
 
 Write-Host "Testing ConHub Backend..." -ForegroundColor Blue
 Write-Host ""
 
-# Test 1: Health Check
+
 Write-Host "1. Checking backend health..." -ForegroundColor Yellow
 try {
     $health = Invoke-RestMethod -Uri "$BackendUrl/health" -Method Get -TimeoutSec 5
@@ -15,7 +15,7 @@ try {
     exit 1
 }
 
-# Test 2: Database Test
+
 Write-Host "2. Testing database operations..." -ForegroundColor Yellow
 try {
     $dbTest = Invoke-RestMethod -Uri "$BackendUrl/api/auth/test-db" -Method Get -TimeoutSec 10
@@ -28,7 +28,7 @@ try {
     Write-Host "   Database test failed: $($_.Exception.Message)" -ForegroundColor Red
 }
 
-# Test 3: List Users
+
 Write-Host "3. Listing current users..." -ForegroundColor Yellow
 try {
     $users = Invoke-RestMethod -Uri "$BackendUrl/api/auth/users" -Method Get -TimeoutSec 5
@@ -43,7 +43,7 @@ try {
     Write-Host "   Failed to list users: $($_.Exception.Message)" -ForegroundColor Red
 }
 
-# Test 4: Try Registration
+
 Write-Host "4. Testing user registration..." -ForegroundColor Yellow
 $testUser = @{
     name = "Quick Test User"

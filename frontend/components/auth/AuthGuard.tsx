@@ -15,12 +15,12 @@ export const AuthGuard = ({ children, fallback }: AuthGuardProps) => {
   const { isAuthenticated, isLoading } = useAuth()
   const loginEnabled = isLoginEnabled()
 
-  // If login is disabled, always allow access
+  
   if (!loginEnabled) {
     return <>{children}</>
   }
 
-  // Show loading state
+  
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -32,7 +32,7 @@ export const AuthGuard = ({ children, fallback }: AuthGuardProps) => {
     )
   }
 
-  // Show fallback or redirect if not authenticated
+  
   if (!isAuthenticated) {
     return fallback || (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">

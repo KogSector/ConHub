@@ -1,16 +1,10 @@
-/**
- * Backend Integration Logic
- * Handles all communication and integration with the ConHub Rust backend
- */
+
 
 import axios from 'axios';
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
 
-/**
- * Backend API Client
- * Handles HTTP communication with the Rust backend
- */
+
 export class BackendApiClient {
   constructor(baseUrl, logger) {
     this.baseUrl = baseUrl || process.env.BACKEND_URL || 'http://localhost:3001';
@@ -29,7 +23,7 @@ export class BackendApiClient {
   }
 
   setupInterceptors() {
-    // Request interceptor
+    
     this.client.interceptors.request.use(
       (config) => {
         this.logger.debug('Backend API request', {
@@ -45,7 +39,7 @@ export class BackendApiClient {
       }
     );
 
-    // Response interceptor
+    
     this.client.interceptors.response.use(
       (response) => {
         this.logger.debug('Backend API response', {
@@ -65,7 +59,7 @@ export class BackendApiClient {
     );
   }
 
-  // Authentication endpoints
+  
   async authenticateUser(token) {
     try {
       const response = await this.client.post('/api/auth/verify', {}, {
@@ -88,7 +82,7 @@ export class BackendApiClient {
     }
   }
 
-  // Indexing endpoints
+  
   async triggerIndexing(indexingRequest) {
     try {
       const response = await this.client.post('/api/indexing/repository', indexingRequest);
@@ -107,7 +101,7 @@ export class BackendApiClient {
     }
   }
 
-  // Vector database endpoints
+  
   async searchVectorDb(query, filters = {}) {
     try {
       const response = await this.client.post('/api/search/vector', {
@@ -133,7 +127,7 @@ export class BackendApiClient {
     }
   }
 
-  // Repository endpoints
+  
   async getRepositories(userId) {
     try {
       const response = await this.client.get(`/api/repositories?userId=${userId}`);
@@ -154,7 +148,7 @@ export class BackendApiClient {
     }
   }
 
-  // Billing endpoints
+  
   async getUserSubscription(userId) {
     try {
       const response = await this.client.get(`/api/billing/subscription/${userId}`);
@@ -173,7 +167,7 @@ export class BackendApiClient {
     }
   }
 
-  // Health check
+  
   async healthCheck() {
     try {
       const response = await this.client.get('/health');
@@ -184,10 +178,7 @@ export class BackendApiClient {
   }
 }
 
-/**
- * Context Synchronizer
- * Synchronizes AI agent context with the backend
- */
+
 export class ContextSynchronizer extends EventEmitter {
   constructor(backendClient, logger) {
     super();
@@ -209,10 +200,10 @@ export class ContextSynchronizer extends EventEmitter {
         version: 1
       };
 
-      // Store in cache
+      
       this.contextCache.set(agentId, contextData);
 
-      // Sync with backend (implement endpoint in backend)
+      
       await this.backendClient.client.post('/api/agents/context', contextData);
 
       this.logger.debug('Agent context synchronized', { agentId });
@@ -229,16 +220,16 @@ export class ContextSynchronizer extends EventEmitter {
 
   async getAgentContext(agentId) {
     try {
-      // Try cache first
+      
       if (this.contextCache.has(agentId)) {
         return this.contextCache.get(agentId).context;
       }
 
-      // Fetch from backend
+      
       const response = await this.backendClient.client.get(`/api/agents/context/${agentId}`);
       const contextData = response.data;
 
-      // Update cache
+      
       this.contextCache.set(agentId, contextData);
 
       return contextData.context;
@@ -255,7 +246,7 @@ export class ContextSynchronizer extends EventEmitter {
   startPeriodicSync() {
     this.syncInterval = setInterval(() => {
       this.syncAllContexts();
-    }, 60000); // Sync every minute
+    }, 60000); 
   }
 
   async syncAllContexts() {
@@ -281,22 +272,19 @@ export class ContextSynchronizer extends EventEmitter {
   }
 }
 
-/**
- * Resource Provider
- * Provides AI agents with access to backend resources
- */
+
 export class ResourceProvider {
   constructor(backendClient, logger) {
     this.backendClient = backendClient;
     this.logger = logger;
     this.resourceCache = new Map();
-    this.cacheTimeout = 300000; // 5 minutes
+    this.cacheTimeout = 300000; 
   }
 
   async getCodebaseResources(userId, repositoryId) {
     const cacheKey = `codebase:${userId}:${repositoryId}`;
     
-    // Check cache
+    
     if (this.resourceCache.has(cacheKey)) {
       const cached = this.resourceCache.get(cacheKey);
       if (Date.now() - cached.timestamp < this.cacheTimeout) {
@@ -307,7 +295,7 @@ export class ResourceProvider {
     try {
       const resources = await this.backendClient.getRepositoryContent(repositoryId);
       
-      // Cache the result
+      
       this.resourceCache.set(cacheKey, {
         data: resources,
         timestamp: Date.now()
@@ -346,7 +334,7 @@ export class ResourceProvider {
 
   async getContextualResources(userId, context) {
     try {
-      // Use context to find relevant resources
+      
       const searchQuery = this.extractSearchQuery(context);
       const searchResults = await this.backendClient.searchVectorDb(searchQuery, {
         userId,
@@ -365,7 +353,7 @@ export class ResourceProvider {
   }
 
   extractSearchQuery(context) {
-    // Extract meaningful search terms from context
+    
     if (typeof context === 'string') {
       return context;
     }
@@ -385,10 +373,7 @@ export class ResourceProvider {
   }
 }
 
-/**
- * Usage Tracker
- * Tracks AI agent usage and reports to backend for billing
- */
+
 export class UsageTracker extends EventEmitter {
   constructor(backendClient, logger) {
     super();
@@ -435,14 +420,14 @@ export class UsageTracker extends EventEmitter {
         agentType,
         error: error.message
       });
-      return { allowed: true, remaining: 1000 }; // Default fallback
+      return { allowed: true, remaining: 1000 }; 
     }
   }
 
   startPeriodicFlush() {
     this.flushInterval = setInterval(() => {
       this.flushUsageData();
-    }, 30000); // Flush every 30 seconds
+    }, 30000); 
   }
 
   async flushUsageData() {
@@ -450,10 +435,10 @@ export class UsageTracker extends EventEmitter {
     
     for (const [key, usage] of usageEntries) {
       try {
-        // Send usage data to backend (implement endpoint)
+        
         await this.backendClient.client.post('/api/billing/usage', usage);
         
-        // Clear from buffer after successful flush
+        
         this.usageBuffer.delete(key);
         
       } catch (error) {
@@ -471,15 +456,12 @@ export class UsageTracker extends EventEmitter {
       this.flushInterval = null;
     }
     
-    // Flush remaining data
+    
     this.flushUsageData();
   }
 }
 
-/**
- * Backend Integration Manager
- * Main class that orchestrates all backend integration functionality
- */
+
 export class BackendIntegrationManager extends EventEmitter {
   constructor(logger) {
     super();
@@ -507,7 +489,7 @@ export class BackendIntegrationManager extends EventEmitter {
     });
   }
 
-  // Authentication methods
+  
   async authenticateUser(token) {
     return await this.backendClient.authenticateUser(token);
   }
@@ -516,7 +498,7 @@ export class BackendIntegrationManager extends EventEmitter {
     return await this.backendClient.getUserProfile(token);
   }
 
-  // Context management
+  
   async syncAgentContext(agentId, context) {
     return await this.contextSynchronizer.syncAgentContext(agentId, context);
   }
@@ -525,16 +507,16 @@ export class BackendIntegrationManager extends EventEmitter {
     return await this.contextSynchronizer.getAgentContext(agentId);
   }
 
-  // Resource access
+  
   async getResourcesForAgent(userId, agentType, context = {}) {
     const resources = [];
 
     try {
-      // Get contextual resources
+      
       const contextualResources = await this.resourceProvider.getContextualResources(userId, context);
       resources.push(...contextualResources);
 
-      // Get documentation resources if relevant
+      
       if (context.needsDocumentation) {
         const docResources = await this.resourceProvider.getDocumentationResources(
           userId, 
@@ -543,7 +525,7 @@ export class BackendIntegrationManager extends EventEmitter {
         resources.push(...docResources);
       }
 
-      // Get codebase resources if relevant
+      
       if (context.repositoryId) {
         const codeResources = await this.resourceProvider.getCodebaseResources(
           userId, 
@@ -564,7 +546,7 @@ export class BackendIntegrationManager extends EventEmitter {
     }
   }
 
-  // Usage tracking
+  
   trackUsage(userId, agentType, action, metadata = {}) {
     this.usageTracker.trackAgentUsage(userId, agentType, action, metadata);
   }
@@ -573,7 +555,7 @@ export class BackendIntegrationManager extends EventEmitter {
     return await this.usageTracker.checkUsageLimits(userId, agentType);
   }
 
-  // Indexing integration
+  
   async triggerIndexing(indexingRequest) {
     return await this.backendClient.triggerIndexing(indexingRequest);
   }
@@ -582,14 +564,14 @@ export class BackendIntegrationManager extends EventEmitter {
     return await this.backendClient.getIndexingStatus(requestId);
   }
 
-  // Health and status
+  
   async getBackendHealth() {
     return await this.backendClient.healthCheck();
   }
 
   getIntegrationStatus() {
     return {
-      backendConnected: true, // Could implement actual connectivity check
+      backendConnected: true, 
       contextSyncActive: this.contextSynchronizer.syncInterval !== null,
       usageTrackingActive: this.usageTracker.flushInterval !== null,
       resourceCacheSize: this.resourceProvider.resourceCache.size,
@@ -597,7 +579,7 @@ export class BackendIntegrationManager extends EventEmitter {
     };
   }
 
-  // Cleanup
+  
   shutdown() {
     this.contextSynchronizer.stop();
     this.usageTracker.stop();

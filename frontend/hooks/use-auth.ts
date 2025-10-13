@@ -7,7 +7,7 @@ export const useAuth = () => {
   const loginEnabled = isLoginEnabled()
   const authContext = useAuthContext()
   
-  // Mock user for when login is disabled
+  
   const mockUser = {
     id: 'dev-user',
     name: 'Development User',
@@ -25,7 +25,7 @@ export const useAuth = () => {
     if (loginEnabled && email && password) {
       return authContext.login(email, password)
     } else {
-      // For mock mode, redirect to dashboard
+      
       window.location.href = '/dashboard'
       return Promise.resolve()
     }
@@ -43,7 +43,7 @@ export const useAuth = () => {
     if (loginEnabled) {
       authContext.logout()
     } else {
-      // For mock mode, redirect to landing page
+      
       window.location.href = '/'
     }
   }
@@ -63,7 +63,7 @@ export const useAuth = () => {
     loginWithRedirect,
     logout: logoutUser,
     getAccessTokenSilently,
-    // Additional methods from new auth context
+    
     register: loginEnabled ? authContext.register : undefined,
     updateProfile: loginEnabled ? authContext.updateProfile : undefined,
     changePassword: loginEnabled ? authContext.changePassword : undefined,

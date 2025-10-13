@@ -16,7 +16,7 @@ pub async fn search(
     let limit = request.limit.unwrap_or(10);
     let offset = request.offset.unwrap_or(0);
 
-    // Determine which indexer to use based on source_type
+    
     let results = match request.source_type.as_deref() {
         Some("code") | Some("repository") => {
             state.code_indexer.search(&request.query, limit, offset).await
@@ -28,7 +28,7 @@ pub async fn search(
             state.doc_indexer.search(&request.query, limit, offset).await
         }
         None | Some(_) => {
-            // Search all indexers and combine results
+            
             let mut all_results = Vec::new();
             
             if let Ok(code_results) = state.code_indexer.search(&request.query, limit, offset).await {
@@ -43,7 +43,7 @@ pub async fn search(
                 all_results.extend(doc_results);
             }
             
-            // Sort by score and take top results
+            
             all_results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
             all_results.truncate(limit);
             

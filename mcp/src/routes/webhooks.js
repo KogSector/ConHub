@@ -4,20 +4,17 @@ import crypto from 'crypto';
 const router = express.Router();
 
 export default function webhookRoutes(webhookService) {
-  /**
-   * GitHub Copilot webhook endpoint
-   * POST /api/webhooks/github-copilot
-   */
+  
   router.post('/github-copilot', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
       const signature = req.headers['x-hub-signature-256'];
       const event = req.headers['x-github-event'];
       const delivery = req.headers['x-github-delivery'];
 
-      // Parse JSON body
+      
       const body = JSON.parse(req.body.toString());
 
-      // Process webhook
+      
       const result = await webhookService.processWebhook('github-copilot', req.headers, body, req.body);
 
       res.status(200).json({
@@ -34,20 +31,17 @@ export default function webhookRoutes(webhookService) {
     }
   });
 
-  /**
-   * Amazon Q webhook endpoint
-   * POST /api/webhooks/amazon-q
-   */
+  
   router.post('/amazon-q', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
       const signature = req.headers['x-amz-signature'];
       const eventType = req.headers['x-amz-event-type'];
       const requestId = req.headers['x-amz-request-id'];
 
-      // Parse JSON body
+      
       const body = JSON.parse(req.body.toString());
 
-      // Process webhook
+      
       const result = await webhookService.processWebhook('amazon-q', req.headers, body, req.body);
 
       res.status(200).json({
@@ -64,20 +58,17 @@ export default function webhookRoutes(webhookService) {
     }
   });
 
-  /**
-   * Cline webhook endpoint
-   * POST /api/webhooks/cline
-   */
+  
   router.post('/cline', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
       const signature = req.headers['x-cline-signature'];
       const event = req.headers['x-cline-event'];
       const timestamp = req.headers['x-cline-timestamp'];
 
-      // Parse JSON body
+      
       const body = JSON.parse(req.body.toString());
 
-      // Process webhook
+      
       const result = await webhookService.processWebhook('cline', req.headers, body, req.body);
 
       res.status(200).json({
@@ -94,20 +85,17 @@ export default function webhookRoutes(webhookService) {
     }
   });
 
-  /**
-   * Generic webhook endpoint for custom AI agents
-   * POST /api/webhooks/generic/:agentType
-   */
+  
   router.post('/generic/:agentType', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
       const { agentType } = req.params;
       const signature = req.headers['x-webhook-signature'];
       const eventType = req.headers['x-event-type'];
 
-      // Parse JSON body
+      
       const body = JSON.parse(req.body.toString());
 
-      // Process webhook
+      
       const result = await webhookService.processWebhook(agentType, req.headers, body, req.body);
 
       res.status(200).json({
@@ -124,15 +112,12 @@ export default function webhookRoutes(webhookService) {
     }
   });
 
-  /**
-   * Test webhook endpoint for development
-   * POST /api/webhooks/test
-   */
+  
   router.post('/test', async (req, res) => {
     try {
       const { agentType = 'test', eventType = 'test_event', data = {} } = req.body;
 
-      // Create test webhook data
+      
       const testWebhook = {
         agentType,
         eventType,
@@ -141,7 +126,7 @@ export default function webhookRoutes(webhookService) {
         test: true
       };
 
-      // Process as generic webhook
+      
       const result = await webhookService.processWebhook('generic', {
         'x-event-type': eventType,
         'content-type': 'application/json'
@@ -161,10 +146,7 @@ export default function webhookRoutes(webhookService) {
     }
   });
 
-  /**
-   * Get webhook statistics
-   * GET /api/webhooks/stats
-   */
+  
   router.get('/stats', async (req, res) => {
     try {
       const stats = webhookService.getWebhookStats();
@@ -180,10 +162,7 @@ export default function webhookRoutes(webhookService) {
     }
   });
 
-  /**
-   * Get webhook health status
-   * GET /api/webhooks/health
-   */
+  
   router.get('/health', async (req, res) => {
     try {
       const health = webhookService.getHealthStatus();
@@ -196,10 +175,7 @@ export default function webhookRoutes(webhookService) {
     }
   });
 
-  /**
-   * Register custom webhook handler
-   * POST /api/webhooks/handlers
-   */
+  
   router.post('/handlers', async (req, res) => {
     try {
       const { agentType, secret, signatureHeader } = req.body;
@@ -210,8 +186,8 @@ export default function webhookRoutes(webhookService) {
         });
       }
 
-      // Note: In a real implementation, you would need to provide the actual handler function
-      // This is a simplified version for demonstration
+      
+      
       webhookService.registerWebhookHandler(
         agentType,
         async (headers, body) => {
@@ -233,10 +209,7 @@ export default function webhookRoutes(webhookService) {
     }
   });
 
-  /**
-   * Validate webhook signature (utility endpoint)
-   * POST /api/webhooks/validate-signature
-   */
+  
   router.post('/validate-signature', async (req, res) => {
     try {
       const { payload, signature, secret, algorithm = 'sha256' } = req.body;

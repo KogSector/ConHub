@@ -28,15 +28,15 @@ export function AccountDeletion() {
 
     setDeleting(true)
     try {
-      // TODO: Implement account deletion API call
-      await new Promise(resolve => setTimeout(resolve, 2000)) // Simulate API call
+      
+      await new Promise(resolve => setTimeout(resolve, 2000)) 
       
       toast({
         title: 'Account Deleted',
         description: 'Your account has been permanently deleted.',
       })
       
-      // Log out the user
+      
       logout()
     } catch (error) {
       toast({
@@ -52,7 +52,7 @@ export function AccountDeletion() {
 
   const handleExportData = async () => {
     try {
-      // TODO: Implement data export API call
+      
       toast({
         title: 'Export Started',
         description: 'Your data export has been initiated. You will receive an email when ready.',
@@ -68,7 +68,7 @@ export function AccountDeletion() {
 
   return (
     <div className="space-y-6">
-      {/* Warning Card */}
+      {}
       <Card className="border-destructive">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive">
@@ -81,7 +81,7 @@ export function AccountDeletion() {
         </CardHeader>
       </Card>
 
-      {/* Data Export */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -121,7 +121,7 @@ export function AccountDeletion() {
         </CardContent>
       </Card>
 
-      {/* Account Deactivation */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -159,7 +159,7 @@ export function AccountDeletion() {
         </CardContent>
       </Card>
 
-      {/* Account Deletion */}
+      {}
       <Card className="border-destructive">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive">

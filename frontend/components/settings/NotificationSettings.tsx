@@ -21,7 +21,7 @@ import {
 export function NotificationSettings() {
   return (
     <div className="space-y-6">
-      {/* Email Notifications */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -92,7 +92,7 @@ export function NotificationSettings() {
         </CardContent>
       </Card>
 
-      {/* In-App Notifications */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -143,7 +143,7 @@ export function NotificationSettings() {
         </CardContent>
       </Card>
 
-      {/* Push Notifications */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -210,7 +210,7 @@ export function NotificationSettings() {
         </CardContent>
       </Card>
 
-      {/* Notification Channels */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -254,7 +254,7 @@ export function NotificationSettings() {
         </CardContent>
       </Card>
 
-      {/* Notification Preferences */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -308,7 +308,7 @@ export function NotificationSettings() {
         </CardContent>
       </Card>
 
-      {/* Notification Types */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -365,7 +365,7 @@ export function NotificationSettings() {
         </CardContent>
       </Card>
 
-      {/* Save Changes */}
+      {}
       <div className="flex justify-end gap-4">
         <Button variant="outline">Test Notifications</Button>
         <Button variant="outline">Cancel</Button>

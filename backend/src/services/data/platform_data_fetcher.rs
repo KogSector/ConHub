@@ -15,7 +15,7 @@ impl PlatformDataFetcher {
         }
     }
 
-    /// Fetch data from a specific platform
+    
     pub async fn fetch_platform_data(
         &self,
         platform: SocialPlatform,
@@ -32,7 +32,7 @@ impl PlatformDataFetcher {
         }
     }
 
-    /// Fetch Slack data (messages, channels, users)
+    
     async fn fetch_slack_data(&self, access_token: &str, data_types: Vec<String>) -> Result<Vec<SocialData>> {
         let mut results = Vec::new();
 
@@ -87,7 +87,7 @@ impl PlatformDataFetcher {
     }
 
     async fn fetch_slack_messages(&self, access_token: &str) -> Result<Vec<SocialData>> {
-        // First get channels, then messages from each channel
+        
         let channels_response = self.client
             .get("https://slack.com/api/conversations.list")
             .header("Authorization", format!("Bearer {}", access_token))
@@ -100,7 +100,7 @@ impl PlatformDataFetcher {
 
         let mut results = Vec::new();
 
-        // Fetch recent messages from each channel (limit to avoid API rate limits)
+        
         for channel in channels.iter().take(5) {
             let channel_id = channel["id"].as_str().unwrap_or("");
             let messages_response = self.client
@@ -159,7 +159,7 @@ impl PlatformDataFetcher {
         Ok(results)
     }
 
-    /// Fetch Notion data (pages, databases)
+    
     async fn fetch_notion_data(&self, access_token: &str, data_types: Vec<String>) -> Result<Vec<SocialData>> {
         let mut results = Vec::new();
 
@@ -256,7 +256,7 @@ impl PlatformDataFetcher {
         Ok(results)
     }
 
-    /// Fetch Google Drive data (files, folders)
+    
     async fn fetch_google_drive_data(&self, access_token: &str, data_types: Vec<String>) -> Result<Vec<SocialData>> {
         let mut results = Vec::new();
 
@@ -301,7 +301,7 @@ impl PlatformDataFetcher {
         Ok(results)
     }
 
-    /// Fetch Gmail data (emails)
+    
     async fn fetch_gmail_data(&self, access_token: &str, data_types: Vec<String>) -> Result<Vec<SocialData>> {
         let mut results = Vec::new();
 
@@ -334,7 +334,7 @@ impl PlatformDataFetcher {
         for message in messages {
             let message_id = message["id"].as_str().unwrap_or("");
             
-            // Get message details
+            
             let message_response = self.client
                 .get(&format!("https://gmail.googleapis.com/gmail/v1/users/me/messages/{}", message_id))
                 .header("Authorization", format!("Bearer {}", access_token))
@@ -373,7 +373,7 @@ impl PlatformDataFetcher {
         Ok(results)
     }
 
-    /// Fetch Dropbox data (files, folders)
+    
     async fn fetch_dropbox_data(&self, access_token: &str, data_types: Vec<String>) -> Result<Vec<SocialData>> {
         let mut results = Vec::new();
 
@@ -415,7 +415,7 @@ impl PlatformDataFetcher {
                 external_id: entry["id"].as_str().unwrap_or("").to_string(),
                 title: entry["name"].as_str().unwrap_or("").to_string(),
                 content: format!("Dropbox file: {}", entry["name"].as_str().unwrap_or("")),
-                url: None, // Dropbox doesn't provide direct URLs in this API
+                url: None, 
                 metadata: entry.clone(),
                 synced_at: Utc::now(),
             };
@@ -425,7 +425,7 @@ impl PlatformDataFetcher {
         Ok(results)
     }
 
-    /// Fetch LinkedIn data (posts, connections)
+    
     async fn fetch_linkedin_data(&self, access_token: &str, data_types: Vec<String>) -> Result<Vec<SocialData>> {
         let mut results = Vec::new();
 
@@ -447,8 +447,8 @@ impl PlatformDataFetcher {
     }
 
     async fn fetch_linkedin_posts(&self, access_token: &str) -> Result<Vec<SocialData>> {
-        // Note: LinkedIn has restricted API access for posts
-        // This is a simplified example - actual implementation would need proper permissions
+        
+        
         let response = self.client
             .get("https://api.linkedin.com/v2/posts")
             .header("Authorization", format!("Bearer {}", access_token))

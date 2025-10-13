@@ -1,5 +1,5 @@
-# Test PostgreSQL Connection
-# This script helps you test different connection parameters
+
+
 
 param(
     [string]$Username = "postgres",
@@ -16,7 +16,7 @@ Write-Host "Username: $Username" -ForegroundColor White
 Write-Host "Database: $Database" -ForegroundColor White
 Write-Host ""
 
-# Set password environment variable
+
 $env:PGPASSWORD = $Password
 
 try {

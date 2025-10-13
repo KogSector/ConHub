@@ -45,7 +45,7 @@ export default function DocumentsPage() {
     try {
       const result = await apiClient.getDocuments();
       if (result.success) {
-        // Backend returns documents directly in the data field
+        
         setDocuments(Array.isArray(result.data) ? result.data : result.data?.data || []);
       } else {
         toast({
@@ -97,7 +97,7 @@ export default function DocumentsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {}
       <div className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
@@ -118,7 +118,7 @@ export default function DocumentsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
+        {}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -153,7 +153,7 @@ export default function DocumentsPage() {
           </Card>
         </div>
 
-        {/* Action Bar */}
+        {}
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Your Documents</h2>
@@ -167,7 +167,7 @@ export default function DocumentsPage() {
           </div>
         </div>
 
-        {/* Documents List */}
+        {}
         <Card>
           <CardHeader>
             <CardTitle>Document Collection</CardTitle>

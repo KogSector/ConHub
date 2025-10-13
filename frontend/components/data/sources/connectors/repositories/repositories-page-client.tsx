@@ -61,7 +61,7 @@ export function RepositoriesPageClient() {
   const [currentBranch, setCurrentBranch] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Sample data for now - will be replaced with actual API calls
+  
   const sampleRepositories: Repository[] = [
     {
       id: "1",
@@ -108,8 +108,8 @@ export function RepositoriesPageClient() {
 
   const fetchRepositories = async () => {
     try {
-      // For now, use sample data
-      // TODO: Replace with actual API call to get repositories from connected data sources
+      
+      
       setRepositories(sampleRepositories);
     } catch (error) {
       console.error('Error fetching repositories:', error);
@@ -126,7 +126,7 @@ export function RepositoriesPageClient() {
       }
       const data = await response.json();
       if (data.success) {
-        // Filter for repository data sources
+        
         const repoDataSources = data.dataSources?.filter((ds: DataSource) => 
           ['github', 'bitbucket'].includes(ds.type)
         ) || [];
@@ -134,7 +134,7 @@ export function RepositoriesPageClient() {
       }
     } catch (error) {
       console.error('Error fetching data sources:', error);
-      // Set empty array as fallback
+      
       setDataSources([]);
     }
   };
@@ -153,9 +153,9 @@ export function RepositoriesPageClient() {
   const deleteRepository = async () => {
     if (!selectedRepoId) return;
     try {
-      // This is a placeholder. In a real application, you would make an API call to delete the repository.
+      
       console.log(`Deleting repository ${selectedRepoId}`);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000)); 
       fetchRepositories();
       fetchDataSources();
     } catch (error) {
@@ -168,7 +168,7 @@ export function RepositoriesPageClient() {
 
   const syncRepository = async (repoId: string) => {
     try {
-      // Find the data source for this repository
+      
       const dataSource = dataSources.find(ds => 
         ds.config?.repositories?.some((repo: string) => repo.includes(repoId))
       );
@@ -217,7 +217,7 @@ export function RepositoriesPageClient() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {}
       <div className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
@@ -240,7 +240,7 @@ export function RepositoriesPageClient() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Overview */}
+        {}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -309,7 +309,7 @@ export function RepositoriesPageClient() {
           </Card>
         </div>
 
-        {/* Action Bar */}
+        {}
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Connected Repositories</h2>
@@ -327,7 +327,7 @@ export function RepositoriesPageClient() {
           </div>
         </div>
 
-        {/* Repository List */}
+        {}
         <div className="space-y-4">
           {repositories.length === 0 ? (
             <Card className="bg-muted/50 border-dashed border-muted-foreground/25">

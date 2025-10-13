@@ -7,7 +7,7 @@ use tokio::sync::OnceCell;
 use std::sync::Arc;
 use log::{info, error};
 
-/// Public function to index documents
+
 pub async fn index_documents() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut db = get_vector_db().await?;
     db.index_documents().await
@@ -42,15 +42,15 @@ impl VectorDatabase {
         }
     }
     
-    /// Index documents from data sources
+    
     pub async fn index_documents(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         info!("Starting vector database indexing");
-        // In a real implementation, this would fetch documents from data sources
-        // and index them in the vector database
+        
+        
         Ok(())
     }
 
-    /// Add a document to the vector database
+    
     #[allow(dead_code)]
     pub async fn add_document(
         &mut self,
@@ -59,7 +59,7 @@ impl VectorDatabase {
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let id = Uuid::new_v4().to_string();
         
-        // Generate embedding (in production, use a real embedding model)
+        
         let embedding = self.generate_embedding(&content).await?;
         
         let document = VectorDocument {
@@ -74,7 +74,7 @@ impl VectorDatabase {
         Ok(id)
     }
 
-    /// Search for similar documents
+    
     #[allow(dead_code)]
     pub async fn search(
         &self,
@@ -95,50 +95,50 @@ impl VectorDatabase {
             })
             .collect();
         
-        // Sort by similarity score (descending)
+        
         results.sort_by(|a, b| b.similarity_score.partial_cmp(&a.similarity_score).unwrap());
         
-        // Return top results
+        
         results.truncate(limit);
         Ok(results)
     }
 
-    /// Delete a document
+    
     #[allow(dead_code)]
     pub fn delete_document(&mut self, id: &str) -> bool {
         self.documents.remove(id).is_some()
     }
 
-    /// Get document by ID
+    
     #[allow(dead_code)]
     pub fn get_document(&self, id: &str) -> Option<&VectorDocument> {
         self.documents.get(id)
     }
 
-    /// Get all documents
+    
     #[allow(dead_code)]
     pub fn list_documents(&self) -> Vec<&VectorDocument> {
         self.documents.values().collect()
     }
 
-    /// Generate embedding for text (simplified implementation)
+    
     #[allow(dead_code)]
     async fn generate_embedding(&self, text: &str) -> Result<Vec<f32>, Box<dyn std::error::Error + Send + Sync>> {
-        // In production, you would use a real embedding model like:
-        // - OpenAI's text-embedding-ada-002
-        // - Sentence Transformers
-        // - Cohere embeddings
-        // - Local models like all-MiniLM-L6-v2
         
-        // For now, create a simple hash-based embedding
-        let mut embedding = vec![0.0; 384]; // Common embedding dimension
+        
+        
+        
+        
+        
+        
+        let mut embedding = vec![0.0; 384]; 
         
         for (i, byte) in text.bytes().enumerate() {
             if i >= embedding.len() { break; }
             embedding[i] = (byte as f32) / 255.0;
         }
         
-        // Normalize the embedding
+        
         let magnitude: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
         if magnitude > 0.0 {
             for val in &mut embedding {
@@ -149,7 +149,7 @@ impl VectorDatabase {
         Ok(embedding)
     }
 
-    /// Calculate cosine similarity between two vectors
+    
     #[allow(dead_code)]
     fn cosine_similarity(&self, a: &[f32], b: &[f32]) -> f32 {
         let dot_product: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
@@ -170,14 +170,14 @@ impl Default for VectorDatabase {
     }
 }
 
-/// Qdrant client singleton
+
 static QDRANT_CLIENT: OnceCell<Arc<QdrantClient>> = OnceCell::const_new();
 
-/// Initialize Qdrant client
+
 pub async fn init_qdrant() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let client = QdrantClient::from_url("http://localhost:6333").build()?;
     
-    // Ensure collection exists
+    
     let collection_name = "conhub_documents";
     let collections = client.list_collections().await?;
     
@@ -204,12 +204,12 @@ pub async fn init_qdrant() -> Result<(), Box<dyn std::error::Error + Send + Sync
     Ok(())
 }
 
-/// Get Qdrant client
+
 fn get_qdrant_client() -> Arc<QdrantClient> {
     QDRANT_CLIENT.get().expect("Qdrant client not initialized").clone()
 }
 
-/// Vector database service for managing embeddings and semantic search
+
 #[allow(dead_code)]
 pub struct VectorDbService {
     db: VectorDatabase,
@@ -231,7 +231,7 @@ impl VectorDbService {
         }
     }
 
-    /// Index repository content for semantic search
+    
     #[allow(dead_code)]
     pub async fn index_repository_content(
         &mut self,
@@ -253,7 +253,7 @@ impl VectorDbService {
         }
     }
 
-    /// Index document content for semantic search
+    
     #[allow(dead_code)]
     pub async fn index_document_content(
         &mut self,
@@ -271,7 +271,7 @@ impl VectorDbService {
         self.db.add_document(content.to_string(), metadata).await
     }
 
-    /// Index URL content for semantic search
+    
     #[allow(dead_code)]
     pub async fn index_url_content(
         &mut self,
@@ -287,7 +287,7 @@ impl VectorDbService {
         self.db.add_document(content.to_string(), metadata).await
     }
 
-    /// Search across all indexed content
+    
     #[allow(dead_code)]
     pub async fn semantic_search(
         &self,
@@ -313,7 +313,7 @@ impl VectorDbService {
         }
     }
 
-    /// Get statistics about indexed content
+    
     #[allow(dead_code)]
     pub fn get_stats(&self) -> HashMap<String, usize> {
         let mut stats = HashMap::new();
@@ -335,7 +335,7 @@ impl VectorDbService {
         stats
     }
 
-    /// Add document to Qdrant
+    
     async fn add_to_qdrant(
         &self,
         content: &str,
@@ -360,7 +360,7 @@ impl VectorDbService {
         Ok(id)
     }
     
-    /// Search in Qdrant
+    
     async fn search_qdrant(
         &self,
         query: &str,

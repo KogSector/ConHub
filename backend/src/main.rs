@@ -9,7 +9,7 @@ mod services;
 mod errors;
 
 use handlers::auth::configure_auth_routes;
-// use handlers::billing::configure_billing_routes;
+
 mod rulesets {
     pub use crate::handlers::security::rulesets::configure;
 }
@@ -23,7 +23,7 @@ async fn main() -> std::io::Result<()> {
         .parse::<u16>()
         .unwrap_or(3001);
 
-    // Database connection
+    
     let database_url = env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
 
@@ -36,12 +36,12 @@ async fn main() -> std::io::Result<()> {
     
     println!("✅ Database connection established");
 
-    // Check if migrations are needed
+    
     println!("🔄 Checking database migrations...");
     match sqlx::migrate!("backend/migrations").run(&pool).await {
         Ok(_) => println!("✅ Migrations completed successfully"),
         Err(e) => {
-            // If migrations fail due to existing schema, that's okay
+            
             if e.to_string().contains("already exists") {
                 println!("⏭️ Database schema already exists, skipping migrations");
             } else {
@@ -65,7 +65,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .wrap(Logger::default())
             .configure(configure_auth_routes)
-            // .configure(configure_billing_routes)
+            
             .configure(rulesets::configure)
             .route("/health", web::get().to(health_check))
     })
@@ -75,7 +75,7 @@ async fn main() -> std::io::Result<()> {
 }
 
 async fn health_check(pool: web::Data<PgPool>) -> actix_web::Result<web::Json<serde_json::Value>> {
-    // Test database connectivity
+    
     let db_status = match sqlx::query("SELECT 1 as test").fetch_one(pool.get_ref()).await {
         Ok(_) => "connected",
         Err(e) => {

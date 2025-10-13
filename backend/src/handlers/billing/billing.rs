@@ -21,7 +21,7 @@ pub async fn get_subscription_plans() -> Result<HttpResponse> {
 
 pub async fn get_billing_dashboard() -> Result<HttpResponse> {
     let billing_service = BillingService::new();
-    // Mock user ID for development
+    
     let user_id = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
     
     match billing_service.get_billing_dashboard(user_id).await {
@@ -35,7 +35,7 @@ pub async fn get_billing_dashboard() -> Result<HttpResponse> {
     }
 }
 
-// Request/Response models
+
 #[derive(serde::Deserialize, Validate)]
 pub struct CreateCustomerRequest {
     #[validate(email)]
@@ -56,7 +56,7 @@ pub struct CreatePaymentIntentRequest {
     pub customer_id: String,
 }
 
-/// Create a Stripe customer
+
 pub async fn create_customer(request: web::Json<CreateCustomerRequest>) -> Result<HttpResponse> {
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
@@ -66,7 +66,7 @@ pub async fn create_customer(request: web::Json<CreateCustomerRequest>) -> Resul
     }
 
     let billing_service = BillingService::new();
-    let user_id = Uuid::new_v4(); // In real app, get from JWT token
+    let user_id = Uuid::new_v4(); 
 
     match billing_service.create_customer(user_id, &request.email, &request.name).await {
         Ok(customer_id) => Ok(HttpResponse::Ok().json(json!({
@@ -82,7 +82,7 @@ pub async fn create_customer(request: web::Json<CreateCustomerRequest>) -> Resul
     }
 }
 
-/// Create a payment intent
+
 pub async fn create_payment_intent(request: web::Json<CreatePaymentIntentRequest>) -> Result<HttpResponse> {
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
@@ -108,7 +108,7 @@ pub async fn create_payment_intent(request: web::Json<CreatePaymentIntentRequest
     }
 }
 
-/// Create a setup intent for saving payment methods
+
 pub async fn create_setup_intent(request: web::Json<serde_json::Value>) -> Result<HttpResponse> {
     let customer_id = request.get("customer_id")
         .and_then(|v| v.as_str())
@@ -131,7 +131,7 @@ pub async fn create_setup_intent(request: web::Json<serde_json::Value>) -> Resul
     }
 }
 
-/// Create a subscription
+
 pub async fn create_subscription(request: web::Json<CreateSubscriptionRequest>) -> Result<HttpResponse> {
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
@@ -160,7 +160,7 @@ pub async fn create_subscription(request: web::Json<CreateSubscriptionRequest>) 
     }
 }
 
-/// Cancel a subscription
+
 pub async fn cancel_subscription(path: web::Path<String>) -> Result<HttpResponse> {
     let subscription_id = path.into_inner();
     let billing_service = BillingService::new();
@@ -179,7 +179,7 @@ pub async fn cancel_subscription(path: web::Path<String>) -> Result<HttpResponse
     }
 }
 
-/// Get payment methods for a customer
+
 pub async fn get_payment_methods(path: web::Path<String>) -> Result<HttpResponse> {
     let customer_id = path.into_inner();
     let billing_service = BillingService::new();
@@ -198,7 +198,7 @@ pub async fn get_payment_methods(path: web::Path<String>) -> Result<HttpResponse
     }
 }
 
-/// Get invoices for a customer
+
 pub async fn get_invoices(path: web::Path<String>) -> Result<HttpResponse> {
     let customer_id = path.into_inner();
     let billing_service = BillingService::new();
@@ -217,7 +217,7 @@ pub async fn get_invoices(path: web::Path<String>) -> Result<HttpResponse> {
     }
 }
 
-/// Handle Stripe webhooks
+
 pub async fn handle_stripe_webhook(req: HttpRequest, body: web::Bytes) -> Result<HttpResponse> {
     let signature = req.headers()
         .get("stripe-signature")

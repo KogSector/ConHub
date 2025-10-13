@@ -55,7 +55,7 @@ pub struct ContextSource {
     pub relevance_score: f32,
 }
 
-/// Unified context retrieval endpoint for AI agents
+
 pub async fn query_agents(
     req: web::Json<AgentQueryRequest>,
 ) -> Result<HttpResponse> {
@@ -73,7 +73,7 @@ pub async fn query_agents(
     let mut document_results = Vec::new();
     let mut sources = Vec::new();
 
-    // Perform code search using Lexor service
+    
     if include_code {
         match perform_code_search(&client, &lexor_url, &req.query, max_results).await {
             Ok(results) => {
@@ -93,7 +93,7 @@ pub async fn query_agents(
         }
     }
 
-    // Perform document search using AI service
+    
     if include_documents {
         match perform_document_search(&client, &ai_service_url, &req.query, max_results).await {
             Ok(results) => {
@@ -119,7 +119,7 @@ pub async fn query_agents(
         total_sources: sources.len(),
     };
 
-    // Generate AI response if agent type is specified
+    
     let ai_response = if let Some(agent_type) = &req.agent_type {
         match generate_ai_response(&client, &ai_service_url, &req.query, &context, agent_type).await {
             Ok(response) => Some(response),
@@ -147,7 +147,7 @@ pub async fn query_agents(
     }))
 }
 
-/// Perform code search using Lexor service
+
 async fn perform_code_search(
     client: &Client,
     lexor_url: &str,
@@ -188,7 +188,7 @@ async fn perform_code_search(
     Ok(results)
 }
 
-/// Perform document search using AI service
+
 async fn perform_document_search(
     client: &Client,
     ai_service_url: &str,
@@ -233,7 +233,7 @@ async fn perform_document_search(
     Ok(results)
 }
 
-/// Generate AI response using the gathered context
+
 async fn generate_ai_response(
     client: &Client,
     ai_service_url: &str,
@@ -241,7 +241,7 @@ async fn generate_ai_response(
     context: &AgentContext,
     agent_type: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    // Format context for AI model
+    
     let formatted_context = format_context_for_agent(context, agent_type);
     
     let ai_payload = json!({
@@ -264,7 +264,7 @@ async fn generate_ai_response(
     Ok(ai_result["response"].as_str().unwrap_or("No response generated").to_string())
 }
 
-/// Format context for specific AI agent types
+
 fn format_context_for_agent(context: &AgentContext, agent_type: &str) -> String {
     let mut formatted = String::new();
 
@@ -293,7 +293,7 @@ fn format_context_for_agent(context: &AgentContext, agent_type: &str) -> String 
             }
         }
         _ => {
-            // Generic formatting
+            
             if !context.code_results.is_empty() {
                 formatted.push_str("Code Results:\n");
                 for code_result in &context.code_results {
@@ -313,7 +313,7 @@ fn format_context_for_agent(context: &AgentContext, agent_type: &str) -> String 
     formatted
 }
 
-/// Get available AI agents
+
 pub async fn get_agents() -> Result<HttpResponse> {
     let agents = vec![
         json!({
@@ -347,7 +347,7 @@ pub async fn get_agents() -> Result<HttpResponse> {
     }))
 }
 
-/// Configure agent routes
+
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/agents")

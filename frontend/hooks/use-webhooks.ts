@@ -55,7 +55,7 @@ export function useWebhooks(userId: string = 'default') {
       const result = await response.json();
       
       if (result.success) {
-        await fetchWebhooks(); // Refresh the list
+        await fetchWebhooks(); 
         return result.data;
       } else {
         setError(result.error || 'Failed to create webhook');
@@ -76,7 +76,7 @@ export function useWebhooks(userId: string = 'default') {
       const result = await response.json();
       
       if (result.success) {
-        await fetchWebhooks(); // Refresh the list
+        await fetchWebhooks(); 
         return true;
       } else {
         setError(result.error || 'Failed to delete webhook');

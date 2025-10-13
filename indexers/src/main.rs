@@ -51,18 +51,18 @@ async fn index() -> actix_web::Result<HttpResponse> {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Initialize logging
+    
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
     
     log::info!("Starting Unified Indexer Service");
     
-    // Load configuration
+    
     let config = config::IndexerConfig::from_env();
     let bind_address = format!("{}:{}", config.host, config.port);
     
     log::info!("Configuration loaded: {}", config);
     
-    // Initialize services
+    
     let code_indexer = Arc::new(
         services::code::CodeIndexingService::new(config.clone())
             .expect("Failed to initialize code indexer")

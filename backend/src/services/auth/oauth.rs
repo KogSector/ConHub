@@ -87,7 +87,7 @@ impl OAuthService {
         }
     }
 
-    /// Get OAuth authorization URL
+    
     pub fn get_authorization_url(&self, provider: OAuthProvider, state: &str) -> String {
         match provider {
             OAuthProvider::Google => {
@@ -133,7 +133,7 @@ impl OAuthService {
         }
     }
 
-    /// Exchange authorization code for access token
+    
     pub async fn exchange_code_for_token(
         &self,
         provider: OAuthProvider,
@@ -215,7 +215,7 @@ impl OAuthService {
         Ok(response.json().await?)
     }
 
-    /// Get user info from provider
+    
     pub async fn get_user_info(
         &self,
         provider: OAuthProvider,
@@ -257,7 +257,7 @@ impl OAuthService {
                 let email = if let Some(email) = user_info.email {
                     email
                 } else {
-                    // Fetch primary email if not in profile
+                    
                     self.get_github_primary_email(access_token).await?
                 };
                 
@@ -295,7 +295,7 @@ impl OAuthService {
             .ok_or_else(|| anyhow!("No verified primary email found"))
     }
 
-    /// Find or create user from OAuth profile
+    
     pub async fn find_or_create_oauth_user(
         &self,
         provider: OAuthProvider,
@@ -304,7 +304,7 @@ impl OAuthService {
         name: String,
         avatar_url: Option<String>,
     ) -> Result<User> {
-        // Check if social connection exists
+        
         let existing = sqlx::query!(
             r#"
             SELECT user_id FROM social_connections
@@ -317,7 +317,7 @@ impl OAuthService {
         .await?;
 
         if let Some(connection) = existing {
-            // User exists, return it
+            
             let user = sqlx::query!(
                 r#"
                 SELECT id, email, password_hash, name, avatar_url, organization,
@@ -348,7 +348,7 @@ impl OAuthService {
             });
         }
 
-        // Check if user with email exists
+        
         let existing_user = sqlx::query!(
             r#"
             SELECT id, email, password_hash, name, avatar_url, organization,
@@ -365,7 +365,7 @@ impl OAuthService {
         let user_id = if let Some(user) = existing_user {
             user.id
         } else {
-            // Create new user
+            
             let new_user_id = Uuid::new_v4();
             let now = Utc::now();
             let dummy_password_hash = bcrypt::hash("oauth_user_no_password", bcrypt::DEFAULT_COST)?;
@@ -389,7 +389,7 @@ impl OAuthService {
             new_user_id
         };
 
-        // Fetch the user
+        
         let user = sqlx::query!(
             r#"
             SELECT id, email, password_hash, name, avatar_url, organization,
@@ -420,7 +420,7 @@ impl OAuthService {
         })
     }
 
-    /// Store OAuth tokens in social_connections table
+    
     pub async fn store_oauth_connection(
         &self,
         user_id: Uuid,
@@ -435,7 +435,7 @@ impl OAuthService {
         let expires_at = expires_in.map(|seconds| Utc::now() + Duration::seconds(seconds));
         let now = Utc::now();
 
-        // Upsert social connection
+        
         sqlx::query!(
             r#"
             INSERT INTO social_connections (

@@ -5,7 +5,7 @@ use crate::models::{VcsType, VcsProvider};
 pub struct VcsDetector;
 
 impl VcsDetector {
-    /// Detect VCS type and provider from repository URL
+    
     pub fn detect_from_url(url: &str) -> Result<(VcsType, VcsProvider), String> {
         let parsed_url = Url::parse(url)
             .map_err(|_| format!("Invalid URL: {}", url))?;
@@ -13,16 +13,16 @@ impl VcsDetector {
         let host = parsed_url.host_str()
             .ok_or_else(|| "No host found in URL")?;
         
-        // Detect provider first
+        
         let provider = Self::detect_provider(host, url)?;
         
-        // Detect VCS type based on provider and URL patterns
+        
         let vcs_type = Self::detect_vcs_type(&provider, url)?;
         
         Ok((vcs_type, provider))
     }
     
-    /// Detect VCS provider from hostname and URL patterns
+    
     fn detect_provider(host: &str, url: &str) -> Result<VcsProvider, String> {
         match host.to_lowercase().as_str() {
             h if h.contains("github.com") => Ok(VcsProvider::GitHub),
@@ -34,17 +34,17 @@ impl VcsDetector {
             h if h.contains("amazonaws.com") && url.contains("codecommit") => Ok(VcsProvider::CodeCommit),
             "localhost" | "127.0.0.1" => Ok(VcsProvider::Local),
             _ => {
-                // Check if it's a self-hosted instance by looking for common VCS patterns
+                
                 if Self::is_self_hosted_git(url) {
                     Ok(VcsProvider::SelfHosted)
                 } else {
-                    Ok(VcsProvider::SelfHosted) // Default to self-hosted for unknown domains
+                    Ok(VcsProvider::SelfHosted) 
                 }
             }
         }
     }
     
-    /// Detect VCS type based on provider and URL patterns
+    
     fn detect_vcs_type(provider: &VcsProvider, url: &str) -> Result<VcsType, String> {
         match provider {
             VcsProvider::GitHub | VcsProvider::GitLab | VcsProvider::Bitbucket | 
@@ -52,7 +52,7 @@ impl VcsDetector {
                 Ok(VcsType::Git)
             }
             VcsProvider::SourceForge => {
-                // SourceForge supports multiple VCS types
+                
                 Self::detect_sourceforge_vcs(url)
             }
             VcsProvider::SelfHosted | VcsProvider::Local => {
@@ -61,7 +61,7 @@ impl VcsDetector {
         }
     }
     
-    /// Detect VCS type for SourceForge repositories
+    
     fn detect_sourceforge_vcs(url: &str) -> Result<VcsType, String> {
         if url.contains("/git/") || url.ends_with(".git") {
             Ok(VcsType::Git)
@@ -72,15 +72,15 @@ impl VcsDetector {
         } else if url.contains("/bzr/") {
             Ok(VcsType::Bazaar)
         } else {
-            Ok(VcsType::Git) // Default to Git for SourceForge
+            Ok(VcsType::Git) 
         }
     }
     
-    /// Detect VCS type for self-hosted repositories
+    
     fn detect_self_hosted_vcs(url: &str) -> Result<VcsType, String> {
         let url_lower = url.to_lowercase();
         
-        // Git patterns
+        
         if url_lower.ends_with(".git") || 
            url_lower.contains("git") ||
            url_lower.contains("cgit") ||
@@ -88,7 +88,7 @@ impl VcsDetector {
             return Ok(VcsType::Git);
         }
         
-        // SVN patterns
+        
         if url_lower.contains("svn") || 
            url_lower.contains("subversion") ||
            url_lower.contains("/trunk/") ||
@@ -97,29 +97,29 @@ impl VcsDetector {
             return Ok(VcsType::Subversion);
         }
         
-        // Mercurial patterns
+        
         if url_lower.contains("hg") || 
            url_lower.contains("mercurial") {
             return Ok(VcsType::Mercurial);
         }
         
-        // Bazaar patterns
+        
         if url_lower.contains("bzr") || 
            url_lower.contains("bazaar") {
             return Ok(VcsType::Bazaar);
         }
         
-        // Perforce patterns
+        
         if url_lower.contains("perforce") || 
            url_lower.contains("p4") {
             return Ok(VcsType::Perforce);
         }
         
-        // Default to Git if no specific patterns found
+        
         Ok(VcsType::Git)
     }
     
-    /// Check if URL appears to be a self-hosted Git instance
+    
     fn is_self_hosted_git(url: &str) -> bool {
         let patterns = [
             r"\.git$",
@@ -141,14 +141,14 @@ impl VcsDetector {
         false
     }
     
-    /// Extract repository owner and name from URL
+    
     pub fn extract_repo_info(url: &str) -> Result<(String, String), String> {
         let parsed_url = Url::parse(url)
             .map_err(|_| format!("Invalid URL: {}", url))?;
         
         let path = parsed_url.path().trim_start_matches('/').trim_end_matches('/');
         
-        // Remove .git suffix if present
+        
         let path = if path.ends_with(".git") {
             &path[..path.len() - 4]
         } else {
@@ -166,7 +166,7 @@ impl VcsDetector {
         }
     }
     
-    /// Generate clone URLs for different protocols
+    
     pub fn generate_clone_urls(original_url: &str, provider: &VcsProvider) -> Result<CloneUrls, String> {
         let parsed_url = Url::parse(original_url)
             .map_err(|_| format!("Invalid URL: {}", original_url))?;
@@ -181,7 +181,7 @@ impl VcsDetector {
             VcsProvider::GitLab => format!("https://gitlab.com/{}/{}.git", owner, repo),
             VcsProvider::Bitbucket => format!("https://bitbucket.org/{}/{}.git", owner, repo),
             VcsProvider::Azure => {
-                // Azure DevOps has a different URL structure
+                
                 if host.contains("dev.azure.com") {
                     format!("https://dev.azure.com/{}/{}/_git/{}", owner, repo, repo)
                 } else {

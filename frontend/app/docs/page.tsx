@@ -27,8 +27,8 @@ export default function Documentation() {
     if (isAuthenticated) {
       window.location.href = '/dashboard';
     } else {
-      // For now, redirect to home page since /login is not implemented yet
-      // TODO: Change to '/login' when login page is implemented
+      
+      
       window.location.href = '/';
     }
   };
@@ -113,7 +113,7 @@ export default function Documentation() {
       <Navbar />
       
       <main className="pt-20">
-        {/* Hero Section */}
+        {}
         <section className="py-24 bg-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center space-y-6">
@@ -129,7 +129,7 @@ export default function Documentation() {
                 Everything you need to master ConHub, from basic setup to advanced integrations.
               </p>
               
-              {/* Dashboard Button */}
+              {}
               <div className="flex justify-center mt-6">
                 <Button 
                   onClick={handleDashboardClick}
@@ -152,7 +152,7 @@ export default function Documentation() {
                 </Button>
               </div>
               
-              {/* Search Bar */}
+              {}
               <div className="max-w-lg mx-auto mt-8">
                 <div className="relative">
                   <input
@@ -169,7 +169,7 @@ export default function Documentation() {
           </div>
         </section>
 
-        {/* Quick Links */}
+        {}
         <section className="py-16 -mt-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <Card className="bg-card border-border shadow-card">
@@ -202,7 +202,7 @@ export default function Documentation() {
           </div>
         </section>
 
-        {/* Documentation Sections */}
+        {}
         <section className="py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col gap-6">
@@ -248,7 +248,7 @@ export default function Documentation() {
           </div>
         </section>
 
-        {/* Popular Articles */}
+        {}
         <section className="py-16 bg-muted/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">

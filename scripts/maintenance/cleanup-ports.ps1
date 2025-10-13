@@ -1,25 +1,25 @@
-# Clean up ports before starting services
+
 $ports = @(3000, 3001, 3002, 8001, 8003)
 
 foreach ($port in $ports) {
     try {
-        $connections = netstat -ano | findstr ":$port "
-        if ($connections) {
-            $pids = ($connections | ForEach-Object { ($_ -split '\s+')[-1] } | Sort-Object -Unique)
-            foreach ($pid in $pids) {
-                if ($pid -and $pid -ne "0") {
-                    taskkill /PID $pid /F *>$null
-                }
-            }
+        $connection = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($connection) {
+            $processId = $connection.OwningProcess
+            Write-Host "Port $port is in use by PID $processId. Terminating process..." -ForegroundColor Yellow
+            Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
         }
-    } catch { }
+    } catch {
+        Write-Host "An error occurred while cleaning up port ${port}: $($_.Exception.Message)" -ForegroundColor Red
+    }
 }
 
-# Clean up Lexor index lock
-$lockFile = "indexers\lexor_data\index\.tantivy-writer.lock"
+# Corrected lock file path
+$lockFile = "lexor_data\index\.tantivy-writer.lock"
 if (Test-Path $lockFile) {
+    Write-Host "Found lock file at $lockFile. Removing..." -ForegroundColor Yellow
     Remove-Item $lockFile -Force
-    Write-Host "Removed Lexor index lock" -ForegroundColor Yellow
 }
 
-Start-Sleep -Seconds 2
+# Give the OS a moment to release resources
+Start-Sleep -Seconds 3

@@ -41,11 +41,11 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   const isUrlValid = useMemo(() => {
     if (!repositoryUrl) return false;
     try {
-      // Basic check for URL structure. More complex git URLs are also handled.
+      
       new URL(repositoryUrl);
       return true;
     } catch (e) {
-      // Handle git@... URLs which are not standard URLs
+      
       if (repositoryUrl.startsWith('git@')) {
         return repositoryUrl.includes(':') && repositoryUrl.length > 10;
       }
@@ -53,7 +53,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     }
   }, [repositoryUrl]);
 
-  // Extract repository name from URL
+  
   const extractRepoName = (url: string): string => {
     try {
       const urlObj = new URL(url);
@@ -70,19 +70,19 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   };
 
   const handleFetchBranches = async () => {
-    // Comprehensive validation checks
+    
     if (!repositoryUrl || !provider) {
       setFetchBranchesError("Please enter a repository URL and select a provider first.");
       return;
     }
     
-    // URL format validation
+    
     if (!isUrlValid) {
       setFetchBranchesError("Please enter a valid repository URL.");
       return;
     }
     
-    // Validate credentials based on provider
+    
     if ((provider === 'github' || provider === 'gitlab') && !credentials.accessToken) {
       setFetchBranchesError(`Please enter your ${provider === 'github' ? 'GitHub' : 'GitLab'} access token first.`);
       return;
@@ -92,7 +92,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       return;
     }
     
-    // Token format validation for GitHub/GitLab
+    
     if (provider === 'github' && credentials.accessToken) {
       const token = credentials.accessToken.trim();
       if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
@@ -113,7 +113,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     setBranches([]);
 
     try {
-      // Prepare credentials based on provider
+      
       let credentialsPayload;
       if (provider === 'github' || provider === 'gitlab') {
         credentialsPayload = {
@@ -136,7 +136,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         };
       }
 
-      // First validate the URL format
+      
       const urlValidationResponse = await fetch('/api/repositories/validate-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -148,7 +148,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         throw new Error(urlValidation.error || "Invalid repository URL format.");
       }
 
-      // Then fetch branches
+      
       const response = await fetch('/api/repositories/fetch-branches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -168,19 +168,19 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       
       if (!fetchedBranches || fetchedBranches.length === 0) {
         setFetchBranchesError("No branches found. Please check the repository URL and permissions.");
-        setBranches(['main', 'master']); // fallback options
+        setBranches(['main', 'master']); 
         setConfig(prev => ({ ...prev, defaultBranch: 'main' }));
       } else {
         setBranches(fetchedBranches);
         setConfig(prev => ({ ...prev, defaultBranch: default_branch || fetchedBranches[0] }));
-        // Success message
+        
         console.log(`Successfully fetched ${fetchedBranches.length} branches from ${repositoryUrl}`);
       }
     } catch (err: any) {
       console.error('Branch fetching error:', err);
       let errorMessage = err.message;
       
-      // Provide more specific error messages
+      
       if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
         errorMessage = "Authentication failed. Please check your credentials and token permissions.";
       } else if (errorMessage.includes('404') || errorMessage.includes('Not Found')) {
@@ -192,7 +192,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       }
       
       setFetchBranchesError(errorMessage);
-      setBranches(['main', 'master']); // fallback options
+      setBranches(['main', 'master']); 
       setConfig(prev => ({ ...prev, defaultBranch: 'main' }));
     } finally {
       setIsFetchingBranches(false);
@@ -238,7 +238,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         onOpenChange(false);
         resetForm();
       } else {
-        // Provide more specific error handling
+        
         const errorMessage = data.error || 'Failed to connect repository';
         
         if (errorMessage.includes('token')) {

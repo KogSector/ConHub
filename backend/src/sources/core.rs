@@ -3,25 +3,25 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-/// Core trait for all data source connectors
+
 #[async_trait]
 pub trait DataSourceConnector: Send + Sync {
-    /// Validate credentials for the data source
+    
     #[allow(dead_code)]
     async fn validate(&self, credentials: &HashMap<String, String>) -> Result<bool, Box<dyn std::error::Error + Send + Sync>>;
     
-    /// Connect to the data source with credentials and configuration
+    
     async fn connect(&mut self, credentials: &HashMap<String, String>, config: &Value) -> Result<bool, Box<dyn std::error::Error + Send + Sync>>;
     
-    /// Sync data from the source
+    
     #[allow(dead_code)]
     async fn sync(&self, data_source: &DataSource) -> Result<SyncResult, Box<dyn std::error::Error + Send + Sync>>;
     
-    /// Fetch branches (for repository sources)
+    
     async fn fetch_branches(&self, repo_url: &str) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>>;
 }
 
-/// Data source configuration
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataSource {
     pub id: String,
@@ -33,7 +33,7 @@ pub struct DataSource {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
-/// Document from any data source
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
     pub id: String,
@@ -42,7 +42,7 @@ pub struct Document {
     pub metadata: Value,
 }
 
-/// Repository information
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Repository {
     pub id: String,
@@ -54,14 +54,14 @@ pub struct Repository {
     pub metadata: Value,
 }
 
-/// Result of a sync operation
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncResult {
     pub documents: Vec<Document>,
     pub repositories: Vec<Repository>,
 }
 
-/// Factory for creating data source connectors
+
 pub struct DataSourceFactory;
 
 impl DataSourceFactory {

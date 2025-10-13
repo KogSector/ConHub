@@ -94,7 +94,7 @@ export function EditAgentModal({ agent, open, onOpenChange, onAgentUpdated }: Ed
           ? formData.config : undefined,
       };
 
-      // Remove undefined values
+      
       const cleanRequest = Object.fromEntries(
         Object.entries(request).filter(([_, value]) => value !== undefined)
       ) as UpdateAgentRequest;
@@ -348,7 +348,7 @@ export function EditAgentModal({ agent, open, onOpenChange, onAgentUpdated }: Ed
               </div>
             </div>
 
-            {/* Usage Stats (Read-only) */}
+            {}
             <div className="space-y-2">
               <Label>Usage Statistics</Label>
               <div className="grid grid-cols-3 gap-4">

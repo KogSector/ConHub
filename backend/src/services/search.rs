@@ -12,17 +12,17 @@ pub async fn universal_search(
 ) -> HashMap<String, serde_json::Value> {
     let mut results = HashMap::new();
     
-    // Semantic search via LangChain
+    
     if let Ok(result) = search_langchain(client, langchain_url, request).await {
         results.insert("semantic".to_string(), result);
     }
     
-    // Code search via Lexor
+    
     if let Ok(result) = search_lexor(client, lexor_url, request).await {
         results.insert("code".to_string(), result);
     }
     
-    // Document search via Haystack
+    
     if let Ok(result) = search_haystack(client, haystack_url, request).await {
         results.insert("documents".to_string(), result);
     }

@@ -33,7 +33,7 @@ impl IndexerConfig {
             qdrant_api_key: std::env::var("QDRANT_API_KEY").ok(),
             openai_api_key: std::env::var("OPENAI_API_KEY").ok(),
             max_file_size: std::env::var("MAX_FILE_SIZE")
-                .unwrap_or_else(|_| "10485760".to_string()) // 10MB default
+                .unwrap_or_else(|_| "10485760".to_string()) 
                 .parse()
                 .unwrap_or(10485760),
             chunk_size: std::env::var("CHUNK_SIZE")

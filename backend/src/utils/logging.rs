@@ -14,7 +14,7 @@ use tokio::sync::RwLock;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-/// Logging configuration for the ConHub application
+
 pub struct LoggingConfig {
     pub level: Level,
     pub json_format: bool,
@@ -42,7 +42,7 @@ impl LoggingConfig {
     pub fn from_env() -> Self {
         let mut config = Self::default();
         
-        // Set log level from environment
+        
         if let Ok(level_str) = env::var("RUST_LOG_LEVEL") {
             config.level = match level_str.to_lowercase().as_str() {
                 "trace" => Level::TRACE,
@@ -54,18 +54,18 @@ impl LoggingConfig {
             };
         }
         
-        // Check if we're in production
+        
         if env::var("NODE_ENV").unwrap_or_default() == "production" {
             config.json_format = true;
-            config.level = Level::INFO; // More conservative in production
+            config.level = Level::INFO; 
         }
         
-        // Check if we're in development
+        
         if env::var("NODE_ENV").unwrap_or_default() == "development" {
             config.level = Level::DEBUG;
         }
         
-        // Service name from environment
+        
         if let Ok(service) = env::var("SERVICE_NAME") {
             config.service_name = service;
         }
@@ -74,26 +74,26 @@ impl LoggingConfig {
     }
 }
 
-/// Initialize comprehensive logging for ConHub
+
 pub fn init_logging(config: LoggingConfig) -> Result<(), Box<dyn std::error::Error>> {
-    // Create logs directory if it doesn't exist
+    
     std::fs::create_dir_all(&config.log_directory)?;
     
-    // Create file appender for all logs
+    
     let file_appender = rolling::daily(&config.log_directory, "conhub.log");
     let (non_blocking_file, _guard) = non_blocking(file_appender);
     
-    // Create error-specific file appender
+    
     let error_file_appender = rolling::daily(&config.log_directory, "conhub-errors.log");
     let (_non_blocking_error, _error_guard) = non_blocking(error_file_appender);
     
-    // Base filter for environment
+    
     let env_filter = EnvFilter::new(format!("{}={}", config.service_name.replace("-", "_"), config.level));
     
     let registry = Registry::default().with(env_filter);
     
     if config.json_format {
-        // Structured JSON logging for production
+        
         let json_layer = fmt::layer()
             .json()
             .with_current_span(true)
@@ -107,7 +107,7 @@ pub fn init_logging(config: LoggingConfig) -> Result<(), Box<dyn std::error::Err
         
         registry.with(json_layer).init();
     } else {
-        // Pretty console logging for development
+        
         let console_layer = fmt::layer()
             .pretty()
             .with_timer(ChronoUtc::rfc_3339())
@@ -141,7 +141,7 @@ pub fn init_logging(config: LoggingConfig) -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
-/// Performance monitoring and logging
+
 #[derive(Clone)]
 pub struct PerformanceMonitor {
     system: Arc<RwLock<System>>,
@@ -177,7 +177,7 @@ impl PerformanceMonitor {
         }
     }
     
-    /// Log system performance metrics
+    
     pub async fn log_system_metrics(&self) {
         let mut system = self.system.write().await;
         system.refresh_all();
@@ -196,7 +196,7 @@ impl PerformanceMonitor {
         );
     }
     
-    /// Record request metrics
+    
     #[allow(dead_code)]
     pub async fn record_request(&self, endpoint: &str, duration: Duration, is_error: bool) {
         let mut metrics = self.request_metrics.write().await;
@@ -217,7 +217,7 @@ impl PerformanceMonitor {
             endpoint_metrics.errors += 1;
         }
         
-        // Log slow requests (> 1 second)
+        
         if duration > Duration::from_secs(1) {
             warn!(
                 endpoint = endpoint,
@@ -226,7 +226,7 @@ impl PerformanceMonitor {
             );
         }
         
-        // Log request details
+        
         debug!(
             endpoint = endpoint,
             duration_ms = duration.as_millis(),
@@ -235,7 +235,7 @@ impl PerformanceMonitor {
         );
     }
     
-    /// Log aggregated request metrics
+    
     pub async fn log_request_metrics(&self) {
         let metrics = self.request_metrics.read().await;
         
@@ -258,11 +258,11 @@ impl PerformanceMonitor {
         }
     }
     
-    /// Start periodic monitoring
+    
     pub async fn start_monitoring(&self) {
         let monitor = self.clone();
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(60)); // Log every minute
+            let mut interval = tokio::time::interval(Duration::from_secs(60)); 
             
             loop {
                 interval.tick().await;
@@ -273,7 +273,7 @@ impl PerformanceMonitor {
     }
 }
 
-/// Request timing middleware helper
+
 #[allow(dead_code)]
 pub struct RequestTimer {
     pub start_time: Instant,
@@ -294,7 +294,7 @@ impl RequestTimer {
     }
 }
 
-/// Log application startup information
+
 pub fn log_startup_info() {
     let version = env!("CARGO_PKG_VERSION");
     let build_target = env::consts::ARCH;
@@ -309,7 +309,7 @@ pub fn log_startup_info() {
     );
 }
 
-/// Log configuration information
+
 pub fn log_config_info() {
     let env_name = env::var("NODE_ENV").unwrap_or_else(|_| "development".to_string());
     let rust_log = env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());

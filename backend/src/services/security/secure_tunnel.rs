@@ -88,7 +88,7 @@ pub struct SecureTunnelService {
 
 impl SecureTunnelService {
     pub async fn new(config: TunnelConfig) -> Result<Self, Box<dyn std::error::Error>> {
-        // Initialize TLS if certificates are available
+        
         let tls_acceptor = if std::path::Path::new(&config.cert_path).exists() && 
                             std::path::Path::new(&config.key_path).exists() {
             Some(Self::create_tls_acceptor(&config.cert_path, &config.key_path).await?)
@@ -97,7 +97,7 @@ impl SecureTunnelService {
             None
         };
 
-        // Generate AES key for message encryption
+        
         let aes_key = Aes256Gcm::generate_key(&mut rand::thread_rng());
 
         let metrics = TunnelMetrics {
@@ -121,7 +121,7 @@ impl SecureTunnelService {
     }
 
     async fn create_tls_acceptor(cert_path: &str, key_path: &str) -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
-        // Load certificates
+        
         let cert_file = File::open(cert_path)?;
         let mut cert_reader = BufReader::new(cert_file);
         let certs = certs(&mut cert_reader)?
@@ -129,7 +129,7 @@ impl SecureTunnelService {
             .map(Certificate)
             .collect();
 
-        // Load private key
+        
         let key_file = File::open(key_path)?;
         let mut key_reader = BufReader::new(key_file);
         let mut keys = pkcs8_private_keys(&mut key_reader)?;
@@ -140,7 +140,7 @@ impl SecureTunnelService {
         
         let key = PrivateKey(keys.remove(0));
 
-        // Create TLS configuration
+        
         let tls_config = ServerConfig::builder()
             .with_safe_defaults()
             .with_no_client_auth()
@@ -149,7 +149,7 @@ impl SecureTunnelService {
         Ok(TlsAcceptor::from(Arc::new(tls_config)))
     }
 
-    /// Start the secure tunnel server
+    
     pub async fn start_server(&self) -> Result<(), Box<dyn std::error::Error>> {
         let listener = TcpListener::bind(&self.config.listen_addr).await?;
         log::info!("Secure tunnel server listening on {}", self.config.listen_addr);
@@ -159,7 +159,7 @@ impl SecureTunnelService {
                 Ok((stream, addr)) => {
                     let connection_id = Uuid::new_v4().to_string();
                     
-                    // Check connection limit
+                    
                     {
                         let connections = self.connections.read().await;
                         if connections.len() >= self.config.max_connections {
@@ -168,7 +168,7 @@ impl SecureTunnelService {
                         }
                     }
 
-                    // Create new connection
+                    
                     let connection = TunnelConnection {
                         id: connection_id.clone(),
                         client_addr: addr,
@@ -180,20 +180,20 @@ impl SecureTunnelService {
                         is_active: true,
                     };
 
-                    // Store connection
+                    
                     {
                         let mut connections = self.connections.write().await;
                         connections.insert(connection_id.clone(), connection);
                     }
 
-                    // Update metrics
+                    
                     {
                         let mut metrics = self.metrics.lock().await;
                         metrics.total_connections += 1;
                         metrics.active_connections += 1;
                     }
 
-                    // Handle connection
+                    
                     let tunnel_service = self.clone();
                     tokio::spawn(async move {
                         if let Err(e) = tunnel_service.handle_connection(stream, connection_id).await {
@@ -211,7 +211,7 @@ impl SecureTunnelService {
     async fn handle_connection(&self, stream: TcpStream, connection_id: String) -> Result<(), Box<dyn std::error::Error>> {
         log::info!("Handling connection: {}", connection_id);
 
-        // Apply TLS if available
+        
         let mut stream: Box<dyn tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send> = if let Some(ref acceptor) = self.tls_acceptor {
             match acceptor.accept(stream).await {
                 Ok(tls_stream) => Box::new(tls_stream),
@@ -225,13 +225,13 @@ impl SecureTunnelService {
             Box::new(stream)
         };
 
-        // Connection handling logic would go here
-        // This is a simplified implementation
         
-        // Simulate some processing
+        
+        
+        
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         
-        // Clean up connection
+        
         self.remove_connection(&connection_id).await;
         
         Ok(())
@@ -245,7 +245,7 @@ impl SecureTunnelService {
         }
     }
 
-    /// Encrypt message payload
+    
     pub fn encrypt_message(&self, message: &str) -> Result<SecureMessage, Box<dyn std::error::Error>> {
         let start_time = std::time::Instant::now();
         
@@ -263,7 +263,7 @@ impl SecureTunnelService {
         let cipher = Aes256Gcm::new(&self.aes_key);
         let nonce = Aes256Gcm::generate_nonce(&mut rand::thread_rng());
         
-        // Compress if enabled
+        
         let data_to_encrypt = if self.config.enable_compression {
             self.compress_data(message.as_bytes())?
         } else {
@@ -272,7 +272,7 @@ impl SecureTunnelService {
         
         let ciphertext = cipher.encrypt(&nonce, data_to_encrypt.as_slice())?;
         
-        // Combine nonce and ciphertext
+        
         let mut encrypted_data = nonce.to_vec();
         encrypted_data.extend_from_slice(&ciphertext);
         
@@ -280,7 +280,7 @@ impl SecureTunnelService {
         
         let encryption_time = start_time.elapsed();
         
-        // Update metrics
+        
         tokio::spawn({
             let metrics = Arc::clone(&self.metrics);
             async move {
@@ -299,13 +299,13 @@ impl SecureTunnelService {
         })
     }
 
-    /// Decrypt message payload
+    
     pub fn decrypt_message(&self, secure_message: &SecureMessage) -> Result<String, Box<dyn std::error::Error>> {
         if !secure_message.encrypted {
             return Ok(secure_message.payload.clone());
         }
 
-        // Verify checksum
+        
         if self.calculate_checksum(&secure_message.payload) != secure_message.checksum {
             return Err("Message integrity check failed".into());
         }
@@ -322,7 +322,7 @@ impl SecureTunnelService {
         let cipher = Aes256Gcm::new(&self.aes_key);
         let decrypted_data = cipher.decrypt(nonce, ciphertext)?;
         
-        // Decompress if needed
+        
         let final_data = if secure_message.compressed {
             self.decompress_data(&decrypted_data)?
         } else {
@@ -358,20 +358,20 @@ impl SecureTunnelService {
         format!("{:x}", hasher.finalize())
     }
 
-    /// Get current tunnel metrics
+    
     pub async fn get_metrics(&self) -> TunnelMetrics {
         let mut metrics = self.metrics.lock().await;
         metrics.uptime_seconds = (Utc::now() - self.started_at).num_seconds() as u64;
         metrics.clone()
     }
 
-    /// Get active connections
+    
     pub async fn get_connections(&self) -> Vec<TunnelConnection> {
         let connections = self.connections.read().await;
         connections.values().cloned().collect()
     }
 
-    /// Close specific connection
+    
     pub async fn close_connection(&self, connection_id: &str) -> bool {
         let mut connections = self.connections.write().await;
         if let Some(mut connection) = connections.get_mut(connection_id) {
@@ -382,7 +382,7 @@ impl SecureTunnelService {
         }
     }
 
-    /// Clean up inactive connections
+    
     pub async fn cleanup_inactive_connections(&self) {
         let cutoff = Utc::now() - Duration::seconds(self.config.connection_timeout_seconds as i64);
         let mut connections = self.connections.write().await;
@@ -396,7 +396,7 @@ impl SecureTunnelService {
         if cleaned_count > 0 {
             log::info!("Cleaned up {} inactive connections", cleaned_count);
             
-            // Update metrics
+            
             let metrics_arc = Arc::clone(&self.metrics);
             tokio::spawn(async move {
                 let mut metrics = metrics_arc.lock().await;
@@ -405,10 +405,10 @@ impl SecureTunnelService {
         }
     }
 
-    /// Validate client origin
+    
     pub fn validate_origin(&self, origin: &str) -> bool {
         if self.config.allowed_origins.is_empty() {
-            return true; // Allow all if no restrictions
+            return true; 
         }
         
         self.config.allowed_origins.iter().any(|allowed| {
@@ -416,7 +416,7 @@ impl SecureTunnelService {
         })
     }
 
-    /// Create secure WebSocket upgrade response
+    
     pub fn create_websocket_response(&self, key: &str) -> String {
         use sha1::{Digest, Sha1};
         const WS_GUID: &str = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
@@ -441,17 +441,17 @@ impl Clone for SecureTunnelService {
     }
 }
 
-/// Background maintenance task for tunnel service
+
 pub async fn tunnel_maintenance_task(tunnel_service: Arc<SecureTunnelService>) {
-    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60)); // Every minute
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(60)); 
     
     loop {
         interval.tick().await;
         
-        // Clean up inactive connections
+        
         tunnel_service.cleanup_inactive_connections().await;
         
-        // Log metrics
+        
         let metrics = tunnel_service.get_metrics().await;
         log::info!(
             "Tunnel metrics - Active: {}, Total: {}, Bytes: {}, Messages: {}, Encryption overhead: {:.2}ms",
@@ -464,7 +464,7 @@ pub async fn tunnel_maintenance_task(tunnel_service: Arc<SecureTunnelService>) {
     }
 }
 
-/// HTTP handler for tunnel status
+
 pub async fn tunnel_status_handler(
     tunnel_service: web::Data<Arc<SecureTunnelService>>,
 ) -> ActixResult<HttpResponse> {
@@ -472,7 +472,7 @@ pub async fn tunnel_status_handler(
     Ok(HttpResponse::Ok().json(metrics))
 }
 
-/// HTTP handler for active connections
+
 pub async fn connections_handler(
     tunnel_service: web::Data<Arc<SecureTunnelService>>,
 ) -> ActixResult<HttpResponse> {

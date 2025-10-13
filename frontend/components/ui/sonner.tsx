@@ -3,7 +3,7 @@ import { Toaster as Sonner, toast } from "sonner"
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  // Temporarily disable theme functionality to resolve build issue
+  
   const theme = "dark"
 
   return (

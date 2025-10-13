@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use crate::models::{ApiResponse, UserSettings, ProfileSettings, NotificationSettings, SecuritySettings, UpdateSettingsRequest};
 
-// In-memory storage for settings (replace with database in production)
+
 lazy_static::lazy_static! {
     static ref SETTINGS_STORE: Mutex<HashMap<String, UserSettings>> = Mutex::new(HashMap::new());
     static ref API_TOKENS_STORE: Mutex<HashMap<String, Vec<ApiToken>>> = Mutex::new(HashMap::new());
@@ -75,7 +75,7 @@ pub async fn get_settings(path: web::Path<String>) -> Result<HttpResponse> {
             error: None,
         })),
         None => {
-            // Return default settings for new users
+            
             let default_settings = UserSettings {
                 user_id: user_id.clone(),
                 profile: ProfileSettings {
@@ -137,7 +137,7 @@ pub async fn update_settings(
         },
     });
     
-    // Update only provided fields
+    
     if let Some(profile) = &req.profile {
         settings.profile = profile.clone();
     }
@@ -158,7 +158,7 @@ pub async fn update_settings(
     }))
 }
 
-// API Token endpoints
+
 pub async fn get_api_tokens(path: web::Path<String>) -> Result<HttpResponse> {
     let user_id = path.into_inner();
     let store = API_TOKENS_STORE.lock().unwrap();
@@ -219,7 +219,7 @@ pub async fn delete_api_token(
     }))
 }
 
-// Webhook endpoints
+
 pub async fn get_webhooks(path: web::Path<String>) -> Result<HttpResponse> {
     let user_id = path.into_inner();
     let store = WEBHOOKS_STORE.lock().unwrap();
@@ -281,7 +281,7 @@ pub async fn delete_webhook(
     }))
 }
 
-// Team member endpoints
+
 pub async fn get_team_members(path: web::Path<String>) -> Result<HttpResponse> {
     let user_id = path.into_inner();
     let store = TEAM_MEMBERS_STORE.lock().unwrap();

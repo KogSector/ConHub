@@ -3,10 +3,7 @@ import os from 'os';
 
 const router = express.Router();
 
-/**
- * Health check endpoint
- * GET /api/health
- */
+
 router.get('/', async (req, res) => {
   try {
     const health = {
@@ -48,13 +45,10 @@ router.get('/', async (req, res) => {
   }
 });
 
-/**
- * Readiness check endpoint
- * GET /api/health/ready
- */
+
 router.get('/ready', async (req, res) => {
   try {
-    // Check if all services are ready
+    
     const checks = {
       server: true,
       mcp: true,
@@ -86,10 +80,7 @@ router.get('/ready', async (req, res) => {
   }
 });
 
-/**
- * Liveness check endpoint
- * GET /api/health/live
- */
+
 router.get('/live', async (req, res) => {
   try {
     res.json({
@@ -106,10 +97,7 @@ router.get('/live', async (req, res) => {
   }
 });
 
-/**
- * Detailed health check with service status
- * GET /api/health/detailed
- */
+
 router.get('/detailed', async (req, res) => {
   try {
     const detailed = {

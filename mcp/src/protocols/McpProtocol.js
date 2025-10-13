@@ -1,45 +1,42 @@
-/**
- * Model Context Protocol (MCP) Implementation
- * Core protocol definitions and message handling for AI agent communication
- */
+
 
 export const MCP_VERSION = '2024-11-05';
 
-// MCP Message Types
+
 export const MessageType = {
-  // Core protocol messages
+  
   INITIALIZE: 'initialize',
   INITIALIZED: 'initialized',
   
-  // Resource management
+  
   RESOURCES_LIST: 'resources/list',
   RESOURCES_READ: 'resources/read',
   RESOURCES_SUBSCRIBE: 'resources/subscribe',
   RESOURCES_UNSUBSCRIBE: 'resources/unsubscribe',
   RESOURCES_UPDATED: 'resources/updated',
   
-  // Tool management
+  
   TOOLS_LIST: 'tools/list',
   TOOLS_CALL: 'tools/call',
   
-  // Prompt management
+  
   PROMPTS_LIST: 'prompts/list',
   PROMPTS_GET: 'prompts/get',
   
-  // Logging
+  
   LOGGING_SET_LEVEL: 'logging/setLevel',
   
-  // Notifications
+  
   NOTIFICATION: 'notification',
   
-  // Progress reporting
+  
   PROGRESS: 'progress',
   
-  // Completion
+  
   COMPLETION_COMPLETE: 'completion/complete'
 };
 
-// MCP Error Codes (JSON-RPC 2.0 compatible)
+
 export const ErrorCode = {
   PARSE_ERROR: -32700,
   INVALID_REQUEST: -32600,
@@ -47,7 +44,7 @@ export const ErrorCode = {
   INVALID_PARAMS: -32602,
   INTERNAL_ERROR: -32603,
   
-  // MCP-specific errors
+  
   RESOURCE_NOT_FOUND: -32001,
   TOOL_NOT_FOUND: -32002,
   PROMPT_NOT_FOUND: -32003,
@@ -57,7 +54,7 @@ export const ErrorCode = {
   TIMEOUT: -32007
 };
 
-// MCP Capability Types
+
 export const CapabilityType = {
   RESOURCES: 'resources',
   TOOLS: 'tools',
@@ -66,7 +63,7 @@ export const CapabilityType = {
   COMPLETION: 'completion'
 };
 
-// Resource Types
+
 export const ResourceType = {
   FILE: 'file',
   DIRECTORY: 'directory',
@@ -77,7 +74,7 @@ export const ResourceType = {
   CONTEXT: 'context'
 };
 
-// Tool Categories
+
 export const ToolCategory = {
   CODE_GENERATION: 'code_generation',
   CODE_ANALYSIS: 'code_analysis',
@@ -91,10 +88,7 @@ export const ToolCategory = {
   MONITORING: 'monitoring'
 };
 
-/**
- * MCP Message Builder
- * Utility class for creating properly formatted MCP messages
- */
+
 export class McpMessageBuilder {
   static createRequest(id, method, params = {}) {
     return {
@@ -166,10 +160,7 @@ export class McpMessageBuilder {
   }
 }
 
-/**
- * MCP Message Validator
- * Validates MCP messages according to the protocol specification
- */
+
 export class McpMessageValidator {
   static validateMessage(message) {
     if (!message || typeof message !== 'object') {
@@ -180,7 +171,7 @@ export class McpMessageValidator {
       return { valid: false, error: 'Invalid JSON-RPC version' };
     }
 
-    // Check if it's a request, response, or notification
+    
     if (message.method) {
       return this.validateRequest(message);
     } else if (message.result !== undefined || message.error !== undefined) {
@@ -195,12 +186,12 @@ export class McpMessageValidator {
       return { valid: false, error: 'Request must have a method' };
     }
 
-    // Notification (no id required)
+    
     if (message.id === undefined) {
       return { valid: true };
     }
 
-    // Request (id required)
+    
     if (message.id === null || message.id === undefined) {
       return { valid: false, error: 'Request must have an id' };
     }
@@ -241,10 +232,7 @@ export class McpMessageValidator {
   }
 }
 
-/**
- * MCP Capability Manager
- * Manages and negotiates capabilities between client and server
- */
+
 export class McpCapabilityManager {
   constructor() {
     this.clientCapabilities = null;
@@ -269,7 +257,7 @@ export class McpCapabilityManager {
 
     this.negotiatedCapabilities = {};
 
-    // Negotiate each capability type
+    
     for (const [capType, clientCap] of Object.entries(this.clientCapabilities)) {
       const serverCap = this.serverCapabilities[capType];
       
@@ -336,9 +324,7 @@ export class McpCapabilityManager {
   }
 }
 
-/**
- * Default MCP Capabilities
- */
+
 export const DefaultCapabilities = {
   client: {
     resources: {
@@ -371,10 +357,7 @@ export const DefaultCapabilities = {
   }
 };
 
-/**
- * MCP Protocol Handler
- * Main class for handling MCP protocol communication
- */
+
 export class McpProtocolHandler {
   constructor(logger) {
     this.logger = logger;
@@ -425,7 +408,7 @@ export class McpProtocolHandler {
         return McpMessageBuilder.createResponse(message.id, result);
       }
       
-      return null; // Notification, no response needed
+      return null; 
     } catch (error) {
       this.logger.error('Error handling MCP message:', error);
       
@@ -462,23 +445,23 @@ export class McpProtocolHandler {
   }
 
   async handleResourcesList(message) {
-    // Override in subclass or register custom handler
+    
     return { resources: [] };
   }
 
   async handleResourcesRead(message) {
-    // Override in subclass or register custom handler
+    
     const { uri } = message.params;
     throw new Error(`Resource not found: ${uri}`);
   }
 
   async handleToolsList(message) {
-    // Override in subclass or register custom handler
+    
     return { tools: [] };
   }
 
   async handleToolsCall(message) {
-    // Override in subclass or register custom handler
+    
     const { name } = message.params;
     throw new Error(`Tool not found: ${name}`);
   }

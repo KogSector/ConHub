@@ -35,7 +35,7 @@ pub struct CreateDocumentResponse {
     pub data: Option<DocumentRecord>,
 }
 
-// Thread-safe in-memory storage for demo
+
 lazy_static! {
     static ref DOCUMENT_STORAGE: Mutex<HashMap<String, Vec<DocumentRecord>>> = Mutex::new(HashMap::new());
 }
@@ -83,7 +83,7 @@ pub async fn get_documents(query: web::Query<std::collections::HashMap<String, S
     let storage = DOCUMENT_STORAGE.lock().unwrap();
     let mut user_docs = storage.get(&user_id).cloned().unwrap_or_default();
 
-    // Apply search filter if provided
+    
     if let Some(search) = query.get("search") {
         let search_lower = search.to_lowercase();
         user_docs.retain(|doc| {
@@ -94,7 +94,7 @@ pub async fn get_documents(query: web::Query<std::collections::HashMap<String, S
         });
     }
 
-    // Sort by creation date (newest first)
+    
     user_docs.sort_by(|a, b| b.created_at.cmp(&a.created_at));
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
@@ -133,14 +133,14 @@ pub async fn get_document_analytics() -> Result<HttpResponse> {
     let total_docs = user_docs.len();
     let processed_docs = user_docs.iter().filter(|d| d.status == "processed").count();
     
-    // Collect all unique tags
+    
     let all_tags: std::collections::HashSet<String> = user_docs
         .iter()
         .flat_map(|d| d.tags.iter())
         .cloned()
         .collect();
     
-    // Count documents by source
+    
     let mut source_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     for doc in &user_docs {
         *source_counts.entry(doc.source.clone()).or_insert(0) += 1;

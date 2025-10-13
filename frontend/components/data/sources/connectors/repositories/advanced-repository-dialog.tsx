@@ -53,19 +53,19 @@ export function AdvancedRepositoryDialog({ open, onOpenChange, onSuccess }: Adva
       const data = await response.json();
       
       if (data.success) {
-        // Open OAuth popup
+        
         const popup = window.open(
           data.oauthUrl,
           'github-oauth',
           'width=600,height=700,scrollbars=yes,resizable=yes'
         );
         
-        // Listen for popup completion
+        
         const checkClosed = setInterval(() => {
           if (popup?.closed) {
             clearInterval(checkClosed);
             setLoading(false);
-            // Check for token in localStorage or handle callback
+            
           }
         }, 1000);
       } else {

@@ -4,7 +4,7 @@ export async function POST(req: NextRequest) {
   try {
     const { prompt, context } = await req.json();
 
-    // First, create the agent if it doesn't exist
+    
     await fetch('http://localhost:3001/api/agents/create/cline', {
       method: 'POST',
     });

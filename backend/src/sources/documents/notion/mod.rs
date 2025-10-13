@@ -71,7 +71,7 @@ impl NotionConnector {
                                 }
                             },
                             _ => {
-                                // Handle other block types as needed
+                                
                             }
                         }
                     }
@@ -124,7 +124,7 @@ impl DataSourceConnector for NotionConnector {
         let api_key = self.api_key.as_ref().ok_or("Notion not connected")?;
         let mut documents = Vec::new();
 
-        // Handle database IDs
+        
         let empty_vec = vec![];
         let database_ids = data_source.config.get("databaseIds")
             .and_then(|d| d.as_array())
@@ -147,7 +147,7 @@ impl DataSourceConnector for NotionConnector {
                             if let Some(page_id) = page.get("id").and_then(|id| id.as_str()) {
                                 let title = page.get("properties")
                                     .and_then(|props| {
-                                        // Try to find a title property
+                                        
                                         for (_, prop) in props.as_object()? {
                                             if let Some(prop_type) = prop.get("type").and_then(|t| t.as_str()) {
                                                 if prop_type == "title" {

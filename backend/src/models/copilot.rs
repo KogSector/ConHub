@@ -1,27 +1,27 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-// use crate::models::mcp::McpContext; // Disabled
 
-/// GitHub Copilot specific integration models
-/// 
-/// These models extend the core MCP types to provide GitHub Copilot
-/// with optimized context delivery and tool interaction capabilities.
 
-// ============================================================================
-// Copilot-Enhanced Context Types
-// ============================================================================
 
-/// Enhanced context specifically formatted for GitHub Copilot
+
+
+
+
+
+
+
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CopilotEnhancedContext {
-    // pub base_context: McpContext, // Disabled
+    
     pub copilot_metadata: CopilotContextMetadata,
     pub code_analysis: Option<CodeAnalysisData>,
     pub suggestions: Vec<CopilotSuggestion>,
     pub workspace_info: Option<WorkspaceInfo>,
 }
 
-/// Metadata specific to Copilot context formatting
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CopilotContextMetadata {
     pub total_files: usize,
@@ -33,7 +33,7 @@ pub struct CopilotContextMetadata {
     pub cache_strategy: String,
 }
 
-/// Code analysis data for enhanced Copilot suggestions
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodeAnalysisData {
     pub function_signatures: Vec<FunctionSignature>,
@@ -43,7 +43,7 @@ pub struct CodeAnalysisData {
     pub patterns: Vec<CodePattern>,
 }
 
-/// Function signature information
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionSignature {
     pub name: String,
@@ -55,7 +55,7 @@ pub struct FunctionSignature {
     pub line_number: u32,
 }
 
-/// Parameter information
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Parameter {
     pub name: String,
@@ -64,18 +64,18 @@ pub struct Parameter {
     pub default_value: Option<String>,
 }
 
-/// Type definition information
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TypeDefinition {
     pub name: String,
-    pub kind: String, // struct, enum, trait, interface, class, etc.
+    pub kind: String, 
     pub fields: Vec<Field>,
     pub methods: Vec<String>,
     pub file_path: String,
     pub line_number: u32,
 }
 
-/// Field information for types
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Field {
     pub name: String,
@@ -84,7 +84,7 @@ pub struct Field {
     pub is_optional: bool,
 }
 
-/// Import/use statement information
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportStatement {
     pub module_path: String,
@@ -94,16 +94,16 @@ pub struct ImportStatement {
     pub line_number: u32,
 }
 
-/// Dependency information
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DependencyInfo {
     pub name: String,
     pub version: String,
-    pub dependency_type: String, // dev, runtime, build, etc.
-    pub source: String, // crates.io, npm, maven, etc.
+    pub dependency_type: String, 
+    pub source: String, 
 }
 
-/// Code pattern recognition
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodePattern {
     pub pattern_type: String,
@@ -112,7 +112,7 @@ pub struct CodePattern {
     pub confidence: f64,
 }
 
-/// Copilot-specific suggestions
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CopilotSuggestion {
     pub suggestion_type: String,
@@ -123,7 +123,7 @@ pub struct CopilotSuggestion {
     pub applicable_context: Vec<String>,
 }
 
-/// Workspace information for Copilot
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceInfo {
     pub name: String,
@@ -135,11 +135,11 @@ pub struct WorkspaceInfo {
     pub configuration_files: Vec<String>,
 }
 
-// ============================================================================
-// Copilot Tool Integration
-// ============================================================================
 
-/// Tools specifically designed for GitHub Copilot integration
+
+
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CopilotTool {
     pub name: String,
@@ -150,7 +150,7 @@ pub struct CopilotTool {
     pub performance_hints: CopilotToolPerformance,
 }
 
-/// Performance hints for Copilot tool usage
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CopilotToolPerformance {
     pub average_execution_time_ms: u64,
@@ -160,11 +160,11 @@ pub struct CopilotToolPerformance {
     pub rate_limit_per_minute: u32,
 }
 
-// ============================================================================
-// Copilot Request/Response Extensions
-// ============================================================================
 
-/// Extended context request with Copilot-specific options
+
+
+
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CopilotContextRequestExtended {
     pub base_request: crate::services::github_copilot_integration::CopilotContextRequest,
@@ -175,25 +175,25 @@ pub struct CopilotContextRequestExtended {
     pub streaming_preferences: StreamingPreferences,
 }
 
-/// Analysis depth for context requests
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AnalysisDepth {
-    Surface,    // Basic file content and structure
-    Moderate,   // Include function signatures and imports
-    Deep,       // Full analysis with patterns and dependencies
-    Comprehensive, // Everything including cross-references
+    Surface,    
+    Moderate,   
+    Deep,       
+    Comprehensive, 
 }
 
-/// Performance mode preferences
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PerformanceMode {
-    Optimized,  // Prioritize speed
-    Balanced,   // Balance speed and completeness  
-    Complete,   // Prioritize completeness
+    Optimized,  
+    Balanced,   
+    Complete,   
     Custom(PerformanceConfig),
 }
 
-/// Custom performance configuration
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceConfig {
     pub max_response_time_ms: u64,
@@ -202,7 +202,7 @@ pub struct PerformanceConfig {
     pub parallel_processing: bool,
 }
 
-/// Streaming preferences
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StreamingPreferences {
     pub enabled: bool,
@@ -211,11 +211,11 @@ pub struct StreamingPreferences {
     pub compression: bool,
 }
 
-// ============================================================================
-// Copilot Integration Metrics
-// ============================================================================
 
-/// Metrics for monitoring Copilot integration performance
+
+
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CopilotIntegrationMetrics {
     pub session_metrics: SessionMetrics,
@@ -224,7 +224,7 @@ pub struct CopilotIntegrationMetrics {
     pub performance_metrics: PerformanceMetrics,
 }
 
-/// Session-related metrics
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionMetrics {
     pub total_sessions: u64,
@@ -234,7 +234,7 @@ pub struct SessionMetrics {
     pub session_creation_rate_per_hour: f64,
 }
 
-/// Context-related metrics
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextMetrics {
     pub context_requests_total: u64,
@@ -244,7 +244,7 @@ pub struct ContextMetrics {
     pub cache_hit_rate: f64,
 }
 
-/// Tool usage metrics
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolMetrics {
     pub tool_calls_total: u64,
@@ -254,7 +254,7 @@ pub struct ToolMetrics {
     pub tool_success_rate: HashMap<String, f64>,
 }
 
-/// Performance metrics
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceMetrics {
     pub average_response_time_ms: f64,
@@ -265,7 +265,7 @@ pub struct PerformanceMetrics {
     pub resource_utilization: ResourceUtilization,
 }
 
-/// Resource utilization metrics
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceUtilization {
     pub cpu_usage_percent: f64,

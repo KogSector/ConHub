@@ -40,7 +40,7 @@ export function ChangeBranchDialog({
   const fetchBranches = async (repoId: string) => {
     setLoading(true);
     try {
-      // This is a placeholder. In a real application, you would fetch the branches for the given repository.
+      
       const sampleBranches = ['main', 'develop', 'feature/new-ui', 'fix/bug-123'];
       setBranches(sampleBranches);
       setSelectedBranch(currentBranch);
@@ -56,9 +56,9 @@ export function ChangeBranchDialog({
 
     setLoading(true);
     try {
-      // This is a placeholder. In a real application, you would make an API call to update the branch.
+      
       console.log(`Changing branch for repo ${repositoryId} to ${selectedBranch}`);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000)); 
       onSuccess();
       onOpenChange(false);
     } catch (error) {

@@ -78,7 +78,7 @@ pub async fn fetch_branches(
 ) -> Result<HttpResponse> {
     info!("Fetching branches for repository: {}", req.repo_url);
 
-    // Determine source type from URL
+    
     let source_type = if req.repo_url.contains("github.com") {
         "github"
     } else if req.repo_url.contains("bitbucket.org") {
@@ -91,7 +91,7 @@ pub async fn fetch_branches(
         }));
     };
 
-    // For now, use empty credentials - in a real implementation, you'd get these from the request or session
+    
     let credentials = req.credentials.clone().unwrap_or_default();
 
     match DataSourceFactory::create_connector(source_type) {
@@ -124,7 +124,7 @@ pub async fn fetch_branches(
                 Err(e) => {
                     error!("Failed to fetch branches for repository {}: {}", req.repo_url, e);
                     Ok(HttpResponse::BadRequest().json(FetchBranchesResponse {
-                        branches: vec!["main".to_string()], // Fallback
+                        branches: vec!["main".to_string()], 
                         default_branch: Some("main".to_string()),
                         error: Some(e.to_string()),
                     }))

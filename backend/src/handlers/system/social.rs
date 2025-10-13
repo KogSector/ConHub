@@ -37,7 +37,7 @@ pub struct SyncDataRequest {
     pub options: Option<serde_json::Value>,
 }
 
-/// Get OAuth authorization URL for a platform
+
 pub async fn get_auth_url(
     query: web::Query<AuthUrlQuery>,
     social_service: web::Data<SocialIntegrationService>,
@@ -65,7 +65,7 @@ pub async fn get_auth_url(
     }
 }
 
-/// Connect a social platform
+
 pub async fn connect_platform(
     req: HttpRequest,
     request: web::Json<ConnectPlatformRequest>,
@@ -105,7 +105,7 @@ pub async fn connect_platform(
     }
 }
 
-/// Get all connected platforms for the user
+
 pub async fn get_connections(
     req: HttpRequest,
     social_service: web::Data<SocialIntegrationService>,
@@ -133,7 +133,7 @@ pub async fn get_connections(
     }
 }
 
-/// Disconnect a platform
+
 pub async fn disconnect_platform(
     req: HttpRequest,
     request: web::Json<DisconnectRequest>,
@@ -163,7 +163,7 @@ pub async fn disconnect_platform(
     }
 }
 
-/// Sync data from a connected platform
+
 pub async fn sync_platform_data(
     req: HttpRequest,
     request: web::Json<SyncDataRequest>,
@@ -197,7 +197,7 @@ pub async fn sync_platform_data(
     }
 }
 
-/// Get supported platforms and their capabilities
+
 pub async fn get_supported_platforms() -> Result<HttpResponse> {
     let platforms = serde_json::json!({
         "platforms": [
@@ -249,11 +249,11 @@ pub async fn get_supported_platforms() -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().json(platforms))
 }
 
-/// Health check for social integrations service
+
 pub async fn health_check(
     _social_service: web::Data<SocialIntegrationService>,
 ) -> Result<HttpResponse> {
-    // You could add actual health checks here
+    
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "status": "healthy",
         "service": "social_integrations",
@@ -262,7 +262,7 @@ pub async fn health_check(
     })))
 }
 
-/// Configure social integration routes
+
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/social")

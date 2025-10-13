@@ -26,12 +26,12 @@ pub async fn connect_data_source(
     langchain_url: &str,
     request: &DataSourceRequest,
 ) -> Result<DataSourceResponse, AppError> {
-    // If this is a VCS connection, use our VCS system
+    
     if request.source_type == "github" || request.source_type == "bitbucket" {
         return connect_vcs_data_source(request).await;
     }
     
-    // Otherwise, forward to LangChain service for other data sources
+    
     let payload = json!({
         "type": request.source_type,
         "config": request.config,
@@ -61,11 +61,11 @@ async fn connect_vcs_data_source(
 ) -> Result<DataSourceResponse, AppError> {
     let repository_service = RepositoryService::new();
     
-    // Get repository URL
+    
     let url = request.url.as_ref()
         .ok_or(AppError::ConfigurationError("Repository URL is required for VCS connections".to_string()))?;
     
-    // Parse VCS type and provider
+    
     let vcs_type = match request.source_type.as_str() {
         "github" => VcsType::Git,
         "bitbucket" => VcsType::Git,
@@ -78,13 +78,13 @@ async fn connect_vcs_data_source(
         _ => return Err(AppError::ConfigurationError("Unsupported VCS provider".to_string())),
     };
     
-    // Parse credentials - support both PAT and GitHub App auth
+    
     let credentials = if let Some(creds) = &request.credentials {
         if request.source_type == "github" {
-            // Check if it's a GitHub App installation (has installationId)
+            
             if let Some(_installation_id) = creds.get("installationId") {
-                // TODO: Implement GitHub App authentication
-                // For now, fallback to requiring accessToken
+                
+                
                 if let Some(token) = creds.get("accessToken") {
                     let token_str = token.as_str()
                         .ok_or(AppError::ConfigurationError("GitHub access token must be a string".to_string()))?;
@@ -98,7 +98,7 @@ async fn connect_vcs_data_source(
                     return Err(AppError::ConfigurationError("GitHub App authentication not yet implemented. Please use access token.".to_string()));
                 }
             } else if let Some(token) = creds.get("accessToken") {
-                // Standard PAT authentication
+                
                 let token_str = token.as_str()
                     .ok_or(AppError::ConfigurationError("GitHub access token must be a string".to_string()))?;
                 RepositoryCredentials {
@@ -129,19 +129,19 @@ async fn connect_vcs_data_source(
         return Err(AppError::ConfigurationError("Credentials are required for VCS connections".to_string()));
     };
 
-    // Create repository connection request
+    
     let connect_request = ConnectRepositoryRequest {
         url: url.clone(),
         vcs_type: Some(vcs_type),
         provider: Some(vcs_provider),
         credentials,
-        config: None, // We'll use defaults for now
+        config: None, 
     };
 
-    // Connect the repository using our VCS service
+    
     match repository_service.connect_repository(connect_request).await {
         Ok(repo_info) => {
-            // Start indexing process in the background
+            
             let indexing_orchestrator = IndexingOrchestrator::new();
             let indexing_request = IndexingRequest {
                 source_id: repo_info.id.clone(),
@@ -151,7 +151,7 @@ async fn connect_vcs_data_source(
                 metadata: HashMap::new(),
             };
             
-            // Start indexing asynchronously (don't wait for completion)
+            
             let repo_name = repo_info.name.clone();
             tokio::spawn(async move {
                 match indexing_orchestrator.start_indexing(indexing_request).await {

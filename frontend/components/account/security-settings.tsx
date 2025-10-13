@@ -69,7 +69,7 @@ export function SecuritySettings() {
 
   const handleTwoFactorToggle = async (enabled: boolean) => {
     setTwoFactorEnabled(enabled)
-    // TODO: Implement 2FA setup/disable logic
+    
     toast({
       title: enabled ? '2FA Enabled' : '2FA Disabled',
       description: enabled 
@@ -80,7 +80,7 @@ export function SecuritySettings() {
 
   return (
     <div className="space-y-6">
-      {/* Security Overview */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -135,7 +135,7 @@ export function SecuritySettings() {
         </CardContent>
       </Card>
 
-      {/* Password Settings */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle>Password Settings</CardTitle>
@@ -241,7 +241,7 @@ export function SecuritySettings() {
         </CardContent>
       </Card>
 
-      {/* Two-Factor Authentication */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle>Two-Factor Authentication</CardTitle>
@@ -279,7 +279,7 @@ export function SecuritySettings() {
         </CardContent>
       </Card>
 
-      {/* Session Management */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle>Active Sessions</CardTitle>
@@ -309,7 +309,7 @@ export function SecuritySettings() {
         </CardContent>
       </Card>
 
-      {/* Security Recommendations */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

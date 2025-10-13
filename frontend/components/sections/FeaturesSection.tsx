@@ -115,7 +115,7 @@ const features = [
 export const FeaturesSection = () => {
   return (
     <section id="features" className="py-24 bg-background relative overflow-hidden">
-      {/* Background decoration */}
+      {}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent" />
       <div className="absolute top-1/2 left-1/4 w-64 h-64 bg-accent/10 rounded-full blur-3xl" />
       <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
@@ -171,7 +171,7 @@ export const FeaturesSection = () => {
           ))}
         </div>
         
-        {/* Bottom CTA section */}
+        {}
         <div className="text-center mt-20 animate-fade-in-up" style={{ animationDelay: '1.5s' }}>
           <div className="inline-flex items-center gap-2 text-sm text-muted-foreground bg-card/30 backdrop-blur-sm border border-border/50 rounded-full px-6 py-3">
             <Zap className="w-4 h-4 text-primary" />

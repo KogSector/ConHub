@@ -44,7 +44,7 @@ impl AIRuleBankService {
         request: CreateRuleRequest,
         created_by: Uuid,
     ) -> Result<AIRule, Box<dyn std::error::Error>> {
-        // For now, return a mock rule to avoid database issues
+        
         let rule_id = Uuid::new_v4();
         let now = Utc::now();
 
@@ -68,7 +68,7 @@ impl AIRuleBankService {
         &self,
         _agent_id: Uuid,
     ) -> Result<Vec<AIRule>, Box<dyn std::error::Error>> {
-        // Return empty vector for now
+        
         Ok(vec![])
     }
 

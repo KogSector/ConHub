@@ -3,7 +3,7 @@ import Joi from 'joi';
 
 const router = express.Router();
 
-// Validation schemas
+
 const registerAgentSchema = Joi.object({
   agentId: Joi.string().required(),
   config: Joi.object().optional()
@@ -22,10 +22,7 @@ const sendMessageSchema = Joi.object({
 });
 
 export default function agentRoutes(agentManager) {
-  /**
-   * Register a new AI agent
-   * POST /api/agents/register
-   */
+  
   router.post('/register', async (req, res) => {
     try {
       const { error, value } = registerAgentSchema.validate(req.body);
@@ -56,10 +53,7 @@ export default function agentRoutes(agentManager) {
     }
   });
 
-  /**
-   * Connect to an AI agent
-   * POST /api/agents/:agentId/connect
-   */
+  
   router.post('/:agentId/connect', async (req, res) => {
     try {
       const { agentId } = req.params;
@@ -87,10 +81,7 @@ export default function agentRoutes(agentManager) {
     }
   });
 
-  /**
-   * Disconnect an AI agent
-   * POST /api/agents/:agentId/disconnect
-   */
+  
   router.post('/:agentId/disconnect', async (req, res) => {
     try {
       const { agentId } = req.params;
@@ -108,10 +99,7 @@ export default function agentRoutes(agentManager) {
     }
   });
 
-  /**
-   * Get all registered agents
-   * GET /api/agents
-   */
+  
   router.get('/', async (req, res) => {
     try {
       const agents = agentManager.getAgents();
@@ -140,10 +128,7 @@ export default function agentRoutes(agentManager) {
     }
   });
 
-  /**
-   * Get specific agent
-   * GET /api/agents/:agentId
-   */
+  
   router.get('/:agentId', async (req, res) => {
     try {
       const { agentId } = req.params;
@@ -182,10 +167,7 @@ export default function agentRoutes(agentManager) {
     }
   });
 
-  /**
-   * Create a new session with an agent
-   * POST /api/agents/sessions
-   */
+  
   router.post('/sessions', async (req, res) => {
     try {
       const { error, value } = createSessionSchema.validate(req.body);
@@ -218,10 +200,7 @@ export default function agentRoutes(agentManager) {
     }
   });
 
-  /**
-   * Send message to agent
-   * POST /api/agents/sessions/message
-   */
+  
   router.post('/sessions/message', async (req, res) => {
     try {
       const { error, value } = sendMessageSchema.validate(req.body);
@@ -252,16 +231,13 @@ export default function agentRoutes(agentManager) {
     }
   });
 
-  /**
-   * Get all sessions
-   * GET /api/agents/sessions
-   */
+  
   router.get('/sessions', async (req, res) => {
     try {
       const { agentId, userId, status } = req.query;
       let sessions = agentManager.getSessions();
 
-      // Filter sessions based on query parameters
+      
       if (agentId) {
         sessions = sessions.filter(s => s.agentId === agentId);
       }
@@ -293,10 +269,7 @@ export default function agentRoutes(agentManager) {
     }
   });
 
-  /**
-   * Get specific session
-   * GET /api/agents/sessions/:sessionId
-   */
+  
   router.get('/sessions/:sessionId', async (req, res) => {
     try {
       const { sessionId } = req.params;
@@ -330,10 +303,7 @@ export default function agentRoutes(agentManager) {
     }
   });
 
-  /**
-   * Close a session
-   * DELETE /api/agents/sessions/:sessionId
-   */
+  
   router.delete('/sessions/:sessionId', async (req, res) => {
     try {
       const { sessionId } = req.params;
@@ -351,10 +321,7 @@ export default function agentRoutes(agentManager) {
     }
   });
 
-  /**
-   * Get agent capabilities
-   * GET /api/agents/:agentId/capabilities
-   */
+  
   router.get('/:agentId/capabilities', async (req, res) => {
     try {
       const { agentId } = req.params;
@@ -379,10 +346,7 @@ export default function agentRoutes(agentManager) {
     }
   });
 
-  /**
-   * Get agent metrics
-   * GET /api/agents/:agentId/metrics
-   */
+  
   router.get('/:agentId/metrics', async (req, res) => {
     try {
       const { agentId } = req.params;
@@ -412,10 +376,7 @@ export default function agentRoutes(agentManager) {
     }
   });
 
-  /**
-   * Get service health and metrics
-   * GET /api/agents/health
-   */
+  
   router.get('/health', async (req, res) => {
     try {
       const health = agentManager.getHealthStatus();
@@ -428,10 +389,7 @@ export default function agentRoutes(agentManager) {
     }
   });
 
-  /**
-   * Get detailed service metrics
-   * GET /api/agents/metrics
-   */
+  
   router.get('/metrics', async (req, res) => {
     try {
       const metrics = agentManager.getMetrics();

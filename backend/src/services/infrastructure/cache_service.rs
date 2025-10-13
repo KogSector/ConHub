@@ -7,16 +7,16 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 use dashmap::DashMap;
 
-/// High-performance multi-level caching service
-/// Implements LRU + LFU hybrid algorithm with write-through and write-back strategies
+
+
 pub struct AdvancedCacheService {
-    /// L1 Cache: In-memory ultra-fast access (LRU)
+    
     l1_cache: Arc<DashMap<String, CacheEntry>>,
-    /// L2 Cache: Redis distributed cache
+    
     redis_client: Option<Client>,
-    /// Cache statistics for optimization
+    
     stats: Arc<RwLock<CacheStats>>,
-    /// Configuration
+    
     config: CacheConfig,
 }
 
@@ -32,9 +32,9 @@ pub struct CacheConfig {
 
 #[derive(Clone, Debug)]
 pub enum WriteStrategy {
-    WriteThrough,  // Write to both L1 and L2 immediately
-    WriteBack,     // Write to L1, batch write to L2
-    WriteAround,   // Write only to L2, bypass L1
+    WriteThrough,  
+    WriteBack,     
+    WriteAround,   
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -63,8 +63,8 @@ impl Default for CacheConfig {
     fn default() -> Self {
         Self {
             l1_max_size: 1000,
-            l1_ttl_seconds: 300, // 5 minutes
-            l2_ttl_seconds: 3600, // 1 hour
+            l1_ttl_seconds: 300, 
+            l2_ttl_seconds: 3600, 
             enable_compression: true,
             enable_encryption: false,
             write_strategy: WriteStrategy::WriteThrough,
@@ -90,12 +90,12 @@ impl AdvancedCacheService {
         }
     }
 
-    /// Get value from cache with optimal lookup strategy
+    
     pub async fn get<T>(&self, key: &str) -> Option<T>
     where
         T: for<'de> Deserialize<'de>,
     {
-        // Try L1 cache first (fastest)
+        
         if let Some(entry) = self.get_from_l1(key).await {
             let mut stats = self.stats.write().await;
             stats.l1_hits += 1;
@@ -105,12 +105,12 @@ impl AdvancedCacheService {
             }
         }
 
-        // Try L2 cache (Redis)
+        
         if let Some(entry) = self.get_from_l2(key).await {
             let mut stats = self.stats.write().await;
             stats.l2_hits += 1;
             
-            // Promote to L1 cache
+            
             self.set_to_l1(key, &entry).await;
             
             if let Ok(value) = self.deserialize_entry::<T>(&entry) {
@@ -118,13 +118,13 @@ impl AdvancedCacheService {
             }
         }
 
-        // Cache miss
+        
         let mut stats = self.stats.write().await;
         stats.l2_misses += 1;
         None
     }
 
-    /// Set value in cache with intelligent write strategy
+    
     pub async fn set<T>(&self, key: &str, value: &T, ttl_seconds: Option<u64>) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
     where
         T: Serialize,
@@ -134,17 +134,17 @@ impl AdvancedCacheService {
 
         match self.config.write_strategy {
             WriteStrategy::WriteThrough => {
-                // Write to both L1 and L2 immediately
+                
                 self.set_to_l1(key, &entry).await;
                 self.set_to_l2(key, &entry).await;
             }
             WriteStrategy::WriteBack => {
-                // Write to L1 immediately, schedule L2 write
+                
                 self.set_to_l1(key, &entry).await;
-                // TODO: Implement batch write scheduler
+                
             }
             WriteStrategy::WriteAround => {
-                // Write only to L2
+                
                 self.set_to_l2(key, &entry).await;
             }
         }
@@ -152,7 +152,7 @@ impl AdvancedCacheService {
         Ok(())
     }
 
-    /// Invalidate cache entry
+    
     pub async fn invalidate(&self, key: &str) {
         self.l1_cache.remove(key);
         if let Some(redis) = &self.redis_client {
@@ -162,12 +162,12 @@ impl AdvancedCacheService {
         }
     }
 
-    /// Get cache statistics for monitoring
+    
     pub async fn get_stats(&self) -> CacheStats {
         self.stats.read().await.clone()
     }
 
-    /// Clear all cache data
+    
     pub async fn clear(&self) {
         self.l1_cache.clear();
         if let Some(redis) = &self.redis_client {
@@ -177,11 +177,11 @@ impl AdvancedCacheService {
         }
     }
 
-    // Private helper methods
+    
 
     async fn get_from_l1(&self, key: &str) -> Option<CacheEntry> {
         if let Some(mut entry) = self.l1_cache.get_mut(key) {
-            // Check TTL
+            
             let now = current_timestamp();
             if now - entry.created_at > entry.ttl_seconds {
                 drop(entry);
@@ -189,7 +189,7 @@ impl AdvancedCacheService {
                 return None;
             }
 
-            // Update access statistics
+            
             entry.last_accessed = now;
             entry.access_count += 1;
 
@@ -212,7 +212,7 @@ impl AdvancedCacheService {
     }
 
     async fn set_to_l1(&self, key: &str, entry: &CacheEntry) {
-        // Implement LRU eviction if cache is full
+        
         if self.l1_cache.len() >= self.config.l1_max_size {
             self.evict_lru().await;
         }
@@ -242,7 +242,7 @@ impl AdvancedCacheService {
         let mut compressed = false;
         let mut encrypted = false;
 
-        // Apply compression if enabled and beneficial
+        
         if self.config.enable_compression && data.len() > 1024 {
             data = compress_data(&data)?;
             compressed = true;
@@ -251,7 +251,7 @@ impl AdvancedCacheService {
             stats.compressions += 1;
         }
 
-        // Apply encryption if enabled
+        
         if self.config.enable_encryption {
             data = encrypt_data(&data)?;
             encrypted = true;
@@ -274,12 +274,12 @@ impl AdvancedCacheService {
     {
         let mut data = entry.data.clone();
 
-        // Apply decryption if needed
+        
         if entry.encrypted {
             data = decrypt_data(&data)?;
         }
 
-        // Apply decompression if needed
+        
         if entry.compressed {
             data = decompress_data(&data)?;
             
@@ -291,7 +291,7 @@ impl AdvancedCacheService {
     }
 
     async fn evict_lru(&self) {
-        // Find least recently used entry
+        
         let mut oldest_key: Option<String> = None;
         let mut oldest_time = u64::MAX;
 
@@ -311,7 +311,7 @@ impl AdvancedCacheService {
     }
 }
 
-// Utility functions
+
 
 fn current_timestamp() -> u64 {
     SystemTime::now()
@@ -321,7 +321,7 @@ fn current_timestamp() -> u64 {
 }
 
 fn compress_data(data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-    // Simple compression implementation (in production, use zstd or lz4)
+    
     use std::io::Write;
     let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
     encoder.write_all(data)?;
@@ -337,16 +337,16 @@ fn decompress_data(data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error + S
 }
 
 fn encrypt_data(data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-    // Placeholder for encryption (implement with AES-GCM in production)
+    
     Ok(data.to_vec())
 }
 
 fn decrypt_data(data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-    // Placeholder for decryption (implement with AES-GCM in production)
+    
     Ok(data.to_vec())
 }
 
-/// Query result caching specifically for database operations
+
 pub struct QueryCache {
     cache: AdvancedCacheService,
 }
@@ -355,8 +355,8 @@ impl QueryCache {
     pub fn new(redis_url: Option<&str>) -> Self {
         let config = CacheConfig {
             l1_max_size: 500,
-            l1_ttl_seconds: 60, // 1 minute for queries
-            l2_ttl_seconds: 600, // 10 minutes
+            l1_ttl_seconds: 60, 
+            l2_ttl_seconds: 600, 
             enable_compression: true,
             enable_encryption: false,
             write_strategy: WriteStrategy::WriteThrough,
@@ -373,16 +373,16 @@ impl QueryCache {
         Fut: std::future::Future<Output = Result<T, Box<dyn std::error::Error + Send + Sync>>>,
         T: Serialize + for<'de> Deserialize<'de> + Clone,
     {
-        // Try cache first
+        
         if let Some(cached) = self.cache.get::<T>(key).await {
             return Ok(cached);
         }
 
-        // Compute value
+        
         let computed = compute_fn().await?;
         
-        // Cache the result
-        self.cache.set(key, &computed, Some(300)).await?; // 5 minute TTL
+        
+        self.cache.set(key, &computed, Some(300)).await?; 
         
         Ok(computed)
     }

@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 
 pub mod copilot;
-// pub mod mcp; // Disabled for now
+
 pub mod auth;
 pub mod billing;
 pub mod social;
 
-// VCS (Version Control System) Models
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum VcsType {
     Git,
@@ -100,7 +100,7 @@ pub struct ConnectRepositoryRequest {
     pub config: Option<RepositoryConfig>,
 }
 
-// Legacy repository connection request (deprecated)
+
 #[derive(Deserialize)]
 pub struct ConnectRepoRequest {
     pub repo_url: String,
@@ -188,16 +188,16 @@ pub struct UpdateSettingsRequest {
     pub security: Option<SecuritySettings>,
 }
 
-// AI Agent Models
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AgentRecord {
     pub id: String,
     pub user_id: String,
     pub name: String,
-    pub agent_type: String, // "openai", "anthropic", "custom", etc.
-    pub endpoint: Option<String>, // For custom agents
-    pub api_key: String, // Encrypted in storage
-    pub permissions: Vec<String>, // ["read", "write", "context", "repositories", "documents", "urls"]
+    pub agent_type: String, 
+    pub endpoint: Option<String>, 
+    pub api_key: String, 
+    pub permissions: Vec<String>, 
     pub status: AgentStatus,
     pub config: AgentConfig,
     pub created_at: String,
@@ -216,10 +216,10 @@ pub enum AgentStatus {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AgentConfig {
-    pub model: Option<String>, // e.g., "gpt-4", "claude-3"
+    pub model: Option<String>, 
     pub temperature: Option<f32>,
     pub max_tokens: Option<u32>,
-    pub timeout: Option<u32>, // seconds
+    pub timeout: Option<u32>, 
     pub custom_instructions: Option<String>,
 }
 
@@ -257,7 +257,7 @@ pub struct UpdateAgentRequest {
 #[allow(dead_code)]
 pub struct AgentInvokeRequest {
     pub message: String,
-    pub context_type: Option<String>, // "repositories", "documents", "urls", "all"
+    pub context_type: Option<String>, 
     pub include_history: Option<bool>,
 }
 
@@ -309,7 +309,7 @@ pub struct UrlContext {
     pub tags: Vec<String>,
 }
 
-// Data Source Types
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum DataSourceType {
     Repository,
@@ -322,4 +322,3 @@ pub enum DataSourceType {
     Notion,
 }
 
-// Model Context Protocol module is declared at the top of the file

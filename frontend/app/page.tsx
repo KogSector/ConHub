@@ -27,7 +27,7 @@ export default function Home() {
   }
 
   if (isAuthenticated) {
-    return null; // Will redirect to dashboard
+    return null; 
   }
 
   return (

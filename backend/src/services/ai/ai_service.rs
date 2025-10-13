@@ -97,7 +97,7 @@ impl AIAgentManager {
     }
 }
 
-// --- GitHub Copilot Connector ---
+
 
 struct GitHubCopilotConnector {
     agent: AIAgent,
@@ -118,8 +118,8 @@ impl GitHubCopilotConnector {
 #[async_trait]
 impl AIAgentConnector for GitHubCopilotConnector {
     async fn connect(&self, credentials: &HashMap<String, String>) -> Result<bool, Box<dyn Error>> {
-        // In a real implementation, you would use the credentials to authenticate with the GitHub Copilot API.
-        // For now, we'll just simulate a successful connection.
+        
+        
         println!("Connecting to GitHub Copilot with credentials: {:?}", credentials);
         Ok(true)
     }
@@ -129,8 +129,8 @@ impl AIAgentConnector for GitHubCopilotConnector {
     }
 
     async fn query(&self, prompt: &str, context: Option<&str>) -> Result<String, Box<dyn Error>> {
-        // In a real implementation, you would send the prompt and context to the GitHub Copilot API.
-        // For now, we'll just return a simulated response.
+        
+        
         let response = format!(
             "GitHub Copilot response for: '{}' with context: '{}'",
             prompt,
@@ -144,7 +144,7 @@ impl AIAgentConnector for GitHubCopilotConnector {
     }
 }
 
-// --- Cline Connector ---
+
 
 struct ClineConnector {
     agent: AIAgent,
@@ -165,8 +165,8 @@ impl ClineConnector {
 #[async_trait]
 impl AIAgentConnector for ClineConnector {
     async fn connect(&self, credentials: &HashMap<String, String>) -> Result<bool, Box<dyn Error>> {
-        // In a real implementation, you would use the credentials to authenticate with the Cline API.
-        // For now, we'll just simulate a successful connection.
+        
+        
         println!("Connecting to Cline with credentials: {:?}", credentials);
         Ok(true)
     }
@@ -176,8 +176,8 @@ impl AIAgentConnector for ClineConnector {
     }
 
     async fn query(&self, prompt: &str, context: Option<&str>) -> Result<String, Box<dyn Error>> {
-        // In a real implementation, you would send the prompt and context to the Cline API.
-        // For now, we'll just return a simulated response.
+        
+        
         let response = format!(
             "Cline response for: '{}' with context: '{}'",
             prompt,
@@ -191,13 +191,13 @@ impl AIAgentConnector for ClineConnector {
     }
 }
 
-// --- Amazon Q Connector ---
+
 
 struct AmazonQConnector {
     agent: AIAgent,
 }
 
-// --- Cursor IDE Connector ---
+
 
 struct CursorIDEConnector {
     agent: AIAgent,
@@ -255,8 +255,8 @@ impl AmazonQConnector {
 #[async_trait]
 impl AIAgentConnector for AmazonQConnector {
     async fn connect(&self, credentials: &HashMap<String, String>) -> Result<bool, Box<dyn Error>> {
-        // In a real implementation, you would use the credentials to authenticate with the Amazon Q API.
-        // For now, we'll just simulate a successful connection.
+        
+        
         println!("Connecting to Amazon Q with credentials: {:?}", credentials);
         Ok(true)
     }
@@ -266,8 +266,8 @@ impl AIAgentConnector for AmazonQConnector {
     }
 
     async fn query(&self, prompt: &str, context: Option<&str>) -> Result<String, Box<dyn Error>> {
-        // In a real implementation, you would send the prompt and context to the Amazon Q API.
-        // For now, we'll just return a simulated response.
+        
+        
         let response = format!(
             "Amazon Q response for: '{}' with context: '{}'",
             prompt,
@@ -290,7 +290,7 @@ pub struct AgentService {
     mcp_clients: Arc<tokio::sync::RwLock<HashMap<String, McpClient>>>,
 }
 
-/// MCP-enhanced context for AI agents
+
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct McpEnhancedContext {
@@ -379,10 +379,10 @@ impl AgentService {
         }
     }
 
-    /// Initialize the service with MCP server setup
+    
     #[allow(dead_code)]
     pub async fn initialize(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        // Initialize the MCP server
+        
         Arc::get_mut(&mut self.mcp_server)
             .ok_or("Failed to get mutable reference to MCP server")?
             .initialize()
@@ -393,7 +393,7 @@ impl AgentService {
         Ok(())
     }
 
-    /// Connect to an external MCP server
+    
     #[allow(dead_code)]
     pub async fn connect_external_mcp_server(
         &self,
@@ -409,7 +409,7 @@ impl AgentService {
             .await
             .map_err(|e| format!("Failed to connect to MCP server: {}", e))?;
 
-        // Store the client
+        
         {
             let mut clients = self.mcp_clients.write().await;
             clients.insert(name.clone(), mcp_client);
@@ -419,7 +419,7 @@ impl AgentService {
         Ok(server_id)
     }
 
-    /// Create MCP-enhanced context for an agent
+    
     #[allow(dead_code)]
     pub async fn create_mcp_context(
         &self,
@@ -430,7 +430,7 @@ impl AgentService {
         let mcp_resources = Vec::new();
         let mut context_metadata = HashMap::new();
 
-        // Create contexts based on agent permissions
+        
         if agent.permissions.contains(&"repositories".to_string()) {
             if let Ok(repo_context) = self.create_repository_context().await {
                 mcp_contexts.push(repo_context);
@@ -449,7 +449,7 @@ impl AgentService {
             }
         }
 
-        // Add metadata about context creation
+        
         context_metadata.insert("created_at".to_string(), json!(chrono::Utc::now()));
         context_metadata.insert("agent_id".to_string(), json!(agent.id));
         context_metadata.insert("permissions".to_string(), json!(agent.permissions));
@@ -462,13 +462,13 @@ impl AgentService {
         })
     }
 
-    /// Create repository context using MCP
+    
     #[allow(dead_code)]
     async fn create_repository_context(&self) -> Result<McpContext, McpError> {
         let context_id = uuid::Uuid::new_v4().to_string();
         let now = chrono::Utc::now();
 
-        // In a real implementation, this would fetch actual repository data
+        
         let context = McpContext {
             id: context_id,
             name: "Repository Context".to_string(),
@@ -498,7 +498,7 @@ impl AgentService {
         Ok(context)
     }
 
-    /// Create document context using MCP
+    
     #[allow(dead_code)]
     async fn create_document_context(&self) -> Result<McpContext, McpError> {
         let context_id = uuid::Uuid::new_v4().to_string();
@@ -533,7 +533,7 @@ impl AgentService {
         Ok(context)
     }
 
-    /// Create URL context using MCP
+    
     #[allow(dead_code)]
     async fn create_url_context(&self) -> Result<McpContext, McpError> {
         let context_id = uuid::Uuid::new_v4().to_string();
@@ -577,7 +577,7 @@ impl AgentService {
     ) -> Result<AgentInvokeResponse, Box<dyn std::error::Error>> {
         let start_time = std::time::Instant::now();
         
-        // Create MCP-enhanced context
+        
         let mcp_context = self.create_mcp_context(agent, context.cloned()).await?;
         
         let response = match agent.agent_type.as_str() {
@@ -599,7 +599,7 @@ impl AgentService {
         })
     }
 
-    /// OpenAI invocation with MCP-enhanced context
+    
     #[allow(dead_code)]
     async fn invoke_openai_with_mcp(
         &self,
@@ -613,7 +613,7 @@ impl AgentService {
         
         let mut messages = vec![];
         
-        // Add system message with MCP-enhanced context
+        
         let context_summary = self.format_mcp_context_for_openai(mcp_context);
         if !context_summary.is_empty() {
             messages.push(OpenAIMessage {
@@ -625,7 +625,7 @@ impl AgentService {
             });
         }
 
-        // Add custom instructions if any
+        
         if let Some(instructions) = &agent.config.custom_instructions {
             messages.push(OpenAIMessage {
                 role: "system".to_string(),
@@ -633,7 +633,7 @@ impl AgentService {
             });
         }
 
-        // Add user message
+        
         messages.push(OpenAIMessage {
             role: "user".to_string(),
             content: request.message.clone(),
@@ -676,13 +676,13 @@ impl AgentService {
             response: response_text,
             usage: AgentInvokeUsage {
                 tokens_used: openai_response.usage.total_tokens,
-                response_time_ms: 0, // Will be set by caller
+                response_time_ms: 0, 
             },
             context_used,
         })
     }
 
-    /// Anthropic invocation with MCP-enhanced context
+    
     #[allow(dead_code)]
     async fn invoke_anthropic_with_mcp(
         &self,
@@ -694,7 +694,7 @@ impl AgentService {
         let temperature = agent.config.temperature.unwrap_or(0.7);
         let max_tokens = agent.config.max_tokens.unwrap_or(1000);
 
-        // Format MCP context for Anthropic
+        
         let context_summary = self.format_mcp_context_for_anthropic(mcp_context);
         
         let mut content = String::new();
@@ -749,13 +749,13 @@ impl AgentService {
             response: response_text,
             usage: AgentInvokeUsage {
                 tokens_used: total_tokens,
-                response_time_ms: 0, // Will be set by caller
+                response_time_ms: 0, 
             },
             context_used,
         })
     }
 
-    /// Custom agent invocation with MCP-enhanced context
+    
     #[allow(dead_code)]
     async fn invoke_custom_with_mcp(
         &self,
@@ -766,7 +766,7 @@ impl AgentService {
         let endpoint = agent.endpoint.as_ref()
             .ok_or("Custom agent endpoint not configured")?;
 
-        // Create MCP-aware payload
+        
         let context_summary = self.format_mcp_context_for_custom(mcp_context);
         
         let payload = json!({
@@ -813,18 +813,18 @@ impl AgentService {
             response: response_text,
             usage: AgentInvokeUsage {
                 tokens_used,
-                response_time_ms: 0, // Will be set by caller
+                response_time_ms: 0, 
             },
             context_used,
         })
     }
 
-    /// Format MCP context for OpenAI
+    
     #[allow(dead_code)]
     fn format_mcp_context_for_openai(&self, mcp_context: &McpEnhancedContext) -> String {
         let mut context_str = String::new();
 
-        // Add MCP contexts
+        
         if !mcp_context.mcp_contexts.is_empty() {
             context_str.push_str("## MCP Contexts:\n");
             for context in &mcp_context.mcp_contexts {
@@ -862,7 +862,7 @@ impl AgentService {
             }
         }
 
-        // Add traditional context if available for backward compatibility
+        
         if let Some(traditional) = &mcp_context.traditional_context {
             context_str.push_str(&self.format_context_for_openai(traditional));
         }
@@ -870,7 +870,7 @@ impl AgentService {
         context_str
     }
 
-    /// Format MCP context for Anthropic
+    
     #[allow(dead_code)]
     fn format_mcp_context_for_anthropic(&self, mcp_context: &McpEnhancedContext) -> String {
         let mut context_str = String::new();
@@ -892,7 +892,7 @@ impl AgentService {
             }
         }
 
-        // Add traditional context if available
+        
         if let Some(traditional) = &mcp_context.traditional_context {
             context_str.push_str(&self.format_context_for_anthropic(traditional));
         }
@@ -900,7 +900,7 @@ impl AgentService {
         context_str
     }
 
-    /// Format MCP context for custom agents
+    
     #[allow(dead_code)]
     fn format_mcp_context_for_custom(&self, mcp_context: &McpEnhancedContext) -> serde_json::Value {
         json!({
@@ -923,12 +923,12 @@ impl AgentService {
         let temperature = agent.config.temperature.unwrap_or(0.7);
         let max_tokens = agent.config.max_tokens.unwrap_or(1000);
         
-        // Use include_history flag (placeholder for future conversation history feature)
+        
         let _include_history = request.include_history.unwrap_or(false);
         
         let mut messages = vec![];
         
-        // Add system message with context if available
+        
         if let Some(ctx) = context {
             let context_summary = self.format_context_for_openai(ctx);
             messages.push(OpenAIMessage {
@@ -940,7 +940,7 @@ impl AgentService {
             });
         }
         
-        // Add custom instructions if any
+        
         if let Some(instructions) = &agent.config.custom_instructions {
             messages.push(OpenAIMessage {
                 role: "system".to_string(),
@@ -948,7 +948,7 @@ impl AgentService {
             });
         }
         
-        // Add user message
+        
         messages.push(OpenAIMessage {
             role: "user".to_string(),
             content: request.message.clone(),
@@ -990,7 +990,7 @@ impl AgentService {
             response: response_text,
             usage: AgentInvokeUsage {
                 tokens_used: openai_response.usage.total_tokens,
-                response_time_ms: 0, // Will be set by caller
+                response_time_ms: 0, 
             },
             context_used,
         })
@@ -1009,13 +1009,13 @@ impl AgentService {
         
         let mut content = request.message.clone();
         
-        // Add context if available
+        
         if let Some(ctx) = context {
             let context_summary = self.format_context_for_anthropic(ctx);
             content = format!("Context:\n{}\n\nUser request: {}", context_summary, content);
         }
         
-        // Add custom instructions if any
+        
         if let Some(instructions) = &agent.config.custom_instructions {
             content = format!("Instructions: {}\n\n{}", instructions, content);
         }
@@ -1062,7 +1062,7 @@ impl AgentService {
             response: response_text,
             usage: AgentInvokeUsage {
                 tokens_used: total_tokens,
-                response_time_ms: 0, // Will be set by caller
+                response_time_ms: 0, 
             },
             context_used,
         })
@@ -1090,7 +1090,7 @@ impl AgentService {
             .header("Content-Type", "application/json")
             .json(&payload);
         
-        // Add authentication if API key is provided
+        
         if !agent.api_key.is_empty() {
             request_builder = request_builder.header("Authorization", format!("Bearer {}", agent.api_key));
         }
@@ -1120,7 +1120,7 @@ impl AgentService {
             response: response_text,
             usage: AgentInvokeUsage {
                 tokens_used,
-                response_time_ms: 0, // Will be set by caller
+                response_time_ms: 0, 
             },
             context_used,
         })
@@ -1174,7 +1174,7 @@ impl AgentService {
     }
 
     fn format_context_for_anthropic(&self, context: &AgentContext) -> String {
-        // Similar to OpenAI but potentially with different formatting preferences
+        
         self.format_context_for_openai(context)
     }
 
@@ -1201,14 +1201,14 @@ impl AgentService {
 
     #[allow(dead_code)]
     async fn test_anthropic_connection(&self, agent: &AgentRecord) -> Result<bool, Box<dyn std::error::Error>> {
-        // Anthropic doesn't have a simple health check endpoint, so we'll make a minimal request
+        
         let messages = vec![AnthropicMessage {
             role: "user".to_string(),
             content: "Hello".to_string(),
         }];
         
         let payload = AnthropicRequest {
-            model: "claude-3-haiku-20240307".to_string(), // Use the cheapest model for testing
+            model: "claude-3-haiku-20240307".to_string(), 
             messages,
             max_tokens: 10,
             temperature: Some(0.0),
@@ -1230,7 +1230,7 @@ impl AgentService {
     async fn test_custom_connection(&self, agent: &AgentRecord) -> Result<bool, Box<dyn std::error::Error>> {
         let endpoint = agent.endpoint.as_ref().ok_or("Custom agent requires endpoint")?;
         
-        // Try a simple health check or minimal request
+        
         let health_url = format!("{}/health", endpoint.trim_end_matches('/'));
         let response = self.client
             .get(&health_url)
@@ -1240,7 +1240,7 @@ impl AgentService {
         match response {
             Ok(resp) => Ok(resp.status().is_success()),
             Err(_) => {
-                // If health endpoint doesn't exist, try the main endpoint with a test request
+                
                 let test_payload = json!({
                     "message": "test",
                     "test": true

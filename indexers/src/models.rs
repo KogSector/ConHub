@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use validator::Validate;
 
-// ============================================================================
-// Request Models
-// ============================================================================
+
+
+
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct IndexRepositoryRequest {
@@ -53,9 +53,9 @@ pub struct SearchRequest {
     pub filters: Option<HashMap<String, String>>,
 }
 
-// ============================================================================
-// Response Models
-// ============================================================================
+
+
+
 
 #[derive(Debug, Serialize)]
 pub struct IndexingResponse {
@@ -105,9 +105,9 @@ pub struct StatusResponse {
     pub queue_size: usize,
 }
 
-// ============================================================================
-// Internal Models
-// ============================================================================
+
+
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IndexingStatus {

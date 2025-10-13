@@ -181,7 +181,7 @@ export function UsageTracking() {
         </Select>
       </div>
 
-      {/* Usage Overview Cards */}
+      {}
       <div className="grid gap-6 md:grid-cols-3">
         {['repositories', 'ai_queries', 'storage_gb'].map((resourceType) => (
           <Card key={resourceType}>
@@ -222,7 +222,7 @@ export function UsageTracking() {
         ))}
       </div>
 
-      {/* Usage Chart */}
+      {}
       {chartData.length > 0 && (
         <Card>
           <CardHeader>
@@ -251,7 +251,7 @@ export function UsageTracking() {
         </Card>
       )}
 
-      {/* Current Plan Info */}
+      {}
       {currentSubscription && (
         <Card>
           <CardHeader>

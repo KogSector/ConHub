@@ -1,5 +1,5 @@
-# ConHub Docker Development Setup Script
-# This script sets up the complete ConHub development environment using Docker
+
+
 
 param(
     [Parameter(Mandatory=$false)]
@@ -15,7 +15,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Colors for output
+
 $Green = [System.ConsoleColor]::Green
 $Yellow = [System.ConsoleColor]::Yellow
 $Red = [System.ConsoleColor]::Red
@@ -239,7 +239,7 @@ function Show-Help {
     Write-Host ""
 }
 
-# Main execution
+
 Show-Header
 
 if ($Action -eq "help" -or $Action -eq "h") {

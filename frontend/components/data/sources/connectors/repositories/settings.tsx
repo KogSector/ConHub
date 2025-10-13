@@ -59,7 +59,7 @@ export function RepositorySettings() {
 
   return (
     <div className="space-y-6">
-      {/* Add Repository */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -101,7 +101,7 @@ export function RepositorySettings() {
         </CardContent>
       </Card>
 
-      {/* Connected Repositories */}
+      {}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -158,7 +158,7 @@ export function RepositorySettings() {
                 </div>
               </div>
 
-              {/* Repository Settings */}
+              {}
               <div className="grid gap-4 md:grid-cols-3 pt-3 border-t border-border">
                 <div className="space-y-2">
                   <Label className="text-sm">Sync Branch</Label>
@@ -199,7 +199,7 @@ export function RepositorySettings() {
         </CardContent>
       </Card>
 
-      {/* Sync Settings */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle>Global Sync Settings</CardTitle>
@@ -248,7 +248,7 @@ export function RepositorySettings() {
         </CardContent>
       </Card>
 
-      {/* Save Changes */}
+      {}
       <div className="flex justify-end gap-4">
         <Button variant="outline">Cancel</Button>
         <Button>Save Changes</Button>

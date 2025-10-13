@@ -137,7 +137,7 @@ export function BillingDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Subscription Overview */}
+      {}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -203,7 +203,7 @@ export function BillingDashboard() {
         </Card>
       </div>
 
-      {/* Usage Overview */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -241,7 +241,7 @@ export function BillingDashboard() {
         </CardContent>
       </Card>
 
-      {/* Recent Invoices */}
+      {}
       {data?.recent_invoices && data.recent_invoices.length > 0 && (
         <Card>
           <CardHeader>

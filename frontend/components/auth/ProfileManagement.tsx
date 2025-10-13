@@ -119,7 +119,7 @@ export function ProfileManagement() {
         </div>
       )}
 
-      {/* Profile Information */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -131,7 +131,7 @@ export function ProfileManagement() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Avatar Section */}
+          {}
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16">
               <AvatarImage src={user.avatar_url} alt={user.name} />
@@ -227,7 +227,7 @@ export function ProfileManagement() {
         </CardContent>
       </Card>
 
-      {/* Password Change */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

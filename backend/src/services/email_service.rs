@@ -115,7 +115,7 @@ The ConHub Team
             reset_link
         );
 
-        // Always log the email content for debugging
+        
         log::info!("=== PASSWORD RESET EMAIL ===");
         log::info!("To: {}", to_email);
         log::info!("Subject: {}", subject);
@@ -123,7 +123,7 @@ The ConHub Team
         log::info!("Token: {}", reset_token);
         log::info!("=== END EMAIL ===");
         
-        // Try to send actual email via SMTP
+        
         match self.send_via_lettre_smtp(to_email, subject, &html_body, &text_body).await {
             Ok(_) => {
                 log::info!("Email sent successfully to: {}", to_email);
@@ -131,14 +131,14 @@ The ConHub Team
             }
             Err(e) => {
                 log::warn!("Failed to send email, but returning success for security: {}", e);
-                // Return success anyway to prevent email enumeration attacks
+                
                 Ok(())
             }
         }
     }
 
     async fn send_via_lettre_smtp(&self, to_email: &str, subject: &str, html_body: &str, text_body: &str) -> Result<(), String> {
-        // Parse email addresses
+        
         let from_mailbox: Mailbox = format!("{} <{}>", self.config.from_name, self.config.from_email)
             .parse()
             .map_err(|e| format!("Invalid from email: {}", e))?;
@@ -147,7 +147,7 @@ The ConHub Team
             .parse()
             .map_err(|e| format!("Invalid to email: {}", e))?;
 
-        // Build the email message
+        
         let email = Message::builder()
             .from(from_mailbox)
             .to(to_mailbox)
@@ -167,7 +167,7 @@ The ConHub Team
             )
             .map_err(|e| format!("Failed to build email: {}", e))?;
 
-        // Create SMTP transport
+        
         let creds = Credentials::new(
             self.config.smtp_username.clone(),
             self.config.smtp_password.clone(),
@@ -179,7 +179,7 @@ The ConHub Team
             .port(self.config.smtp_port)
             .build();
 
-        // Send the email
+        
         match mailer.send(email).await {
             Ok(_) => {
                 log::info!("Email sent successfully via SMTP to: {}", to_email);
@@ -192,7 +192,7 @@ The ConHub Team
         }
     }
 
-    // Fallback method for sending via external service
+    
     pub async fn send_via_external_service(&self, to_email: &str, reset_token: &str) -> Result<(), String> {
         let email_service_url = env::var("EMAIL_SERVICE_URL")
             .unwrap_or_else(|_| "http://localhost:3003".to_string());

@@ -22,7 +22,7 @@ impl SocialIntegrationService {
     pub fn new(db: PgPool) -> Result<Self> {
         let mut oauth_clients = HashMap::new();
         
-        // Initialize OAuth clients for each platform
+        
         if let Ok(client) = Self::create_slack_client() {
             oauth_clients.insert(SocialPlatform::Slack, client);
         }
@@ -51,7 +51,7 @@ impl SocialIntegrationService {
         })
     }
 
-    /// Initialize database tables for social connections
+    
     #[allow(dead_code)]
     pub async fn init_database(&self) -> Result<()> {
         sqlx::query(
@@ -85,7 +85,7 @@ impl SocialIntegrationService {
         Ok(())
     }
 
-    /// Generate OAuth authorization URL for a platform
+    
     pub fn get_auth_url(&self, platform: SocialPlatform, _state: Option<String>) -> Result<(String, String)> {
         let client = self.oauth_clients.get(&platform)
             .ok_or_else(|| anyhow::anyhow!("OAuth client not configured for platform: {}", platform))?;
@@ -102,12 +102,12 @@ impl SocialIntegrationService {
         Ok((auth_url.to_string(), csrf_token.secret().clone()))
     }
 
-    /// Complete OAuth flow and store connection
+    
     pub async fn connect_platform(&self, user_id: Uuid, request: SocialConnectionRequest) -> Result<SocialConnectionResponse> {
         let client = self.oauth_clients.get(&request.platform)
             .ok_or_else(|| anyhow::anyhow!("OAuth client not configured for platform: {}", request.platform))?;
 
-        // Exchange code for token
+        
         let token_result = client
             .exchange_code(AuthorizationCode::new(request.code))
             .request_async(async_http_client)
@@ -117,10 +117,10 @@ impl SocialIntegrationService {
         let refresh_token = token_result.refresh_token().map(|t| t.secret().clone());
         let expires_at = token_result.expires_in().map(|duration| Utc::now() + chrono::Duration::from_std(duration).unwrap());
 
-        // Get platform user info
+        
         let (platform_user_id, metadata) = self.get_platform_user_info(&request.platform, access_token).await?;
 
-        // Store connection in database
+        
         let connection_id = Uuid::new_v4();
         let scopes = self.get_platform_scopes(&request.platform).join(" ");
         
@@ -169,7 +169,7 @@ impl SocialIntegrationService {
         })
     }
 
-    /// Get all connections for a user
+    
     pub async fn get_user_connections(&self, user_id: Uuid) -> Result<Vec<SocialConnectionResponse>> {
         let rows = sqlx::query(
             "SELECT * FROM social_connections WHERE user_id = $1 AND is_active = TRUE ORDER BY created_at DESC"
@@ -202,7 +202,7 @@ impl SocialIntegrationService {
         Ok(connections)
     }
 
-    /// Disconnect a platform
+    
     pub async fn disconnect_platform(&self, user_id: Uuid, connection_id: Uuid) -> Result<()> {
         sqlx::query(
             "UPDATE social_connections SET is_active = FALSE, updated_at = NOW() WHERE id = $1 AND user_id = $2"
@@ -216,7 +216,7 @@ impl SocialIntegrationService {
         Ok(())
     }
 
-    /// Sync data from a connected platform
+    
     pub async fn sync_platform_data(&self, connection_id: Uuid, _sync_request: DataSyncRequest) -> Result<DataSyncResponse> {
         let connection = self.get_connection_by_id(connection_id).await?;
         let platform: SocialPlatform = connection.platform.parse()
@@ -227,7 +227,7 @@ impl SocialIntegrationService {
         let mut status = "success".to_string();
         let mut error = None;
 
-        // Get access token for the connection
+        
         let token_row = sqlx::query(
             "SELECT access_token FROM social_tokens WHERE connection_id = $1"
         )
@@ -237,7 +237,7 @@ impl SocialIntegrationService {
         
         let access_token: String = token_row.get("access_token");
 
-        // Define what data types to fetch for each platform
+        
         let data_types = match platform {
             SocialPlatform::Slack => vec!["channels".to_string(), "messages".to_string()],
             SocialPlatform::Notion => vec!["pages".to_string(), "databases".to_string()],
@@ -247,10 +247,10 @@ impl SocialIntegrationService {
             SocialPlatform::LinkedIn => vec!["profile".to_string(), "posts".to_string()],
         };
 
-        // Fetch data using our data fetcher
+        
         match self.data_fetcher.fetch_platform_data(platform.clone(), &access_token, data_types).await {
             Ok(social_data_items) => {
-                // Store the fetched data in the database
+                
                 for social_data in social_data_items {
                     match sqlx::query(
                         "INSERT INTO social_data (connection_id, platform, data_type, external_id, title, content, url, metadata, synced_at)
@@ -260,7 +260,7 @@ impl SocialIntegrationService {
                     )
                     .bind(connection_id)
                     .bind(platform.to_string())
-                    .bind("general") // Default data type - could be more specific based on the data
+                    .bind("general") 
                     .bind(&social_data.external_id)
                     .bind(&social_data.title)
                     .bind(&social_data.content)
@@ -276,7 +276,7 @@ impl SocialIntegrationService {
                     }
                 }
 
-                // Update last sync time for the connection
+                
                 sqlx::query("UPDATE social_connections SET last_sync = $1 WHERE id = $2")
                     .bind(Utc::now())
                     .bind(connection_id)
@@ -299,7 +299,7 @@ impl SocialIntegrationService {
         })
     }
 
-    /// Get a connection by ID
+    
     async fn get_connection_by_id(&self, connection_id: Uuid) -> Result<SocialConnection> {
         let row = sqlx::query(
             "SELECT id, user_id, platform, platform_user_id, access_token, refresh_token, token_expires_at, scope, last_sync_at, created_at, updated_at 
@@ -326,7 +326,7 @@ impl SocialIntegrationService {
         })
     }
 
-    // Private helper methods
+    
     fn create_slack_client() -> Result<BasicClient> {
         let client_id = std::env::var("SLACK_CLIENT_ID")?;
         let client_secret = std::env::var("SLACK_CLIENT_SECRET")?;
@@ -452,7 +452,7 @@ impl SocialIntegrationService {
                 Ok((user_id, response))
             },
             _ => {
-                // Implement other platforms
+                
                 Ok(("unknown".to_string(), json!({})))
             }
         }

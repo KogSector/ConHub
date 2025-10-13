@@ -26,7 +26,7 @@ pub struct OAuthInitResponse {
     pub state: String,
 }
 
-/// Initialize OAuth flow - returns authorization URL
+
 pub async fn oauth_init(
     request: web::Json<OAuthInitRequest>,
     pool: web::Data<PgPool>,
@@ -45,11 +45,11 @@ pub async fn oauth_init(
         }
     };
 
-    // Generate random state for CSRF protection
+    
     let state = Uuid::new_v4().to_string();
     let authorization_url = oauth_service.get_authorization_url(provider, &state);
 
-    // TODO: Store state in session/cache for verification in callback
+    
 
     Ok(HttpResponse::Ok().json(OAuthInitResponse {
         authorization_url,
@@ -57,7 +57,7 @@ pub async fn oauth_init(
     }))
 }
 
-/// Handle OAuth callback from provider
+
 pub async fn oauth_callback(
     query: web::Query<OAuthCallbackQuery>,
     pool: web::Data<PgPool>,
@@ -75,9 +75,9 @@ pub async fn oauth_callback(
         }
     };
 
-    // TODO: Verify state matches stored value for CSRF protection
+    
 
-    // Exchange authorization code for access token
+    
     let token_response = match oauth_service.exchange_code_for_token(provider.clone(), &query.code).await {
         Ok(token) => token,
         Err(e) => {
@@ -89,7 +89,7 @@ pub async fn oauth_callback(
         }
     };
 
-    // Get user info from provider
+    
     let (provider_user_id, email, name, avatar_url) = 
         match oauth_service.get_user_info(provider.clone(), &token_response.access_token).await {
             Ok(info) => info,
@@ -102,7 +102,7 @@ pub async fn oauth_callback(
             }
         };
 
-    // Find or create user
+    
     let user = match oauth_service.find_or_create_oauth_user(
         provider.clone(),
         provider_user_id.clone(),
@@ -120,7 +120,7 @@ pub async fn oauth_callback(
         }
     };
 
-    // Store OAuth tokens
+    
     if let Err(e) = oauth_service.store_oauth_connection(
         user.id,
         provider,
@@ -132,10 +132,10 @@ pub async fn oauth_callback(
         token_response.scope,
     ).await {
         log::warn!("Failed to store OAuth connection: {}", e);
-        // Continue anyway - user is logged in
+        
     }
 
-    // Generate JWT token for ConHub
+    
     let (token, expires_at) = match generate_jwt_token(&user) {
         Ok(result) => result,
         Err(e) => {
@@ -157,19 +157,19 @@ pub async fn oauth_callback(
     Ok(HttpResponse::Ok().json(auth_response))
 }
 
-/// Disconnect OAuth provider
+
 pub async fn oauth_disconnect(
     provider: web::Path<String>,
     pool: web::Data<PgPool>,
-    // TODO: Extract user_id from JWT token in middleware
+    
 ) -> Result<HttpResponse> {
-    // For now, return placeholder
-    // In production, extract user_id from authenticated request
+    
+    
     
     let provider_name = provider.into_inner();
     
-    // TODO: Delete social_connection for this user and provider
-    // sqlx::query!("DELETE FROM social_connections WHERE user_id = $1 AND platform = $2", user_id, provider_name)
+    
+    
     
     Ok(HttpResponse::Ok().json(json!({
         "success": true,
@@ -177,23 +177,23 @@ pub async fn oauth_disconnect(
     })))
 }
 
-/// Get connected OAuth providers for user
+
 pub async fn oauth_connections(
     pool: web::Data<PgPool>,
-    // TODO: Extract user_id from JWT token in middleware
-) -> Result<HttpResponse> {
-    // For now, return placeholder
-    // In production, extract user_id from authenticated request
     
-    // TODO: Fetch connections
-    // let connections = sqlx::query!("SELECT platform, username, created_at FROM social_connections WHERE user_id = $1 AND is_active = true", user_id)
+) -> Result<HttpResponse> {
+    
+    
+    
+    
+    
     
     Ok(HttpResponse::Ok().json(json!({
         "connections": []
     })))
 }
 
-// Helper function to generate JWT (moved to auth.rs but referenced here)
+
 fn generate_jwt_token(user: &User) -> core::result::Result<(String, chrono::DateTime<chrono::Utc>), String> {
     crate::handlers::auth::generate_jwt_token(user)
 }

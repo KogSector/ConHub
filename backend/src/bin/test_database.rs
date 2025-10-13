@@ -1,5 +1,5 @@
-// Database Operations Test Script
-// Run with: cargo run --bin test_database
+
+
 
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
@@ -12,7 +12,7 @@ async fn test_main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🧪 ConHub Database Operations Test\n");
     println!("====================================\n");
 
-    // Connect to database
+    
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
     
@@ -24,7 +24,7 @@ async fn test_main() -> Result<(), Box<dyn std::error::Error>> {
     
     println!("✅ Connected successfully\n");
 
-    // Test 1: User Creation
+    
     println!("Test 1: Creating User");
     println!("----------------------");
     
@@ -59,7 +59,7 @@ async fn test_main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Test 2: User Retrieval
+    
     println!("\nTest 2: Retrieving User");
     println!("----------------------");
     
@@ -84,7 +84,7 @@ async fn test_main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Verified: {}", row.is_verified);
     println!("   Active: {}", row.is_active);
 
-    // Test 3: Password Verification
+    
     println!("\nTest 3: Password Verification");
     println!("-----------------------------");
     
@@ -95,7 +95,7 @@ async fn test_main() -> Result<(), Box<dyn std::error::Error>> {
         println!("❌ Password verification failed");
     }
 
-    // Test 4: Update Profile
+    
     println!("\nTest 4: Updating Profile");
     println!("------------------------");
     
@@ -115,7 +115,7 @@ async fn test_main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✅ Profile updated successfully:");
     println!("   New name: {}", update_result.name);
 
-    // Test 5: List Users
+    
     println!("\nTest 5: Listing Users");
     println!("---------------------");
     
@@ -143,7 +143,7 @@ async fn test_main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    // Test 6: Verify Last Login Update
+    
     println!("\nTest 6: Update Last Login");
     println!("-------------------------");
     
@@ -157,7 +157,7 @@ async fn test_main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("✅ Last login timestamp updated");
 
-    // Test 7: Social Connections
+    
     println!("\nTest 7: Social Connections");
     println!("--------------------------");
     
@@ -182,23 +182,23 @@ async fn test_main() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => println!("⚠️  Social connection test skipped: {}", e),
     }
 
-    // Test 8: Cleanup (Delete Test User)
+    
     println!("\nTest 8: Cleanup");
     println!("---------------");
     
-    // Delete social connections first
+    
     sqlx::query!("DELETE FROM social_connections WHERE user_id = $1", user_id)
         .execute(&pool)
         .await?;
     
-    // Delete user
+    
     sqlx::query!("DELETE FROM users WHERE id = $1", user_id)
         .execute(&pool)
         .await?;
 
     println!("✅ Test user and connections deleted");
 
-    // Summary
+    
     println!("\n====================================");
     println!("🎉 All Database Tests Passed!");
     println!("====================================\n");
