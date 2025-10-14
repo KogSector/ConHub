@@ -40,7 +40,7 @@ export function ProfileSettings() {
     linkedin: ""
   });
 
-  // Update form data when settings load
+  
   useState(() => {
     if (settings) {
       setFormData({
@@ -99,7 +99,7 @@ export function ProfileSettings() {
   }
   return (
     <div className="space-y-6">
-      {/* Profile Information */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -108,7 +108,7 @@ export function ProfileSettings() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Avatar Section */}
+          {}
           <div className="flex items-center gap-6">
             <div className="relative">
               <Avatar className="w-24 h-24">
@@ -132,7 +132,7 @@ export function ProfileSettings() {
 
           <Separator />
 
-          {/* Basic Info */}
+          {}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
@@ -206,7 +206,7 @@ export function ProfileSettings() {
         </CardContent>
       </Card>
 
-      {/* Social Links */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle>Social Links</CardTitle>
@@ -254,7 +254,7 @@ export function ProfileSettings() {
         </CardContent>
       </Card>
 
-      {/* Save Changes */}
+      {}
       <div className="flex justify-end gap-4">
         <Button variant="outline" onClick={() => window.location.reload()}>Cancel</Button>
         <Button onClick={handleSave} disabled={saving}>

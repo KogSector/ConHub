@@ -29,7 +29,7 @@ export function ApiStatus({ showDetails = false, className = '' }: ApiStatusProp
   useEffect(() => {
     checkApiStatus();
     
-    // Check every 30 seconds
+    
     const interval = setInterval(checkApiStatus, 30000);
     
     return () => clearInterval(interval);

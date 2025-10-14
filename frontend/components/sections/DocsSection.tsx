@@ -138,7 +138,7 @@ export const DocsSection = () => {
           ))}
         </div>
 
-        {/* Quick Links */}
+        {}
         <div className="bg-card rounded-2xl p-8 border border-border">
           <div className="text-center space-y-4 mb-8">
             <h3 className="text-2xl font-bold text-foreground">Quick Access</h3>

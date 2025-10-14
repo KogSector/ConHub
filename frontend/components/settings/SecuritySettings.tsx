@@ -78,7 +78,7 @@ export function SecuritySettings() {
 
   return (
     <div className="space-y-6">
-      {/* Two-Factor Authentication */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -141,7 +141,7 @@ export function SecuritySettings() {
         </CardContent>
       </Card>
 
-      {/* Password Security */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -197,7 +197,7 @@ export function SecuritySettings() {
         </CardContent>
       </Card>
 
-      {/* Active Sessions */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -246,7 +246,7 @@ export function SecuritySettings() {
         </CardContent>
       </Card>
 
-      {/* API Tokens */}
+      {}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -305,7 +305,7 @@ export function SecuritySettings() {
         </CardContent>
       </Card>
 
-      {/* Security Audit Log */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

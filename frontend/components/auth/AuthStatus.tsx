@@ -11,7 +11,7 @@ export const AuthStatus = () => {
   const loginEnabled = isLoginEnabled();
 
   const handleLogin = () => {
-    // Redirect to login page
+    
     window.location.href = '/auth/login';
   };
 

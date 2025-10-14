@@ -62,7 +62,7 @@ export default function Pricing() {
       <Navbar />
       
       <main className="pt-20">
-        {/* Hero Section */}
+        {}
         <section className="py-24 bg-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <Badge variant="secondary" className="w-fit mx-auto mb-4">
@@ -78,7 +78,7 @@ export default function Pricing() {
           </div>
         </section>
 
-        {/* Pricing Cards */}
+        {}
         <section className="py-16 -mt-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
@@ -130,7 +130,7 @@ export default function Pricing() {
                       }`}
                       variant={plan.popular ? 'default' : 'outline'}
                     >
-                      {plan.name === 'Free' ? 'Get Started Free' : 
+                      {plan.name === 'Free' ? 'Get Started' : 
                        plan.name === 'Enterprise' ? 'Contact Sales' : 
                        'Start Free Trial'}
                     </Button>
@@ -141,7 +141,7 @@ export default function Pricing() {
           </div>
         </section>
 
-        {/* FAQ Section */}
+        {}
         <section className="py-16 bg-muted/20">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">

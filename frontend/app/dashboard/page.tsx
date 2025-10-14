@@ -27,7 +27,7 @@ export default function Dashboard() {
   return (
     <AuthGuard>
       <div className="min-h-screen bg-background">
-      {/* Header */}
+      {}
       <div className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
@@ -42,9 +42,9 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Main Dashboard Layout - 2 Columns */}
+        {}
         <div className="grid lg:grid-cols-2 gap-12 mb-8">
-          {/* Left Column - Quick Actions */}
+          {}
           <div>
             <h2 className="text-2xl font-semibold text-foreground mb-6">Quick Actions</h2>
             <div className="grid grid-cols-2 gap-6 mt-7">
@@ -162,7 +162,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Right Column - Stats Overview */}
+          {}
           <div>
             <h2 className="text-2xl font-semibold text-foreground mb-6">Overview</h2>
             <div className="grid grid-cols-2 gap-4">
@@ -260,7 +260,7 @@ export default function Dashboard() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Connected Sources */}
+          {}
           <Card className="bg-card border-border">
             <CardHeader>
               <div className="flex justify-between items-center">
@@ -276,7 +276,7 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Source Items */}
+              {}
               {[
                 { name: "frontend-app", type: "repository", status: "active", private: false, icon: GitBranch },
                 { name: "API Documentation", type: "document", status: "active", private: false, icon: FileText },
@@ -313,7 +313,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* AI Agents */}
+          {}
           <Card className="bg-card border-border">
             <CardHeader>
               <div className="flex justify-between items-center">
@@ -327,7 +327,7 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* AI Agent Items */}
+              {}
               {[
                 { name: "GitHub Copilot", status: "connected", requests: "1,247" },
                 { name: "Amazon Q", status: "connected", requests: "892" },
@@ -355,7 +355,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Recent Activity */}
+          {}
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-foreground">

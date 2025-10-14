@@ -47,7 +47,7 @@ export function BillingSettings() {
 
   return (
     <div className="space-y-6">
-      {/* Current Plan */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -104,7 +104,7 @@ export function BillingSettings() {
         </CardContent>
       </Card>
 
-      {/* Payment Method */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -136,7 +136,7 @@ export function BillingSettings() {
         </CardContent>
       </Card>
 
-      {/* Usage This Month */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -177,7 +177,7 @@ export function BillingSettings() {
         </CardContent>
       </Card>
 
-      {/* Billing History */}
+      {}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -225,7 +225,7 @@ export function BillingSettings() {
         </CardContent>
       </Card>
 
-      {/* Plan Comparison */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -235,7 +235,7 @@ export function BillingSettings() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
-            {/* Free Plan */}
+            {}
             <div className="p-4 rounded-lg border border-border bg-muted/20">
               <div className="text-center mb-4">
                 <h3 className="text-lg font-semibold">Free</h3>
@@ -254,7 +254,7 @@ export function BillingSettings() {
               </Button>
             </div>
 
-            {/* Pro Plan */}
+            {}
             <div className="p-4 rounded-lg border-2 border-primary bg-primary/5">
               <div className="text-center mb-4">
                 <div className="flex items-center justify-center gap-2">
@@ -277,7 +277,7 @@ export function BillingSettings() {
               </Button>
             </div>
 
-            {/* Enterprise Plan */}
+            {}
             <div className="p-4 rounded-lg border border-border bg-muted/20">
               <div className="text-center mb-4">
                 <h3 className="text-lg font-semibold">Enterprise</h3>
@@ -302,7 +302,7 @@ export function BillingSettings() {
         </CardContent>
       </Card>
 
-      {/* Billing Settings */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle>Billing Preferences</CardTitle>
@@ -332,7 +332,7 @@ export function BillingSettings() {
         </CardContent>
       </Card>
 
-      {/* Plan Management Actions */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle>Plan Management</CardTitle>

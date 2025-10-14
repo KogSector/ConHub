@@ -1,31 +1,31 @@
 const path = require('path')
 
-// Load feature toggles
+
 const featureToggles = require('./feature-toggles.json')
 
-/** @type {import('next').NextConfig} */
+
 const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  // Point Next.js to frontend directory
+  
   distDir: '.next',
-  // Performance optimizations
+  
   swcMinify: true,
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   
-  // Fast Refresh and development optimizations
+  
   reactStrictMode: true,
   
-  // Optimize package imports for faster builds
+  
   transpilePackages: [
     'lucide-react',
     '@radix-ui/react-icons'
   ],
   
-  // Image optimization - simplified when Heavy mode is off
+  
   images: featureToggles.Heavy ? {
     formats: ['image/webp', 'image/avif'],
     minimumCacheTTL: 60,
@@ -35,7 +35,7 @@ const nextConfig = {
     minimumCacheTTL: 60,
   },
   
-  // Bundle optimization - only enable when Heavy mode is on
+  
   experimental: featureToggles.Heavy ? {
     optimizePackageImports: [
       '@/components/ui',
@@ -49,11 +49,11 @@ const nextConfig = {
     },
   } : {},
   
-  // Webpack optimizations - simplified when Heavy mode is off
+  
   webpack: (config, { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack }) => {
     config.resolve.alias['@'] = path.join(__dirname, 'frontend');
     
-    // Only apply heavy optimizations when Heavy mode is enabled
+    
     if (featureToggles.Heavy && !dev && !isServer) {
       config.optimization.splitChunks = {
         chunks: 'all',
@@ -63,11 +63,11 @@ const nextConfig = {
             name: 'vendors',
             chunks: 'all',
           },
-          // Heavy dependencies - load separately to improve initial load
+          
           langchain: {
             test: /[\\/]node_modules[\\/](@langchain|langchain)[\\/]/,
             name: 'langchain',
-            chunks: 'async', // Only load when needed
+            chunks: 'async', 
             priority: 30,
           },
           framerMotion: {
@@ -97,12 +97,12 @@ const nextConfig = {
         },
       }
       
-      // Tree shaking optimization
+      
       config.optimization.usedExports = true
       config.optimization.sideEffects = false
     }
     
-    // Basic fallbacks for all modes
+    
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -115,13 +115,13 @@ const nextConfig = {
     return config
   },
   
-  // Headers for performance and security
+  
   async headers() {
     return [
       {
         source: '/(.*)',
         headers: [
-          // Security headers
+          
           {
             key: 'X-DNS-Prefetch-Control',
             value: 'on'
@@ -142,7 +142,7 @@ const nextConfig = {
             key: 'Referrer-Policy',
             value: 'origin-when-cross-origin'
           },
-          // Performance headers
+          
           {
             key: 'Strict-Transport-Security',
             value: 'max-age=31536000; includeSubDomains; preload'
@@ -161,7 +161,7 @@ const nextConfig = {
     ]
   },
   
-  // Load .env from root directory
+  
   env: {
     ...(function() {
       const envVars = require('dotenv').config({ path: path.resolve(__dirname, '.env') }).parsed || {};

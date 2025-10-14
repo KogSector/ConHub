@@ -144,7 +144,7 @@ impl DataSourceConnector for GitHubConnector {
 
         self.token = Some(token.clone());
 
-        // Test repository access if repositories are specified
+        
         if let Some(repos) = config.get("repositories").and_then(|r| r.as_array()) {
             if let Some(first_repo) = repos.first().and_then(|r| r.as_str()) {
                 self.test_repository_access(first_repo).await?;
@@ -176,7 +176,7 @@ impl DataSourceConnector for GitHubConnector {
 
                 let (owner, repo) = (parts[0], parts[1]);
                 
-                // Get repository info
+                
                 let repo_url = format!("https://api.github.com/repos/{}/{}", owner, repo);
                 let response = self.client
                     .get(&repo_url)
@@ -202,7 +202,7 @@ impl DataSourceConnector for GitHubConnector {
                         }),
                     });
 
-                    // Get README if requested
+                    
                     if data_source.config.get("includeReadme").and_then(|v| v.as_bool()).unwrap_or(false) {
                         let readme_url = format!("https://api.github.com/repos/{}/{}/readme", owner, repo);
                         if let Ok(readme_response) = self.client
@@ -244,7 +244,7 @@ impl DataSourceConnector for GitHubConnector {
     async fn fetch_branches(&self, repo_url: &str) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
         let token = self.token.as_ref().ok_or("GitHub not connected")?;
         
-        // Extract owner/repo from URL
+        
         let repo_name = if repo_url.contains("github.com") {
             repo_url.split("github.com/").nth(1)
                 .and_then(|s| s.split(".git").next())

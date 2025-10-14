@@ -102,7 +102,7 @@ export function DeveloperSettings() {
 
   return (
     <div className="space-y-6">
-      {/* API Keys */}
+      {}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -161,7 +161,7 @@ export function DeveloperSettings() {
             </div>
           ))}
 
-          {/* Generate New API Key Form */}
+          {}
           <div className="p-4 rounded-lg border-2 border-dashed border-border">
             <h4 className="font-medium mb-3">Generate New API Key</h4>
             <div className="grid gap-3 md:grid-cols-2">
@@ -191,7 +191,7 @@ export function DeveloperSettings() {
         </CardContent>
       </Card>
 
-      {/* Webhooks */}
+      {}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -248,7 +248,7 @@ export function DeveloperSettings() {
             </div>
           ))}
 
-          {/* Add New Webhook Form */}
+          {}
           <div className="p-4 rounded-lg border-2 border-dashed border-border">
             <h4 className="font-medium mb-3">Add New Webhook</h4>
             <div className="space-y-3">
@@ -291,7 +291,7 @@ export function DeveloperSettings() {
         </CardContent>
       </Card>
 
-      {/* Feature Flags */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -324,7 +324,7 @@ export function DeveloperSettings() {
         </CardContent>
       </Card>
 
-      {/* Custom Integrations */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -376,7 +376,7 @@ export function DeveloperSettings() {
         </CardContent>
       </Card>
 
-      {/* Database & Storage */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -444,7 +444,7 @@ export function DeveloperSettings() {
         </CardContent>
       </Card>
 
-      {/* Advanced Settings */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -488,7 +488,7 @@ export function DeveloperSettings() {
         </CardContent>
       </Card>
 
-      {/* Save Changes */}
+      {}
       <div className="flex justify-end gap-4">
         <Button variant="outline">Reset to Defaults</Button>
         <Button variant="outline">Cancel</Button>

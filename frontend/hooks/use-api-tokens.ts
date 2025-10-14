@@ -53,7 +53,7 @@ export function useApiTokens(userId: string = 'default') {
       const result = await response.json();
       
       if (result.success) {
-        await fetchTokens(); // Refresh the list
+        await fetchTokens(); 
         return result.data;
       } else {
         setError(result.error || 'Failed to create API token');
@@ -74,7 +74,7 @@ export function useApiTokens(userId: string = 'default') {
       const result = await response.json();
       
       if (result.success) {
-        await fetchTokens(); // Refresh the list
+        await fetchTokens(); 
         return true;
       } else {
         setError(result.error || 'Failed to delete API token');

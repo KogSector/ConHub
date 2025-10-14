@@ -32,7 +32,7 @@ function SettingsContent() {
   }, [searchParams]);
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {}
       <div className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
@@ -53,7 +53,7 @@ function SettingsContent() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex gap-8">
-          {/* Vertical Tabs List */}
+          {}
           <div className="w-64 flex-shrink-0">
             <TabsList className="flex flex-col h-auto w-full bg-card border border-border p-1">
               <TabsTrigger value="profile" className="w-full justify-start px-4 py-3 text-left data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
@@ -77,7 +77,7 @@ function SettingsContent() {
             </TabsList>
           </div>
 
-          {/* Content Area */}
+          {}
           <div className="flex-1 min-w-0">
             <TabsContent value="profile" className="mt-0 space-y-6">
               <ProfileSettings />

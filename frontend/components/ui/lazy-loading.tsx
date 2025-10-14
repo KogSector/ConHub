@@ -21,7 +21,7 @@ export function LoadingSkeleton({
   )
 }
 
-// Utility function for lazy loading components with custom loading states
+
 export function lazyLoad<T extends ComponentType<any>>(
   importFunc: () => Promise<{ default: T }>,
   loadingComponent?: () => JSX.Element,
@@ -33,7 +33,7 @@ export function lazyLoad<T extends ComponentType<any>>(
   })
 }
 
-// Pre-built lazy components for common UI elements
+
 export const LazySocialConnections = lazyLoad(
   () => import('@/components/social/social-connections'),
   () => <LoadingSkeleton height="h-32" className="border" />

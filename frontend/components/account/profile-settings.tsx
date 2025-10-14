@@ -74,7 +74,7 @@ export function ProfileSettings() {
 
   return (
     <div className="space-y-6">
-      {/* Profile Overview */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -153,7 +153,7 @@ export function ProfileSettings() {
         </CardContent>
       </Card>
 
-      {/* Edit Profile */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle>Edit Profile</CardTitle>
@@ -218,7 +218,7 @@ export function ProfileSettings() {
         </CardContent>
       </Card>
 
-      {/* Account Statistics */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle>Account Statistics</CardTitle>

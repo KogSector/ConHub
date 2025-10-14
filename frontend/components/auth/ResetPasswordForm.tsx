@@ -9,21 +9,21 @@ import { Eye, EyeOff, Lock, ArrowRight, Sparkles, CheckCircle, AlertCircle } fro
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-// Password strength calculation
+
 const calculatePasswordStrength = (password: string): { score: number; label: string; color: string } => {
   let score = 0
   
-  // Length check
+  
   if (password.length >= 8) score += 20
   if (password.length >= 12) score += 10
   
-  // Character variety checks
+  
   if (/[a-z]/.test(password)) score += 20
   if (/[A-Z]/.test(password)) score += 20
   if (/[0-9]/.test(password)) score += 15
   if (/[^A-Za-z0-9]/.test(password)) score += 15
   
-  // Determine label and color
+  
   if (score < 30) return { score, label: 'Very Weak', color: 'bg-red-500' }
   if (score < 50) return { score, label: 'Weak', color: 'bg-orange-500' }
   if (score < 70) return { score, label: 'Fair', color: 'bg-yellow-500' }
@@ -31,10 +31,10 @@ const calculatePasswordStrength = (password: string): { score: number; label: st
   return { score: 100, label: 'Strong', color: 'bg-green-500' }
 }
 
-// Password strength dots component
+
 const PasswordStrengthIndicator = ({ password }: { password: string }) => {
   const strength = useMemo(() => calculatePasswordStrength(password), [password])
-  const filledDots = Math.ceil((strength.score / 100) * 10) // 10 dots total
+  const filledDots = Math.ceil((strength.score / 100) * 10) 
   
   return (
     <div className="space-y-2">
@@ -80,7 +80,7 @@ export function ResetPasswordForm() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
 
-  // If no token, redirect to forgot password
+  
   if (!token && typeof window !== 'undefined') {
     router.push('/auth/forgot-password')
     return null
@@ -135,14 +135,14 @@ export function ResetPasswordForm() {
   if (isSuccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-green-900 to-slate-900 relative overflow-hidden">
-        {/* Background Effects */}
+        {}
         <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
         <div className="absolute bottom-8 left-1/3 w-96 h-96 bg-emerald-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
         
         <div className="relative z-10 w-full max-w-md mx-4">
-          {/* ConHub Logo */}
+          {}
           <div className="text-center mb-8">
             <Link href="/" className="inline-flex items-center space-x-2 group">
               <Sparkles className="w-8 h-8 text-green-400 group-hover:text-green-300 transition-colors" />
@@ -185,14 +185,14 @@ export function ResetPasswordForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 relative overflow-hidden">
-      {/* Background Effects */}
+      {}
       <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
       <div className="absolute top-0 right-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
       <div className="absolute bottom-8 left-1/3 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
       
       <div className="relative z-10 w-full max-w-md mx-4">
-        {/* ConHub Logo */}
+        {}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 group">
             <Sparkles className="w-8 h-8 text-indigo-400 group-hover:text-indigo-300 transition-colors" />

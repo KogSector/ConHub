@@ -89,7 +89,7 @@ export class ApiClient {
 
   constructor(baseUrl = API_CONFIG.baseUrl) {
     this.baseUrl = baseUrl;
-    // Log configuration in development
+    
     if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       console.log('API Client initialized with baseUrl:', this.baseUrl);
     }
@@ -176,7 +176,7 @@ export class ApiClient {
     return this.get('/health');
   }
 
-  // URL-specific methods
+  
   async createUrl(data: {
     url: string;
     title?: string;
@@ -194,7 +194,7 @@ export class ApiClient {
     return this.delete(`/api/urls/${id}`);
   }
 
-  // Document-specific methods
+  
   async createDocument(data: {
     name: string;
     source: string;
@@ -218,7 +218,7 @@ export class ApiClient {
     return this.get('/api/documents/analytics');
   }
 
-  // Health check method to test backend connectivity
+  
   async checkBackendHealth(): Promise<boolean> {
     try {
       const response = await this.health();
@@ -229,7 +229,7 @@ export class ApiClient {
     }
   }
 
-  // Agent-specific methods
+  
   async getAgents(): Promise<ApiResponse<AgentRecord[]>> {
     return this.get('/api/agents');
   }

@@ -97,7 +97,7 @@ impl DataSourceConnector for GoogleDriveConnector {
         let refresh_token = credentials.get("refreshToken")
             .ok_or("Google Drive refresh token is required")?;
 
-        // Try to refresh the access token to validate credentials
+        
         let mut temp_connector = GoogleDriveConnector::new();
         temp_connector.refresh_access_token(refresh_token, client_id, client_secret).await?;
 
@@ -165,7 +165,7 @@ impl DataSourceConnector for GoogleDriveConnector {
                                 let content = if drive_file.mime_type.starts_with("application/vnd.google-apps") {
                                     self.export_google_doc(&drive_file.id, &drive_file.mime_type).await.unwrap_or_default()
                                 } else {
-                                    // For regular files, we'd need to download them
+                                    
                                     String::new()
                                 };
 

@@ -47,24 +47,24 @@ impl AmazonQAgent {
     }
 
     async fn validate_aws_credentials(&self, credentials: &AmazonQCredentials) -> Result<bool, Box<dyn Error>> {
-        // This would typically involve making a test call to AWS STS or Amazon Q API
-        // For now, we'll do basic validation
+        
+        
         if credentials.access_key_id.is_empty() || credentials.secret_access_key.is_empty() {
             return Ok(false);
         }
 
-        // In a real implementation, you would:
-        // 1. Use AWS SDK to validate credentials
-        // 2. Check permissions for Amazon Q access
-        // 3. Verify the region is valid
+        
+        
+        
+        
         
         println!("Validating Amazon Q credentials for region: {}", credentials.region);
-        Ok(true) // Simplified validation
+        Ok(true) 
     }
 
     async fn send_amazon_q_request(&self, prompt: &str, context: Option<&str>) -> Result<String, Box<dyn Error>> {
-        // This is a simplified implementation
-        // In a real implementation, you would use AWS SDK to call Amazon Q API
+        
+        
         
         let full_prompt = if let Some(ctx) = context {
             format!("AWS Context:\n{}\n\nQuery: {}", ctx, prompt)
@@ -72,7 +72,7 @@ impl AmazonQAgent {
             prompt.to_string()
         };
 
-        // Simulate Amazon Q response
+        
         let response = format!(
             "Amazon Q suggests:\n\n{}\n\n---\nAWS Best Practice: {}\n\nRelevant AWS Services: {}",
             self.generate_mock_aws_response(&full_prompt),
@@ -192,7 +192,7 @@ impl Default for AmazonQAgent {
     }
 }
 
-/// Amazon Q specific query with AWS context
+
 #[allow(dead_code)]
 pub async fn query_with_aws_context(
     agent: &AmazonQAgent,
@@ -227,7 +227,7 @@ pub async fn query_with_aws_context(
     Ok(AgentQueryResponse {
         response,
         usage: AgentUsage {
-            tokens_used: request.prompt.len() as u32, // Simplified token counting
+            tokens_used: request.prompt.len() as u32, 
             response_time_ms: elapsed.as_millis() as u64,
             model: Some("amazon-q".to_string()),
         },

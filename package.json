@@ -12,8 +12,8 @@
     "dev:frontend": "next dev frontend -p 3000",
     "dev:backend": "powershell -ExecutionPolicy Bypass -File scripts/services/run-backend.ps1",
     "dev:lexor": "powershell -ExecutionPolicy Bypass -File scripts/services/run-lexor.ps1",
-    "dev:doc-search": "cd indexers/doc-search && python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload --log-level error",
-    "dev:langchain": "cross-env LANGCHAIN_PORT=8003 npx ts-node indexers/langchain-service/src/index.ts",
+    "dev:mcp": "cd mcp && nodemon src/server.js",
+    "start:mcp": "cd mcp && node src/server.js",
     "build": "npm run build:frontend && npm run build:backend",
     "build:frontend": "next build frontend",
     "build:backend": "cargo build --release --bin conhub-backend --bin lexor",
@@ -100,7 +100,13 @@
     "uuid": "^10.0.0",
     "vaul": "^0.9.9",
     "winston": "^3.14.2",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "ws": "^8.14.2",
+    "jsonwebtoken": "^9.0.2",
+    "joi": "^17.11.0",
+    "express-rate-limit": "^7.1.5",
+    "@stripe/stripe-js": "^2.4.0",
+    "@stripe/react-stripe-js": "^2.4.0"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.16",

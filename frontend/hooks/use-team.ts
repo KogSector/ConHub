@@ -54,7 +54,7 @@ export function useTeam(userId: string = 'default') {
       const result = await response.json();
       
       if (result.success) {
-        await fetchMembers(); // Refresh the list
+        await fetchMembers(); 
         return result.data;
       } else {
         setError(result.error || 'Failed to invite team member');
@@ -75,7 +75,7 @@ export function useTeam(userId: string = 'default') {
       const result = await response.json();
       
       if (result.success) {
-        await fetchMembers(); // Refresh the list
+        await fetchMembers(); 
         return true;
       } else {
         setError(result.error || 'Failed to remove team member');

@@ -51,7 +51,7 @@ interface SessionData {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-const SESSION_TIMEOUT = 2 * 60 * 60 * 1000 // 2 hours in milliseconds
+const SESSION_TIMEOUT = 2 * 60 * 60 * 1000 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-  // Session management functions
+  
   const saveSession = (token: string, expiresAt: string) => {
     const sessionData: SessionData = {
       token,
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       last_activity: new Date().toISOString()
     }
     localStorage.setItem('auth_session', JSON.stringify(sessionData))
-    localStorage.setItem('auth_token', token) // Keep for backward compatibility
+    localStorage.setItem('auth_token', token) 
   }
 
   const getSession = (): SessionData | null => {
@@ -104,15 +104,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    // Check for stored session on mount
+    
     const session = getSession()
     if (session && isSessionValid(session)) {
       setToken(session.token)
       updateLastActivity()
-      // Add timeout to prevent hanging on backend calls
+      
       const timeoutId = setTimeout(() => {
         setIsLoading(false)
-      }, 3000) // 3 second timeout
+      }, 3000) 
       
       verifyToken(session.token).finally(() => {
         clearTimeout(timeoutId)
@@ -123,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Update activity on user interaction
+  
   useEffect(() => {
     if (token) {
       const handleActivity = () => updateLastActivity()
@@ -142,9 +142,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyToken = async (tokenToVerify: string) => {
     try {
-      // Add timeout to prevent hanging
+      
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 2000) // 2 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 2000) 
       
       const response = await fetch(`${API_BASE_URL}/api/auth/verify`, {
         method: 'POST',
@@ -160,23 +160,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const data = await response.json()
         if (data.valid) {
-          // Get user profile
+          
           await fetchUserProfile(tokenToVerify)
         } else {
-          // Token is invalid, clear it
+          
           clearSession()
         }
       } else {
-        // Token verification failed
+        
         clearSession()
       }
     } catch (error) {
       console.error('Token verification failed:', error)
-      // If it's a network error or timeout, don't clear the session immediately
-      // The user might be offline or the backend might be starting up
+      
+      
       if (error.name === 'AbortError') {
         console.log('Token verification timed out, keeping session for offline use')
-        // Set user to null but keep token for when backend comes online
+        
         setUser(null)
       } else {
         clearSession()

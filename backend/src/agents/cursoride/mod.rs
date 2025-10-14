@@ -32,7 +32,7 @@ impl CursorIDEAgent {
 #[async_trait]
 impl AIAgentConnector for CursorIDEAgent {
     async fn connect(&self, _credentials: &HashMap<String, String>) -> Result<bool, Box<dyn Error>> {
-        // Placeholder implementation
+        
         println!("Cursor IDE agent connection - Coming soon!");
         Ok(true)
     }
@@ -50,7 +50,7 @@ impl AIAgentConnector for CursorIDEAgent {
     }
 
     async fn test_connection(&self) -> Result<bool, Box<dyn Error>> {
-        Ok(false) // Not implemented yet
+        Ok(false) 
     }
 }
 

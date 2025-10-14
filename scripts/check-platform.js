@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Platform detection script to run appropriate startup script
+
 
 const { spawn, execSync } = require('child_process');
 const os = require('os');
 const path = require('path');
 
-const command = process.argv[2] || 'start'; // Default to 'start' if no command provided
+const command = process.argv[2] || 'start'; 
 
 console.log(`🚀 ConHub - Detecting platform and running ${command}...\n`);
 
@@ -13,9 +13,9 @@ const platform = os.platform();
 const projectRoot = path.join(__dirname, '..');
 
 if (command === 'start') {
-    // Special handling for the start command
+    
     try {
-        // 1. Stop all services first
+        
         console.log('Ensuring all services are stopped before starting...');
         if (platform === 'win32') {
             execSync(`powershell -ExecutionPolicy Bypass -File "${path.join(__dirname, 'stop.ps1')}"`, { stdio: 'inherit', cwd: projectRoot });
@@ -24,7 +24,7 @@ if (command === 'start') {
         }
         console.log('All services stopped.\n');
         
-        // 2. Start the service monitor
+        
         console.log('Starting service monitor...');
         spawn('node', [path.join(__dirname, 'monitor-services.js')], {
             detached: true,
@@ -32,7 +32,7 @@ if (command === 'start') {
             cwd: projectRoot
         }).unref();
 
-        // 3. Start all services with concurrently
+        
         console.log('Starting all services with concurrently...');
         const concurrentlyPath = path.join(projectRoot, 'node_modules', '.bin', platform === 'win32' ? 'concurrently.cmd' : 'concurrently');
         const child = spawn(
@@ -75,19 +75,19 @@ if (command === 'start') {
     }
 
 } else {
-    // Generic handling for other commands (stop, check, etc.)
+    
     let scriptPath;
     let execCommand;
     let args = [];
 
     if (platform === 'win32') {
-        // Windows
+        
         console.log('🖥️  Windows detected - Using PowerShell script');
         scriptPath = path.join(__dirname, `${command}.ps1`);
         execCommand = 'powershell';
         args = ['-ExecutionPolicy', 'Bypass', '-File', scriptPath];
     } else {
-        // Linux/macOS
+        
         console.log('🐧 Unix-like system detected - Using shell script');
         scriptPath = path.join(__dirname, `${command}.sh`);
         execCommand = 'bash';
@@ -96,7 +96,7 @@ if (command === 'start') {
 
     console.log(`🔄 Executing: ${execCommand} ${args.join(' ')}\n`);
 
-    // Execute the appropriate script
+    
     const child = spawn(execCommand, args, {
         stdio: 'inherit',
         cwd: projectRoot

@@ -35,7 +35,7 @@ export function FileUploadZone({ open, onOpenChange, onUploadComplete }: FileUpl
   const { toast } = useToast();
 
   const acceptedTypes = ['.pdf', '.doc', '.docx', '.txt', '.md', '.rtf', '.ppt', '.pptx'];
-  const maxFileSize = 10 * 1024 * 1024; // 10MB
+  const maxFileSize = 10 * 1024 * 1024; 
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -105,7 +105,7 @@ export function FileUploadZone({ open, onOpenChange, onUploadComplete }: FileUpl
       ));
 
       try {
-        // Create document record
+        
         const fileExtension = uploadFile.file.name.split('.').pop()?.toLowerCase() || '';
         const docType = getDocumentType(fileExtension);
         const fileSize = formatFileSize(uploadFile.file.size);
@@ -126,7 +126,7 @@ export function FileUploadZone({ open, onOpenChange, onUploadComplete }: FileUpl
 
         if (!response.ok) throw new Error('Upload failed');
 
-        // Simulate upload progress
+        
         for (let progress = 0; progress <= 100; progress += 20) {
           await new Promise(resolve => setTimeout(resolve, 50));
           setFiles(prev => prev.map(f => 
@@ -207,7 +207,7 @@ export function FileUploadZone({ open, onOpenChange, onUploadComplete }: FileUpl
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Upload Zone */}
+          {}
           <div
             className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
               isDragging 
@@ -245,7 +245,7 @@ export function FileUploadZone({ open, onOpenChange, onUploadComplete }: FileUpl
             />
           </div>
 
-          {/* File List */}
+          {}
           {files.length > 0 && (
             <div className="space-y-2 max-h-60 overflow-y-auto">
               <h4 className="font-medium">Selected Files</h4>

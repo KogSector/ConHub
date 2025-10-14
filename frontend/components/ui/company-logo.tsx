@@ -18,7 +18,7 @@ export function CompanyLogo({
   const logoPath = `/logos/${company.toLowerCase().replace(/\s+/g, '-')}.png`;
   
   if (hasError) {
-    // Simple fallback with first letter of company name
+    
     return (
       <div className={`${className} bg-primary/10 border border-primary/20 rounded-md flex items-center justify-center text-xs font-semibold text-primary`}>
         {company.charAt(0).toUpperCase()}

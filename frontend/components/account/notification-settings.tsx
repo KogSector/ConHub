@@ -39,8 +39,8 @@ export function NotificationSettings() {
   const handleSave = async () => {
     setLoading(true)
     try {
-      // TODO: Implement API call to save notification preferences
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
+      
+      await new Promise(resolve => setTimeout(resolve, 1000)) 
       
       toast({
         title: 'Settings Saved',
@@ -59,7 +59,7 @@ export function NotificationSettings() {
 
   return (
     <div className="space-y-6">
-      {/* Notification Overview */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -72,7 +72,7 @@ export function NotificationSettings() {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {/* Email Notifications */}
+            {}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Mail className="h-5 w-5" />
@@ -152,7 +152,7 @@ export function NotificationSettings() {
               </div>
             </div>
 
-            {/* Push Notifications */}
+            {}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Smartphone className="h-5 w-5" />
@@ -185,7 +185,7 @@ export function NotificationSettings() {
               </div>
             </div>
 
-            {/* Notification Frequency */}
+            {}
             <div className="space-y-4">
               <h3 className="font-medium">Notification Frequency</h3>
               <div className="pl-7">
@@ -215,7 +215,7 @@ export function NotificationSettings() {
         </CardContent>
       </Card>
 
-      {/* Notification Categories */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle>Notification Categories</CardTitle>
@@ -282,7 +282,7 @@ export function NotificationSettings() {
         </CardContent>
       </Card>
 
-      {/* Save Button */}
+      {}
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={loading}>
           {loading ? 'Saving...' : 'Save Preferences'}

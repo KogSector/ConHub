@@ -14,7 +14,7 @@ export async function POST(
       );
     }
 
-    // Forward to backend service
+    
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
     const response = await fetch(`${backendUrl}/api/data-sources/${id}/sync`, {
       method: 'POST',

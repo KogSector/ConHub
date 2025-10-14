@@ -87,7 +87,7 @@ export default function UrlsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {}
       <div className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
@@ -108,7 +108,7 @@ export default function UrlsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
+        {}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -145,7 +145,7 @@ export default function UrlsPage() {
           </Card>
         </div>
 
-        {/* Action Bar */}
+        {}
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Your URLs</h2>
@@ -163,7 +163,7 @@ export default function UrlsPage() {
           </div>
         </div>
 
-        {/* URLs List */}
+        {}
         <Card>
           <CardHeader>
             <CardTitle>URL Collection</CardTitle>

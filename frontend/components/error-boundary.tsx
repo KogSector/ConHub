@@ -28,9 +28,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     console.error('Error caught by boundary:', error, errorInfo);
     this.setState({ errorInfo });
     
-    // You could send error to logging service here
+    
     if (process.env.NODE_ENV === 'production') {
-      // Example: logErrorToService(error, errorInfo);
+      
     }
   }
 
@@ -40,7 +40,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   render() {
     if (this.state.hasError) {
-      // Use custom fallback if provided
+      
       if (this.props.fallback) {
         return (
           <this.props.fallback 
@@ -50,7 +50,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
         );
       }
 
-      // Default error UI
+      
       return (
         <div className="min-h-[400px] flex items-center justify-center p-4">
           <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg border border-red-200 dark:border-red-800 shadow-lg">
@@ -112,7 +112,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 }
 
-// Higher-order component for easy wrapping
+
 export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
   fallback?: React.ComponentType<{ error: Error; retry: () => void }>
@@ -126,9 +126,9 @@ export function withErrorBoundary<P extends object>(
   };
 }
 
-// Hook for error handling in functional components
+
 export function useErrorHandler() {
   return (error: Error) => {
-    throw error; // This will be caught by the nearest ErrorBoundary
+    throw error; 
   };
 }

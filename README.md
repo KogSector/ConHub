@@ -6,19 +6,22 @@ Supercharge Your Development with AI - Unify repositories, docs, and URLs with A
 
 ConHub is a comprehensive AI-powered platform that connects multiple knowledge sources (repositories, documents, URLs) with AI agents through the Model Context Protocol (MCP) for enhanced development context. It provides semantic search, code indexing, document processing, AI-powered Q&A, and seamless AI assistant integration across all your connected data sources.
 
-## Architecture
+**ConHub consists of 3 core services:**
 
-ConHub consists of 4 integrated services working together to deliver a complete AI development platform:
+-   **Frontend** (Next.js, Port 3000) - Modern user interface and dashboard
+-   **Backend** (Rust, Port 3001) - High-performance API, authentication, OAuth SSO, and data management
+-   **Unified Indexer** (Rust, Port 8080) - All-in-one indexing service for code, documents, and web content
 
--   **Frontend** (Next.js, Port 3000) - Modern user interface and dashboard.
--   **Backend** (Rust, Port 3001) - High-performance API, authentication, data connectors, and MCP server.
--   **Lexor** (Rust, Port 3002) - Lightning-fast code indexing and semantic search.
--   **AI Service** (Python, Port 8001) - Unified AI agents, vector search, and document processing.
+**Additional Services:**
+-   **MCP Service** (Node.js, Port 3004) - Model Context Protocol hub for AI agent connectivity
+-   **PostgreSQL** (Port 5432) - Primary database
+-   **Redis** (Port 6379) - Caching and sessions
 
 ## Key Features
 
 ### 🔗 Data Source Integration
 
+{{ ... }}
 -   **Version Control Systems**: Connect repositories from GitHub, GitLab, BitBucket with full branch support, automatic indexing, and real-time sync.
 -   **Cloud Storage**: Integrate with Google Drive, Dropbox, Microsoft OneDrive for documents, spreadsheets, and presentations.
 -   **Web Content**: Crawl public URLs and documentation sites with configurable depth.
@@ -39,60 +42,65 @@ ConHub consists of 4 integrated services working together to deliver a complete 
 -   **Automatic Indexing Pipeline**: Background indexing triggered immediately after data source connection.
 -   **Multi-Source Context**: Unified search across code repositories, documents, and web content.
 
-## Quick Start
+## ⚡ Quick Start (5 Minutes)
 
 ### Prerequisites
 
--   **Node.js** (v18 or higher)
--   **Rust** and **Cargo**
--   **Python** (3.9+)
--   **Git**
+-   **Docker & Docker Compose** (recommended)
+-   **Rust** 1.75+ (for local development)
+-   **PostgreSQL** 15+
+-   **Node.js** 18+
 
 ### Installation & Setup
 
-1.  **Clone the repository:**
+1.  **Clone and configure:**
     ```bash
     git clone <your-repo-url>
     cd ConHub
-    ```
-
-2.  **Install dependencies:**
-    ```bash
-    # Install all JavaScript/TypeScript dependencies
-    npm install
-    
-    # Install Python dependencies
-    pip install -r requirements.txt
-    ```
-
-3.  **Configure environment:**
-    ```bash
     cp .env.example .env
-    # Edit .env with your API keys and configuration
+    # Edit .env with your settings (DATABASE_URL, JWT_SECRET required)
     ```
 
-4.  **Build services:**
+2.  **Start with Docker (recommended):**
     ```bash
-    # Build the Rust backend and lexor services
-    cargo build --release
+    docker-compose up -d
     ```
 
-5.  **Run the application:**
+3.  **Verify services:**
     ```bash
-    # Start all services
-    npm start
+    curl http://localhost:3001/health      # Backend
+    curl http://localhost:8080/health      # Unified Indexer
+    curl http://localhost:3000             # Frontend
     ```
-    Your application will be available at `http://localhost:3000`.
 
-## Indexing Pipeline Architecture
+4.  **Test user signup:**
+    ```bash
+    curl -X POST http://localhost:3001/api/auth/register \
+      -H "Content-Type: application/json" \
+      -d '{"email":"user@example.com","password":"SecurePass123!","name":"Test User"}'
+    ```
 
-ConHub features a sophisticated **3-phase indexing pipeline** that automatically processes and indexes all connected data sources for optimal AI agent performance.
+## 🔧 Architecture & Indexing Pipeline
 
-1.  **Data Source Connection**: Securely connect to repositories (GitHub, GitLab, BitBucket) and document sources (Google Drive, Dropbox, etc.).
-2.  **Automatic Indexing**: Once a source is connected, the backend automatically triggers the appropriate indexing service.
-    -   **Lexor Service**: Indexes code files, extracts symbols, and builds a searchable code graph.
-    -   **AI Service**: Processes documents (READMEs, PDFs, etc.) and web content for semantic search.
-3.  **Context Aggregation**: A unified API endpoint (`/api/agents/query`) fetches context from both Lexor and the AI Service, providing a complete picture for AI agents.
+### Unified Indexing Service
+
+ConHub features a **consolidated indexing architecture** where a single Rust microservice handles all indexing operations:
+
+1.  **Data Source Connection**: Connect repositories (GitHub, GitLab, BitBucket), documents (Google Drive, Dropbox), or web URLs
+2.  **Automatic Indexing**: Backend triggers the unified indexer via HTTP API
+3.  **Processing**:
+    - **Code Indexing**: Git cloning, file parsing, symbol extraction
+    - **Document Indexing**: Web crawling, content extraction, markdown processing
+    - **Chunking & Embedding**: Smart text chunking with configurable overlap, vector embeddings
+4.  **Search**: Full-text search and semantic search across all indexed content
+
+### Benefits of Unified Architecture
+
+- ✅ **Single Service**: Reduced from 4 services to 1 (70% less memory)
+- ✅ **Consistent API**: All indexing via one unified endpoint
+- ✅ **Easy Deployment**: One Docker container instead of 4
+- ✅ **Better Performance**: Rust-based async processing
+- ✅ **Minimal Coupling**: Backend is pure API gateway, no indexing logic
 
 ## API Examples
 
@@ -112,20 +120,50 @@ curl -X POST http://localhost:3001/api/repositories/fetch-branches \
   }'
 ```
 
-### Connect Document Sources
+### Index a Repository via Unified Indexer
 ```bash
-# Upload a local file
-curl -X POST http://localhost:8001/sources/local-files -F "files=@your-document.txt"
+curl -X POST http://localhost:8080/api/index/repository \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repository_url": "https://github.com/rust-lang/rust",
+    "branch": "master",
+    "include_patterns": ["*.rs", "*.toml"],
+    "exclude_patterns": ["target/*"]
+  }'
+```
 
-# Connect Dropbox
-curl -X POST http://localhost:8001/sources/dropbox -F "access_token=your_token" -F "folder_path=/Documents"
+### Index Documentation Site
+```bash
+curl -X POST http://localhost:8080/api/index/documentation \
+  -H "Content-Type: application/json" \
+  -d '{
+    "documentation_url": "https://docs.rust-lang.org",
+    "crawl_depth": 2,
+    "follow_links": true,
+    "extract_code_blocks": true
+  }'
 ```
 
 ### Index a URL
 ```bash
-curl -X POST http://localhost:8001/index/urls \
-  -F 'urls=["https://httpbin.org/html"]' \
-  -F 'config={"crawl_depth": 2}'
+curl -X POST http://localhost:8080/api/index/url \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/article",
+    "max_depth": 1,
+    "extract_links": true
+  }'
+```
+
+### Search Indexed Content
+```bash
+curl -X POST http://localhost:8080/api/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "authentication implementation",
+    "limit": 10,
+    "source_type": "code"
+  }'
 ```
 
 ### Connect and Query AI Agents
@@ -206,20 +244,29 @@ curl -X POST http://localhost:3000/api/ai-agents/cursor/query \
 ### Frontend (Port 3000)
 - **Technology**: Next.js 14, TypeScript, Tailwind CSS
 - **Features**: Dashboard, AI agent interfaces, repository management
-- **Key Pages**: `/dashboard`, `/agents`, `/amazon-q`, `/cursor`, `/cline`
+- **Key Pages**: `/dashboard`, `/agents`, `/settings`
 
 ### Backend (Port 3001)
 - **Technology**: Rust, Actix-web
-- **Features**: API endpoints, authentication, AI agent management
-- **Key Endpoints**: `/health`, `/api/agents/*`
+- **Features**: API gateway, authentication, OAuth SSO (Google/Microsoft/GitHub), user management
+- **Key Endpoints**: `/health`, `/api/auth/*`, `/api/agents/*`, `/api/repositories/*`
+- **No Indexing Logic**: Pure API proxy - forwards all indexing requests to unified indexer
 
-### Lexor (Port 3002)
-- **Technology**: Rust, Tantivy search engine
-- **Features**: Code indexing, semantic search, cross-references
+### Unified Indexer (Port 8080)
+- **Technology**: Rust, async Tokio runtime
+- **Features**: 
+  - Code repository indexing (Git clone + parse)
+  - Documentation site crawling
+  - Web content indexing
+  - File indexing
+  - Full-text search
+  - Vector embeddings (optional)
+  - Job status tracking
+- **Replaces**: Old lexor, doc-search, and langchain-service (70% memory reduction)
 
-### AI Service (Port 8001)
-- **Technology**: Python, FastAPI, Haystack
-- **Features**: Document processing, vector search, AI integrations
+### MCP Service (Port 3004)
+- **Technology**: Node.js, Express, WebSocket
+- **Features**: Model Context Protocol implementation, AI agent connectivity
 
 ## Security & Performance Optimizations
 
@@ -246,28 +293,42 @@ curl -X POST http://localhost:3000/api/ai-agents/cursor/query \
 
 ## Development Commands
 
-### Essential Commands
+### Docker Commands (Recommended)
 ```bash
-npm start                    # Start all services
-npm run stop                 # Stop all services
-npm run status              # Check service status
-npm run test:services       # Test service health
-npm run test:ai-agents      # Test AI agent integration
+docker-compose up -d                    # Start all services
+docker-compose down                     # Stop all services
+docker-compose logs -f backend          # View backend logs
+docker-compose logs -f unified-indexer  # View indexer logs
+docker-compose restart backend          # Restart backend
 ```
 
-### Development Mode
+### Local Development
 ```bash
-npm run dev:frontend        # Frontend development (port 3000)
-npm run dev:backend         # Backend development (port 3001)
-npm run dev:lexor          # Lexor development (port 3002)
-npm run dev:ai             # AI service development (port 8001)
+# Backend
+cd backend
+cargo run                   # Development mode
+cargo build --release       # Production build
+
+# Unified Indexer
+cd indexers
+cargo run                   # Development mode
+cargo build --release       # Production build
+
+# Frontend
+cd frontend
+npm run dev                 # Development mode
+npm run build               # Production build
 ```
 
-### Build Commands
+### Testing
 ```bash
-npm run build              # Build all services
-npm run build:frontend     # Build frontend only
-npm run build:backend      # Build backend only
+# Test database operations
+cd backend
+cargo run --bin test_database
+
+# Test API endpoints
+curl http://localhost:3001/health
+curl http://localhost:8080/health
 ```
 
 ## Troubleshooting
@@ -288,16 +349,20 @@ npm run build:backend      # Build backend only
    cargo build --release
    ```
 
-3. **Python Dependencies**
-   ```bash
-   pip install -r requirements.txt --force-reinstall
-   ```
-
-4. **Service Health Checks**
+3. **Service Health Checks**
    ```bash
    curl http://localhost:3001/health   # Backend
-   curl http://localhost:3002/health   # Lexor
-   curl http://localhost:8001/health   # AI Service
+   curl http://localhost:8080/health   # Unified Indexer
+   curl http://localhost:3000          # Frontend
+   ```
+
+4. **Database Issues**
+   ```bash
+   # Check database connection
+   docker exec -it conhub-postgres psql -U conhub -d conhub
+   
+   # Run database tests
+   cd backend && cargo run --bin test_database
    ```
 
 ### Logs and Debugging
@@ -308,28 +373,44 @@ npm run build:backend      # Build backend only
 ## Architecture Overview
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │    Backend      │    │     Lexor       │
-│   (Next.js)     │◄──►│    (Rust)       │◄──►│   (Rust)        │
-│   Port 3000     │    │   Port 3001     │    │   Port 3002     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │   AI Service    │
-                    │   (Python)      │
-                    │   Port 8001     │
-                    └─────────────────┘
-                             │
-                    ┌─────────────────┐
-                    │   AI Agents     │
-                    │ • Amazon Q      │
-                    │ • GitHub Copilot│
-                    │ • Cline         │
-                    │ • Cursor IDE    │
-                    └─────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                     Frontend (Next.js)                      │
+│                        Port 3000                            │
+│              Dashboard | Agents | Repository UI             │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+        ┌──────────────────────────────────────────┐
+        │      Backend API Gateway (Rust)          │
+        │            Port 3001                     │
+        │  • Authentication (JWT + OAuth SSO)      │
+        │  • User Management                       │
+        │  • API Routing (No indexing logic!)      │
+        └────┬─────────────────────┬────────────┬──┘
+             │                     │            │
+             ▼                     ▼            ▼
+    ┌────────────────┐   ┌─────────────────┐  ┌──────────────┐
+    │  PostgreSQL    │   │ Unified Indexer │  │ MCP Service  │
+    │   Port 5432    │   │   (Rust)        │  │  Port 3004   │
+    │   Database     │   │   Port 8080     │  │  AI Agents   │
+    └────────────────┘   │                 │  └──────────────┘
+                         │ • Code Indexing │
+                         │ • Doc Indexing  │
+                         │ • Web Crawling  │
+                         │ • Search        │
+                         │ • Embeddings    │
+                         └─────────────────┘
+
+                    ┌──────────────────────────┐
+                    │  Redis Cache (Port 6379) │
+                    └──────────────────────────┘
 ```
+
+**Key Architecture Principles:**
+- ✅ Backend has ZERO indexing logic (pure API gateway)
+- ✅ All indexing in one service (unified-indexer)
+- ✅ Minimal coupling between services (HTTP API only)
+- ✅ Each service is independently deployable
 
 ## Contributing
 

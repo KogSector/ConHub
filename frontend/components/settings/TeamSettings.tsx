@@ -104,7 +104,7 @@ export function TeamSettings() {
 
   return (
     <div className="space-y-6">
-      {/* Team Overview */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -134,7 +134,7 @@ export function TeamSettings() {
         </CardContent>
       </Card>
 
-      {/* Invite Team Members */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -202,7 +202,7 @@ export function TeamSettings() {
         </CardContent>
       </Card>
 
-      {/* Team Members */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -272,7 +272,7 @@ export function TeamSettings() {
         </CardContent>
       </Card>
 
-      {/* Pending Invitations */}
+      {}
       {pendingInvitations.length > 0 && (
         <Card>
           <CardHeader>
@@ -317,7 +317,7 @@ export function TeamSettings() {
         </Card>
       )}
 
-      {/* Team Settings */}
+      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -405,7 +405,7 @@ export function TeamSettings() {
         </CardContent>
       </Card>
 
-      {/* Save Changes */}
+      {}
       <div className="flex justify-end gap-4">
         <Button variant="outline">Cancel</Button>
         <Button>Save Changes</Button>

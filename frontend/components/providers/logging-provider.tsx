@@ -21,15 +21,15 @@ export function LoggingProvider({ children, userId }: LoggingProviderProps) {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Set user ID if provided
+    
     if (userId) {
       logger.setUserId(userId);
     }
 
-    // Retry any failed logs on mount
+    
     logger.retryFailedLogs();
 
-    // Log application initialization
+    
     logger.info('Application initialized', {
       url: window.location.href,
       userAgent: navigator.userAgent,
@@ -40,7 +40,7 @@ export function LoggingProvider({ children, userId }: LoggingProviderProps) {
       timestamp: new Date().toISOString()
     }, 'app-init');
 
-    // Track route changes
+    
     let previousPath = pathname;
     const routeChangeStart = performance.now();
 
@@ -50,14 +50,14 @@ export function LoggingProvider({ children, userId }: LoggingProviderProps) {
       previousPath = pathname;
     };
 
-    // Monitor pathname changes
+    
     handleRouteChange();
 
-    // Track page visibility changes
+    
     const handleVisibilityChange = () => {
       if (document.hidden) {
         logger.info('Page became hidden');
-        logger.flush(); // Flush logs when page becomes hidden
+        logger.flush(); 
       } else {
         logger.info('Page became visible');
       }
@@ -65,7 +65,7 @@ export function LoggingProvider({ children, userId }: LoggingProviderProps) {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Track online/offline status
+    
     const handleOnline = () => {
       logger.info('Connection restored');
       logger.retryFailedLogs();
@@ -104,7 +104,7 @@ export function useLogging() {
   return context;
 }
 
-// Higher-order component for automatic component logging
+
 export function withLogging<P extends object>(
   WrappedComponent: React.ComponentType<P>,
   componentName?: string
@@ -129,7 +129,7 @@ export function withLogging<P extends object>(
   return ComponentWithLogging;
 }
 
-// Hook for tracking form submissions
+
 export function useFormTracking(formName: string) {
   const { logger } = useLogging();
 
@@ -162,13 +162,13 @@ export function useFormTracking(formName: string) {
   };
 }
 
-// Hook for tracking search operations
+
 export function useSearchTracking() {
   const { logger } = useLogging();
 
   const trackSearch = (query: string, filters: Record<string, any>, resultsCount: number, duration: number) => {
     logger.info('Search performed', {
-      query: query.substring(0, 100), // Limit query length in logs
+      query: query.substring(0, 100), 
       filters,
       resultsCount,
       duration
@@ -208,7 +208,7 @@ export function useSearchTracking() {
   };
 }
 
-// Hook for tracking AI interactions
+
 export function useAITracking() {
   const { logger } = useLogging();
 

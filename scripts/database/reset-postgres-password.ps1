@@ -1,5 +1,5 @@
-# Reset PostgreSQL Password on Windows
-# This script helps you reset the PostgreSQL password
+
+
 
 param(
     [string]$Username = "postgres"
@@ -8,7 +8,7 @@ param(
 Write-Host "[POSTGRES] PostgreSQL Password Reset Helper" -ForegroundColor Cyan
 Write-Host ""
 
-# Check if PostgreSQL is installed
+
 $pgPath = Get-Command psql -ErrorAction SilentlyContinue
 if (-not $pgPath) {
     Write-Host "[ERROR] PostgreSQL not found in PATH. Please ensure PostgreSQL is installed." -ForegroundColor Red
@@ -21,7 +21,7 @@ if (-not $pgPath) {
 
 Write-Host "[INFO] PostgreSQL found at: $($pgPath.Source)" -ForegroundColor Green
 
-# Check if PostgreSQL service is running
+
 $pgService = Get-Service -Name "postgresql*" -ErrorAction SilentlyContinue
 if ($pgService) {
     Write-Host "[INFO] PostgreSQL service status: $($pgService.Status)" -ForegroundColor Green

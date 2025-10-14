@@ -1,8 +1,9 @@
-# Run ConHub Backend
-$env:RUST_LOG = "info"
-$env:DATABASE_URL = "postgresql://postgres:password@localhost:5432/conhub"
 
-# Ensure binary exists
+$env:RUST_LOG = "info"
+$env:RUST_BACKTRACE = "1"
+
+
+
 if (-not (Test-Path "target\debug\conhub-backend.exe")) {
     Write-Host "[BUILD] Building backend..." -ForegroundColor Cyan
     cargo build --bin conhub-backend --quiet

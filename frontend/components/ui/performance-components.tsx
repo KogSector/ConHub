@@ -3,9 +3,7 @@
 import { Suspense, lazy, useCallback, useMemo, useRef, useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 
-/**
- * Custom hook for intersection observer with performance optimizations
- */
+
 interface UseIntersectionObserverProps {
   ref: React.RefObject<Element>
   threshold?: number
@@ -47,10 +45,7 @@ function useIntersectionObserver({
   return isIntersecting
 }
 
-/**
- * High-performance lazy loading component with intersection observer
- * Implements efficient memory management and progressive loading
- */
+
 interface LazyComponentProps {
   children: React.ReactNode
   fallback?: React.ReactNode
@@ -98,10 +93,7 @@ export function LazyComponent({
   )
 }
 
-/**
- * Advanced virtualized list component for large datasets
- * Implements windowing with dynamic sizing and scroll performance optimization
- */
+
 interface VirtualizedListProps<T> {
   items: T[]
   itemHeight: number | ((index: number) => number)
@@ -122,7 +114,7 @@ export function VirtualizedList<T>({
   const containerRef = useRef<HTMLDivElement>(null)
   const scrollElementRef = useRef<HTMLDivElement>(null)
 
-  // Memoized calculations for performance
+  
   const { visibleItems, totalHeight } = useMemo(() => {
     if (!containerRef.current) {
       return { visibleItems: [], totalHeight: 0 }
@@ -135,7 +127,7 @@ export function VirtualizedList<T>({
     let startIndex = 0
     let endIndex = 0
     
-    // Find start index
+    
     for (let i = 0; i < items.length; i++) {
       const height = typeof itemHeight === 'function' ? itemHeight(i) : itemHeight
       if (currentHeight + height > scrollTop) {
@@ -145,7 +137,7 @@ export function VirtualizedList<T>({
       currentHeight += height
     }
     
-    // Find end index
+    
     currentHeight = 0
     for (let i = startIndex; i < items.length; i++) {
       const height = typeof itemHeight === 'function' ? itemHeight(i) : itemHeight
@@ -171,7 +163,7 @@ export function VirtualizedList<T>({
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
     
-    // Check if scrolled to bottom
+    
     if (scrollTop + clientHeight >= scrollHeight - 10 && onScrollEnd) {
       onScrollEnd()
     }
@@ -207,9 +199,7 @@ export function VirtualizedList<T>({
   )
 }
 
-/**
- * Performance-optimized image component with lazy loading and WebP support
- */
+
 interface OptimizedImageProps {
   src: string
   alt: string
@@ -237,7 +227,7 @@ export function OptimizedImage({
   const [hasError, setHasError] = useState(false)
   const imgRef = useRef<HTMLImageElement>(null)
 
-  // Generate WebP source if supported
+  
   const webpSrc = useMemo(() => {
     if (src.startsWith('data:') || src.includes('.svg')) return src
     return src.replace(/\.(jpg|jpeg|png)$/i, '.webp')
@@ -278,9 +268,7 @@ export function OptimizedImage({
   )
 }
 
-/**
- * Performance-optimized table component with virtual scrolling
- */
+
 interface PerformantTableProps<T> {
   data: T[]
   columns: Array<{
@@ -343,7 +331,7 @@ export function PerformantTable<T extends Record<string, any>>({
 
   return (
     <div className={cn('border border-border rounded-lg overflow-hidden', className)}>
-      {/* Header */}
+      {}
       <div className="flex bg-muted font-medium text-sm">
         {columns.map((column) => (
           <div 
@@ -356,7 +344,7 @@ export function PerformantTable<T extends Record<string, any>>({
         ))}
       </div>
       
-      {/* Virtualized Body */}
+      {}
       <VirtualizedList
         items={memoizedData}
         itemHeight={rowHeight}

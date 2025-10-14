@@ -84,7 +84,7 @@ pub fn check_permissions(
     claims: &Claims,
     guard: &AuthGuard,
 ) -> Result<(), String> {
-    // Check roles
+    
     if let Some(required_roles) = &guard.required_roles {
         let user_roles: HashSet<String> = claims.roles.iter().cloned().collect();
         let required_role_strings: HashSet<String> = required_roles
@@ -97,13 +97,13 @@ pub fn check_permissions(
         }
     }
 
-    // Note: Subscription checks would need to be done with database access
-    // This is a simplified version for demonstration
+    
+    
     
     Ok(())
 }
 
-// Middleware for protecting routes with specific requirements
+
 pub fn create_auth_middleware(
     guard: AuthGuard,
 ) -> impl Fn(ServiceRequest, &mut actix_web::dev::ServiceResponse) -> Result<(), actix_web::Error> {
@@ -120,7 +120,7 @@ pub fn create_auth_middleware(
     }
 }
 
-// Helper macros for common auth patterns
+
 #[macro_export]
 macro_rules! require_auth {
     () => {
@@ -136,7 +136,7 @@ macro_rules! require_admin {
         actix_web_httpauth::middleware::HttpAuthentication::bearer(
             crate::middleware::auth_guard::bearer_auth_validator
         )
-        // Additional admin check would be added here
+        
     };
 }
 
@@ -146,6 +146,6 @@ macro_rules! require_subscription {
         actix_web_httpauth::middleware::HttpAuthentication::bearer(
             crate::middleware::auth_guard::bearer_auth_validator
         )
-        // Additional subscription check would be added here
+        
     };
 }

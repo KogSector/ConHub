@@ -1,35 +1,161 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: conhub-postgres
+    environment:
+      POSTGRES_DB: conhub
+      POSTGRES_USER: conhub
+      POSTGRES_PASSWORD: conhub_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conhub"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: conhub-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend Service
   frontend:
-    build: ./frontend
+    build: 
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: conhub-frontend
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://backend:3001
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
+  # Backend Service
   backend:
-    build: ./backend
+    build: 
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: conhub-backend
     ports:
       - "3001:3001"
     environment:
       - RUST_LOG=info
+      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
+      - REDIS_URL=redis://redis:6379
+      - UNIFIED_INDEXER_URL=http://unified-indexer:8080
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - MICROSOFT_CLIENT_ID=${MICROSOFT_CLIENT_ID}
+      - MICROSOFT_CLIENT_SECRET=${MICROSOFT_CLIENT_SECRET}
     depends_on:
-      - lexor
-      - ai-service
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  lexor:
-    build: ./indexers/lexor
+  # Unified Indexing Service
+  unified-indexer:
+    build: 
+      context: .
+      dockerfile: indexers/Dockerfile
+    container_name: conhub-unified-indexer
     ports:
-      - "3002:3002"
+      - "8080:8080"
     environment:
       - RUST_LOG=info
+      - INDEXER_HOST=0.0.0.0
+      - INDEXER_PORT=8080
+      - BACKEND_URL=http://backend:3001
+      - QDRANT_URL=${QDRANT_URL}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MAX_FILE_SIZE=10485760
+      - CHUNK_SIZE=1000
+      - CHUNK_OVERLAP=200
+      - MAX_CONCURRENT_INDEXING=4
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - indexer_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  ai-service:
-    build: ./indexers/doc-search
+  # MCP Service
+  mcp-service:
+    build: 
+      context: .
+      dockerfile: mcp/Dockerfile
+    container_name: conhub-mcp
     ports:
-      - "8001:8001"
+      - "3004:3004"
     environment:
-      - PYTHONPATH=/app
+      - NODE_ENV=production
+      - MCP_SERVICE_PORT=3004
+      - BACKEND_URL=http://backend:3001
+      - GITHUB_COPILOT_WEBHOOK_SECRET=${GITHUB_COPILOT_WEBHOOK_SECRET}
+      - AMAZON_Q_WEBHOOK_SECRET=${AMAZON_Q_WEBHOOK_SECRET}
+      - CLINE_WEBHOOK_SECRET=${CLINE_WEBHOOK_SECRET}
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3004/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:
+  indexer_data:
+
+networks:
+  default:
+    name: conhub-network
