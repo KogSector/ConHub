@@ -1,176 +1,18 @@
-const path = require('path')
+const path = require('path');
 
-
-const featureToggles = require('./feature-toggles.json')
-
-
+/** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: false,
+  webpack: (config) => {
+    config.resolve.alias['@'] = path.join(__dirname, 'src/frontend');
+    return config;
   },
-  
-  distDir: '.next',
-  
-  swcMinify: true,
-  compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
-  },
-  
-  
-  reactStrictMode: true,
-  
-  
-  transpilePackages: [
-    'lucide-react',
-    '@radix-ui/react-icons'
-  ],
-  
-  
-  images: featureToggles.Heavy ? {
-    formats: ['image/webp', 'image/avif'],
-    minimumCacheTTL: 60,
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-  } : {
-    minimumCacheTTL: 60,
-  },
-  
-  
-  experimental: featureToggles.Heavy ? {
-    optimizePackageImports: [
-      '@/components/ui',
-      'lucide-react',
-      'react-hook-form'
-    ],
+  experimental: {
     turbo: {
       resolveAlias: {
-        canvas: './empty-module.js',
+        '@': './src/frontend',
       },
     },
-  } : {},
-  
-  
-  webpack: (config, { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack }) => {
-    config.resolve.alias['@'] = path.join(__dirname, 'frontend');
-    
-    
-    if (featureToggles.Heavy && !dev && !isServer) {
-      config.optimization.splitChunks = {
-        chunks: 'all',
-        cacheGroups: {
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            chunks: 'all',
-          },
-          
-          langchain: {
-            test: /[\\/]node_modules[\\/](@langchain|langchain)[\\/]/,
-            name: 'langchain',
-            chunks: 'async', 
-            priority: 30,
-          },
-          framerMotion: {
-            test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
-            name: 'framer-motion', 
-            chunks: 'async',
-            priority: 25,
-          },
-          googleapis: {
-            test: /[\\/]node_modules[\\/]googleapis[\\/]/,
-            name: 'googleapis',
-            chunks: 'async',
-            priority: 20,
-          },
-          recharts: {
-            test: /[\\/]node_modules[\\/]recharts[\\/]/,
-            name: 'recharts',
-            chunks: 'async',
-            priority: 15,
-          },
-          common: {
-            name: 'common',
-            minChunks: 2,
-            chunks: 'all',
-            enforce: true,
-          },
-        },
-      }
-      
-      
-      config.optimization.usedExports = true
-      config.optimization.sideEffects = false
-    }
-    
-    
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-      }
-    }
-    
-    return config
   },
-  
-  
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          
-          {
-            key: 'X-DNS-Prefetch-Control',
-            value: 'on'
-          },
-          {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block'
-          },
-          {
-            key: 'X-Frame-Options',
-            value: 'SAMEORIGIN'
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff'
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin'
-          },
-          
-          {
-            key: 'Strict-Transport-Security',
-            value: 'max-age=31536000; includeSubDomains; preload'
-          }
-        ],
-      },
-      {
-        source: '/static/(.*)',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
-    ]
-  },
-  
-  
-  env: {
-    ...(function() {
-      const envVars = require('dotenv').config({ path: path.resolve(__dirname, '.env') }).parsed || {};
-      delete envVars.NODE_ENV;
-      return envVars;
-    })()
-  },
-  
+};
 
-}
-
-module.exports = nextConfig
+module.exports = nextConfig;
