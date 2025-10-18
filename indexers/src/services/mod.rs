@@ -3,6 +3,9 @@ pub mod document;
 pub mod web;
 pub mod embedding;
 pub mod chunking;
+pub mod state;
+pub mod evaluation;
+pub mod qdrant;
 
 use crate::models::StatusResponse;
 
