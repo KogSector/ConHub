@@ -1,55 +1,39 @@
 'use client'
 
-import { useAuth } from "@/hooks/use-auth"
-import { isLoginEnabled } from "@/lib/feature-toggles"
-import { ReactNode } from "react"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/auth-context'
 
 interface AuthGuardProps {
-  children: ReactNode
-  fallback?: ReactNode
+  children: React.ReactNode
+  requireAuth?: boolean
+  redirectTo?: string
 }
 
-export const AuthGuard = ({ children, fallback }: AuthGuardProps) => {
+export function AuthGuard({ 
+  children, 
+  requireAuth = true, 
+  redirectTo = '/auth/login' 
+}: AuthGuardProps) {
   const { isAuthenticated, isLoading } = useAuth()
-  const loginEnabled = isLoginEnabled()
+  const router = useRouter()
 
-  
-  if (!loginEnabled) {
-    return <>{children}</>
-  }
+  useEffect(() => {
+    if (!isLoading && requireAuth && !isAuthenticated) {
+      router.push(redirectTo)
+    }
+  }, [isAuthenticated, isLoading, requireAuth, redirectTo, router])
 
-  
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     )
   }
 
-  
-  if (!isAuthenticated) {
-    return fallback || (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center max-w-md mx-4">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Authentication Required</h2>
-          <p className="text-gray-600 mb-6">Please sign in to access this page.</p>
-          <div className="space-x-4">
-            <Button asChild>
-              <Link href="/auth/login">Sign In</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/auth/register">Create Account</Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
+  if (requireAuth && !isAuthenticated) {
+    return null
   }
 
   return <>{children}</>
