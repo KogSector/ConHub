@@ -4,16 +4,31 @@ mod models;
 mod services;
 mod utils;
 
+// Enhanced modules for comprehensive indexing
+mod execution;
+mod monitoring;
+mod schema;
+
 use actix_web::{web, App, HttpResponse, HttpServer, middleware::Logger};
 use actix_cors::Cors;
 use serde_json::json;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
+// Enhanced state with comprehensive indexing capabilities
 pub struct IndexerState {
     pub code_indexer: Arc<services::code::CodeIndexingService>,
     pub doc_indexer: Arc<services::document::DocumentIndexingService>,
     pub web_indexer: Arc<services::web::WebIndexingService>,
     pub config: config::IndexerConfig,
+    
+    // Enhanced components
+    pub error_handler: Arc<execution::error_handling::ErrorHandler>,
+    pub metrics_collector: Arc<RwLock<monitoring::metrics::MetricsCollector>>,
+    pub schema_manager: Arc<RwLock<schema::evolution::SchemaEvolutionManager>>,
+    pub live_indexer: Option<Arc<services::live::LiveIndexingService>>,
+    pub multi_format_processor: Arc<services::processing::MultiFormatProcessor>,
+    pub embedding_processor: Arc<services::embedding::EmbeddingProcessor>,
 }
 
 async fn health() -> actix_web::Result<HttpResponse> {
