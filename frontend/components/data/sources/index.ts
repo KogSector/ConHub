@@ -1,5 +1,5 @@
 
-export { ConnectDataSourceDialog } from './connect-dialog';
+export { ConnectDataSourceDialog } from './ConnectDialog';
 
 
 export * from './connectors/repositories';

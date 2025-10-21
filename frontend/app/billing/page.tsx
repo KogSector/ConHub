@@ -5,12 +5,12 @@ import { useAuth } from '@/contexts/auth-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { BillingDashboard } from '@/components/billing/billing-dashboard'
-import { SubscriptionPlans } from '@/components/billing/subscription-plans'
-import { PaymentMethods } from '@/components/billing/payment-methods'
-import { InvoiceHistory } from '@/components/billing/invoice-history'
-import { UsageTracking } from '@/components/billing/usage-tracking'
-import { StripeProvider } from '@/components/billing/stripe-provider'
+import { BillingDashboard } from '@/components/billing/BillingDashboard'
+import { SubscriptionPlans } from '@/components/billing/SubscriptionPlans'
+import { PaymentMethods } from '@/components/billing/PaymentMethods'
+import { InvoiceHistory } from '@/components/billing/InvoiceHistory'
+import { UsageTracking } from '@/components/billing/UsageTracking'
+import { StripeProvider } from '@/components/billing/StripeProvider'
 
 export default function BillingPage() {
   const { user, isAuthenticated } = useAuth()

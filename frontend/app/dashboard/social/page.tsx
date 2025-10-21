@@ -1,6 +1,6 @@
 "use client"
 
-import { SocialConnections } from '@/components/social/social-connections';
+import { SocialConnections } from '@/components/social/SocialConnections';
 
 export default function SocialPage() {
   return (

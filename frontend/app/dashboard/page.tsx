@@ -3,9 +3,9 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ProfileAvatar } from "@/components/ui/profile-avatar";
+import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { Footer } from "@/components/ui/footer";
-import { AuthGuard } from "@/components/auth/auth-guard";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 import Link from "next/link";
 import { 
   Bot, 

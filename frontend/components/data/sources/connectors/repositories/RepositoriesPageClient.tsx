@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ProfileAvatar } from "@/components/ui/profile-avatar";
+import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { Footer } from "@/components/ui/footer";
 import { ArrowLeft, GitBranch, Plus, Settings, ExternalLink, Star, GitFork, RefreshCw, MoreHorizontal, Trash2, GitPullRequest } from "lucide-react";
 import Link from "next/link";
@@ -17,16 +17,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/AlertDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ConnectRepositoryDialog } from "./connect-repository-dialog";
-import { ChangeBranchDialog } from "./change-branch-dialog";
+} from "@/components/ui/DropdownMenu";
+import { ConnectRepositoryDialog } from "./ConnectRepositoryDialog";
+import { ChangeBranchDialog } from "./ChangeBranchDialog";
 
 interface Repository {
   id: string;

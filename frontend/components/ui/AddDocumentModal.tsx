@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FileUploadZone } from "@/components/ui/file-upload-zone";
+import { FileUploadZone } from "@/components/ui/FileUploadZone";
 import { 
   Upload, 
   FileText, 

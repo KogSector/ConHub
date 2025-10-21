@@ -7,7 +7,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui/DropdownMenu";
 import { User, Settings, LogOut, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";

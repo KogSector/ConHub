@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { useState } from "react"
 import { AuthProvider } from "@/contexts/auth-context"
-import { LoggingProvider } from "@/components/providers/logging-provider"
+import { LoggingProvider } from "@/components/providers/LoggingProvider"
 import { useAuth } from "@/hooks/use-auth"
 
 function LoggingWrapper({ children }: { children: React.ReactNode }) {
