@@ -125,7 +125,7 @@ pub fn create_auth_middleware(
 macro_rules! require_auth {
     () => {
         actix_web_httpauth::middleware::HttpAuthentication::bearer(
-            crate::middleware::auth_guard::bearer_auth_validator
+            crate::middleware::authorization::bearer_auth_validator
         )
     };
 }
@@ -134,7 +134,7 @@ macro_rules! require_auth {
 macro_rules! require_admin {
     () => {
         actix_web_httpauth::middleware::HttpAuthentication::bearer(
-            crate::middleware::auth_guard::bearer_auth_validator
+            crate::middleware::authorization::bearer_auth_validator
         )
         
     };
@@ -144,7 +144,7 @@ macro_rules! require_admin {
 macro_rules! require_subscription {
     ($tier:expr) => {
         actix_web_httpauth::middleware::HttpAuthentication::bearer(
-            crate::middleware::auth_guard::bearer_auth_validator
+            crate::middleware::authorization::bearer_auth_validator
         )
         
     };
