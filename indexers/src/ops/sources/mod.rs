@@ -5,3 +5,4 @@ pub mod azure_blob;
 pub mod google_drive;
 pub mod local_file;
 pub mod postgres;
+pub mod s3_sqs;
