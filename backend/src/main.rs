@@ -3,16 +3,13 @@ use actix_cors::Cors;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::env;
 
-mod models;
-mod handlers;
-mod services;
-mod errors;
+use conhub::models;
+use conhub::handlers;
+use conhub::services;
+use conhub::errors;
+use conhub::handlers::auth::configure_auth_routes;
 
-use handlers::auth::configure_auth_routes;
-
-mod rulesets {
-    pub use crate::handlers::security::rulesets::configure;
-}
+use conhub::handlers::security::rulesets;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

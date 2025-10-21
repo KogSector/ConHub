@@ -2,7 +2,6 @@
   "name": "conhub",
   "version": "1.0.0",
   "description": "ConHub - Unified development workflow platform",
-  "private": true,
   "scripts": {
     "dev": "next dev frontend -p 3000",
     "dev:all": "node scripts/services/start.js",
@@ -12,8 +11,8 @@
     "dev:frontend": "next dev frontend -p 3000",
     "dev:backend": "node scripts/services/run-backend.js",
     "dev:lexor": "node scripts/services/run-lexor.js",
-    "dev:mcp": "cd mcp && nodemon src/server.js",
-    "start:mcp": "cd mcp && node src/server.js",
+    "mcp:start": "node mcp/src/server.js",
+    "mcp:dev": "nodemon mcp/src/server.js",
     "build": "npm run build:frontend && npm run build:backend",
     "build:frontend": "next build frontend",
     "build:backend": "cargo build --release --bin conhub-backend --bin lexor",
