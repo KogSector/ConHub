@@ -1,11 +1,11 @@
-use conhub::config;
-use conhub::handlers;
-use conhub::models;
-use conhub::services;
-use conhub::utils;
-use conhub::execution;
-use conhub::monitoring;
-use conhub::schema;
+mod config;
+mod handlers;
+mod models;
+mod services;
+mod utils;
+mod execution;
+mod monitoring;
+mod schema;
 use actix_web::{web, App, HttpResponse, HttpServer, middleware::Logger};
 use actix_cors::Cors;
 use serde_json::json;
@@ -90,11 +90,24 @@ async fn main() -> std::io::Result<()> {
             .expect("Failed to initialize web indexer")
     );
     
+    // Initialize missing components
+    let error_handler = Arc::new(execution::error_handling::ErrorHandler::new());
+    let metrics_collector = Arc::new(RwLock::new(monitoring::metrics::MetricsCollector::new()));
+    let schema_manager = Arc::new(RwLock::new(schema::evolution::SchemaEvolutionManager::new()));
+    let multi_format_processor = Arc::new(services::processing::MultiFormatProcessor::new());
+    let embedding_processor = Arc::new(services::embedding::EmbeddingProcessor::new());
+
     let state = web::Data::new(IndexerState {
         code_indexer,
         doc_indexer,
         web_indexer,
         config: config.clone(),
+        error_handler,
+        metrics_collector,
+        schema_manager,
+        live_indexer: None, // Optional field
+        multi_format_processor,
+        embedding_processor,
     });
     
     log::info!("All indexing services initialized successfully");
