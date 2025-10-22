@@ -268,7 +268,7 @@ impl EnhancedLiveUpdater {
     }
     
     /// Start the live updater
-    pub async fn start(&self) -> Result<()> {
+    pub async fn start(&self) -> Result<(), anyhow::Error> {
         let mut stats = self.stats.write().await;
         stats.status = UpdaterStatus::Starting;
         drop(stats);
@@ -292,7 +292,7 @@ impl EnhancedLiveUpdater {
     }
     
     /// Stop the live updater
-    pub async fn stop(&self) -> Result<()> {
+    pub async fn stop(&self) -> Result<(), anyhow::Error> {
         let mut stats = self.stats.write().await;
         stats.status = UpdaterStatus::Stopping;
         drop(stats);
@@ -311,7 +311,7 @@ impl EnhancedLiveUpdater {
     }
     
     /// Trigger a manual refresh for a specific source
-    pub async fn trigger_refresh(&self, source_name: String) -> Result<()> {
+    pub async fn trigger_refresh(&self, source_name: String) -> Result<(), anyhow::Error> {
         let event = ChangeEvent::ManualRefresh {
             source_name,
             timestamp: SystemTime::now(),
@@ -381,7 +381,7 @@ impl EnhancedLiveUpdater {
     async fn process_polling_cycle(
         stats: &Arc<RwLock<LiveUpdateStats>>,
         options: &EnhancedLiveUpdateOptions,
-    ) -> Result<()> {
+    ) -> Result<(), anyhow::Error> {
         // Implementation would go here to:
         // 1. Check all configured sources for changes
         // 2. Process incremental updates where supported
@@ -401,7 +401,7 @@ impl EnhancedLiveUpdater {
         stats: &Arc<RwLock<LiveUpdateStats>>,
         options: &EnhancedLiveUpdateOptions,
         event: ChangeEvent,
-    ) -> Result<()> {
+    ) -> Result<(), anyhow::Error> {
         log::debug!("Processing change event: {:?}", event);
         
         match event {
@@ -435,7 +435,7 @@ impl EnhancedLiveUpdater {
         _options: &EnhancedLiveUpdateOptions,
         _path: &str,
         _change_type: FileChangeType,
-    ) -> Result<()> {
+    ) -> Result<(), anyhow::Error> {
         // Implementation would go here
         Ok(())
     }
@@ -447,7 +447,7 @@ impl EnhancedLiveUpdater {
         _table: &str,
         _operation: DbOperation,
         _record_id: Option<String>,
-    ) -> Result<()> {
+    ) -> Result<(), anyhow::Error> {
         // Implementation would go here
         Ok(())
     }
@@ -459,7 +459,7 @@ impl EnhancedLiveUpdater {
         _bucket: &str,
         _key: &str,
         _event_type: CloudEventType,
-    ) -> Result<()> {
+    ) -> Result<(), anyhow::Error> {
         // Implementation would go here
         Ok(())
     }
@@ -469,7 +469,7 @@ impl EnhancedLiveUpdater {
         _stats: &Arc<RwLock<LiveUpdateStats>>,
         _options: &EnhancedLiveUpdateOptions,
         _source_name: &str,
-    ) -> Result<()> {
+    ) -> Result<(), anyhow::Error> {
         // Implementation would go here
         Ok(())
     }
@@ -486,10 +486,10 @@ impl RetryExecutor {
     }
     
     /// Execute an operation with retry logic
-    pub async fn execute<F, Fut, T>(&self, operation: F) -> Result<T>
+    pub async fn execute<F, Fut, T>(&self, operation: F) -> Result<T, anyhow::Error>
     where
         F: Fn() -> Fut,
-        Fut: std::future::Future<Output = Result<T>>,
+        Fut: std::future::Future<Output = Result<T, anyhow::Error>>,
     {
         let mut attempt = 0;
         let mut delay = self.config.base_delay;
