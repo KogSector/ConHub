@@ -60,8 +60,8 @@ pub async fn query_agents(
     req: web::Json<AgentQueryRequest>,
 ) -> Result<HttpResponse> {
     let client = Client::new();
-    let lexor_url = std::env::var("LEXOR_SERVICE_URL")
-        .unwrap_or_else(|_| "http://localhost:3002".to_string());
+    let unified_indexer_url = std::env::var("UNIFIED_INDEXER_URL")
+        .unwrap_or_else(|_| "http://localhost:8080".to_string());
     let ai_service_url = std::env::var("AI_SERVICE_URL")
         .unwrap_or_else(|_| "http://localhost:8001".to_string());
 
@@ -75,7 +75,7 @@ pub async fn query_agents(
 
     
     if include_code {
-        match perform_code_search(&client, &lexor_url, &req.query, max_results).await {
+        match perform_code_search(&client, &unified_indexer_url, &req.query, max_results).await {
             Ok(results) => {
                 for result in results {
                     sources.push(ContextSource {
@@ -150,7 +150,7 @@ pub async fn query_agents(
 
 async fn perform_code_search(
     client: &Client,
-    lexor_url: &str,
+    unified_indexer_url: &str,
     query: &str,
     max_results: usize,
 ) -> Result<Vec<CodeSearchResult>, Box<dyn std::error::Error>> {
@@ -161,13 +161,13 @@ async fn perform_code_search(
     });
 
     let response = client
-        .post(&format!("{}/api/search", lexor_url))
+        .post(&format!("{}/api/search", unified_indexer_url))
         .json(&search_payload)
         .send()
         .await?;
 
     if !response.status().is_success() {
-        return Err(format!("Lexor search failed: {}", response.status()).into());
+        return Err(format!("Unified indexer search failed: {}", response.status()).into());
     }
 
     let search_results: serde_json::Value = response.json().await?;
