@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, RefreshCw, Trash2 } from 'lucide-react';
-import { ConnectDataSourceDialog } from '@/components/data/sources/connect-dialog';
+import { ConnectDataSourceDialog } from '@/components/data/sources/ConnectDialog';
 
 interface DataSource {
   id: string;

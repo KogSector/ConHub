@@ -1,11 +1,25 @@
-[workspace]
-members = [
-    "backend",
-    "indexers"
-]
-resolver = "2"
+[package]
+name = "conhub"
+version = "0.1.0"
+edition = "2021"
 
-[workspace.dependencies]
+[[bin]]
+name = "conhub-backend"
+path = "backend/src/main.rs"
+
+[[bin]]
+name = "conhub-indexer"
+path = "indexers/src/main.rs"
+
+[[bin]]
+name = "lexor"
+path = "indexers/src/main.rs"
+
+[[bin]]
+name = "test-database"
+path = "backend/src/bin/test_database.rs"
+
+[dependencies]
 
 actix-web = "4.4"
 actix-cors = "0.7"
@@ -101,13 +115,3 @@ urlencoding = "2.1"
 
 
 qdrant-client = "1.7"
-
-
-
-
-
-
-
-
-
-

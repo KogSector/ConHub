@@ -4,10 +4,10 @@ import { useState } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ProfileSettings } from '@/components/account/profile-settings'
-import { SecuritySettings } from '@/components/account/security-settings'
-import { NotificationSettings } from '@/components/account/notification-settings'
-import { AccountDeletion } from '@/components/account/account-deletion'
+import { ProfileSettings } from '@/components/account/ProfileSettings'
+import { SecuritySettings } from '@/components/account/SecuritySettings'
+import { NotificationSettings } from '@/components/account/NotificationSettings'
+import { AccountDeletion } from '@/components/account/AccountDeletion'
 
 export default function AccountPage() {
   const { user, isAuthenticated } = useAuth()

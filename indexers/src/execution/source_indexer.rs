@@ -66,7 +66,7 @@ pub struct SourceIndexingContext {
     needs_to_track_rows_to_retry: bool,
 }
 
-pub const NO_ACK: Option<fn() -> Ready<Result<()>>> = None;
+pub const NO_ACK: Option<fn() -> Ready<Result<(), anyhow::Error>>> = None;
 
 struct LocalSourceRowStateOperator<'a> {
     key: &'a value::KeyValue,
@@ -115,7 +115,7 @@ impl<'a> LocalSourceRowStateOperator<'a> {
         source_version: SourceVersion,
         content_version_fp: Option<&Vec<u8>>,
         force_reload: bool,
-    ) -> Result<RowStateAdvanceOutcome> {
+    ) -> Result<RowStateAdvanceOutcome, anyhow::Error> {
         let (sem, outcome) = {
             let mut state = self.indexing_state.lock().unwrap();
             let touched_generation = state.scan_generation;
@@ -253,7 +253,7 @@ impl SourceIndexingContext {
         source_idx: usize,
         setup_execution_ctx: Arc<exec_ctx::FlowSetupExecutionContext>,
         pool: &PgPool,
-    ) -> Result<Self> {
+    ) -> Result<Self, anyhow::Error> {
         let plan = flow.get_execution_plan().await?;
         let import_op = &plan.import_ops[source_idx];
         let mut list_state = db_tracking::ListTrackedSourceKeyMetadataState::new();
@@ -530,7 +530,7 @@ impl SourceIndexingContext {
         pool: &PgPool,
         update_stats: &Arc<stats::UpdateStats>,
         update_options: UpdateOptions,
-    ) -> Result<()> {
+    ) -> Result<(), anyhow::Error> {
         let pending_update_fut = {
             let mut pending_update = self.pending_update.lock().unwrap();
             if let Some(pending_update_fut) = &*pending_update {
@@ -571,7 +571,7 @@ impl SourceIndexingContext {
         pool: &PgPool,
         update_stats: &Arc<stats::UpdateStats>,
         update_options: &UpdateOptions,
-    ) -> Result<()> {
+    ) -> Result<(), anyhow::Error> {
         let plan = self.flow.get_execution_plan().await?;
         let import_op = &plan.import_ops[self.source_idx];
         let read_options = interface::SourceExecutorReadOptions {
@@ -594,7 +594,7 @@ impl SourceIndexingContext {
         pool: &PgPool,
         update_stats: &Arc<stats::UpdateStats>,
         update_options: &UpdateOptions,
-    ) -> Result<()> {
+    ) -> Result<(), anyhow::Error> {
         let mut join_set = JoinSet::new();
         let scan_generation = {
             let mut state = self.state.lock().unwrap();

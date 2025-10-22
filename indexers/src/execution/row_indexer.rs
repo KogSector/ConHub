@@ -24,7 +24,7 @@ use crate::utils::fingerprint::{Fingerprint, Fingerprinter};
 pub fn extract_primary_key_for_export(
     primary_key_def: &AnalyzedPrimaryKeyDef,
     record: &FieldValues,
-) -> Result<KeyValue> {
+) -> Result<KeyValue, anyhow::Error> {
     match primary_key_def {
         AnalyzedPrimaryKeyDef::Fields(fields) => {
             let key_parts: Box<[value::KeyPart]> = fields
@@ -204,7 +204,7 @@ impl<'a> RowIndexer<'a> {
         update_stats: &'a stats::UpdateStats,
         operation_in_process_stats: Option<&'a stats::OperationInProcessStats>,
         pool: &'a PgPool,
-    ) -> Result<Self> {
+    ) -> Result<Self, anyhow::Error> {
         Ok(Self {
             source_id: setup_execution_ctx.import_ops[src_eval_ctx.import_op_idx].source_id,
             process_time,
@@ -225,7 +225,7 @@ impl<'a> RowIndexer<'a> {
         source_value: interface::SourceValue,
         source_version_fp: Option<Vec<u8>>,
         ordinal_touched: &mut bool,
-    ) -> Result<SkippedOr<()>> {
+    ) -> Result<SkippedOr<()>, anyhow::Error> {
         let tracking_setup_state = &self.setup_execution_ctx.setup_state.tracking_table;
         // Phase 1: Check existing tracking info and apply optimizations
         let existing_tracking_info = read_source_tracking_info_for_processing(
@@ -431,7 +431,7 @@ impl<'a> RowIndexer<'a> {
         content_version_fp: &[u8],
         existing_version: &SourceVersion,
         baseline: ContentHashBasedCollapsingBaseline<'_>,
-    ) -> Result<Option<SkippedOr<()>>> {
+    ) -> Result<Option<SkippedOr<()>>, anyhow::Error> {
         let tracking_table_setup = &self.setup_execution_ctx.setup_state.tracking_table;
 
         // Check if we can use content hash optimization
@@ -533,7 +533,7 @@ impl<'a> RowIndexer<'a> {
         &self,
         source_version: &SourceVersion,
         data: Option<PrecommitData<'_>>,
-    ) -> Result<SkippedOr<PrecommitOutput>> {
+    ) -> Result<SkippedOr<PrecommitOutput>, anyhow::Error> {
         let db_setup = &self.setup_execution_ctx.setup_state.tracking_table;
         let export_ops = &self.src_eval_ctx.plan.export_ops;
         let export_ops_exec_ctx = &self.setup_execution_ctx.export_ops;
@@ -774,7 +774,7 @@ impl<'a> RowIndexer<'a> {
         source_version: &SourceVersion,
         source_fp: Option<Vec<u8>>,
         precommit_metadata: PrecommitMetadata,
-    ) -> Result<()> {
+    ) -> Result<(), anyhow::Error> {
         let db_setup = &self.setup_execution_ctx.setup_state.tracking_table;
         let mut txn = self.pool.begin().await?;
 
@@ -865,7 +865,7 @@ pub async fn evaluate_source_entry_with_memory(
     setup_execution_ctx: &exec_ctx::FlowSetupExecutionContext,
     options: EvaluationMemoryOptions,
     pool: &PgPool,
-) -> Result<Option<EvaluateSourceEntryOutput>> {
+) -> Result<Option<EvaluateSourceEntryOutput>, anyhow::Error> {
     let stored_info = if options.enable_cache || !options.evaluation_only {
         let source_key_json = serde_json::to_value(src_eval_ctx.key)?;
         let source_id = setup_execution_ctx.import_ops[src_eval_ctx.import_op_idx].source_id;

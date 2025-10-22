@@ -3,17 +3,29 @@ mod handlers;
 mod models;
 mod services;
 mod utils;
-
+mod execution;
+mod monitoring;
+mod schema;
 use actix_web::{web, App, HttpResponse, HttpServer, middleware::Logger};
 use actix_cors::Cors;
 use serde_json::json;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
+// Enhanced state with comprehensive indexing capabilities
 pub struct IndexerState {
     pub code_indexer: Arc<services::code::CodeIndexingService>,
     pub doc_indexer: Arc<services::document::DocumentIndexingService>,
     pub web_indexer: Arc<services::web::WebIndexingService>,
     pub config: config::IndexerConfig,
+    
+    // Enhanced components
+    pub error_handler: Arc<execution::error_handling::ErrorHandler>,
+    pub metrics_collector: Arc<RwLock<monitoring::metrics::MetricsCollector>>,
+    pub schema_manager: Arc<RwLock<schema::evolution::SchemaEvolutionManager>>,
+    pub live_indexer: Option<Arc<services::live::LiveIndexingService>>,
+    pub multi_format_processor: Arc<services::processing::MultiFormatProcessor>,
+    pub embedding_processor: Arc<services::embedding::EmbeddingProcessor>,
 }
 
 async fn health() -> actix_web::Result<HttpResponse> {
@@ -78,11 +90,24 @@ async fn main() -> std::io::Result<()> {
             .expect("Failed to initialize web indexer")
     );
     
+    // Initialize missing components
+    let error_handler = Arc::new(execution::error_handling::ErrorHandler::new());
+    let metrics_collector = Arc::new(RwLock::new(monitoring::metrics::MetricsCollector::new()));
+    let schema_manager = Arc::new(RwLock::new(schema::evolution::SchemaEvolutionManager::new()));
+    let multi_format_processor = Arc::new(services::processing::MultiFormatProcessor::new());
+    let embedding_processor = Arc::new(services::embedding::EmbeddingProcessor::new());
+
     let state = web::Data::new(IndexerState {
         code_indexer,
         doc_indexer,
         web_indexer,
         config: config.clone(),
+        error_handler,
+        metrics_collector,
+        schema_manager,
+        live_indexer: None, // Optional field
+        multi_format_processor,
+        embedding_processor,
     });
     
     log::info!("All indexing services initialized successfully");

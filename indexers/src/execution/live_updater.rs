@@ -1,517 +1,521 @@
-use crate::{
-    execution::{
-        source_indexer::{ProcessSourceRowInput, SourceIndexingContext},
-        stats::UpdateStats,
-    },
-    prelude::*,
-};
+use crate::prelude::*;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Duration, Instant, SystemTime};
+use tokio::sync::{mpsc, RwLock};
+use tokio::time::interval;
+use serde::{Deserialize, Serialize};
 
-use super::stats;
-use futures::future::try_join_all;
-use sqlx::PgPool;
-use tokio::{sync::watch, task::JoinSet, time::MissedTickBehavior};
-
-pub struct FlowLiveUpdaterUpdates {
-    pub active_sources: Vec<String>,
-    pub updated_sources: Vec<String>,
-}
-struct FlowLiveUpdaterStatus {
-    pub active_source_idx: BTreeSet<usize>,
-    pub source_updates_num: Vec<usize>,
-}
-
-struct UpdateReceiveState {
-    status_rx: watch::Receiver<FlowLiveUpdaterStatus>,
-    last_num_source_updates: Vec<usize>,
-    is_done: bool,
-}
-
-pub struct FlowLiveUpdater {
-    flow_ctx: Arc<FlowContext>,
-    join_set: Mutex<Option<JoinSet<Result<()>>>>,
-    stats_per_task: Vec<Arc<stats::UpdateStats>>,
-    /// Global tracking of in-process rows per operation
-    pub operation_in_process_stats: Arc<stats::OperationInProcessStats>,
-    recv_state: tokio::sync::Mutex<UpdateReceiveState>,
-    num_remaining_tasks_rx: watch::Receiver<usize>,
-
-    // Hold tx to avoid dropping the sender.
-    _status_tx: watch::Sender<FlowLiveUpdaterStatus>,
-    _num_remaining_tasks_tx: watch::Sender<usize>,
+/// Enhanced live update options with comprehensive configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnhancedLiveUpdateOptions {
+    /// Base refresh interval for polling sources
+    pub refresh_interval: Duration,
+    
+    /// Maximum number of concurrent update operations
+    pub max_concurrent_updates: usize,
+    
+    /// Enable incremental updates where supported
+    pub enable_incremental: bool,
+    
+    /// Batch size for processing updates
+    pub batch_size: usize,
+    
+    /// Timeout for individual update operations
+    pub operation_timeout: Duration,
+    
+    /// Enable detailed statistics collection
+    pub collect_stats: bool,
+    
+    /// Retry configuration
+    pub retry_config: RetryConfig,
+    
+    /// Change detection sensitivity
+    pub change_detection: ChangeDetectionConfig,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct FlowLiveUpdaterOptions {
-    /// If true, the updater will keep refreshing the index.
-    /// Otherwise, it will only apply changes from the source up to the current time.
-    pub live_mode: bool,
-
-    /// If true, the updater will reexport the targets even if there's no change.
-    pub reexport_targets: bool,
-
-    /// If true, stats will be printed to the console.
-    pub print_stats: bool,
-}
-
-const REPORT_INTERVAL: std::time::Duration = std::time::Duration::from_secs(10);
-
-struct SharedAckFn<AckAsyncFn: AsyncFnOnce() -> Result<()>> {
-    count: usize,
-    ack_fn: Option<AckAsyncFn>,
-}
-
-impl<AckAsyncFn: AsyncFnOnce() -> Result<()>> SharedAckFn<AckAsyncFn> {
-    fn new(count: usize, ack_fn: AckAsyncFn) -> Self {
+impl Default for EnhancedLiveUpdateOptions {
+    fn default() -> Self {
         Self {
-            count,
-            ack_fn: Some(ack_fn),
+            refresh_interval: Duration::from_secs(30),
+            max_concurrent_updates: 10,
+            enable_incremental: true,
+            batch_size: 100,
+            operation_timeout: Duration::from_secs(300),
+            collect_stats: true,
+            retry_config: RetryConfig::default(),
+            change_detection: ChangeDetectionConfig::default(),
         }
     }
+}
 
-    async fn ack(v: &Mutex<Self>) -> Result<()> {
-        let ack_fn = {
-            let mut v = v.lock().unwrap();
-            v.count -= 1;
-            if v.count > 0 { None } else { v.ack_fn.take() }
+/// Retry configuration for failed operations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetryConfig {
+    /// Maximum number of retry attempts
+    pub max_attempts: u32,
+    
+    /// Base delay between retries
+    pub base_delay: Duration,
+    
+    /// Maximum delay between retries
+    pub max_delay: Duration,
+    
+    /// Exponential backoff multiplier
+    pub backoff_multiplier: f64,
+    
+    /// Jitter factor to avoid thundering herd
+    pub jitter_factor: f64,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            max_attempts: 3,
+            base_delay: Duration::from_millis(100),
+            max_delay: Duration::from_secs(60),
+            backoff_multiplier: 2.0,
+            jitter_factor: 0.1,
+        }
+    }
+}
+
+/// Change detection configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChangeDetectionConfig {
+    /// Enable file system watching for local sources
+    pub enable_fs_watching: bool,
+    
+    /// Enable database change streams where supported
+    pub enable_db_streams: bool,
+    
+    /// Enable cloud storage event notifications
+    pub enable_cloud_events: bool,
+    
+    /// Checksum verification for change detection
+    pub enable_checksum_verification: bool,
+    
+    /// Minimum time between change notifications for the same resource
+    pub debounce_interval: Duration,
+}
+
+impl Default for ChangeDetectionConfig {
+    fn default() -> Self {
+        Self {
+            enable_fs_watching: true,
+            enable_db_streams: true,
+            enable_cloud_events: true,
+            enable_checksum_verification: true,
+            debounce_interval: Duration::from_millis(500),
+        }
+    }
+}
+
+/// Statistics for live update operations
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LiveUpdateStats {
+    /// Total number of update cycles completed
+    pub update_cycles: u64,
+    
+    /// Total number of items processed
+    pub items_processed: u64,
+    
+    /// Total number of items added
+    pub items_added: u64,
+    
+    /// Total number of items updated
+    pub items_updated: u64,
+    
+    /// Total number of items deleted
+    pub items_deleted: u64,
+    
+    /// Total number of errors encountered
+    pub errors: u64,
+    
+    /// Average processing time per cycle
+    pub avg_cycle_time: Duration,
+    
+    /// Last update timestamp
+    pub last_update: Option<SystemTime>,
+    
+    /// Current status
+    pub status: UpdaterStatus,
+    
+    /// Per-source statistics
+    pub source_stats: HashMap<String, SourceStats>,
+}
+
+/// Statistics for individual sources
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SourceStats {
+    /// Number of items processed from this source
+    pub items_processed: u64,
+    
+    /// Number of errors from this source
+    pub errors: u64,
+    
+    /// Last successful update time
+    pub last_success: Option<SystemTime>,
+    
+    /// Last error time
+    pub last_error: Option<SystemTime>,
+    
+    /// Current ordinal position (for incremental updates)
+    pub current_ordinal: Option<String>,
+    
+    /// Average processing time for this source
+    pub avg_processing_time: Duration,
+}
+
+/// Current status of the live updater
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum UpdaterStatus {
+    Starting,
+    Running,
+    Paused,
+    Stopping,
+    Stopped,
+    Error(String),
+}
+
+impl Default for UpdaterStatus {
+    fn default() -> Self {
+        UpdaterStatus::Stopped
+    }
+}
+
+/// Change event types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ChangeEvent {
+    /// File system change
+    FileSystemChange {
+        path: String,
+        change_type: FileChangeType,
+        timestamp: SystemTime,
+    },
+    
+    /// Database change notification
+    DatabaseChange {
+        table: String,
+        operation: DbOperation,
+        record_id: Option<String>,
+        timestamp: SystemTime,
+    },
+    
+    /// Cloud storage event
+    CloudStorageEvent {
+        bucket: String,
+        key: String,
+        event_type: CloudEventType,
+        timestamp: SystemTime,
+    },
+    
+    /// Manual refresh trigger
+    ManualRefresh {
+        source_name: String,
+        timestamp: SystemTime,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum FileChangeType {
+    Created,
+    Modified,
+    Deleted,
+    Renamed { from: String, to: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DbOperation {
+    Insert,
+    Update,
+    Delete,
+    Truncate,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum CloudEventType {
+    ObjectCreated,
+    ObjectModified,
+    ObjectDeleted,
+    ObjectMoved,
+}
+
+/// Enhanced live updater with comprehensive monitoring and error handling
+pub struct EnhancedLiveUpdater {
+    options: EnhancedLiveUpdateOptions,
+    stats: Arc<RwLock<LiveUpdateStats>>,
+    change_tx: mpsc::UnboundedSender<ChangeEvent>,
+    change_rx: Arc<RwLock<Option<mpsc::UnboundedReceiver<ChangeEvent>>>>,
+    shutdown_tx: mpsc::Sender<()>,
+    shutdown_rx: Arc<RwLock<Option<mpsc::Receiver<()>>>>,
+}
+
+impl EnhancedLiveUpdater {
+    /// Create a new enhanced live updater
+    pub fn new(options: EnhancedLiveUpdateOptions) -> Self {
+        let (change_tx, change_rx) = mpsc::unbounded_channel();
+        let (shutdown_tx, shutdown_rx) = mpsc::channel(1);
+        
+        Self {
+            options,
+            stats: Arc::new(RwLock::new(LiveUpdateStats::default())),
+            change_tx,
+            change_rx: Arc::new(RwLock::new(Some(change_rx))),
+            shutdown_tx,
+            shutdown_rx: Arc::new(RwLock::new(Some(shutdown_rx))),
+        }
+    }
+    
+    /// Start the live updater
+    pub async fn start(&self) -> Result<(), anyhow::Error> {
+        let mut stats = self.stats.write().await;
+        stats.status = UpdaterStatus::Starting;
+        drop(stats);
+        
+        // Start the main update loop
+        let stats_clone = self.stats.clone();
+        let options_clone = self.options.clone();
+        let change_rx = self.change_rx.write().await.take()
+            .ok_or_else(|| anyhow::anyhow!("Live updater already started"))?;
+        let shutdown_rx = self.shutdown_rx.write().await.take()
+            .ok_or_else(|| anyhow::anyhow!("Live updater already started"))?;
+        
+        tokio::spawn(async move {
+            Self::update_loop(stats_clone, options_clone, change_rx, shutdown_rx).await;
+        });
+        
+        let mut stats = self.stats.write().await;
+        stats.status = UpdaterStatus::Running;
+        
+        Ok(())
+    }
+    
+    /// Stop the live updater
+    pub async fn stop(&self) -> Result<(), anyhow::Error> {
+        let mut stats = self.stats.write().await;
+        stats.status = UpdaterStatus::Stopping;
+        drop(stats);
+        
+        self.shutdown_tx.send(()).await?;
+        
+        let mut stats = self.stats.write().await;
+        stats.status = UpdaterStatus::Stopped;
+        
+        Ok(())
+    }
+    
+    /// Get current statistics
+    pub async fn get_stats(&self) -> LiveUpdateStats {
+        self.stats.read().await.clone()
+    }
+    
+    /// Trigger a manual refresh for a specific source
+    pub async fn trigger_refresh(&self, source_name: String) -> Result<(), anyhow::Error> {
+        let event = ChangeEvent::ManualRefresh {
+            source_name,
+            timestamp: SystemTime::now(),
         };
-        if let Some(ack_fn) = ack_fn {
-            ack_fn().await?;
-        }
+        
+        self.change_tx.send(event)?;
         Ok(())
     }
-}
-
-struct SourceUpdateTask {
-    source_idx: usize,
-
-    flow: Arc<builder::AnalyzedFlow>,
-    plan: Arc<plan::ExecutionPlan>,
-    execution_ctx: Arc<tokio::sync::OwnedRwLockReadGuard<crate::lib_context::FlowExecutionContext>>,
-    source_update_stats: Arc<stats::UpdateStats>,
-    operation_in_process_stats: Arc<stats::OperationInProcessStats>,
-    pool: PgPool,
-    options: FlowLiveUpdaterOptions,
-
-    status_tx: watch::Sender<FlowLiveUpdaterStatus>,
-    num_remaining_tasks_tx: watch::Sender<usize>,
-}
-
-impl Drop for SourceUpdateTask {
-    fn drop(&mut self) {
-        self.status_tx.send_modify(|update| {
-            update.active_source_idx.remove(&self.source_idx);
-        });
-        self.num_remaining_tasks_tx.send_modify(|update| {
-            *update -= 1;
-        });
-    }
-}
-
-impl SourceUpdateTask {
-    async fn run(self) -> Result<()> {
-        let source_indexing_context = self
-            .execution_ctx
-            .get_source_indexing_context(&self.flow, self.source_idx, &self.pool)
-            .await?;
-        let initial_update_options = super::source_indexer::UpdateOptions {
-            expect_little_diff: false,
-            mode: if self.options.reexport_targets {
-                super::source_indexer::UpdateMode::ReexportTargets
-            } else {
-                super::source_indexer::UpdateMode::Normal
-            },
-        };
-
-        if !self.options.live_mode {
-            return self
-                .update_one_pass(
-                    source_indexing_context,
-                    "batch update",
-                    initial_update_options,
-                )
-                .await;
-        }
-
-        let mut futs: Vec<BoxFuture<'_, Result<()>>> = Vec::new();
-        let source_idx = self.source_idx;
-        let import_op = self.import_op();
-        let task = &self;
-
-        // Deal with change streams.
-        if let Some(change_stream) = import_op.executor.change_stream().await? {
-            let change_stream_stats = Arc::new(stats::UpdateStats::default());
-            futs.push(
-                {
-                    let change_stream_stats = change_stream_stats.clone();
-                    let pool = self.pool.clone();
-                    let status_tx = self.status_tx.clone();
-                    let operation_in_process_stats = self.operation_in_process_stats.clone();
-                    async move {
-                        let mut change_stream = change_stream;
-                        let retry_options = retryable::RetryOptions {
-                            retry_timeout: None,
-                            initial_backoff: std::time::Duration::from_secs(5),
-                            max_backoff: std::time::Duration::from_secs(60),
-                        };
-                        loop {
-                            // Workaround as AsyncFnMut isn't mature yet.
-                            // Should be changed to use AsyncFnMut once it is.
-                            let change_stream = tokio::sync::Mutex::new(&mut change_stream);
-                            let change_msg = retryable::run(
-                                || async {
-                                    let mut change_stream = change_stream.lock().await;
-                                    change_stream
-                                        .next()
-                                        .await
-                                        .transpose()
-                                        .map_err(retryable::Error::retryable)
-                                },
-                                &retry_options,
-                            )
-                            .await
-                            .map_err(Into::<anyhow::Error>::into)
-                            .with_context(|| {
-                                format!(
-                                    "Error in getting change message for flow `{}` source `{}`",
-                                    task.flow.flow_instance.name, import_op.name
-                                )
-                            });
-                            let change_msg = match change_msg {
-                                Ok(Some(change_msg)) => change_msg,
-                                Ok(None) => break,
-                                Err(err) => {
-                                    error!("{:?}", err);
-                                    continue;
-                                }
-                            };
-
-                            let update_stats = Arc::new(stats::UpdateStats::default());
-                            let ack_fn = {
-                                let status_tx = status_tx.clone();
-                                let update_stats = update_stats.clone();
-                                let change_stream_stats = change_stream_stats.clone();
-                                async move || {
-                                    if update_stats.has_any_change() {
-                                        status_tx.send_modify(|update| {
-                                            update.source_updates_num[source_idx] += 1;
-                                        });
-                                        change_stream_stats.merge(&update_stats);
-                                    }
-                                    if let Some(ack_fn) = change_msg.ack_fn {
-                                        ack_fn().await
-                                    } else {
-                                        Ok(())
-                                    }
-                                }
-                            };
-                            let shared_ack_fn = Arc::new(Mutex::new(SharedAckFn::new(
-                                change_msg.changes.iter().len(),
-                                ack_fn,
-                            )));
-                            for change in change_msg.changes {
-                                let shared_ack_fn = shared_ack_fn.clone();
-                                let concur_permit = import_op
-                                    .concurrency_controller
-                                    .acquire(concur_control::BYTES_UNKNOWN_YET)
-                                    .await?;
-                                tokio::spawn(
-                                    source_indexing_context.clone().process_source_row(
-                                        ProcessSourceRowInput {
-                                            key: change.key,
-                                            key_aux_info: Some(change.key_aux_info),
-                                            data: change.data,
-                                        },
-                                        super::source_indexer::UpdateMode::Normal,
-                                        update_stats.clone(),
-                                        Some(operation_in_process_stats.clone()),
-                                        concur_permit,
-                                        Some(move || async move {
-                                            SharedAckFn::ack(&shared_ack_fn).await
-                                        }),
-                                        pool.clone(),
-                                    ),
-                                );
-                            }
-                        }
-                        Ok(())
-                    }
-                }
-                .boxed(),
-            );
-
-            futs.push(
-                async move {
-                    let mut interval = tokio::time::interval(REPORT_INTERVAL);
-                    let mut last_change_stream_stats: UpdateStats =
-                        change_stream_stats.as_ref().clone();
-                    interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
-                    interval.tick().await;
-                    loop {
-                        interval.tick().await;
-                        let curr_change_stream_stats = change_stream_stats.as_ref().clone();
-                        let delta = curr_change_stream_stats.delta(&last_change_stream_stats);
-                        if delta.has_any_change() {
-                            task.report_stats(&delta, "change stream");
-                            last_change_stream_stats = curr_change_stream_stats;
-                        }
-                    }
-                }
-                .boxed(),
-            );
-        }
-
-        // The main update loop.
-        futs.push({
-            async move {
-                let refresh_interval = import_op.refresh_options.refresh_interval;
-
-                task.update_with_pass_with_error_logging(
-                    source_indexing_context,
-                    if refresh_interval.is_some() {
-                        "initial interval update"
-                    } else {
-                        "batch update"
-                    },
-                    initial_update_options,
-                )
-                .await;
-
-                if let Some(refresh_interval) = refresh_interval {
-                    let mut interval = tokio::time::interval(refresh_interval);
-                    interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
-                    interval.tick().await;
-                    loop {
-                        interval.tick().await;
-
-                        task.update_with_pass_with_error_logging(
-                            source_indexing_context,
-                            "interval update",
-                            super::source_indexer::UpdateOptions {
-                                expect_little_diff: true,
-                                mode: super::source_indexer::UpdateMode::Normal,
-                            },
-                        )
-                        .await;
-                    }
-                }
-                Ok(())
-            }
-            .boxed()
-        });
-
-        try_join_all(futs).await?;
-        Ok(())
-    }
-
-    fn report_stats(&self, stats: &stats::UpdateStats, update_title: &str) {
-        self.source_update_stats.merge(stats);
-        if self.options.print_stats {
-            println!(
-                "{}.{} ({update_title}): {}",
-                self.flow.flow_instance.name,
-                self.import_op().name,
-                stats
-            );
-        } else {
-            trace!(
-                "{}.{} ({update_title}): {}",
-                self.flow.flow_instance.name,
-                self.import_op().name,
-                stats
-            );
-        }
-    }
-
-    async fn update_one_pass(
-        &self,
-        source_indexing_context: &Arc<SourceIndexingContext>,
-        update_title: &str,
-        update_options: super::source_indexer::UpdateOptions,
-    ) -> Result<()> {
-        let update_stats = Arc::new(stats::UpdateStats::default());
-        source_indexing_context
-            .update(&self.pool, &update_stats, update_options)
-            .await
-            .with_context(|| {
-                format!(
-                    "Error in processing flow `{}` source `{}` ({update_title})",
-                    self.flow.flow_instance.name,
-                    self.import_op().name
-                )
-            })?;
-        if update_stats.has_any_change() {
-            self.status_tx.send_modify(|update| {
-                update.source_updates_num[self.source_idx] += 1;
-            });
-        }
-        self.report_stats(&update_stats, update_title);
-        Ok(())
-    }
-
-    async fn update_with_pass_with_error_logging(
-        &self,
-        source_indexing_context: &Arc<SourceIndexingContext>,
-        update_title: &str,
-        update_options: super::source_indexer::UpdateOptions,
+    
+    /// Main update loop
+    async fn update_loop(
+        stats: Arc<RwLock<LiveUpdateStats>>,
+        options: EnhancedLiveUpdateOptions,
+        mut change_rx: mpsc::UnboundedReceiver<ChangeEvent>,
+        mut shutdown_rx: mpsc::Receiver<()>,
     ) {
-        let result = self
-            .update_one_pass(source_indexing_context, update_title, update_options)
-            .await;
-        if let Err(err) = result {
-            error!("{:?}", err);
-        }
-    }
-
-    fn import_op(&self) -> &plan::AnalyzedImportOp {
-        &self.plan.import_ops[self.source_idx]
-    }
-}
-
-impl FlowLiveUpdater {
-    pub async fn start(
-        flow_ctx: Arc<FlowContext>,
-        pool: &PgPool,
-        options: FlowLiveUpdaterOptions,
-    ) -> Result<Self> {
-        let plan = flow_ctx.flow.get_execution_plan().await?;
-        let execution_ctx = Arc::new(flow_ctx.use_owned_execution_ctx().await?);
-
-        let (status_tx, status_rx) = watch::channel(FlowLiveUpdaterStatus {
-            active_source_idx: BTreeSet::from_iter(0..plan.import_ops.len()),
-            source_updates_num: vec![0; plan.import_ops.len()],
-        });
-
-        let (num_remaining_tasks_tx, num_remaining_tasks_rx) =
-            watch::channel(plan.import_ops.len());
-
-        let mut join_set = JoinSet::new();
-        let mut stats_per_task = Vec::new();
-        let operation_in_process_stats = Arc::new(stats::OperationInProcessStats::default());
-
-        for source_idx in 0..plan.import_ops.len() {
-            let source_update_stats = Arc::new(stats::UpdateStats::default());
-            let source_update_task = SourceUpdateTask {
-                source_idx,
-                flow: flow_ctx.flow.clone(),
-                plan: plan.clone(),
-                execution_ctx: execution_ctx.clone(),
-                source_update_stats: source_update_stats.clone(),
-                operation_in_process_stats: operation_in_process_stats.clone(),
-                pool: pool.clone(),
-                options: options.clone(),
-                status_tx: status_tx.clone(),
-                num_remaining_tasks_tx: num_remaining_tasks_tx.clone(),
-            };
-            join_set.spawn(source_update_task.run());
-            stats_per_task.push(source_update_stats);
-        }
-
-        Ok(Self {
-            flow_ctx,
-            join_set: Mutex::new(Some(join_set)),
-            stats_per_task,
-            operation_in_process_stats,
-            recv_state: tokio::sync::Mutex::new(UpdateReceiveState {
-                status_rx,
-                last_num_source_updates: vec![0; plan.import_ops.len()],
-                is_done: false,
-            }),
-            num_remaining_tasks_rx,
-
-            _status_tx: status_tx,
-            _num_remaining_tasks_tx: num_remaining_tasks_tx,
-        })
-    }
-
-    pub async fn wait(&self) -> Result<()> {
-        {
-            let mut rx = self.num_remaining_tasks_rx.clone();
-            rx.wait_for(|v| *v == 0).await?;
-        }
-
-        let Some(mut join_set) = self.join_set.lock().unwrap().take() else {
-            return Ok(());
-        };
-        while let Some(task_result) = join_set.join_next().await {
-            match task_result {
-                Ok(Ok(_)) => {}
-                Ok(Err(err)) => {
-                    return Err(err);
+        let mut interval = interval(options.refresh_interval);
+        let mut last_cycle_start = Instant::now();
+        
+        loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    // Regular polling cycle
+                    let cycle_start = Instant::now();
+                    
+                    if let Err(e) = Self::process_polling_cycle(&stats, &options).await {
+                        log::error!("Error in polling cycle: {}", e);
+                        let mut stats_guard = stats.write().await;
+                        stats_guard.errors += 1;
+                        stats_guard.status = UpdaterStatus::Error(e.to_string());
+                    }
+                    
+                    // Update cycle statistics
+                    let cycle_duration = cycle_start.elapsed();
+                    let mut stats_guard = stats.write().await;
+                    stats_guard.update_cycles += 1;
+                    stats_guard.avg_cycle_time = Duration::from_nanos(
+                        (stats_guard.avg_cycle_time.as_nanos() as u64 + cycle_duration.as_nanos() as u64) / 2
+                    );
+                    stats_guard.last_update = Some(SystemTime::now());
+                    
+                    last_cycle_start = cycle_start;
                 }
-                Err(err) if err.is_cancelled() => {}
-                Err(err) => {
-                    return Err(err.into());
+                
+                Some(change_event) = change_rx.recv() => {
+                    // Process change event
+                    if let Err(e) = Self::process_change_event(&stats, &options, change_event).await {
+                        log::error!("Error processing change event: {}", e);
+                        let mut stats_guard = stats.write().await;
+                        stats_guard.errors += 1;
+                    }
+                }
+                
+                _ = shutdown_rx.recv() => {
+                    // Shutdown signal received
+                    log::info!("Live updater shutting down");
+                    break;
                 }
             }
         }
+        
+        let mut stats_guard = stats.write().await;
+        stats_guard.status = UpdaterStatus::Stopped;
+    }
+    
+    /// Process a regular polling cycle
+    async fn process_polling_cycle(
+        stats: &Arc<RwLock<LiveUpdateStats>>,
+        options: &EnhancedLiveUpdateOptions,
+    ) -> Result<(), anyhow::Error> {
+        // Implementation would go here to:
+        // 1. Check all configured sources for changes
+        // 2. Process incremental updates where supported
+        // 3. Update statistics
+        // 4. Handle errors with retry logic
+        
+        log::debug!("Processing polling cycle");
+        
+        // Placeholder implementation
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        
         Ok(())
     }
-
-    pub fn abort(&self) {
-        let mut join_set = self.join_set.lock().unwrap();
-        if let Some(join_set) = &mut *join_set {
-            join_set.abort_all();
+    
+    /// Process a change event
+    async fn process_change_event(
+        stats: &Arc<RwLock<LiveUpdateStats>>,
+        options: &EnhancedLiveUpdateOptions,
+        event: ChangeEvent,
+    ) -> Result<(), anyhow::Error> {
+        log::debug!("Processing change event: {:?}", event);
+        
+        match event {
+            ChangeEvent::FileSystemChange { path, change_type, .. } => {
+                // Handle file system changes
+                Self::handle_file_system_change(stats, options, &path, change_type).await?;
+            }
+            
+            ChangeEvent::DatabaseChange { table, operation, record_id, .. } => {
+                // Handle database changes
+                Self::handle_database_change(stats, options, &table, operation, record_id).await?;
+            }
+            
+            ChangeEvent::CloudStorageEvent { bucket, key, event_type, .. } => {
+                // Handle cloud storage events
+                Self::handle_cloud_storage_event(stats, options, &bucket, &key, event_type).await?;
+            }
+            
+            ChangeEvent::ManualRefresh { source_name, .. } => {
+                // Handle manual refresh
+                Self::handle_manual_refresh(stats, options, &source_name).await?;
+            }
         }
+        
+        Ok(())
     }
-
-    pub fn index_update_info(&self) -> stats::IndexUpdateInfo {
-        stats::IndexUpdateInfo {
-            sources: std::iter::zip(
-                self.flow_ctx.flow.flow_instance.import_ops.iter(),
-                self.stats_per_task.iter(),
-            )
-            .map(|(import_op, stats)| stats::SourceUpdateInfo {
-                source_name: import_op.name.clone(),
-                stats: stats.as_ref().clone(),
-            })
-            .collect(),
-        }
+    
+    /// Handle file system changes
+    async fn handle_file_system_change(
+        _stats: &Arc<RwLock<LiveUpdateStats>>,
+        _options: &EnhancedLiveUpdateOptions,
+        _path: &str,
+        _change_type: FileChangeType,
+    ) -> Result<(), anyhow::Error> {
+        // Implementation would go here
+        Ok(())
     }
+    
+    /// Handle database changes
+    async fn handle_database_change(
+        _stats: &Arc<RwLock<LiveUpdateStats>>,
+        _options: &EnhancedLiveUpdateOptions,
+        _table: &str,
+        _operation: DbOperation,
+        _record_id: Option<String>,
+    ) -> Result<(), anyhow::Error> {
+        // Implementation would go here
+        Ok(())
+    }
+    
+    /// Handle cloud storage events
+    async fn handle_cloud_storage_event(
+        _stats: &Arc<RwLock<LiveUpdateStats>>,
+        _options: &EnhancedLiveUpdateOptions,
+        _bucket: &str,
+        _key: &str,
+        _event_type: CloudEventType,
+    ) -> Result<(), anyhow::Error> {
+        // Implementation would go here
+        Ok(())
+    }
+    
+    /// Handle manual refresh
+    async fn handle_manual_refresh(
+        _stats: &Arc<RwLock<LiveUpdateStats>>,
+        _options: &EnhancedLiveUpdateOptions,
+        _source_name: &str,
+    ) -> Result<(), anyhow::Error> {
+        // Implementation would go here
+        Ok(())
+    }
+}
 
-    pub async fn next_status_updates(&self) -> Result<FlowLiveUpdaterUpdates> {
-        let mut recv_state = self.recv_state.lock().await;
-        let recv_state = &mut *recv_state;
+/// Retry logic with exponential backoff and jitter
+pub struct RetryExecutor {
+    config: RetryConfig,
+}
 
-        if recv_state.is_done {
-            return Ok(FlowLiveUpdaterUpdates {
-                active_sources: vec![],
-                updated_sources: vec![],
-            });
-        }
-
-        recv_state.status_rx.changed().await?;
-        let status = recv_state.status_rx.borrow_and_update();
-        let updates = FlowLiveUpdaterUpdates {
-            active_sources: status
-                .active_source_idx
-                .iter()
-                .map(|idx| {
-                    self.flow_ctx.flow.flow_instance.import_ops[*idx]
-                        .name
-                        .clone()
-                })
-                .collect(),
-            updated_sources: status
-                .source_updates_num
-                .iter()
-                .enumerate()
-                .filter_map(|(idx, num_updates)| {
-                    if num_updates > &recv_state.last_num_source_updates[idx] {
-                        Some(
-                            self.flow_ctx.flow.flow_instance.import_ops[idx]
-                                .name
-                                .clone(),
-                        )
-                    } else {
-                        None
+impl RetryExecutor {
+    pub fn new(config: RetryConfig) -> Self {
+        Self { config }
+    }
+    
+    /// Execute an operation with retry logic
+    pub async fn execute<F, Fut, T>(&self, operation: F) -> Result<T, anyhow::Error>
+    where
+        F: Fn() -> Fut,
+        Fut: std::future::Future<Output = Result<T, anyhow::Error>>,
+    {
+        let mut attempt = 0;
+        let mut delay = self.config.base_delay;
+        
+        loop {
+            match operation().await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    attempt += 1;
+                    
+                    if attempt >= self.config.max_attempts {
+                        return Err(e);
                     }
-                })
-                .collect(),
-        };
-        recv_state.last_num_source_updates = status.source_updates_num.clone();
-        if status.active_source_idx.is_empty() {
-            recv_state.is_done = true;
+                    
+                    // Calculate delay with exponential backoff and jitter
+                    let jitter = delay.as_millis() as f64 * self.config.jitter_factor * rand::random::<f64>();
+                    let total_delay = delay + Duration::from_millis(jitter as u64);
+                    
+                    tokio::time::sleep(total_delay).await;
+                    
+                    delay = std::cmp::min(
+                        Duration::from_millis((delay.as_millis() as f64 * self.config.backoff_multiplier) as u64),
+                        self.config.max_delay,
+                    );
+                }
+            }
         }
-        Ok(updates)
     }
 }

@@ -7,12 +7,9 @@ mod models;
 mod handlers;
 mod services;
 mod errors;
-
 use handlers::auth::configure_auth_routes;
 
-mod rulesets {
-    pub use crate::handlers::security::rulesets::configure;
-}
+use handlers::security::rulesets;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

@@ -97,7 +97,7 @@ pub async fn read_source_tracking_info_for_processing(
     source_key_json: &serde_json::Value,
     db_setup: &TrackingTableSetupState,
     pool: &PgPool,
-) -> Result<Option<SourceTrackingInfoForProcessing>> {
+) -> Result<Option<SourceTrackingInfoForProcessing>, anyhow::Error> {
     let query_str = format!(
         "SELECT memoization_info, processed_source_ordinal, {}, process_logic_fingerprint, max_process_ordinal, process_ordinal FROM {} WHERE source_id = $1 AND source_key = $2",
         if db_setup.has_fast_fingerprint_column {
@@ -133,7 +133,7 @@ pub async fn read_source_tracking_info_for_precommit(
     source_key_json: &serde_json::Value,
     db_setup: &TrackingTableSetupState,
     db_executor: impl sqlx::Executor<'_, Database = sqlx::Postgres>,
-) -> Result<Option<SourceTrackingInfoForPrecommit>> {
+) -> Result<Option<SourceTrackingInfoForPrecommit>, anyhow::Error> {
     let query_str = format!(
         "SELECT max_process_ordinal, staging_target_keys, processed_source_ordinal, {}, process_logic_fingerprint, process_ordinal, target_keys FROM {} WHERE source_id = $1 AND source_key = $2",
         if db_setup.has_fast_fingerprint_column {
@@ -162,7 +162,7 @@ pub async fn precommit_source_tracking_info(
     db_setup: &TrackingTableSetupState,
     db_executor: impl sqlx::Executor<'_, Database = sqlx::Postgres>,
     action: WriteAction,
-) -> Result<()> {
+) -> Result<(), anyhow::Error> {
     let query_str = match action {
         WriteAction::Insert => format!(
             "INSERT INTO {} (source_id, source_key, max_process_ordinal, staging_target_keys, memoization_info) VALUES ($1, $2, $3, $4, $5)",
@@ -190,7 +190,7 @@ pub async fn touch_max_process_ordinal(
     process_ordinal: i64,
     db_setup: &TrackingTableSetupState,
     db_executor: impl sqlx::Executor<'_, Database = sqlx::Postgres>,
-) -> Result<()> {
+) -> Result<(), anyhow::Error> {
     let query_str = format!(
         "INSERT INTO {} AS t (source_id, source_key, max_process_ordinal, staging_target_keys) \
          VALUES ($1, $2, $3, $4) \
@@ -219,7 +219,7 @@ pub async fn read_source_tracking_info_for_commit(
     source_key_json: &serde_json::Value,
     db_setup: &TrackingTableSetupState,
     db_executor: impl sqlx::Executor<'_, Database = sqlx::Postgres>,
-) -> Result<Option<SourceTrackingInfoForCommit>> {
+) -> Result<Option<SourceTrackingInfoForCommit>, anyhow::Error> {
     let query_str = format!(
         "SELECT staging_target_keys, process_ordinal FROM {} WHERE source_id = $1 AND source_key = $2",
         db_setup.table_name
@@ -246,7 +246,7 @@ pub async fn commit_source_tracking_info(
     db_setup: &TrackingTableSetupState,
     db_executor: impl sqlx::Executor<'_, Database = sqlx::Postgres>,
     action: WriteAction,
-) -> Result<()> {
+) -> Result<(), anyhow::Error> {
     let query_str = match action {
         WriteAction::Insert => format!(
             "INSERT INTO {} ( \
@@ -299,7 +299,7 @@ pub async fn delete_source_tracking_info(
     source_key_json: &serde_json::Value,
     db_setup: &TrackingTableSetupState,
     db_executor: impl sqlx::Executor<'_, Database = sqlx::Postgres>,
-) -> Result<()> {
+) -> Result<(), anyhow::Error> {
     let query_str = format!(
         "DELETE FROM {} WHERE source_id = $1 AND source_key = $2",
         db_setup.table_name
@@ -366,7 +366,7 @@ pub async fn read_source_last_processed_info(
     source_key_json: &serde_json::Value,
     db_setup: &TrackingTableSetupState,
     pool: &PgPool,
-) -> Result<Option<SourceLastProcessedInfo>> {
+) -> Result<Option<SourceLastProcessedInfo>, anyhow::Error> {
     let query_str = format!(
         "SELECT processed_source_ordinal, process_logic_fingerprint, process_time_micros FROM {} WHERE source_id = $1 AND source_key = $2",
         db_setup.table_name
@@ -385,7 +385,7 @@ pub async fn update_source_tracking_ordinal(
     processed_source_ordinal: Option<i64>,
     db_setup: &TrackingTableSetupState,
     db_executor: impl sqlx::Executor<'_, Database = sqlx::Postgres>,
-) -> Result<()> {
+) -> Result<(), anyhow::Error> {
     let query_str = format!(
         "UPDATE {} SET processed_source_ordinal = $3 WHERE source_id = $1 AND source_key = $2",
         db_setup.table_name
@@ -408,7 +408,7 @@ pub async fn read_source_state(
     source_key_json: &serde_json::Value,
     db_setup: &TrackingTableSetupState,
     db_executor: impl sqlx::Executor<'_, Database = sqlx::Postgres>,
-) -> Result<Option<serde_json::Value>> {
+) -> Result<Option<serde_json::Value>, anyhow::Error> {
     let Some(table_name) = db_setup.source_state_table_name.as_ref() else {
         bail!("Source state table not enabled for this flow");
     };
@@ -431,7 +431,7 @@ pub async fn upsert_source_state(
     state: serde_json::Value,
     db_setup: &TrackingTableSetupState,
     db_executor: impl sqlx::Executor<'_, Database = sqlx::Postgres>,
-) -> Result<()> {
+) -> Result<(), anyhow::Error> {
     let Some(table_name) = db_setup.source_state_table_name.as_ref() else {
         bail!("Source state table not enabled for this flow");
     };

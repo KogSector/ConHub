@@ -11,7 +11,7 @@ import {
   TeamSettings,
   DeveloperSettings
 } from "@/components/settings";
-import { ProfileAvatar } from "@/components/ui/profile-avatar";
+import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { Footer } from "@/components/ui/footer";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
