@@ -70,7 +70,7 @@ impl OpArgName {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NamedSpec<T> {
     pub name: String,
 
@@ -141,11 +141,25 @@ impl fmt::Display for StructMapping {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CollectionMapping {
+    /// The source collection field
+    pub source: Box<ValueMapping>,
+    /// Mapping applied to each item in the collection
+    pub item_mapping: Box<ValueMapping>,
+}
+
+impl fmt::Display for CollectionMapping {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{} -> {}]", self.source, self.item_mapping)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum ValueMapping {
     Constant(ConstantMapping),
     Field(FieldMapping),
-    // TODO: Add support for collections
+    Collection(CollectionMapping),
 }
 
 impl ValueMapping {
@@ -171,6 +185,9 @@ impl std::fmt::Display for ValueMapping {
             ),
             ValueMapping::Field(v) => {
                 write!(f, "{}.{}", v.scope.as_deref().unwrap_or(""), v.field_path)
+            }
+            ValueMapping::Collection(v) => {
+                write!(f, "{}", v)
             }
         }
     }
@@ -541,7 +558,8 @@ impl SpecFormatter for ReactiveOpSpec {
 pub struct ReactiveOpScope {
     pub name: ScopeName,
     pub ops: Vec<NamedSpec<ReactiveOpSpec>>,
-    // TODO: Suport collectors
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub collectors: Vec<FieldName>,
 }
 
 impl fmt::Display for ReactiveOpScope {

@@ -7,7 +7,7 @@ pub async fn universal_search(
     client: &Client,
     langchain_url: &str,
     haystack_url: &str,
-    lexor_url: &str,
+    unified_indexer_url: &str,
     request: &SearchRequest,
 ) -> HashMap<String, serde_json::Value> {
     let mut results = HashMap::new();
@@ -18,7 +18,7 @@ pub async fn universal_search(
     }
     
     
-    if let Ok(result) = search_lexor(client, lexor_url, request).await {
+    if let Ok(result) = search_unified_indexer(client, unified_indexer_url, request).await {
         results.insert("code".to_string(), result);
     }
     
@@ -49,7 +49,7 @@ async fn search_langchain(
     Ok(response.json().await?)
 }
 
-async fn search_lexor(
+async fn search_unified_indexer(
     client: &Client,
     url: &str,
     request: &SearchRequest,

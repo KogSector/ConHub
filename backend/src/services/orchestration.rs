@@ -13,11 +13,11 @@ pub struct ServiceOrchestrator {
 
 impl ServiceOrchestrator {
     #[allow(dead_code)]
-    pub fn new(langchain_url: String, haystack_url: String, lexor_url: String) -> Self {
+    pub fn new(langchain_url: String, haystack_url: String, unified_indexer_url: String) -> Self {
         let mut services = HashMap::new();
         services.insert("langchain".to_string(), langchain_url);
         services.insert("haystack".to_string(), haystack_url);
-        services.insert("lexor".to_string(), lexor_url);
+        services.insert("unified_indexer".to_string(), unified_indexer_url);
         
         Self {
             client: Client::new(),
@@ -49,20 +49,20 @@ impl ServiceOrchestrator {
         }
         
         
-        if let Some(lexor_url) = self.services.get("lexor") {
+        if let Some(unified_indexer_url) = self.services.get("unified_indexer") {
             let payload = json!({
                 "repository_url": repo_url,
                 "access_token": access_token
             });
             
             if let Ok(response) = self.client
-                .post(&format!("{}/api/projects", lexor_url))
+                .post(&format!("{}/api/projects", unified_indexer_url))
                 .json(&payload)
                 .send()
                 .await
             {
                 if let Ok(result) = response.json::<serde_json::Value>().await {
-                    results.insert("lexor", result);
+                    results.insert("unified_indexer", result);
                 }
             }
         }

@@ -887,8 +887,39 @@ impl AnalyzerContext {
                         )
                     }
                     None => {
-                        // TODO: Support auto-generate primary key
-                        api_bail!("Primary key fields must be specified")
+                        // Support auto-generate primary key using auto_uuid_field
+                        if let Some(auto_uuid_idx) = &collector_schema.auto_uuid_field_idx {
+                            let pk_fields_idx = vec![*auto_uuid_idx];
+                            let primary_key_schema = pk_fields_idx
+                                .iter()
+                                .map(|idx| collector_schema.fields[*idx].without_attrs())
+                                .collect::<Box<[_]>>();
+                            let mut value_fields_schema: Vec<FieldSchema> = vec![];
+                            let mut value_fields_idx = vec![];
+                            for (idx, field) in collector_schema.fields.iter().enumerate() {
+                                if !pk_fields_idx.contains(&idx) {
+                                    value_fields_schema.push(field.without_attrs());
+                                    value_fields_idx.push(idx as u32);
+                                }
+                            }
+                            // value_stable is true when auto_uuid is the primary key
+                            let value_stable = true;
+                            let output_value_fingerprinter =
+                                Fingerprinter::default().with(&value_fields_schema)?;
+                            (
+                                value_fields_schema,
+                                ExportDataFieldsInfo {
+                                    local_collector_ref,
+                                    primary_key_def: AnalyzedPrimaryKeyDef::Fields(pk_fields_idx),
+                                    primary_key_schema,
+                                    value_fields_idx,
+                                    value_stable,
+                                    output_value_fingerprinter,
+                                },
+                            )
+                        } else {
+                            api_bail!("Primary key fields must be specified or auto_uuid field must be defined")
+                        }
                     }
                 };
             collection_specs.push(interface::ExportDataCollectionSpec {

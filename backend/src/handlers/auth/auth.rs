@@ -5,6 +5,7 @@ use chrono::{Utc, Duration, DateTime};
 use validator::Validate;
 use bcrypt::{hash, verify, DEFAULT_COST};
 use jsonwebtoken::{encode, Header, EncodingKey};
+use sqlx::PgPool;
 
 use crate::models::auth::*;
 use crate::services::auth::password_reset::PASSWORD_RESET_SERVICE;
@@ -285,7 +286,118 @@ pub async fn list_users(pool: web::Data<PgPool>) -> Result<HttpResponse> {
     }
 }
 
+pub async fn oauth_callback(
+    request: web::Json<OAuthCallbackRequest>,
+    pool: web::Data<PgPool>,
+) -> Result<HttpResponse> {
+    if let Err(validation_errors) = request.validate() {
+        return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Validation failed",
+            "details": validation_errors
+        })));
+    }
 
+    let user_service = UserService::new(pool.get_ref().clone());
+    
+    // Try to find existing user by email
+    let (user, is_new_user) = match user_service.find_by_email(&request.email).await {
+        Ok(existing_user) => (existing_user, false),
+        Err(_) => {
+            // User doesn't exist, create new one
+            // Generate a random password for OAuth users (they won't use it)
+            let random_password = Uuid::new_v4().to_string();
+            let register_request = RegisterRequest {
+                email: request.email.clone(),
+                password: random_password,
+                name: request.name.clone().unwrap_or_else(|| request.email.split('@').next().unwrap_or("User").to_string()),
+                avatar_url: request.avatar_url.clone(),
+                organization: None,
+            };
+            
+            match user_service.create_user(&register_request).await {
+                Ok(new_user) => {
+                    log::info!("Created new user via OAuth: {} ({})", new_user.email, new_user.id);
+                    (new_user, true)
+                },
+                Err(e) => {
+                    log::error!("Failed to create OAuth user: {}", e);
+                    return Ok(HttpResponse::InternalServerError().json(json!({
+                        "error": "Failed to create user",
+                        "details": e.to_string()
+                    })));
+                }
+            }
+        }
+    };
+
+    // Update last login
+    if let Err(e) = user_service.update_last_login(user.id).await {
+        log::warn!("Failed to update last login for OAuth user {}: {}", user.id, e);
+    }
+
+    // Calculate token expiration datetime
+    let token_expires_at = request.expires_at.map(|ts| {
+        chrono::DateTime::<Utc>::from_timestamp(ts, 0)
+            .unwrap_or_else(|| Utc::now() + Duration::hours(1))
+    });
+
+    // Create or update social connection
+    let connection_id = Uuid::new_v4();
+    let now = Utc::now();
+    
+    let result = sqlx::query!(
+        r#"
+        INSERT INTO social_connections (
+            id, user_id, platform, platform_user_id, username,
+            access_token, refresh_token, token_expires_at, scope,
+            is_active, created_at, updated_at
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+        )
+        ON CONFLICT (user_id, platform, platform_user_id) 
+        DO UPDATE SET
+            access_token = EXCLUDED.access_token,
+            refresh_token = EXCLUDED.refresh_token,
+            token_expires_at = EXCLUDED.token_expires_at,
+            scope = EXCLUDED.scope,
+            is_active = true,
+            updated_at = EXCLUDED.updated_at
+        RETURNING id
+        "#,
+        connection_id,
+        user.id,
+        request.provider.to_lowercase(),
+        request.provider_user_id,
+        request.email.split('@').next().unwrap_or("user"),
+        request.access_token,
+        request.refresh_token.as_ref(),
+        token_expires_at,
+        request.scope.as_ref().unwrap_or(&"".to_string()),
+        true,
+        now,
+        now
+    )
+    .fetch_one(pool.get_ref())
+    .await;
+
+    let final_connection_id = match result {
+        Ok(row) => row.id,
+        Err(e) => {
+            log::error!("Failed to create/update social connection: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to store social connection"
+            })));
+        }
+    };
+
+    log::info!("OAuth callback successful for user {} with provider {}", user.id, request.provider);
+
+    Ok(HttpResponse::Ok().json(OAuthCallbackResponse {
+        user_id: user.id,
+        is_new_user,
+        connection_id: final_connection_id,
+    }))
+}
 
 pub fn configure_auth_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -297,5 +409,6 @@ pub fn configure_auth_routes(cfg: &mut web::ServiceConfig) {
             .route("/verify", web::post().to(verify_token))
             .route("/profile", web::get().to(get_profile))
             .route("/users", web::get().to(list_users))
+            .route("/oauth/callback", web::post().to(oauth_callback))
     );
 }

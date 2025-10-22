@@ -5,7 +5,7 @@ pub struct AppConfig {
     pub http_client: Client,
     pub langchain_url: String,
     pub haystack_url: String,
-    pub lexor_url: String,
+    pub unified_indexer_url: String,
 }
 
 impl AppConfig {
@@ -16,8 +16,8 @@ impl AppConfig {
                 .unwrap_or_else(|_| "http://localhost:3002".to_string()),
             haystack_url: std::env::var("HAYSTACK_SERVICE_URL")
                 .unwrap_or_else(|_| "http://localhost:8001".to_string()),
-            lexor_url: std::env::var("LEXOR_SERVICE_URL")
-                .unwrap_or_else(|_| "http://localhost:3002".to_string()),
+            unified_indexer_url: std::env::var("UNIFIED_INDEXER_URL")
+                .unwrap_or_else(|_| "http://localhost:8080".to_string()),
         }
     }
 }
