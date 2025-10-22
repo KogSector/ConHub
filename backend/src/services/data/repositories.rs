@@ -104,7 +104,8 @@ impl RepositoryService {
         };
         
         
-        let mut repositories = REPOSITORIES.lock().unwrap();
+        let mut repositories = REPOSITORIES.lock()
+            .map_err(|e| VcsError::OperationFailed(format!("Mutex lock error: {}", e)))?;
         repositories.insert(repo_info.id.clone(), repo_info.clone());
         
         Ok(repo_info)
@@ -112,19 +113,20 @@ impl RepositoryService {
     
     
     pub fn get_repository(&self, id: &str) -> Option<RepositoryInfo> {
-        let repositories = REPOSITORIES.lock().unwrap();
+        let repositories = REPOSITORIES.lock().ok()?;
         repositories.get(id).cloned()
     }
     
     
     pub fn list_repositories(&self) -> Vec<RepositoryInfo> {
-        let repositories = REPOSITORIES.lock().unwrap();
+        let repositories = REPOSITORIES.lock().ok()?;
         repositories.values().cloned().collect()
     }
     
     
     pub fn update_repository_config(&self, id: &str, config: RepositoryConfig) -> VcsResult<()> {
-        let mut repositories = REPOSITORIES.lock().unwrap();
+        let mut repositories = REPOSITORIES.lock()
+            .map_err(|e| VcsError::OperationFailed(format!("Mutex lock error: {}", e)))?;
         if let Some(repo) = repositories.get_mut(id) {
             repo.config = config;
             repo.updated_at = Utc::now();
@@ -145,7 +147,8 @@ impl RepositoryService {
     
     
     pub async fn sync_repository(&self, id: &str) -> VcsResult<()> {
-        let mut repositories = REPOSITORIES.lock().unwrap();
+        let mut repositories = REPOSITORIES.lock()
+            .map_err(|e| VcsError::OperationFailed(format!("Mutex lock error: {}", e)))?;
         
         if let Some(repo) = repositories.get_mut(id) {
             
@@ -169,7 +172,8 @@ impl RepositoryService {
     
     
     pub fn disconnect_repository(&self, id: &str) -> VcsResult<()> {
-        let mut repositories = REPOSITORIES.lock().unwrap();
+        let mut repositories = REPOSITORIES.lock()
+            .map_err(|e| VcsError::OperationFailed(format!("Mutex lock error: {}", e)))?;
         
         if repositories.remove(id).is_some() {
             Ok(())
@@ -191,7 +195,8 @@ impl RepositoryService {
     
     
     pub fn update_repository_credentials(&self, id: &str, credentials: RepositoryCredentials) -> VcsResult<()> {
-        let mut repositories = REPOSITORIES.lock().unwrap();
+        let mut repositories = REPOSITORIES.lock()
+            .map_err(|e| VcsError::OperationFailed(format!("Mutex lock error: {}", e)))?;
         
         if let Some(repo) = repositories.get_mut(id) {
             repo.credentials = credentials;
@@ -204,7 +209,8 @@ impl RepositoryService {
     
     
     pub async fn setup_repository_webhook(&self, id: &str, webhook_url: &str) -> VcsResult<String> {
-        let mut repositories = REPOSITORIES.lock().unwrap();
+        let mut repositories = REPOSITORIES.lock()
+            .map_err(|e| VcsError::OperationFailed(format!("Mutex lock error: {}", e)))?;
         
         if let Some(repo) = repositories.get_mut(id) {
             let connector = VcsConnectorFactory::create_connector(&repo.vcs_type);
