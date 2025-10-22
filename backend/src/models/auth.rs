@@ -121,3 +121,25 @@ impl From<User> for UserProfile {
         }
     }
 }
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct OAuthCallbackRequest {
+    #[validate(length(min = 1, message = "Provider is required"))]
+    pub provider: String,
+    pub provider_user_id: String,
+    #[validate(email(message = "Invalid email format"))]
+    pub email: String,
+    pub name: Option<String>,
+    pub avatar_url: Option<String>,
+    pub access_token: String,
+    pub refresh_token: Option<String>,
+    pub expires_at: Option<i64>,
+    pub scope: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct OAuthCallbackResponse {
+    pub user_id: Uuid,
+    pub is_new_user: bool,
+    pub connection_id: Uuid,
+}
