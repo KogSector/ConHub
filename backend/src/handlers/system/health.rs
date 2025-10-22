@@ -10,7 +10,7 @@ async fn index() -> Result<HttpResponse> {
         "services": {
             "langchain": "http://localhost:3002",
             "haystack": "http://localhost:8001",
-            "lexor": "http://localhost:3002"
+            "unified_indexer": "http://localhost:8080"
         },
         "features": [
             "Repository connectivity",
@@ -27,7 +27,7 @@ async fn health_check(config: web::Data<AppConfig>) -> Result<HttpResponse> {
         &config.http_client,
         &config.langchain_url,
         &config.haystack_url,
-        &config.lexor_url,
+        &config.unified_indexer_url,
     ).await;
     
     Ok(HttpResponse::Ok().json(json!({
