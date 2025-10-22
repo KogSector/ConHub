@@ -2,7 +2,8 @@ use actix_web::{web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use chrono::Utc;
 use lazy_static::lazy_static;
 
@@ -137,7 +138,7 @@ impl McpClientManager {
 
 
 pub async fn initialize_mcp_server(req: web::Json<CreateMcpServerRequest>) -> Result<HttpResponse> {
-    let server_guard = MCP_SERVER.lock().unwrap();
+    let server_guard = MCP_SERVER.lock().await;
     if server_guard.is_some() {
         return Ok(HttpResponse::Conflict().json(ApiResponse::<()> {
             success: false,
@@ -152,11 +153,11 @@ pub async fn initialize_mcp_server(req: web::Json<CreateMcpServerRequest>) -> Re
     match server.initialize().await {
         Ok(_) => {
             {
-                let mut server_guard = MCP_SERVER.lock().unwrap();
+                let mut server_guard = MCP_SERVER.lock().await;
                 *server_guard = Some(Arc::new(server));
             }
             {
-                let mut client_guard = MCP_CLIENT_MANAGER.lock().unwrap();
+                let mut client_guard = MCP_CLIENT_MANAGER.lock().await;
                 *client_guard = Some(Arc::new(McpClientManager::new()));
             }
 
@@ -188,7 +189,7 @@ pub async fn initialize_mcp_server(req: web::Json<CreateMcpServerRequest>) -> Re
 
 
 pub async fn get_mcp_server_status() -> Result<HttpResponse> {
-    let server_guard = MCP_SERVER.lock().unwrap();
+    let server_guard = MCP_SERVER.lock().await;
     match server_guard.as_ref() {
         Some(server) => {
             let server_info = McpServerInfo {
@@ -217,12 +218,12 @@ pub async fn get_mcp_server_status() -> Result<HttpResponse> {
 
 
 pub async fn stop_mcp_server() -> Result<HttpResponse> {
-    let mut server_guard = MCP_SERVER.lock().unwrap();
+    let mut server_guard = MCP_SERVER.lock().await;
     if server_guard.is_some() {
         *server_guard = None;
         drop(server_guard);
         
-        let mut client_guard = MCP_CLIENT_MANAGER.lock().unwrap();
+        let mut client_guard = MCP_CLIENT_MANAGER.lock().await;
         *client_guard = None;
 
         log::info!("MCP server stopped");
@@ -247,7 +248,7 @@ pub async fn stop_mcp_server() -> Result<HttpResponse> {
 
 
 pub async fn connect_external_mcp(req: web::Json<ConnectExternalMcpRequest>) -> Result<HttpResponse> {
-    let manager_guard = MCP_CLIENT_MANAGER.lock().unwrap();
+    let manager_guard = MCP_CLIENT_MANAGER.lock().await;
     match manager_guard.as_ref() {
         Some(manager) => {
             
@@ -362,7 +363,7 @@ pub async fn connect_external_mcp(req: web::Json<ConnectExternalMcpRequest>) -> 
 
 
 pub async fn list_external_mcp_connections() -> Result<HttpResponse> {
-    let manager_guard = MCP_CLIENT_MANAGER.lock().unwrap();
+    let manager_guard = MCP_CLIENT_MANAGER.lock().await;
     match manager_guard.as_ref() {
         Some(manager) => {
             let connections = manager.list_connections().await;
@@ -387,7 +388,7 @@ pub async fn list_external_mcp_connections() -> Result<HttpResponse> {
 pub async fn disconnect_external_mcp(path: web::Path<String>) -> Result<HttpResponse> {
     let connection_id = path.into_inner();
 
-    let manager_guard = MCP_CLIENT_MANAGER.lock().unwrap();
+    let manager_guard = MCP_CLIENT_MANAGER.lock().await;
     match manager_guard.as_ref() {
         Some(manager) => {
             if let Some(client) = manager.get_client(&connection_id).await {
@@ -439,7 +440,7 @@ pub async fn disconnect_external_mcp(path: web::Path<String>) -> Result<HttpResp
 
 
 pub async fn create_mcp_context(req: web::Json<CreateContextRequest>) -> Result<HttpResponse> {
-    let server_guard = MCP_SERVER.lock().unwrap();
+    let server_guard = MCP_SERVER.lock().await;
     match server_guard.as_ref() {
         Some(server) => {
             let context_type = match req.context_type.as_str() {
@@ -501,7 +502,7 @@ pub async fn create_mcp_context(req: web::Json<CreateContextRequest>) -> Result<
 pub async fn list_mcp_resources(query: web::Query<ListResourcesRequest>) -> Result<HttpResponse> {
     if let Some(server_id) = &query.server_id {
         
-        let manager_guard = MCP_CLIENT_MANAGER.lock().unwrap();
+        let manager_guard = MCP_CLIENT_MANAGER.lock().await;
         match manager_guard.as_ref() {
             Some(manager) => {
                 if let Some(client) = manager.get_client(server_id).await {
@@ -537,7 +538,7 @@ pub async fn list_mcp_resources(query: web::Query<ListResourcesRequest>) -> Resu
         }
     } else {
         
-        let server_guard = MCP_SERVER.lock().unwrap();
+        let server_guard = MCP_SERVER.lock().await;
         match server_guard.as_ref() {
             Some(server) => {
                 let params = ResourcesListParams {
@@ -584,7 +585,7 @@ pub async fn list_mcp_resources(query: web::Query<ListResourcesRequest>) -> Resu
 pub async fn read_mcp_resource(req: web::Json<ReadResourceRequest>) -> Result<HttpResponse> {
     if let Some(server_id) = &req.server_id {
         
-        let manager_guard = MCP_CLIENT_MANAGER.lock().unwrap();
+        let manager_guard = MCP_CLIENT_MANAGER.lock().await;
         match manager_guard.as_ref() {
             Some(manager) => {
                 if let Some(client) = manager.get_client(server_id).await {
@@ -620,7 +621,7 @@ pub async fn read_mcp_resource(req: web::Json<ReadResourceRequest>) -> Result<Ht
         }
     } else {
         
-        let server_guard = MCP_SERVER.lock().unwrap();
+        let server_guard = MCP_SERVER.lock().await;
         match server_guard.as_ref() {
             Some(server) => {
                 let params = ResourcesReadParams {
@@ -667,7 +668,7 @@ pub async fn read_mcp_resource(req: web::Json<ReadResourceRequest>) -> Result<Ht
 pub async fn call_mcp_tool(req: web::Json<CallToolRequest>) -> Result<HttpResponse> {
     if let Some(server_id) = &req.server_id {
         
-        let manager_guard = MCP_CLIENT_MANAGER.lock().unwrap();
+        let manager_guard = MCP_CLIENT_MANAGER.lock().await;
         match manager_guard.as_ref() {
             Some(manager) => {
                 if let Some(client) = manager.get_client(server_id).await {
@@ -703,7 +704,7 @@ pub async fn call_mcp_tool(req: web::Json<CallToolRequest>) -> Result<HttpRespon
         }
     } else {
         
-        let server_guard = MCP_SERVER.lock().unwrap();
+        let server_guard = MCP_SERVER.lock().await;
         match server_guard.as_ref() {
             Some(server) => {
                 let params = ToolsCallParams {

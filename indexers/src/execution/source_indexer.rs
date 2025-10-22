@@ -371,45 +371,48 @@ impl SourceIndexingContext {
                 let row_state_operator = &mut row_state_operator;
                 let row_key = &row_input.key;
                 async move {
-                    if let Some(ordinal) = source_data.ordinal
-                        && let Some(content_version_fp) = &source_data.content_version_fp
-                    {
-                        let version = SourceVersion::from_current_with_ordinal(ordinal);
-                        match row_state_operator
-                            .advance(
-                                version,
-                                Some(content_version_fp),
-                                /*force_reload=*/ mode == UpdateMode::ReexportTargets,
-                            )
-                            .await?
-                        {
-                            RowStateAdvanceOutcome::Skipped => {
-                                return anyhow::Ok(());
-                            }
-                            RowStateAdvanceOutcome::Advanced {
-                                prev_version_state: Some(prev_version_state),
-                            } => {
-                                // Fast path optimization: may collapse the row based on source version fingerprint.
-                                // Still need to update the tracking table as the processed ordinal advanced.
-                                if let Some(prev_content_version_fp) =
-                            &prev_version_state.content_version_fp
-                            && mode == UpdateMode::Normal
-                            && row_indexer
-                                .try_collapse(
-                                    &version,
-                                    content_version_fp.as_slice(),
-                                    &prev_version_state.source_version,
-                                    ContentHashBasedCollapsingBaseline::ProcessedSourceFingerprint(
-                                        prev_content_version_fp,
-                                    ),
+                    if let Some(ordinal) = source_data.ordinal {
+                        if let Some(content_version_fp) = &source_data.content_version_fp {
+                            let version = SourceVersion::from_current_with_ordinal(ordinal);
+                            match row_state_operator
+                                .advance(
+                                    version,
+                                    Some(content_version_fp),
+                                    /*force_reload=*/ mode == UpdateMode::ReexportTargets,
                                 )
                                 .await?
-                                .is_some()
-                        {
-                            return Ok(());
-                        }
+                            {
+                                RowStateAdvanceOutcome::Skipped => {
+                                    return anyhow::Ok(());
+                                }
+                                RowStateAdvanceOutcome::Advanced {
+                                    prev_version_state: Some(prev_version_state),
+                                } => {
+                                    // Fast path optimization: may collapse the row based on source version fingerprint.
+                                    // Still need to update the tracking table as the processed ordinal advanced.
+                                    if let Some(prev_content_version_fp) =
+                                        &prev_version_state.content_version_fp
+                                    {
+                                        if mode == UpdateMode::Normal {
+                                            if row_indexer
+                                                .try_collapse(
+                                                    &version,
+                                                    content_version_fp.as_slice(),
+                                                    &prev_version_state.source_version,
+                                                    ContentHashBasedCollapsingBaseline::ProcessedSourceFingerprint(
+                                                        prev_content_version_fp,
+                                                    ),
+                                                )
+                                                .await?
+                                                .is_some()
+                                            {
+                                                return Ok(());
+                                            }
+                                        }
+                                    }
+                                }
+                                _ => {}
                             }
-                            _ => {}
                         }
                     }
 

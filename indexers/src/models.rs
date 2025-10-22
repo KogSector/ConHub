@@ -109,7 +109,7 @@ pub struct StatusResponse {
 
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum IndexingStatus {
     Pending,
     InProgress,

@@ -270,31 +270,33 @@ impl<'a> RowIndexer<'a> {
             (None, interface::SourceValue::NonExistence) => None,
         };
 
-        if self.mode == super::source_indexer::UpdateMode::Normal
-            && let Some(content_version_fp) = &content_version_fp
-        {
-            let baseline = if tracking_setup_state.has_fast_fingerprint_column {
-                existing_tracking_info
-                    .as_ref()
-                    .and_then(|info| info.processed_source_fp.as_ref())
-                    .map(ContentHashBasedCollapsingBaseline::ProcessedSourceFingerprint)
-            } else {
-                existing_tracking_info
-                    .as_ref()
-                    .map(ContentHashBasedCollapsingBaseline::SourceTrackingInfo)
-            };
-            if let Some(baseline) = baseline
-                && let Some(existing_version) = &existing_version
-                && let Some(optimization_result) = self
-                    .try_collapse(
-                        source_version,
-                        &content_version_fp.as_slice(),
-                        &existing_version,
-                        baseline,
-                    )
-                    .await?
-            {
-                return Ok(optimization_result);
+        if self.mode == super::source_indexer::UpdateMode::Normal {
+            if let Some(content_version_fp) = &content_version_fp {
+                let baseline = if tracking_setup_state.has_fast_fingerprint_column {
+                    existing_tracking_info
+                        .as_ref()
+                        .and_then(|info| info.processed_source_fp.as_ref())
+                        .map(ContentHashBasedCollapsingBaseline::ProcessedSourceFingerprint)
+                } else {
+                    existing_tracking_info
+                        .as_ref()
+                        .map(ContentHashBasedCollapsingBaseline::SourceTrackingInfo)
+                };
+                if let Some(baseline) = baseline {
+                    if let Some(existing_version) = &existing_version {
+                        if let Some(optimization_result) = self
+                            .try_collapse(
+                                source_version,
+                                &content_version_fp.as_slice(),
+                                &existing_version,
+                                baseline,
+                            )
+                            .await?
+                        {
+                            return Ok(optimization_result);
+                        }
+                    }
+                }
             }
         }
 
@@ -571,16 +573,16 @@ impl<'a> RowIndexer<'a> {
             &mut *txn,
         )
         .await?;
-        if self.mode == super::source_indexer::UpdateMode::Normal
-            && let Some(tracking_info) = &tracking_info
-        {
-            let existing_source_version =
-                SourceVersion::from_stored_precommit_info(&tracking_info, logic_fp);
-            if existing_source_version.should_skip(source_version, Some(self.update_stats)) {
-                return Ok(SkippedOr::Skipped(
-                    existing_source_version,
-                    tracking_info.processed_source_fp.clone(),
-                ));
+        if self.mode == super::source_indexer::UpdateMode::Normal {
+            if let Some(tracking_info) = &tracking_info {
+                let existing_source_version =
+                    SourceVersion::from_stored_precommit_info(&tracking_info, logic_fp);
+                if existing_source_version.should_skip(source_version, Some(self.update_stats)) {
+                    return Ok(SkippedOr::Skipped(
+                        existing_source_version,
+                        tracking_info.processed_source_fp.clone(),
+                    ));
+                }
             }
         }
         let tracking_info_exists = tracking_info.is_some();

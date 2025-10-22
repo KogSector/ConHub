@@ -4,7 +4,7 @@ use validator::Validate;
 use reqwest::Client;
 use std::env;
 
-#[derive(serde::Deserialize, Validate)]
+#[derive(serde::Serialize, serde::Deserialize, Validate)]
 pub struct IndexRepositoryRequest {
     #[validate(url)]
     pub repository_url: String,
@@ -15,7 +15,7 @@ pub struct IndexRepositoryRequest {
     pub max_file_size: Option<usize>,
 }
 
-#[derive(serde::Deserialize, Validate)]
+#[derive(serde::Serialize, serde::Deserialize, Validate)]
 pub struct IndexDocumentationRequest {
     #[validate(url)]
     pub documentation_url: String,
@@ -25,7 +25,7 @@ pub struct IndexDocumentationRequest {
     pub extract_code_blocks: Option<bool>,
 }
 
-#[derive(serde::Deserialize, Validate)]
+#[derive(serde::Serialize, serde::Deserialize, Validate)]
 pub struct IndexUrlRequest {
     #[validate(url)]
     pub url: String,
@@ -33,7 +33,7 @@ pub struct IndexUrlRequest {
     pub extract_links: Option<bool>,
 }
 
-#[derive(serde::Deserialize, Validate)]
+#[derive(serde::Serialize, serde::Deserialize, Validate)]
 pub struct IndexFileRequest {
     pub file_path: String,
     pub file_type: Option<String>,
