@@ -32,7 +32,7 @@ async fn search_universal(
         &config.http_client,
         &config.langchain_url,
         &config.haystack_url,
-        &config.lexor_url,
+        &config.unified_indexer_url,
         &req,
     ).await;
     
