@@ -399,8 +399,31 @@ impl<'a> RowIndexer<'a> {
                     })
                 });
 
-        // TODO: Handle errors.
-        try_join_all(apply_futs).await?;
+        // Apply all mutations and collect results with proper error handling
+        let results = futures::future::join_all(apply_futs).await;
+        
+        // Process results and collect errors with context
+        let mut errors = Vec::new();
+        for (idx, result) in results.into_iter().enumerate() {
+            if let Err(e) = result {
+                let export_op_group = &self.src_eval_ctx.plan.export_op_groups[idx];
+                errors.push(anyhow::anyhow!(
+                    "Failed to apply mutation to target '{}': {}",
+                    export_op_group.target_kind,
+                    e
+                ));
+            }
+        }
+        
+        // If any errors occurred, return them as a combined error
+        if !errors.is_empty() {
+            let error_messages: Vec<String> = errors.iter().map(|e| e.to_string()).collect();
+            return Err(anyhow::anyhow!(
+                "Failed to apply {} mutation(s):\n  - {}",
+                errors.len(),
+                error_messages.join("\n  - ")
+            ));
+        }
 
         // Phase 4: Update the tracking record.
         self.commit_source_tracking_info(source_version, source_fp, precommit_output.metadata)
