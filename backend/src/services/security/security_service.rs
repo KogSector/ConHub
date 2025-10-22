@@ -143,7 +143,10 @@ impl SecurityService {
     
     pub async fn generate_jwt_token(&self, user_id: String, email: String, roles: Vec<String>) -> Result<String, jsonwebtoken::errors::Error> {
         let session_id = Uuid::new_v4().to_string();
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as usize;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| jsonwebtoken::errors::Error::from(jsonwebtoken::errors::ErrorKind::InvalidToken))?
+            .as_secs() as usize;
         let exp = now + (self.config.jwt_expiration_hours * 3600) as usize;
 
         let claims = Claims {
