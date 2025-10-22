@@ -314,8 +314,11 @@ impl BillingService {
         let payment_methods = self.get_payment_methods(user_id).await?;
         let recent_invoices = self.get_invoices(user_id, Some(5)).await?;
         
-        let current_month_start = Utc::now().date_naive().with_day(1).unwrap();
-        let period_start = current_month_start.and_hms_opt(0, 0, 0).unwrap().and_utc();
+        let current_month_start = Utc::now().date_naive().with_day(1)
+            .ok_or_else(|| anyhow!("Failed to get first day of month"))?;
+        let period_start = current_month_start.and_hms_opt(0, 0, 0)
+            .ok_or_else(|| anyhow!("Failed to create datetime"))?
+            .and_utc();
         let usage = self.get_usage_tracking(user_id, period_start).await?;
 
         Ok(BillingDashboard {
