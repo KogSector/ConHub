@@ -1,6 +1,6 @@
 use actix_web::{web, HttpResponse};
 use std::collections::HashMap;
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use crate::models::{ApiResponse, UserSettings, ProfileSettings, NotificationSettings, SecuritySettings, UpdateSettingsRequest};
 use crate::errors::ServiceError;
@@ -66,7 +66,7 @@ pub struct InviteTeamMemberRequest {
 
 pub async fn get_settings(path: web::Path<String>) -> Result<HttpResponse, ServiceError> {
     let user_id = path.into_inner();
-    let store = SETTINGS_STORE.lock().map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
+    let store = SETTINGS_STORE.lock().await;
     
     match store.get(&user_id) {
         Some(settings) => Ok(HttpResponse::Ok().json(ApiResponse {
@@ -114,7 +114,7 @@ pub async fn update_settings(
     req: web::Json<UpdateSettingsRequest>
 ) -> Result<HttpResponse, ServiceError> {
     let user_id = path.into_inner();
-    let mut store = SETTINGS_STORE.lock().map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
+    let mut store = SETTINGS_STORE.lock().await;
     
     let mut settings = store.get(&user_id).cloned().unwrap_or_else(|| UserSettings {
         user_id: user_id.clone(),
@@ -162,7 +162,7 @@ pub async fn update_settings(
 
 pub async fn get_api_tokens(path: web::Path<String>) -> Result<HttpResponse, ServiceError> {
     let user_id = path.into_inner();
-    let store = API_TOKENS_STORE.lock().map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
+    let store = API_TOKENS_STORE.lock().await;
     
     let tokens = store.get(&user_id).cloned().unwrap_or_default();
     
@@ -179,7 +179,7 @@ pub async fn create_api_token(
     req: web::Json<CreateApiTokenRequest>
 ) -> Result<HttpResponse, ServiceError> {
     let user_id = path.into_inner();
-    let mut store = API_TOKENS_STORE.lock().map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
+    let mut store = API_TOKENS_STORE.lock().await;
     
     let token = ApiToken {
         id: uuid::Uuid::new_v4().to_string(),
@@ -206,7 +206,7 @@ pub async fn delete_api_token(
     path: web::Path<(String, String)>
 ) -> Result<HttpResponse, ServiceError> {
     let (user_id, token_id) = path.into_inner();
-    let mut store = API_TOKENS_STORE.lock().map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
+    let mut store = API_TOKENS_STORE.lock().await;
     
     if let Some(tokens) = store.get_mut(&user_id) {
         tokens.retain(|t| t.id != token_id);
@@ -223,7 +223,7 @@ pub async fn delete_api_token(
 
 pub async fn get_webhooks(path: web::Path<String>) -> Result<HttpResponse, ServiceError> {
     let user_id = path.into_inner();
-    let store = WEBHOOKS_STORE.lock().map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
+    let store = WEBHOOKS_STORE.lock().await;
     
     let webhooks = store.get(&user_id).cloned().unwrap_or_default();
     
@@ -240,7 +240,7 @@ pub async fn create_webhook(
     req: web::Json<CreateWebhookRequest>
 ) -> Result<HttpResponse, ServiceError> {
     let user_id = path.into_inner();
-    let mut store = WEBHOOKS_STORE.lock().map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
+    let mut store = WEBHOOKS_STORE.lock().await;
     
     let webhook = Webhook {
         id: uuid::Uuid::new_v4().to_string(),
@@ -268,7 +268,7 @@ pub async fn delete_webhook(
     path: web::Path<(String, String)>
 ) -> Result<HttpResponse, ServiceError> {
     let (user_id, webhook_id) = path.into_inner();
-    let mut store = WEBHOOKS_STORE.lock().map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
+    let mut store = WEBHOOKS_STORE.lock().await;
     
     if let Some(webhooks) = store.get_mut(&user_id) {
         webhooks.retain(|w| w.id != webhook_id);
@@ -285,7 +285,7 @@ pub async fn delete_webhook(
 
 pub async fn get_team_members(path: web::Path<String>) -> Result<HttpResponse, ServiceError> {
     let user_id = path.into_inner();
-    let store = TEAM_MEMBERS_STORE.lock().map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
+    let store = TEAM_MEMBERS_STORE.lock().await;
     
     let members = store.get(&user_id).cloned().unwrap_or_default();
     
@@ -302,7 +302,7 @@ pub async fn invite_team_member(
     req: web::Json<InviteTeamMemberRequest>
 ) -> Result<HttpResponse, ServiceError> {
     let user_id = path.into_inner();
-    let mut store = TEAM_MEMBERS_STORE.lock().map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
+    let mut store = TEAM_MEMBERS_STORE.lock().await;
     
     let member = TeamMember {
         id: uuid::Uuid::new_v4().to_string(),
@@ -330,7 +330,7 @@ pub async fn remove_team_member(
     path: web::Path<(String, String)>
 ) -> Result<HttpResponse, ServiceError> {
     let (user_id, member_id) = path.into_inner();
-    let mut store = TEAM_MEMBERS_STORE.lock().map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
+    let mut store = TEAM_MEMBERS_STORE.lock().await;
     
     if let Some(members) = store.get_mut(&user_id) {
         members.retain(|m| m.id != member_id);
