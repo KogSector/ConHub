@@ -96,7 +96,7 @@ impl VectorDatabase {
             .collect();
         
         
-        results.sort_by(|a, b| b.similarity_score.partial_cmp(&a.similarity_score).unwrap());
+        results.sort_by(|a, b| b.similarity_score.partial_cmp(&a.similarity_score).unwrap_or(std::cmp::Ordering::Equal));
         
         
         results.truncate(limit);
@@ -205,8 +205,11 @@ pub async fn init_qdrant() -> Result<(), Box<dyn std::error::Error + Send + Sync
 }
 
 
-fn get_qdrant_client() -> Arc<QdrantClient> {
-    QDRANT_CLIENT.get().expect("Qdrant client not initialized").clone()
+fn get_qdrant_client() -> Result<Arc<QdrantClient>, Box<dyn std::error::Error + Send + Sync>> {
+    QDRANT_CLIENT.get()
+        .ok_or("Qdrant client not initialized")
+        .map(|c| c.clone())
+        .map_err(|e| e.into())
 }
 
 
@@ -341,7 +344,7 @@ impl VectorDbService {
         content: &str,
         metadata: &HashMap<String, String>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        let client = get_qdrant_client();
+        let client = get_qdrant_client()?;
         let id = Uuid::new_v4().to_string();
         
         let embedding = self.generate_simple_embedding(content);
@@ -367,7 +370,7 @@ impl VectorDbService {
         limit: u64,
         source_filter: Option<&str>,
     ) -> Result<Vec<SearchResult>, Box<dyn std::error::Error + Send + Sync>> {
-        let client = get_qdrant_client();
+        let client = get_qdrant_client()?;
         let query_embedding = self.generate_simple_embedding(query);
         
         let mut filter = None;
@@ -386,11 +389,11 @@ impl VectorDbService {
         
         let mut results = Vec::new();
         for scored_point in search_result.result {
-            if scored_point.payload.is_none() {
-                continue;
-            }
+            let payload = match scored_point.payload.clone() {
+                Some(p) => p,
+                None => continue,
+            };
             
-            let payload = scored_point.payload.clone().unwrap();
             let content = payload.get("content")
                 .and_then(|v| v.as_str())
                 .unwrap_or("").to_string();
@@ -404,10 +407,14 @@ impl VectorDbService {
                 }
             }
             
+            let id = scored_point.id
+                .map(|id| format!("{:?}", id))
+                .unwrap_or_else(|| Uuid::new_v4().to_string());
+            
             let document = VectorDocument {
-                id: format!("{:?}", scored_point.id.unwrap()),
+                id,
                 content,
-                    embedding: vec![],
+                embedding: vec![],
                 metadata,
                 created_at: chrono::Utc::now(),
             };
