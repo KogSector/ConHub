@@ -558,7 +558,8 @@ impl SpecFormatter for ReactiveOpSpec {
 pub struct ReactiveOpScope {
     pub name: ScopeName,
     pub ops: Vec<NamedSpec<ReactiveOpSpec>>,
-    // TODO: Suport collectors
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub collectors: Vec<FieldName>,
 }
 
 impl fmt::Display for ReactiveOpScope {
