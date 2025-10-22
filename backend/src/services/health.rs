@@ -21,7 +21,7 @@ pub async fn get_all_services_status(
     client: &Client,
     langchain_url: &str,
     haystack_url: &str,
-    lexor_url: &str,
+    unified_indexer_url: &str,
 ) -> Vec<ServiceStatus> {
     let mut services = Vec::new();
     
@@ -41,12 +41,12 @@ pub async fn get_all_services_status(
         response_time_ms: haystack_status.1,
     });
     
-    let lexor_status = check_service_health(client, lexor_url).await;
+    let indexer_status = check_service_health(client, unified_indexer_url).await;
     services.push(ServiceStatus {
-        name: "Lexor".to_string(),
-        url: lexor_url.to_string(),
-        status: lexor_status.0,
-        response_time_ms: lexor_status.1,
+        name: "Unified Indexer".to_string(),
+        url: unified_indexer_url.to_string(),
+        status: indexer_status.0,
+        response_time_ms: indexer_status.1,
     });
     
     services
