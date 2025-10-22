@@ -5,6 +5,7 @@ use chrono::{Utc, Duration, DateTime};
 use validator::Validate;
 use bcrypt::{hash, verify, DEFAULT_COST};
 use jsonwebtoken::{encode, Header, EncodingKey};
+use sqlx::PgPool;
 
 use crate::models::auth::*;
 use crate::services::auth::password_reset::PASSWORD_RESET_SERVICE;
