@@ -1,9 +1,4 @@
-use axum::{
-    extract::{Path, State},
-    http::StatusCode,
-    Json,
-    response::{IntoResponse, Response},
-};
+use actix_web::{web, HttpResponse, HttpRequest, Result};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -36,90 +31,100 @@ pub enum WebhookError {
     ProcessingFailed(String),
 }
 
-impl IntoResponse for WebhookError {
-    fn into_response(self) -> Response {
-        let (status, message) = match self {
-            WebhookError::InvalidSignature => (StatusCode::UNAUTHORIZED, "Invalid webhook signature"),
-            WebhookError::InvalidPayload(msg) => (StatusCode::BAD_REQUEST, msg.as_str()),
-            WebhookError::DataSourceNotFound => (StatusCode::NOT_FOUND, "Data source not found"),
-            WebhookError::ProcessingFailed(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.as_str()),
-        };
-
-        (status, message).into_response()
+impl std::fmt::Display for WebhookError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WebhookError::InvalidSignature => write!(f, "Invalid webhook signature"),
+            WebhookError::InvalidPayload(msg) => write!(f, "Invalid payload: {}", msg),
+            WebhookError::DataSourceNotFound => write!(f, "Data source not found"),
+            WebhookError::ProcessingFailed(msg) => write!(f, "Processing failed: {}", msg),
+        }
     }
 }
+
+impl std::error::Error for WebhookError {}
 
 /// GitLab webhook handler
 /// POST /api/webhooks/gitlab/:data_source_id
 pub async fn handle_gitlab_webhook(
-    Path(data_source_id): Path<String>,
-    headers: axum::http::HeaderMap,
-    Json(payload): Json<serde_json::Value>,
-) -> Result<StatusCode, WebhookError> {
+    path: web::Path<String>,
+    req: HttpRequest,
+    payload: web::Json<serde_json::Value>,
+) -> Result<HttpResponse> {
+    let data_source_id = path.into_inner();
     tracing::info!("Received GitLab webhook for data source: {}", data_source_id);
 
     // Verify webhook signature
-    if let Some(token) = headers.get("X-Gitlab-Token") {
+    if let Some(token) = req.headers().get("X-Gitlab-Token") {
         let token_str = token.to_str()
-            .map_err(|_| WebhookError::InvalidSignature)?;
+            .map_err(|_| actix_web::error::ErrorUnauthorized("Invalid token format"))?;
 
         // TODO: Verify token against stored webhook secret
-        tracing::debug!("GitLab webhook token present: {}", token_str.len());
+        tracing::debug!("GitLab webhook token present: {} chars", token_str.len());
     } else {
-        return Err(WebhookError::InvalidSignature);
+        return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
+            "error": "Missing X-Gitlab-Token header"
+        })));
     }
 
     // Parse event type
-    let event_type = headers
+    let event_type = req.headers()
         .get("X-Gitlab-Event")
         .and_then(|v| v.to_str().ok())
-        .ok_or_else(|| WebhookError::InvalidPayload("Missing X-Gitlab-Event header".to_string()))?;
+        .ok_or_else(|| actix_web::error::ErrorBadRequest("Missing X-Gitlab-Event header"))?;
 
     tracing::info!("GitLab event type: {}", event_type);
 
+    let payload_value = payload.into_inner();
+
     // Process webhook asynchronously
     tokio::spawn(async move {
-        if let Err(e) = gitlab::process_gitlab_webhook(&data_source_id, event_type, payload).await {
+        if let Err(e) = gitlab::process_gitlab_webhook(&data_source_id, event_type, payload_value).await {
             tracing::error!("Failed to process GitLab webhook: {}", e);
         }
     });
 
     // Return 200 OK immediately
-    Ok(StatusCode::OK)
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "status": "accepted"
+    })))
 }
 
 /// Dropbox webhook handler
 /// POST /api/webhooks/dropbox/:data_source_id
 pub async fn handle_dropbox_webhook(
-    Path(data_source_id): Path<String>,
-    headers: axum::http::HeaderMap,
+    path: web::Path<String>,
+    req: HttpRequest,
     body: String,
-) -> Result<StatusCode, WebhookError> {
+) -> Result<HttpResponse> {
+    let data_source_id = path.into_inner();
     tracing::info!("Received Dropbox webhook for data source: {}", data_source_id);
 
     // Dropbox sends a challenge on webhook registration
-    if let Some(challenge) = headers.get("X-Dropbox-Challenge") {
+    if let Some(challenge) = req.headers().get("X-Dropbox-Challenge") {
         let challenge_str = challenge.to_str()
-            .map_err(|_| WebhookError::InvalidPayload("Invalid challenge".to_string()))?;
+            .map_err(|_| actix_web::error::ErrorBadRequest("Invalid challenge format"))?;
 
         tracing::info!("Dropbox webhook challenge received");
-        return Ok(StatusCode::OK); // Echo challenge back
+        return Ok(HttpResponse::Ok().body(challenge_str.to_string()));
     }
 
     // Verify webhook signature
-    if let Some(signature) = headers.get("X-Dropbox-Signature") {
+    if let Some(signature) = req.headers().get("X-Dropbox-Signature") {
         let signature_str = signature.to_str()
-            .map_err(|_| WebhookError::InvalidSignature)?;
+            .map_err(|_| actix_web::error::ErrorUnauthorized("Invalid signature format"))?;
 
         // TODO: Verify HMAC-SHA256 signature
-        tracing::debug!("Dropbox signature present: {}", signature_str.len());
+        tracing::debug!("Dropbox signature present: {} chars", signature_str.len());
     } else {
-        return Err(WebhookError::InvalidSignature);
+        return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
+            "error": "Missing X-Dropbox-Signature header"
+        })));
     }
 
     // Parse payload
     let payload: serde_json::Value = serde_json::from_str(&body)
-        .map_err(|e| WebhookError::InvalidPayload(e.to_string()))?;
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid JSON: {}", e)))?;
 
     // Process webhook asynchronously
     tokio::spawn(async move {
@@ -128,46 +133,55 @@ pub async fn handle_dropbox_webhook(
         }
     });
 
-    Ok(StatusCode::OK)
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "status": "accepted"
+    })))
 }
 
 /// OneDrive/Microsoft Graph webhook handler
 /// POST /api/webhooks/onedrive/:data_source_id
 pub async fn handle_onedrive_webhook(
-    Path(data_source_id): Path<String>,
-    headers: axum::http::HeaderMap,
-    Json(payload): Json<serde_json::Value>,
-) -> Result<StatusCode, WebhookError> {
+    path: web::Path<String>,
+    req: HttpRequest,
+    payload: web::Json<serde_json::Value>,
+) -> Result<HttpResponse> {
+    let data_source_id = path.into_inner();
     tracing::info!("Received OneDrive webhook for data source: {}", data_source_id);
 
+    let payload_value = payload.into_inner();
+
     // Microsoft Graph webhook validation
-    if let Some(validation_token) = payload.get("validationToken") {
+    if let Some(validation_token) = payload_value.get("validationToken") {
         if let Some(token_str) = validation_token.as_str() {
             tracing::info!("OneDrive webhook validation");
             // Return validation token as plain text
-            return Ok(StatusCode::OK);
+            return Ok(HttpResponse::Ok()
+                .content_type("text/plain")
+                .body(token_str.to_string()));
         }
     }
 
     // Verify client state (custom secret)
-    if let Some(client_state) = payload.get("value")
+    if let Some(client_state) = payload_value.get("value")
         .and_then(|v| v.as_array())
         .and_then(|arr| arr.first())
         .and_then(|item| item.get("clientState"))
         .and_then(|cs| cs.as_str())
     {
         // TODO: Verify clientState against stored secret
-        tracing::debug!("OneDrive clientState present: {}", client_state.len());
+        tracing::debug!("OneDrive clientState present: {} chars", client_state.len());
     }
 
     // Process webhook asynchronously
     tokio::spawn(async move {
-        if let Err(e) = onedrive::process_onedrive_webhook(&data_source_id, payload).await {
+        if let Err(e) = onedrive::process_onedrive_webhook(&data_source_id, payload_value).await {
             tracing::error!("Failed to process OneDrive webhook: {}", e);
         }
     });
 
-    Ok(StatusCode::OK)
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "status": "accepted"
+    })))
 }
 
 /// Helper function to verify HMAC-SHA256 signature
@@ -216,4 +230,13 @@ mod tests {
         assert!(verify_hmac_signature(payload, &signature, secret));
         assert!(!verify_hmac_signature(payload, "invalid", secret));
     }
+}
+
+pub fn configure(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        web::scope("/api/webhooks")
+            .route("/gitlab/{data_source_id}", web::post().to(handle_gitlab_webhook))
+            .route("/dropbox/{data_source_id}", web::post().to(handle_dropbox_webhook))
+            .route("/onedrive/{data_source_id}", web::post().to(handle_onedrive_webhook))
+    );
 }
