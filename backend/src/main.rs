@@ -10,6 +10,7 @@ mod errors;
 use handlers::auth::configure_auth_routes;
 
 use handlers::security::rulesets;
+use handlers::webhooks;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -63,6 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .configure(configure_auth_routes)
             
             .configure(rulesets::configure)
+            .configure(webhooks::configure)
             .route("/health", web::get().to(health_check))
     })
     .bind(("0.0.0.0", port))?

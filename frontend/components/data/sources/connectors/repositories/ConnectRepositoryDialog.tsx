@@ -208,8 +208,6 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     setLoading(true);
     setError(null);
     
-    console.log('Connecting repository...', { provider, repositoryUrl, credentials: credentials ? 'present' : 'missing' });
-    
     try {
       const payload = { 
         type: provider, 
@@ -221,17 +219,13 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         } 
       };
       
-      console.log('Sending payload:', { ...payload, credentials: credentials ? 'present' : 'missing' });
-      
       const response = await fetch('/api/data-sources/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       
-      console.log('Response status:', response.status);
       const data = await response.json();
-      console.log('Response data:', data);
       
       if (data.success) {
         onSuccess();

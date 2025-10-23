@@ -31,16 +31,13 @@ export function ForgotPasswordForm() {
       const data = await response.json()
       
       if (response.ok) {
-        console.log('Password reset email sent successfully:', data)
         setIsSubmitted(true)
       } else {
-        console.error('Failed to send reset email:', data)
         
         setIsSubmitted(true)
       }
       
     } catch (err) {
-      console.error('Network error sending reset email:', err)
       
       setIsSubmitted(true)
     } finally {

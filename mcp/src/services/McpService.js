@@ -224,9 +224,8 @@ export class McpService extends EventEmitter {
       
       connection.lastActivity = new Date();
       
-      
-      
-      const response = await this.simulateAgentResponse(connection, message);
+      // Route to external MCP servers based on agentId, URI, or tool name
+      const response = await this.routeToExternalMcp(connection, message);
       
       this.logger.debug('MCP message sent', { connectionId, method: message.method });
       return response;
@@ -236,10 +235,125 @@ export class McpService extends EventEmitter {
     }
   }
 
-  
-  async simulateAgentResponse(connection, message) {
+  /**
+   * Route MCP requests to appropriate external MCP server
+   * Routes based on URI prefixes, tool names, or agentId
+   */
+  async routeToExternalMcp(connection, message) {
+    try {
+      const targetEndpoint = this.determineTargetEndpoint(connection, message);
+      
+      if (!targetEndpoint) {
+        // No routing needed - handle locally (e.g., initialize)
+        return this.handleLocalMethod(connection, message);
+      }
+
+      this.logger.debug('Routing MCP request to external server', {
+        endpoint: targetEndpoint,
+        method: message.method
+      });
+
+      // Forward request to external MCP server
+      const response = await axios.post(targetEndpoint, message, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000, // 30 second timeout
+      });
+
+      return response.data;
+    } catch (error) {
+      this.logger.error('External MCP request failed', {
+        error: error.message,
+        method: message.method
+      });
+
+      // Return JSON-RPC error response
+      return {
+        jsonrpc: '2.0',
+        id: message.id,
+        error: {
+          code: -32603,
+          message: `External MCP server error: ${error.message}`,
+          data: error.response?.data || null
+        }
+      };
+    }
+  }
+
+  /**
+   * Determine which external MCP server to route the request to
+   * Returns endpoint URL or null for local handling
+   */
+  determineTargetEndpoint(connection, message) {
+    const { method, params } = message;
     
-    const { agentId } = connection;
+    // Check URI-based routing for resources
+    if (params && params.uri) {
+      const uri = params.uri;
+      
+      if (uri.startsWith('gdrive://') || uri.startsWith('google-drive://')) {
+        return process.env.MCP_GOOGLE_DRIVE_ENDPOINT || 'http://localhost:3005';
+      }
+      
+      if (uri.startsWith('dropbox://')) {
+        return process.env.MCP_DROPBOX_ENDPOINT || 'http://localhost:3006';
+      }
+      
+      if (uri.startsWith('file://')) {
+        return process.env.MCP_FILESYSTEM_ENDPOINT || 'http://localhost:3007';
+      }
+    }
+
+    // Check tool name-based routing
+    if (params && params.name) {
+      const toolName = params.name.toLowerCase();
+      
+      if (toolName.includes('drive') || toolName.includes('gdrive')) {
+        return process.env.MCP_GOOGLE_DRIVE_ENDPOINT || 'http://localhost:3005';
+      }
+      
+      if (toolName.includes('dropbox')) {
+        return process.env.MCP_DROPBOX_ENDPOINT || 'http://localhost:3006';
+      }
+      
+      if (toolName.includes('file') || toolName.includes('filesystem')) {
+        return process.env.MCP_FILESYSTEM_ENDPOINT || 'http://localhost:3007';
+      }
+    }
+
+    // Check agentId-based routing for backwards compatibility
+    if (connection.agentId) {
+      const agentId = connection.agentId.toLowerCase();
+      
+      if (agentId.includes('drive') || agentId.includes('gdrive')) {
+        return process.env.MCP_GOOGLE_DRIVE_ENDPOINT || 'http://localhost:3005';
+      }
+      
+      if (agentId.includes('dropbox')) {
+        return process.env.MCP_DROPBOX_ENDPOINT || 'http://localhost:3006';
+      }
+      
+      if (agentId.includes('file') || agentId.includes('filesystem')) {
+        return process.env.MCP_FILESYSTEM_ENDPOINT || 'http://localhost:3007';
+      }
+    }
+
+    // Route all resources/tools list requests to filesystem by default
+    // This provides basic file operations as a fallback
+    if (method === 'resources/list' || method === 'tools/list') {
+      return process.env.MCP_FILESYSTEM_ENDPOINT || 'http://localhost:3007';
+    }
+
+    // No external routing - handle locally
+    return null;
+  }
+
+  /**
+   * Handle methods that don't need external MCP servers
+   * (e.g., initialize, connection management)
+   */
+  handleLocalMethod(connection, message) {
     const { method } = message;
 
     switch (method) {
@@ -255,23 +369,11 @@ export class McpService extends EventEmitter {
               prompts: { listChanged: true }
             },
             serverInfo: {
-              name: `${agentId} MCP Server`,
+              name: `ConHub MCP Proxy`,
               version: '1.0.0'
             }
           }
         };
-
-      case 'resources/list':
-        return this.getSimulatedResources(agentId);
-
-      case 'tools/list':
-        return this.getSimulatedTools(agentId);
-
-      case 'resources/read':
-        return this.getSimulatedResourceContent(agentId, message.params.uri);
-
-      case 'tools/call':
-        return this.getSimulatedToolResult(agentId, message.params.name, message.params.arguments);
 
       default:
         return {
@@ -279,191 +381,10 @@ export class McpService extends EventEmitter {
           id: message.id,
           error: {
             code: -32601,
-            message: 'Method not found'
+            message: 'Method not found or no route available'
           }
         };
     }
-  }
-
-  
-  getSimulatedResources(agentId) {
-    const resourceMap = {
-      'github-copilot': [
-        {
-          uri: 'copilot://suggestions',
-          name: 'Code Suggestions',
-          description: 'Real-time code suggestions and completions',
-          mimeType: 'application/json'
-        },
-        {
-          uri: 'copilot://chat',
-          name: 'Copilot Chat',
-          description: 'Interactive chat with GitHub Copilot',
-          mimeType: 'text/plain'
-        }
-      ],
-      'amazon-q': [
-        {
-          uri: 'q://code-analysis',
-          name: 'Code Analysis',
-          description: 'Amazon Q code analysis and recommendations',
-          mimeType: 'application/json'
-        },
-        {
-          uri: 'q://security-scan',
-          name: 'Security Scan',
-          description: 'Security vulnerability scanning',
-          mimeType: 'application/json'
-        }
-      ],
-      'cline': [
-        {
-          uri: 'cline://terminal',
-          name: 'Terminal Access',
-          description: 'Command line interface access',
-          mimeType: 'text/plain'
-        },
-        {
-          uri: 'cline://file-operations',
-          name: 'File Operations',
-          description: 'File system operations and management',
-          mimeType: 'application/json'
-        }
-      ]
-    };
-
-    return {
-      jsonrpc: '2.0',
-      result: {
-        resources: resourceMap[agentId] || []
-      }
-    };
-  }
-
-  
-  getSimulatedTools(agentId) {
-    const toolMap = {
-      'github-copilot': [
-        {
-          name: 'generate_code',
-          description: 'Generate code based on natural language description',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              prompt: { type: 'string' },
-              language: { type: 'string' }
-            },
-            required: ['prompt']
-          }
-        },
-        {
-          name: 'explain_code',
-          description: 'Explain existing code functionality',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              code: { type: 'string' },
-              language: { type: 'string' }
-            },
-            required: ['code']
-          }
-        }
-      ],
-      'amazon-q': [
-        {
-          name: 'analyze_security',
-          description: 'Analyze code for security vulnerabilities',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              code: { type: 'string' },
-              language: { type: 'string' }
-            },
-            required: ['code']
-          }
-        },
-        {
-          name: 'optimize_performance',
-          description: 'Suggest performance optimizations',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              code: { type: 'string' },
-              language: { type: 'string' }
-            },
-            required: ['code']
-          }
-        }
-      ],
-      'cline': [
-        {
-          name: 'execute_command',
-          description: 'Execute shell commands',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              command: { type: 'string' },
-              workingDirectory: { type: 'string' }
-            },
-            required: ['command']
-          }
-        },
-        {
-          name: 'read_file',
-          description: 'Read file contents',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              path: { type: 'string' }
-            },
-            required: ['path']
-          }
-        }
-      ]
-    };
-
-    return {
-      jsonrpc: '2.0',
-      result: {
-        tools: toolMap[agentId] || []
-      }
-    };
-  }
-
-  
-  getSimulatedResourceContent(agentId, uri) {
-    return {
-      jsonrpc: '2.0',
-      result: {
-        contents: [
-          {
-            uri,
-            mimeType: 'application/json',
-            text: JSON.stringify({
-              agent: agentId,
-              resource: uri,
-              data: 'Simulated resource content',
-              timestamp: new Date().toISOString()
-            })
-          }
-        ]
-      }
-    };
-  }
-
-  
-  getSimulatedToolResult(agentId, toolName, arguments_) {
-    return {
-      jsonrpc: '2.0',
-      result: {
-        content: [
-          {
-            type: 'text',
-            text: `Simulated result from ${agentId}:${toolName} with arguments: ${JSON.stringify(arguments_)}`
-          }
-        ]
-      }
-    };
   }
 
   

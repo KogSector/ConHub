@@ -1,0 +1,15 @@
+{
+  "name": "conhub-mcp-dropbox",
+  "version": "1.0.0",
+  "description": "Dropbox MCP Server for ConHub",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dbx-mcp-server": "github:amgadabdelhafez/dbx-mcp-server"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
