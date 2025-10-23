@@ -13,3 +13,5 @@ pub mod search;
 pub mod health;
 pub mod orchestration;
 pub mod feature_toggle_service;
+pub mod cache_service;
+pub mod rate_limiter;
