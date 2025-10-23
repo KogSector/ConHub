@@ -11,6 +11,7 @@ use tokio::{
     sync::{OwnedSemaphorePermit, Semaphore},
     task::JoinSet,
 };
+use tracing::error;
 
 use super::{
     db_tracking,

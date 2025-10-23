@@ -24,7 +24,7 @@ async fn upgrade_tracking_table(
     pool: &PgPool,
     desired_state: &TrackingTableSetupState,
     existing_version_id: i32,
-) -> Result<()> {
+) -> Result<(), anyhow::Error> {
     if existing_version_id < 1 && desired_state.version_id >= 1 {
         let table_name = &desired_state.table_name;
         let opt_fast_fingerprint_column = desired_state
@@ -58,7 +58,7 @@ async fn upgrade_tracking_table(
     Ok(())
 }
 
-async fn create_source_state_table(pool: &PgPool, table_name: &str) -> Result<()> {
+async fn create_source_state_table(pool: &PgPool, table_name: &str) -> Result<(), anyhow::Error> {
     let query = format!(
         "CREATE TABLE IF NOT EXISTS {table_name} (
             source_id INTEGER NOT NULL,
@@ -76,7 +76,7 @@ async fn delete_source_states_for_sources(
     pool: &PgPool,
     table_name: &str,
     source_ids: &Vec<i32>,
-) -> Result<()> {
+) -> Result<(), anyhow::Error> {
     let query = format!("DELETE FROM {} WHERE source_id = ANY($1)", table_name,);
     sqlx::query(&query).bind(source_ids).execute(pool).await?;
     Ok(())
@@ -255,7 +255,7 @@ impl ResourceSetupChange for TrackingTableSetupChange {
 }
 
 impl TrackingTableSetupChange {
-    pub async fn apply_change(&self) -> Result<()> {
+    pub async fn apply_change(&self) -> Result<(), anyhow::Error> {
         let lib_context = get_lib_context().await?;
         let pool = lib_context.require_builtin_db_pool()?;
         if let Some(desired) = &self.desired_state {

@@ -138,7 +138,7 @@ impl<'a> Dumper<'a> {
         key: value::KeyValue,
         key_aux_info: serde_json::Value,
         file_path: PathBuf,
-    ) -> Result<()> {
+    ) -> Result<(), anyhow::Error> {
         let _permit = import_op
             .concurrency_controller
             .acquire(concur_control::BYTES_UNKNOWN_YET)
@@ -185,7 +185,7 @@ impl<'a> Dumper<'a> {
         &self,
         import_op_idx: usize,
         import_op: &AnalyzedImportOp,
-    ) -> Result<()> {
+    ) -> Result<(), anyhow::Error> {
         let mut keys_by_filename_prefix: IndexMap<
             String,
             Vec<(value::KeyValue, serde_json::Value)>,
@@ -249,7 +249,7 @@ impl<'a> Dumper<'a> {
         Ok(())
     }
 
-    async fn evaluate_and_dump(&self) -> Result<()> {
+    async fn evaluate_and_dump(&self) -> Result<(), anyhow::Error> {
         try_join_all(
             self.plan
                 .import_ops

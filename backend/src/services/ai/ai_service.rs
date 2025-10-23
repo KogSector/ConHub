@@ -390,7 +390,7 @@ impl AgentService {
     #[allow(dead_code)]
     pub async fn initialize(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         
-        Arc::get_mut(&mut self.mcp_server)
+        Arc::<ConHubMcpServer>::get_mut(&mut self.mcp_server)
             .ok_or("Failed to get mutable reference to MCP server")?
             .initialize()
             .await

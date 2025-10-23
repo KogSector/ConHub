@@ -5,11 +5,12 @@ use chrono::{DateTime, Utc, Duration, Datelike};
 use anyhow::{Result, anyhow};
 use stripe::{
     Client, CreateCustomer, CreatePaymentIntent, CreateSubscription, CreatePrice, CreateProduct,
-    Customer, PaymentIntent, Subscription, Price, Product, Invoice, PaymentMethod,
+    Customer, PaymentIntent, Subscription, Price, Product,
     CreatePaymentMethod, AttachPaymentMethod, CreateSetupIntent, SetupIntent,
     ListCustomers, ListSubscriptions, ListInvoices, Currency,
 };
 use std::collections::HashMap;
+use std::str::FromStr;
 
 pub struct BillingService {
     stripe_client: Client,
@@ -101,7 +102,6 @@ impl BillingService {
     pub async fn create_setup_intent(&self, customer_id: &str) -> Result<SetupIntent> {
         let mut create_setup_intent = CreateSetupIntent::new();
         create_setup_intent.customer = Some(customer_id.parse()?);
-        create_setup_intent.usage = Some(stripe::CreateSetupIntentUsage::OffSession);
 
         let setup_intent = SetupIntent::create(&self.stripe_client, create_setup_intent).await
             .map_err(|e| anyhow!("Failed to create setup intent: {}", e))?;
@@ -123,7 +123,7 @@ impl BillingService {
             payment_method_options: None,
             payment_method_types: None,
         });
-        create_subscription.expand = Some(vec!["latest_invoice.payment_intent".to_string()]);
+        create_subscription.expand = &["latest_invoice.payment_intent"];
 
         let subscription = Subscription::create(&self.stripe_client, create_subscription).await
             .map_err(|e| anyhow!("Failed to create subscription: {}", e))?;
@@ -132,12 +132,12 @@ impl BillingService {
     }
 
     
-    pub async fn cancel_subscription(&self, subscription_id: &str) -> Result<Subscription> {
-        let subscription = Subscription::delete(&self.stripe_client, &subscription_id.parse()?)
+    pub async fn cancel_subscription(&self, subscription_id: &str) -> Result<()> {
+        let _deleted = Subscription::delete(&self.stripe_client, &subscription_id.parse()?)
             .await
             .map_err(|e| anyhow!("Failed to cancel subscription: {}", e))?;
 
-        Ok(subscription)
+        Ok(())
     }
 
     
@@ -148,12 +148,14 @@ impl BillingService {
 
         
         let mut update_subscription = stripe::UpdateSubscription::new();
-        update_subscription.items = Some(vec![stripe::UpdateSubscriptionItems {
-            id: subscription.items.data.first().map(|item| item.id.clone()),
-            price: Some(new_price_id.to_string()),
-            quantity: Some(1),
-            ..Default::default()
-        }]);
+        if let Some(item) = subscription.items.data.first() {
+            update_subscription.items = Some(vec![stripe::UpdateSubscriptionItems {
+                id: Some(item.id.to_string()),
+                price: Some(new_price_id.to_string()),
+                quantity: Some(1),
+                ..Default::default()
+            }]);
+        }
 
         let updated_subscription = Subscription::update(&self.stripe_client, &subscription_id.parse()?, update_subscription).await
             .map_err(|e| anyhow!("Failed to update subscription: {}", e))?;
@@ -162,8 +164,8 @@ impl BillingService {
     }
 
     
-    pub async fn get_payment_methods(&self, customer_id: &str) -> Result<Vec<PaymentMethod>> {
-        let payment_methods = PaymentMethod::list(&self.stripe_client, &stripe::ListPaymentMethods {
+    pub async fn get_stripe_payment_methods(&self, customer_id: &str) -> Result<Vec<stripe::PaymentMethod>> {
+        let payment_methods = stripe::PaymentMethod::list(&self.stripe_client, &stripe::ListPaymentMethods {
             customer: Some(customer_id.parse()?),
             type_: Some(stripe::PaymentMethodTypeFilter::Card),
             ..Default::default()
@@ -174,8 +176,8 @@ impl BillingService {
     }
 
     
-    pub async fn get_invoices(&self, customer_id: &str) -> Result<Vec<Invoice>> {
-        let invoices = Invoice::list(&self.stripe_client, &ListInvoices {
+    pub async fn get_stripe_invoices(&self, customer_id: &str) -> Result<Vec<stripe::Invoice>> {
+        let invoices = stripe::Invoice::list(&self.stripe_client, &ListInvoices {
             customer: Some(customer_id.parse()?),
             limit: Some(10),
             ..Default::default()

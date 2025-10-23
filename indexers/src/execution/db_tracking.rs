@@ -2,6 +2,7 @@ use crate::prelude::*;
 
 use super::{db_tracking_setup::TrackingTableSetupState, memoization::StoredMemoizationInfo};
 use crate::utils::{db::WriteAction, fingerprint::Fingerprint};
+use anyhow::bail;
 use futures::Stream;
 use serde::de::{self, Deserializer, SeqAccess, Visitor};
 use serde::ser::SerializeSeq;

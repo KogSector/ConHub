@@ -55,7 +55,7 @@ pub async fn get_job_status(
     
     if let Some(job) = state.code_indexer.get_job(&job_id).await {
         return Ok(HttpResponse::Ok().json(IndexingResultResponse {
-            job_id: job.id,
+            job_id: job.id.clone(),
             status: job.status,
             documents_processed: job.documents_processed,
             chunks_created: job.chunks_created,
@@ -69,7 +69,7 @@ pub async fn get_job_status(
 
     if let Some(job) = state.doc_indexer.get_job(&job_id).await {
         return Ok(HttpResponse::Ok().json(IndexingResultResponse {
-            job_id: job.id,
+            job_id: job.id.clone(),
             status: job.status,
             documents_processed: job.documents_processed,
             chunks_created: job.chunks_created,
@@ -83,7 +83,7 @@ pub async fn get_job_status(
 
     if let Some(job) = state.web_indexer.get_job(&job_id).await {
         return Ok(HttpResponse::Ok().json(IndexingResultResponse {
-            job_id: job.id,
+            job_id: job.id.clone(),
             status: job.status,
             documents_processed: job.documents_processed,
             chunks_created: job.chunks_created,

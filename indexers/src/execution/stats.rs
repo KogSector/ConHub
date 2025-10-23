@@ -4,6 +4,7 @@ use std::{
     ops::AddAssign,
     sync::atomic::{AtomicI64, Ordering::Relaxed},
 };
+use serde::Serialize;
 
 #[derive(Default, Serialize)]
 pub struct Counter(pub AtomicI64);

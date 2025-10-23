@@ -3,6 +3,7 @@ use crate::prelude::*;
 use super::db_tracking;
 use super::evaluator;
 use futures::try_join;
+use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct SourceRowLastProcessedInfo {
@@ -27,7 +28,7 @@ pub async fn get_source_row_indexing_status(
     key_aux_info: &serde_json::Value,
     setup_execution_ctx: &exec_ctx::FlowSetupExecutionContext,
     pool: &sqlx::PgPool,
-) -> Result<SourceRowIndexingStatus> {
+) -> Result<SourceRowIndexingStatus, anyhow::Error> {
     let source_key_json = serde_json::to_value(src_eval_ctx.key)?;
     let last_processed_fut = db_tracking::read_source_last_processed_info(
         setup_execution_ctx.import_ops[src_eval_ctx.import_op_idx].source_id,
