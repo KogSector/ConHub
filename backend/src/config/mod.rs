@@ -1,3 +1,5 @@
+pub mod mcp_servers;
+
 use reqwest::Client;
 
 #[derive(Clone)]
