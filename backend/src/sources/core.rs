@@ -69,7 +69,10 @@ impl DataSourceFactory {
         match source_type {
             "github" => Ok(Box::new(crate::sources::repositories::github::GitHubConnector::new())),
             "bitbucket" => Ok(Box::new(crate::sources::repositories::bitbucket::BitbucketConnector::new())),
+            "gitlab" => Ok(Box::new(crate::sources::repositories::gitlab::GitLabConnector::new())),
             "googledrive" => Ok(Box::new(crate::sources::documents::googledrive::GoogleDriveConnector::new())),
+            "dropbox" => Ok(Box::new(crate::sources::documents::dropbox::DropboxConnector::new())),
+            "onedrive" => Ok(Box::new(crate::sources::documents::onedrive::OneDriveConnector::new())),
             "notion" => Ok(Box::new(crate::sources::documents::notion::NotionConnector::new())),
             "url" => Ok(Box::new(crate::sources::urls::UrlConnector::new())),
             _ => Err(format!("Unsupported data source type: {}", source_type).into()),
