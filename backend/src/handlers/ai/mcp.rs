@@ -463,7 +463,16 @@ pub async fn create_mcp_context(req: web::Json<CreateContextRequest>) -> Result<
             };
 
             
-            match server.handle_context_create(Some(serde_json::to_value(params).unwrap())).await {
+            let params_value = match serde_json::to_value(params) {
+                Ok(v) => v,
+                Err(e) => {
+                    return Ok(HttpResponse::InternalServerError().json(ApiResponse::<()>::error(
+                        format!("Failed to serialize params: {}", e),
+                    )));
+                }
+            };
+            
+            match server.handle_context_create(Some(params_value)).await {
                 Ok(result) => {
                     let context_result: ContextCreateResult = match serde_json::from_value(result) {
                         Ok(result) => result,
@@ -545,7 +554,16 @@ pub async fn list_mcp_resources(query: web::Query<ListResourcesRequest>) -> Resu
                     cursor: query.cursor.clone(),
                 };
 
-                match server.handle_resources_list(Some(serde_json::to_value(params).unwrap())).await {
+                let params_value = match serde_json::to_value(params) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        return Ok(HttpResponse::InternalServerError().json(ApiResponse::<()>::error(
+                            format!("Failed to serialize params: {}", e),
+                        )));
+                    }
+                };
+
+                match server.handle_resources_list(Some(params_value)).await {
                     Ok(result) => {
                         let resources_result: ResourcesListResult = match serde_json::from_value(result) {
                             Ok(result) => result,
@@ -628,7 +646,16 @@ pub async fn read_mcp_resource(req: web::Json<ReadResourceRequest>) -> Result<Ht
                     uri: req.uri.clone(),
                 };
 
-                match server.handle_resources_read(Some(serde_json::to_value(params).unwrap())).await {
+                let params_value = match serde_json::to_value(params) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        return Ok(HttpResponse::InternalServerError().json(ApiResponse::<()>::error(
+                            format!("Failed to serialize params: {}", e),
+                        )));
+                    }
+                };
+
+                match server.handle_resources_read(Some(params_value)).await {
                     Ok(result) => {
                         let read_result: ResourcesReadResult = match serde_json::from_value(result) {
                             Ok(result) => result,
@@ -712,7 +739,16 @@ pub async fn call_mcp_tool(req: web::Json<CallToolRequest>) -> Result<HttpRespon
                     arguments: req.arguments.clone(),
                 };
 
-                match server.handle_tools_call(Some(serde_json::to_value(params).unwrap())).await {
+                let params_value = match serde_json::to_value(params) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        return Ok(HttpResponse::InternalServerError().json(ApiResponse::<()>::error(
+                            format!("Failed to serialize params: {}", e),
+                        )));
+                    }
+                };
+
+                match server.handle_tools_call(Some(params_value)).await {
                     Ok(result) => {
                         let call_result: ToolsCallResult = match serde_json::from_value(result) {
                             Ok(result) => result,

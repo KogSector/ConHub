@@ -115,7 +115,9 @@ impl SocialIntegrationService {
 
         let access_token = token_result.access_token().secret();
         let refresh_token = token_result.refresh_token().map(|t| t.secret().clone());
-        let expires_at = token_result.expires_in().map(|duration| Utc::now() + chrono::Duration::from_std(duration).unwrap());
+        let expires_at = token_result.expires_in()
+            .and_then(|duration| chrono::Duration::from_std(duration).ok())
+            .map(|duration| Utc::now() + duration);
 
         
         let (platform_user_id, metadata) = self.get_platform_user_info(&request.platform, access_token).await?;

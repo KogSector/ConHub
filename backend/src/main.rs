@@ -12,7 +12,7 @@ use handlers::auth::configure_auth_routes;
 use handlers::security::rulesets;
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
     let port = env::var("BACKEND_PORT")
@@ -28,8 +28,7 @@ async fn main() -> std::io::Result<()> {
     let pool = PgPoolOptions::new()
         .max_connections(10)
         .connect(&database_url)
-        .await
-        .expect("Failed to connect to database");
+        .await?;
     
     println!("✅ Database connection established");
 
@@ -68,7 +67,9 @@ async fn main() -> std::io::Result<()> {
     })
     .bind(("0.0.0.0", port))?
     .run()
-    .await
+    .await?;
+
+    Ok(())
 }
 
 async fn health_check(pool: web::Data<PgPool>) -> actix_web::Result<web::Json<serde_json::Value>> {

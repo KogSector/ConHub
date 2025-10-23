@@ -1,9 +1,10 @@
-use actix_web::{web, HttpResponse, Result};
+use actix_web::{web, HttpResponse};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
+use crate::errors::ServiceError;
 
 #[derive(Deserialize)]
 pub struct CreateDocumentRequest {
@@ -40,7 +41,7 @@ lazy_static! {
     static ref DOCUMENT_STORAGE: Mutex<HashMap<String, Vec<DocumentRecord>>> = Mutex::new(HashMap::new());
 }
 
-pub async fn create_document(req: web::Json<CreateDocumentRequest>) -> Result<HttpResponse> {
+pub async fn create_document(req: web::Json<CreateDocumentRequest>) -> Result<HttpResponse, ServiceError> {
     log::info!("Received create document request: {:?}", req.name);
     
     if req.name.trim().is_empty() {
@@ -52,11 +53,16 @@ pub async fn create_document(req: web::Json<CreateDocumentRequest>) -> Result<Ht
     }
 
     let user_id = "user_123".to_string();
-    let mut storage = DOCUMENT_STORAGE.lock().unwrap();
+    let mut storage = DOCUMENT_STORAGE.lock()
+        .map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
     let user_docs = storage.entry(user_id.clone()).or_insert_with(Vec::new);
 
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_millis();
+    
     let document_record = DocumentRecord {
-        id: format!("doc_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()),
+        id: format!("doc_{}", timestamp),
         user_id: user_id.clone(),
         name: req.name.clone(),
         doc_type: req.doc_type.clone(),
@@ -78,9 +84,10 @@ pub async fn create_document(req: web::Json<CreateDocumentRequest>) -> Result<Ht
     }))
 }
 
-pub async fn get_documents(query: web::Query<std::collections::HashMap<String, String>>) -> Result<HttpResponse> {
+pub async fn get_documents(query: web::Query<std::collections::HashMap<String, String>>) -> Result<HttpResponse, ServiceError> {
     let user_id = "user_123".to_string();
-    let storage = DOCUMENT_STORAGE.lock().unwrap();
+    let storage = DOCUMENT_STORAGE.lock()
+        .map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
     let mut user_docs = storage.get(&user_id).cloned().unwrap_or_default();
 
     
@@ -104,10 +111,11 @@ pub async fn get_documents(query: web::Query<std::collections::HashMap<String, S
     })))
 }
 
-pub async fn delete_document(path: web::Path<String>) -> Result<HttpResponse> {
+pub async fn delete_document(path: web::Path<String>) -> Result<HttpResponse, ServiceError> {
     let doc_id = path.into_inner();
     let user_id = "user_123".to_string();
-    let mut storage = DOCUMENT_STORAGE.lock().unwrap();
+    let mut storage = DOCUMENT_STORAGE.lock()
+        .map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
     
     if let Some(user_docs) = storage.get_mut(&user_id) {
         if let Some(pos) = user_docs.iter().position(|d| d.id == doc_id) {
@@ -125,9 +133,10 @@ pub async fn delete_document(path: web::Path<String>) -> Result<HttpResponse> {
     })))
 }
 
-pub async fn get_document_analytics() -> Result<HttpResponse> {
+pub async fn get_document_analytics() -> Result<HttpResponse, ServiceError> {
     let user_id = "user_123".to_string();
-    let storage = DOCUMENT_STORAGE.lock().unwrap();
+    let storage = DOCUMENT_STORAGE.lock()
+        .map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
     let user_docs = storage.get(&user_id).cloned().unwrap_or_default();
 
     let total_docs = user_docs.len();

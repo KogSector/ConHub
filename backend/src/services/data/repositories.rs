@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 use chrono::Utc;
 use uuid::Uuid;
 
@@ -104,27 +104,27 @@ impl RepositoryService {
         };
         
         
-        let mut repositories = REPOSITORIES.lock().unwrap();
+        let mut repositories = REPOSITORIES.lock().await;
         repositories.insert(repo_info.id.clone(), repo_info.clone());
         
         Ok(repo_info)
     }
     
     
-    pub fn get_repository(&self, id: &str) -> Option<RepositoryInfo> {
-        let repositories = REPOSITORIES.lock().unwrap();
+    pub async fn get_repository(&self, id: &str) -> Option<RepositoryInfo> {
+        let repositories = REPOSITORIES.lock().await;
         repositories.get(id).cloned()
     }
     
     
-    pub fn list_repositories(&self) -> Vec<RepositoryInfo> {
-        let repositories = REPOSITORIES.lock().unwrap();
+    pub async fn list_repositories(&self) -> Vec<RepositoryInfo> {
+        let repositories = REPOSITORIES.lock().await;
         repositories.values().cloned().collect()
     }
     
     
-    pub fn update_repository_config(&self, id: &str, config: RepositoryConfig) -> VcsResult<()> {
-        let mut repositories = REPOSITORIES.lock().unwrap();
+    pub async fn update_repository_config(&self, id: &str, config: RepositoryConfig) -> VcsResult<()> {
+        let mut repositories = REPOSITORIES.lock().await;
         if let Some(repo) = repositories.get_mut(id) {
             repo.config = config;
             repo.updated_at = Utc::now();
@@ -136,7 +136,7 @@ impl RepositoryService {
     
     
     pub async fn test_repository_connection(&self, id: &str) -> VcsResult<bool> {
-        let repo_info = self.get_repository(id)
+        let repo_info = self.get_repository(id).await
             .ok_or_else(|| VcsError::RepositoryNotFound(format!("Repository with ID {} not found", id)))?;
         
         let connector = VcsConnectorFactory::create_connector(&repo_info.vcs_type);
@@ -145,7 +145,7 @@ impl RepositoryService {
     
     
     pub async fn sync_repository(&self, id: &str) -> VcsResult<()> {
-        let mut repositories = REPOSITORIES.lock().unwrap();
+        let mut repositories = REPOSITORIES.lock().await;
         
         if let Some(repo) = repositories.get_mut(id) {
             
@@ -168,8 +168,8 @@ impl RepositoryService {
     }
     
     
-    pub fn disconnect_repository(&self, id: &str) -> VcsResult<()> {
-        let mut repositories = REPOSITORIES.lock().unwrap();
+    pub async fn disconnect_repository(&self, id: &str) -> VcsResult<()> {
+        let mut repositories = REPOSITORIES.lock().await;
         
         if repositories.remove(id).is_some() {
             Ok(())
@@ -180,7 +180,7 @@ impl RepositoryService {
     
     
     pub async fn list_repository_branches(&self, id: &str) -> VcsResult<Vec<String>> {
-        let repo_info = self.get_repository(id)
+        let repo_info = self.get_repository(id).await
             .ok_or_else(|| VcsError::RepositoryNotFound(format!("Repository with ID {} not found", id)))?;
         
         let connector = VcsConnectorFactory::create_connector(&repo_info.vcs_type);
@@ -190,8 +190,8 @@ impl RepositoryService {
     }
     
     
-    pub fn update_repository_credentials(&self, id: &str, credentials: RepositoryCredentials) -> VcsResult<()> {
-        let mut repositories = REPOSITORIES.lock().unwrap();
+    pub async fn update_repository_credentials(&self, id: &str, credentials: RepositoryCredentials) -> VcsResult<()> {
+        let mut repositories = REPOSITORIES.lock().await;
         
         if let Some(repo) = repositories.get_mut(id) {
             repo.credentials = credentials;
@@ -204,7 +204,7 @@ impl RepositoryService {
     
     
     pub async fn setup_repository_webhook(&self, id: &str, webhook_url: &str) -> VcsResult<String> {
-        let mut repositories = REPOSITORIES.lock().unwrap();
+        let mut repositories = REPOSITORIES.lock().await;
         
         if let Some(repo) = repositories.get_mut(id) {
             let connector = VcsConnectorFactory::create_connector(&repo.vcs_type);
@@ -271,7 +271,7 @@ impl RepositorySyncScheduler {
     
     #[allow(dead_code)]
     pub async fn schedule_sync(&self, repository_service: &RepositoryService) -> VcsResult<()> {
-        let repositories = repository_service.list_repositories();
+        let repositories = repository_service.list_repositories().await;
         
         for repo in repositories {
             if repo.config.auto_sync && repo.config.sync_frequency_minutes.is_some() {
@@ -287,7 +287,7 @@ impl RepositorySyncScheduler {
     
     #[allow(dead_code)]
     pub async fn sync_all(&self, repository_service: &RepositoryService) -> Vec<(String, VcsResult<()>)> {
-        let repositories = repository_service.list_repositories();
+        let repositories = repository_service.list_repositories().await;
         let mut results = Vec::new();
         
         for repo in repositories {

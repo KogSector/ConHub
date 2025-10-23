@@ -53,24 +53,29 @@ impl AIAgentManager {
         };
 
         let agent_info = agent.get_agent();
-        let mut agents = self.agents.lock().unwrap();
+        let mut agents = self.agents.lock()
+            .map_err(|e| format!("Mutex lock error: {}", e))?;
         agents.insert(agent_id, agent);
         Ok(agent_info)
     }
 
     #[allow(dead_code)]
     pub fn get_agent(&self, agent_id: &str) -> Option<AIAgent> {
-        let agents = self.agents.lock().unwrap();
+        let agents = self.agents.lock().ok()?;
         agents.get(agent_id).map(|agent| agent.get_agent())
     }
 
     pub fn list_agents(&self) -> Vec<AIAgent> {
-        let agents = self.agents.lock().unwrap();
+        let agents = match self.agents.lock() {
+            Ok(agents) => agents,
+            Err(_) => return vec![],
+        };
         agents.values().map(|agent| agent.get_agent()).collect()
     }
 
     pub async fn connect_agent(&self, agent_id: &str, credentials: &HashMap<String, String>) -> Result<bool, Box<dyn Error>> {
-        let agents = self.agents.lock().unwrap();
+        let agents = self.agents.lock()
+            .map_err(|e| format!("Mutex lock error: {}", e))?;
         if let Some(agent) = agents.get(agent_id) {
             agent.connect(credentials).await
         } else {
@@ -79,7 +84,8 @@ impl AIAgentManager {
     }
 
     pub async fn query_agent(&self, agent_id: &str, prompt: &str, context: Option<&str>) -> Result<String, Box<dyn Error>> {
-        let agents = self.agents.lock().unwrap();
+        let agents = self.agents.lock()
+            .map_err(|e| format!("Mutex lock error: {}", e))?;
         if let Some(agent) = agents.get(agent_id) {
             agent.query(prompt, context).await
         } else {
@@ -367,7 +373,8 @@ impl AgentService {
         let client = Client::builder()
             .timeout(Duration::from_secs(60))
             .build()
-            .expect("Failed to create HTTP client");
+            .map_err(|e| format!("Failed to create HTTP client: {}", e))
+            .unwrap_or_else(|_| Client::new());
 
         let mcp_server = Arc::new(ConHubMcpServer::new());
         let mcp_clients = Arc::new(tokio::sync::RwLock::new(HashMap::new()));

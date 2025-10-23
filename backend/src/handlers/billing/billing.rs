@@ -1,12 +1,15 @@
-use actix_web::{web, HttpResponse, Result, HttpRequest};
+use actix_web::{web, HttpResponse, HttpRequest};
 use validator::Validate;
 use serde_json::json;
 use uuid::Uuid;
 
 use crate::models::billing::*;
 use crate::services::billing::BillingService;
+use crate::errors::ServiceError;
 
-pub async fn get_subscription_plans() -> Result<HttpResponse> {
+const DEMO_USER_ID: &str = "550e8400-e29b-41d4-a716-446655440000";
+
+pub async fn get_subscription_plans() -> Result<HttpResponse, ServiceError> {
     let billing_service = BillingService::new();
     match billing_service.get_subscription_plans().await {
         Ok(plans) => Ok(HttpResponse::Ok().json(plans)),
@@ -19,10 +22,11 @@ pub async fn get_subscription_plans() -> Result<HttpResponse> {
     }
 }
 
-pub async fn get_billing_dashboard() -> Result<HttpResponse> {
+pub async fn get_billing_dashboard() -> Result<HttpResponse, ServiceError> {
     let billing_service = BillingService::new();
     
-    let user_id = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
+    let user_id = uuid::Uuid::parse_str(DEMO_USER_ID)
+        .map_err(|e| ServiceError::ParseError(format!("Invalid UUID: {}", e)))?;
     
     match billing_service.get_billing_dashboard(user_id).await {
         Ok(dashboard) => Ok(HttpResponse::Ok().json(dashboard)),
@@ -57,7 +61,7 @@ pub struct CreatePaymentIntentRequest {
 }
 
 
-pub async fn create_customer(request: web::Json<CreateCustomerRequest>) -> Result<HttpResponse> {
+pub async fn create_customer(request: web::Json<CreateCustomerRequest>) -> Result<HttpResponse, ServiceError> {
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
             "error": "Validation failed",
@@ -83,7 +87,7 @@ pub async fn create_customer(request: web::Json<CreateCustomerRequest>) -> Resul
 }
 
 
-pub async fn create_payment_intent(request: web::Json<CreatePaymentIntentRequest>) -> Result<HttpResponse> {
+pub async fn create_payment_intent(request: web::Json<CreatePaymentIntentRequest>) -> Result<HttpResponse, ServiceError> {
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
             "error": "Validation failed",
@@ -109,10 +113,10 @@ pub async fn create_payment_intent(request: web::Json<CreatePaymentIntentRequest
 }
 
 
-pub async fn create_setup_intent(request: web::Json<serde_json::Value>) -> Result<HttpResponse> {
+pub async fn create_setup_intent(request: web::Json<serde_json::Value>) -> Result<HttpResponse, ServiceError> {
     let customer_id = request.get("customer_id")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| actix_web::error::ErrorBadRequest("customer_id is required"))?;
+        .ok_or_else(|| ServiceError::ValidationError("customer_id is required".to_string()))?;
 
     let billing_service = BillingService::new();
 
@@ -132,7 +136,7 @@ pub async fn create_setup_intent(request: web::Json<serde_json::Value>) -> Resul
 }
 
 
-pub async fn create_subscription(request: web::Json<CreateSubscriptionRequest>) -> Result<HttpResponse> {
+pub async fn create_subscription(request: web::Json<CreateSubscriptionRequest>) -> Result<HttpResponse, ServiceError> {
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
             "error": "Validation failed",
@@ -161,7 +165,7 @@ pub async fn create_subscription(request: web::Json<CreateSubscriptionRequest>) 
 }
 
 
-pub async fn cancel_subscription(path: web::Path<String>) -> Result<HttpResponse> {
+pub async fn cancel_subscription(path: web::Path<String>) -> Result<HttpResponse, ServiceError> {
     let subscription_id = path.into_inner();
     let billing_service = BillingService::new();
 
@@ -180,7 +184,7 @@ pub async fn cancel_subscription(path: web::Path<String>) -> Result<HttpResponse
 }
 
 
-pub async fn get_payment_methods(path: web::Path<String>) -> Result<HttpResponse> {
+pub async fn get_payment_methods(path: web::Path<String>) -> Result<HttpResponse, ServiceError> {
     let customer_id = path.into_inner();
     let billing_service = BillingService::new();
 
@@ -199,7 +203,7 @@ pub async fn get_payment_methods(path: web::Path<String>) -> Result<HttpResponse
 }
 
 
-pub async fn get_invoices(path: web::Path<String>) -> Result<HttpResponse> {
+pub async fn get_invoices(path: web::Path<String>) -> Result<HttpResponse, ServiceError> {
     let customer_id = path.into_inner();
     let billing_service = BillingService::new();
 
@@ -218,14 +222,14 @@ pub async fn get_invoices(path: web::Path<String>) -> Result<HttpResponse> {
 }
 
 
-pub async fn handle_stripe_webhook(req: HttpRequest, body: web::Bytes) -> Result<HttpResponse> {
+pub async fn handle_stripe_webhook(req: HttpRequest, body: web::Bytes) -> Result<HttpResponse, ServiceError> {
     let signature = req.headers()
         .get("stripe-signature")
         .and_then(|v| v.to_str().ok())
-        .ok_or_else(|| actix_web::error::ErrorBadRequest("Missing stripe-signature header"))?;
+        .ok_or_else(|| ServiceError::ValidationError("Missing stripe-signature header".to_string()))?;
 
     let payload = std::str::from_utf8(&body)
-        .map_err(|_| actix_web::error::ErrorBadRequest("Invalid UTF-8 in request body"))?;
+        .map_err(|_| ServiceError::ValidationError("Invalid UTF-8 in request body".to_string()))?;
 
     let billing_service = BillingService::new();
 
