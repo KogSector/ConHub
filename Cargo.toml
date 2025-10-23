@@ -117,4 +117,4 @@ urlencoding = "2.1"
 
 qdrant-client = "1.7"
 lettre = "0.11.19"
-stripe = "0.41.0"
+async-stripe = { version = "0.41.0", features = ["runtime-tokio-hyper-rustls"] }
