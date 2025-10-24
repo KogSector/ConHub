@@ -12,8 +12,8 @@ use std::io::BufReader;
 use std::fs::File;
 use uuid::Uuid;
 use chrono::{DateTime, Utc, Duration};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
-use aes_gcm::aead::{Aead, NewAead};
+use aes_gcm::{Aes256Gcm, Key, Nonce, KeyInit};
+use aes_gcm::aead::{Aead, AeadCore, OsRng};
 use base64::{engine::general_purpose, Engine as _};
 use sha2::{Digest, Sha256};
 
@@ -261,7 +261,7 @@ impl SecureTunnelService {
         }
 
         let cipher = Aes256Gcm::new(&self.aes_key);
-        let nonce = Aes256Gcm::generate_nonce(&mut rand::thread_rng());
+        let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
         
         
         let data_to_encrypt = if self.config.enable_compression {
@@ -270,7 +270,8 @@ impl SecureTunnelService {
             message.as_bytes().to_vec()
         };
         
-        let ciphertext = cipher.encrypt(&nonce, data_to_encrypt.as_slice())?;
+        let ciphertext = cipher.encrypt(&nonce, data_to_encrypt.as_slice())
+            .map_err(|e| format!("Encryption failed: {:?}", e))?;
         
         
         let mut encrypted_data = nonce.to_vec();
@@ -320,7 +321,8 @@ impl SecureTunnelService {
         let nonce = Nonce::from_slice(nonce_bytes);
         
         let cipher = Aes256Gcm::new(&self.aes_key);
-        let decrypted_data = cipher.decrypt(nonce, ciphertext)?;
+        let decrypted_data = cipher.decrypt(nonce, ciphertext)
+            .map_err(|e| format!("Decryption failed: {:?}", e))?;
         
         
         let final_data = if secure_message.compressed {

@@ -111,7 +111,7 @@ impl CacheService {
             .lock()
             .map_err(|e| CacheError::ConnectionError(e.to_string()))?;
 
-        conn.set_ex(&full_key, json_str, ttl.as_secs() as usize)?;
+        conn.set_ex(&full_key, json_str, ttl.as_secs())?;
 
         Ok(())
     }
@@ -190,7 +190,7 @@ impl CacheService {
             .lock()
             .map_err(|e| CacheError::ConnectionError(e.to_string()))?;
 
-        conn.expire(&full_key, additional_ttl.as_secs() as usize)?;
+        conn.expire(&full_key, additional_ttl.as_secs() as i64)?;
 
         Ok(())
     }

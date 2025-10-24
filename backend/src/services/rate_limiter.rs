@@ -227,9 +227,10 @@ impl RateLimiter {
             .map_err(|_| RateLimitError::InBackoff { remaining: Duration::from_secs(1) })?;
 
         // Get or create bucket
+        let default_config = RateLimitConfig::generic();
         let config = self.configs
             .get(source_type)
-            .unwrap_or(&RateLimitConfig::generic());
+            .unwrap_or(&default_config);
 
         let bucket = buckets
             .entry(key.clone())
@@ -261,9 +262,10 @@ impl RateLimiter {
         let key = format!("{}:{}", source_type, source_id);
 
         if let Ok(mut buckets) = self.buckets.lock() {
+            let default_config = RateLimitConfig::generic();
             let config = self.configs
                 .get(source_type)
-                .unwrap_or(&RateLimitConfig::generic());
+                .unwrap_or(&default_config);
 
             if let Some(bucket) = buckets.get_mut(&key) {
                 if config.auto_backoff {

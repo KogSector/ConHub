@@ -11,8 +11,8 @@ use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use aes_gcm::{Aes256Gcm, Key, Nonce};
-use aes_gcm::aead::{Aead, NewAead};
+use aes_gcm::{Aes256Gcm, Key, Nonce, KeyInit};
+use aes_gcm::aead::Aead;
 use base64::{engine::general_purpose, Engine as _};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use argon2::password_hash::{rand_core::OsRng, SaltString};
@@ -340,7 +340,8 @@ impl SecurityService {
     pub fn encrypt_data(&self, data: &str) -> Result<String, Box<dyn std::error::Error>> {
         let cipher = Aes256Gcm::new(&self.aes_key);
         let nonce = Aes256Gcm::generate_nonce(&mut rand::thread_rng());
-        let ciphertext = cipher.encrypt(&nonce, data.as_bytes())?;
+        let ciphertext = cipher.encrypt(&nonce, data.as_bytes())
+            .map_err(|e| format!("Encryption failed: {:?}", e))?;
         
         
         let mut result = nonce.to_vec();
@@ -361,7 +362,8 @@ impl SecurityService {
         let nonce = Nonce::from_slice(nonce_bytes);
         
         let cipher = Aes256Gcm::new(&self.aes_key);
-        let plaintext = cipher.decrypt(nonce, ciphertext)?;
+        let plaintext = cipher.decrypt(nonce, ciphertext)
+            .map_err(|e| format!("Decryption failed: {:?}", e))?;
         
         Ok(String::from_utf8(plaintext)?)
     }
