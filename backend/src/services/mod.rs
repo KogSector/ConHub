@@ -15,3 +15,9 @@ pub mod orchestration;
 pub mod feature_toggle_service;
 pub mod cache_service;
 pub mod rate_limiter;
+
+// Re-export commonly used services
+pub use ai::*;
+pub use data::*;
+pub use security::*;
+pub use integrations::*;

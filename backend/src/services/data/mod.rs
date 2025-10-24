@@ -6,3 +6,5 @@ pub mod platform_data_fetcher;
 
 pub use data_sources::*;
 pub use repositories::*;
+pub use vcs_connector::*;
+pub use vcs_detector::*;
