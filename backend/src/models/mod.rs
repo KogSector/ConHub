@@ -7,6 +7,7 @@ pub mod copilot;
 pub mod auth;
 pub mod billing;
 pub mod social;
+pub mod mcp;
 
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

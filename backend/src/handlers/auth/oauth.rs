@@ -5,7 +5,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::services::auth::oauth::{OAuthService, OAuthProvider};
-use crate::handlers::auth::generate_jwt_token;
+use crate::handlers::auth::auth::generate_jwt_token;
 use crate::models::auth::{AuthResponse, UserProfile, User};
 
 #[derive(Debug, Deserialize)]
@@ -191,9 +191,4 @@ pub async fn oauth_connections(
     Ok(HttpResponse::Ok().json(json!({
         "connections": []
     })))
-}
-
-
-fn generate_jwt_token(user: &User) -> core::result::Result<(String, chrono::DateTime<chrono::Utc>), String> {
-    crate::handlers::auth::generate_jwt_token(user)
 }
