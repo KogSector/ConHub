@@ -116,5 +116,9 @@ urlencoding = "2.1"
 
 
 qdrant-client = "1.7"
-lettre = "0.11.19"
+lettre = { version = "0.11.19", features = ["tokio1"] }
 async-stripe = { version = "0.41.0", features = ["runtime-tokio-hyper-rustls"] }
+indexmap = "2.0"
+itertools = "0.12"
+yaml-rust2 = "0.1"
+warp = "0.3"

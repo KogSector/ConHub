@@ -3,13 +3,15 @@ use futures::future::try_join_all;
 use std::sync::{Mutex, OnceLock};
 use std::borrow::Cow;
 
-use crate::base::value::EstimatedByteSize;
-use crate::builder::{AnalyzedTransientFlow, plan::*};
-use crate::py::AnyhowIntoPyResult;
 use crate::{
     base::{schema, value},
+    builder::{plan::*, AnalyzedTransientFlow},
     utils::immutable::RefList,
 };
+use std::collections::BTreeMap;
+use crate::execution;
+use crate::base::value::EstimatedByteSize;
+use crate::utils::errors::AnyhowIntoPyResult;
 
 use super::memoization::{EvaluationMemory, EvaluationMemoryOptions, evaluate_with_cell};
 

@@ -14,10 +14,15 @@ use yaml_rust2::YamlEmitter;
 use super::evaluator::SourceRowEvaluationContext;
 use super::memoization::EvaluationMemoryOptions;
 use super::row_indexer;
-use crate::base::{schema, value};
-use crate::builder::plan::{AnalyzedImportOp, ExecutionPlan};
-use crate::ops::interface::SourceExecutorReadOptions;
-use crate::utils::yaml_ser::YamlSerializer;
+use crate::{
+    base::{schema, value},
+    builder::plan::{AnalyzedImportOp, ExecutionPlan},
+    ops::interface::SourceExecutorReadOptions,
+    utils::yaml_ser::YamlSerializer,
+    services::exec_ctx,
+};
+use std::borrow::Cow;
+use crate::services::concur_control;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct EvaluateAndDumpOptions {
@@ -209,7 +214,7 @@ impl<'a> Dumper<'a> {
                     .key
                     .encode_to_strs()
                     .into_iter()
-                    .map(|s| urlencoding::encode(&s).into_owned())
+                    .map(|s| urlencoding::encode(s).into_owned())
                     .join(":");
                 s.truncate(
                     (0..(FILENAME_PREFIX_MAX_LENGTH - import_op.name.as_str().len()))

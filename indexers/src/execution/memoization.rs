@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     base::{schema, value},
-    service::error::{SharedError, SharedResultExtRef},
+    services::error::{SharedError, SharedResultExtRef},
     utils::fingerprint::{Fingerprint, Fingerprinter},
 };
 

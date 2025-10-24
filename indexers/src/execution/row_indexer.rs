@@ -1,5 +1,5 @@
-use crate::prelude::*;
-
+use crate::services::exec_ctx;
+use anyhow::Result;
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use futures::future::try_join_all;
@@ -13,13 +13,14 @@ use super::evaluator::{
 use super::memoization::{EvaluationMemory, EvaluationMemoryOptions, StoredMemoizationInfo};
 use super::stats;
 
-use crate::base::value::{self, FieldValues, KeyValue};
-use crate::builder::plan::*;
-use crate::ops::interface::{
-    ExportTargetMutation, ExportTargetUpsertEntry, Ordinal, SourceExecutorReadOptions,
+use crate::{
+    base::value::{self, FieldValues, KeyValue},
+    builder::plan::*,
+    ops::interface::{
+        ExportTargetMutation, ExportTargetUpsertEntry, Ordinal, SourceExecutorReadOptions,
+    },
+    utils::{db::WriteAction, fingerprint::{Fingerprint, Fingerprinter}},
 };
-use crate::utils::db::WriteAction;
-use crate::utils::fingerprint::{Fingerprint, Fingerprinter};
 
 pub fn extract_primary_key_for_export(
     primary_key_def: &AnalyzedPrimaryKeyDef,
