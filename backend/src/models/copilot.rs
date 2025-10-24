@@ -165,6 +165,7 @@ pub struct CopilotToolPerformance {
 
 
 
+/*
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CopilotContextRequestExtended {
     pub base_request: crate::services::github_copilot_integration::CopilotContextRequest,
@@ -174,6 +175,7 @@ pub struct CopilotContextRequestExtended {
     pub performance_mode: PerformanceMode,
     pub streaming_preferences: StreamingPreferences,
 }
+*/
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,5 +1,4 @@
 use crate::models::billing::*;
-use crate::models::auth::SubscriptionTier;
 use uuid::Uuid;
 use chrono::{DateTime, Utc, Duration, Datelike};
 use anyhow::{Result, anyhow};
@@ -35,7 +34,7 @@ impl BillingService {
                 id: Uuid::new_v4(),
                 name: "Free Plan".to_string(),
                 description: Some("Perfect for getting started".to_string()),
-                tier: SubscriptionTier::Free,
+                tier: "free".to_string(),
                 price_monthly: rust_decimal::Decimal::new(0, 2),
                 price_yearly: Some(rust_decimal::Decimal::new(0, 2)),
                 features: serde_json::json!({"repositories": 3, "ai_queries": 100, "storage_gb": 1}),
@@ -48,7 +47,7 @@ impl BillingService {
                 id: Uuid::new_v4(),
                 name: "Personal Plan".to_string(),
                 description: Some("For individual developers".to_string()),
-                tier: SubscriptionTier::Personal,
+                tier: "personal".to_string(),
                 price_monthly: rust_decimal::Decimal::new(1999, 2),
                 price_yearly: Some(rust_decimal::Decimal::new(19999, 2)),
                 features: serde_json::json!({"repositories": 20, "ai_queries": 1000, "storage_gb": 10}),
@@ -117,7 +116,7 @@ impl BillingService {
             quantity: Some(1),
             ..Default::default()
         }]);
-        create_subscription.payment_behavior = Some(stripe::CreateSubscriptionPaymentBehavior::DefaultIncomplete);
+        create_subscription.payment_behavior = Some(stripe::SubscriptionPaymentBehavior::DefaultIncomplete);
         create_subscription.payment_settings = Some(stripe::CreateSubscriptionPaymentSettings {
             save_default_payment_method: Some(stripe::CreateSubscriptionPaymentSettingsSaveDefaultPaymentMethod::OnSubscription),
             payment_method_options: None,

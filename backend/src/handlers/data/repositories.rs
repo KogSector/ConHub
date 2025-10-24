@@ -5,7 +5,7 @@ use crate::models::{
     ApiResponse, ConnectRepositoryRequest,
     RepositoryConfig, RepositoryCredentials
 };
-use crate::services::repository_service::{RepositoryService, CredentialValidator};
+use crate::services::{RepositoryService, CredentialValidator};
 use crate::services::vcs_connector::VcsError;
 
 

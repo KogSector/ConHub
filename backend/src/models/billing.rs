@@ -51,7 +51,7 @@ pub struct SubscriptionPlan {
     pub id: Uuid,
     pub name: String,
     pub description: Option<String>,
-    pub tier: crate::models::auth::SubscriptionTier,
+    pub tier: String,
     pub price_monthly: Decimal,
     pub price_yearly: Option<Decimal>,
     pub features: serde_json::Value,

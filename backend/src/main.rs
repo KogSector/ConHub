@@ -7,6 +7,7 @@ mod models;
 mod handlers;
 mod services;
 mod errors;
+mod config;
 use handlers::auth::configure_auth_routes;
 
 use handlers::security::rulesets;

@@ -3,7 +3,6 @@ use std::collections::HashMap;
 // use crate::models::{ChunkRecord, MutationSet};
 use crate::config::IndexerConfig;
 
-#[derive(Clone)]
 // pub struct QdrantWriter {
 //     config: IndexerConfig,
 // }
