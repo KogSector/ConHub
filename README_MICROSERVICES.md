@@ -208,11 +208,12 @@ ConHub/
 │
 ├── frontend/                   # Next.js frontend (port 3000)
 ├── indexers/                   # Unified indexer (port 8080)
-├── mcp/                        # MCP service (port 3004)
-├── mcp-servers/               # MCP servers (ports 3005-3007)
-│   ├── google-drive/
-│   ├── dropbox/
-│   └── filesystem/
+├── mcp/                        # MCP components
+│   ├── service/               # MCP protocol service (port 3004)
+│   └── servers/               # MCP server implementations (ports 3005-3007)
+│       ├── google-drive/
+│       ├── dropbox/
+│       └── filesystem/
 │
 ├── nginx/                      # Nginx configuration
 │   └── nginx.conf
