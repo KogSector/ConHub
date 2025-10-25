@@ -19,29 +19,26 @@ services:
       - NEXT_PUBLIC_API_URL=http://nginx
       - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     depends_on:
-      - auth-service
-      - billing-service
-      - ai-service
-      - data-service
-      - security-service
-      - webhook-service
+      - backend
+      - mcp-service
     networks:
       - conhub-network
 
-  # Auth Microservice
-  auth-service:
+  # Unified Backend Service (replaces all microservices)
+  backend:
     build:
       context: .
-      dockerfile: services/auth-service/Dockerfile
-    container_name: conhub-auth-service
+      dockerfile: backend/Dockerfile
+    container_name: conhub-backend
     ports:
-      - "3010:3010"
+      - "8000:8000"
     environment:
       - ENV_MODE=docker
       - RUST_LOG=info
-      - AUTH_SERVICE_PORT=3010
+      - BACKEND_PORT=8000
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
       - REDIS_URL=redis://redis:6379
+      - QDRANT_URL=http://qdrant:6333
       - JWT_SECRET=${JWT_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
@@ -53,120 +50,23 @@ services:
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_USERNAME=${SMTP_USERNAME}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
-    networks:
-      - conhub-network
-
-  # Billing Microservice
-  billing-service:
-    build:
-      context: .
-      dockerfile: services/billing-service/Dockerfile
-    container_name: conhub-billing-service
-    ports:
-      - "3011:3011"
-    environment:
-      - ENV_MODE=docker
-      - RUST_LOG=info
-      - BILLING_SERVICE_PORT=3011
-      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-    networks:
-      - conhub-network
-
-  # AI Microservice
-  ai-service:
-    build:
-      context: .
-      dockerfile: services/ai-service/Dockerfile
-    container_name: conhub-ai-service
-    ports:
-      - "3012:3012"
-    environment:
-      - ENV_MODE=docker
-      - RUST_LOG=info
-      - AI_SERVICE_PORT=3012
-      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-    networks:
-      - conhub-network
-
-  # Data Microservice
-  data-service:
-    build:
-      context: .
-      dockerfile: services/data-service/Dockerfile
-    container_name: conhub-data-service
-    ports:
-      - "3013:3013"
-    environment:
-      - ENV_MODE=docker
-      - RUST_LOG=info
-      - DATA_SERVICE_PORT=3013
-      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
-      - QDRANT_URL=http://qdrant:6333
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - GITLAB_TOKEN=${GITLAB_TOKEN}
       - NOTION_TOKEN=${NOTION_TOKEN}
-    networks:
-      - conhub-network
-
-  # Security Microservice
-  security-service:
-    build:
-      context: .
-      dockerfile: services/security-service/Dockerfile
-    container_name: conhub-security-service
-    ports:
-      - "3014:3014"
-    environment:
-      - ENV_MODE=docker
-      - RUST_LOG=info
-      - SECURITY_SERVICE_PORT=3014
-      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
-    networks:
-      - conhub-network
-
-  # Webhook Microservice
-  webhook-service:
-    build:
-      context: .
-      dockerfile: services/webhook-service/Dockerfile
-    container_name: conhub-webhook-service
-    ports:
-      - "3015:3015"
-    environment:
-      - ENV_MODE=docker
-      - RUST_LOG=info
-      - WEBHOOK_SERVICE_PORT=3015
-      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
       - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
       - GITLAB_WEBHOOK_SECRET=${GITLAB_WEBHOOK_SECRET}
-    networks:
-      - conhub-network
-
-  # Unified Indexing Service
-  unified-indexer:
-    build:
-      context: .
-      dockerfile: indexers/Dockerfile
-    container_name: conhub-unified-indexer
-    ports:
-      - "8080:8080"
-    environment:
-      - ENV_MODE=docker
-      - RUST_LOG=info
-      - INDEXER_HOST=0.0.0.0
-      - INDEXER_PORT=8080
-      - QDRANT_URL=http://qdrant:6333
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - MAX_FILE_SIZE=10485760
       - CHUNK_SIZE=1000
       - CHUNK_OVERLAP=200
       - MAX_CONCURRENT_INDEXING=4
-    volumes:
-      - indexer_data:/app/data
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
     networks:
       - conhub-network
 
@@ -183,7 +83,7 @@ services:
       - NODE_ENV=production
       - MCP_SERVICE_PORT=3004
       - REDIS_URL=redis://redis:6379
-      - AUTH_SERVICE_URL=http://auth-service:3010
+      - AUTH_SERVICE_URL=http://backend:8000
       - GITHUB_COPILOT_WEBHOOK_SECRET=${GITHUB_COPILOT_WEBHOOK_SECRET}
       - AMAZON_Q_WEBHOOK_SECRET=${AMAZON_Q_WEBHOOK_SECRET}
       - CLINE_WEBHOOK_SECRET=${CLINE_WEBHOOK_SECRET}
@@ -191,10 +91,10 @@ services:
     networks:
       - conhub-network
 
-  # MCP Google Drive Server
+  # MCP Google Drive Server (Data Source)
   mcp-google-drive:
     build:
-      context: ./mcp/servers/google-drive
+      context: ./mcp/servers/sources/google-drive
       dockerfile: Dockerfile
     container_name: conhub-mcp-google-drive
     ports:
@@ -208,10 +108,10 @@ services:
     networks:
       - conhub-network
 
-  # MCP Dropbox Server
+  # MCP Dropbox Server (Data Source)
   mcp-dropbox:
     build:
-      context: ./mcp/servers/dropbox
+      context: ./mcp/servers/sources/dropbox
       dockerfile: Dockerfile
     container_name: conhub-mcp-dropbox
     ports:
@@ -225,10 +125,10 @@ services:
     networks:
       - conhub-network
 
-  # MCP Filesystem Server
+  # MCP Filesystem Server (Data Source)
   mcp-filesystem:
     build:
-      context: ./mcp/servers/filesystem
+      context: ./mcp/servers/sources/filesystem
       dockerfile: Dockerfile
     container_name: conhub-mcp-filesystem
     ports:
@@ -243,6 +143,61 @@ services:
     networks:
       - conhub-network
 
+  # MCP GitHub Copilot Agent Server
+  mcp-github-copilot:
+    build:
+      context: ./mcp/servers/agents/github-copilot
+      dockerfile: Dockerfile
+    container_name: conhub-mcp-github-copilot
+    ports:
+      - "3008:3008"
+    environment:
+      - ENV_MODE=docker
+      - NODE_ENV=production
+      - MCP_GITHUB_COPILOT_PORT=3008
+      - GITHUB_COPILOT_API_URL=${GITHUB_COPILOT_API_URL}
+      - GITHUB_COPILOT_WEBHOOK_SECRET=${GITHUB_COPILOT_WEBHOOK_SECRET}
+    networks:
+      - conhub-network
+
+  # MCP Amazon Q Agent Server
+  mcp-amazon-q:
+    build:
+      context: ./mcp/servers/agents/amazon-q
+      dockerfile: Dockerfile
+    container_name: conhub-mcp-amazon-q
+    ports:
+      - "3009:3009"
+    environment:
+      - ENV_MODE=docker
+      - NODE_ENV=production
+      - MCP_AMAZON_Q_PORT=3009
+      - AMAZON_Q_API_URL=${AMAZON_Q_API_URL}
+      - AMAZON_Q_WEBHOOK_SECRET=${AMAZON_Q_WEBHOOK_SECRET}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    networks:
+      - conhub-network
+
+  # MCP Cline Agent Server
+  mcp-cline:
+    build:
+      context: ./mcp/servers/agents/cline
+      dockerfile: Dockerfile
+    container_name: conhub-mcp-cline
+    ports:
+      - "3010:3010"
+    environment:
+      - ENV_MODE=docker
+      - NODE_ENV=production
+      - MCP_CLINE_PORT=3010
+      - CLINE_API_URL=${CLINE_API_URL}
+      - CLINE_WEBHOOK_SECRET=${CLINE_WEBHOOK_SECRET}
+      - CLINE_API_KEY=${CLINE_API_KEY}
+    networks:
+      - conhub-network
+
   # Nginx API Gateway
   nginx:
     image: nginx:alpine
@@ -252,16 +207,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - auth-service
-      - billing-service
-      - ai-service
-      - data-service
-      - security-service
-      - webhook-service
+      - backend
       - frontend
     networks:
       - conhub-network
-
-volumes:
-  indexer_data:
-    driver: local

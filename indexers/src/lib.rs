@@ -1,3 +1,6 @@
+// Indexers library - provides indexing functionality without HTTP server
+// This is a pure library that can be used by the backend service
+
 pub mod prelude;
 
 pub mod base;
@@ -12,3 +15,26 @@ pub mod ops;
 pub mod schema;
 pub mod services;
 pub mod utils;
+
+// Re-export main types for convenience
+pub use config::IndexerConfig;
+pub use services::code::CodeIndexingService;
+pub use services::document::DocumentIndexingService;
+pub use services::web::WebIndexingService;
+pub use services::embedding::EmbeddingProcessor;
+
+// Convenience function to create all indexers
+pub fn create_indexers(config: IndexerConfig) -> (
+    CodeIndexingService,
+    DocumentIndexingService,
+    WebIndexingService,
+) {
+    let code_indexer = CodeIndexingService::new(config.clone())
+        .expect("Failed to create code indexer");
+    let doc_indexer = DocumentIndexingService::new(config.clone())
+        .expect("Failed to create document indexer");
+    let web_indexer = WebIndexingService::new(config)
+        .expect("Failed to create web indexer");
+
+    (code_indexer, doc_indexer, web_indexer)
+}
