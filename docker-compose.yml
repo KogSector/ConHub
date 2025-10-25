@@ -165,7 +165,7 @@ services:
   # MCP Service
   mcp-service:
     build:
-      context: ./mcp
+      context: ./mcp/service
       dockerfile: Dockerfile
     container_name: conhub-mcp
     ports:
@@ -185,7 +185,7 @@ services:
   # MCP Google Drive Server
   mcp-google-drive:
     build:
-      context: ./mcp-servers/google-drive
+      context: ./mcp/servers/google-drive
       dockerfile: Dockerfile
     container_name: conhub-mcp-google-drive
     ports:
@@ -201,7 +201,7 @@ services:
   # MCP Dropbox Server
   mcp-dropbox:
     build:
-      context: ./mcp-servers/dropbox
+      context: ./mcp/servers/dropbox
       dockerfile: Dockerfile
     container_name: conhub-mcp-dropbox
     ports:
