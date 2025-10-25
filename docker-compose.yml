@@ -19,12 +19,8 @@ services:
       - NEXT_PUBLIC_API_URL=http://nginx
       - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     depends_on:
-      - auth-service
-      - billing-service
-      - ai-service
-      - data-service
-      - security-service
-      - webhook-service
+      - backend
+      - mcp-service
     networks:
       - conhub-network
 
