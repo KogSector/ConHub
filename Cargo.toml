@@ -1,16 +1,15 @@
 [workspace]
 members = [
-    "services/auth-service",
-    "services/billing-service",
-    "services/ai-service",
-    "services/data-service",
-    "services/security-service",
-    "services/webhook-service",
+    "backend",
+    "auth",
+    "billing",
+    "ai",
+    "security",
+    "indexers",
     "shared/models",
     "shared/utils",
     "shared/middleware",
     "shared/config",
-    "indexers",
 ]
 
 [workspace.dependencies]
