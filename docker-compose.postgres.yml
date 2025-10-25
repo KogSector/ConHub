@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: conhub-postgres
+    environment:
+      POSTGRES_DB: conhub
+      POSTGRES_USER: conhub
+      POSTGRES_PASSWORD: conhub_password
+    # Map to a non-default host port to avoid conflicts with a local Postgres service
+    ports:
+      - "55432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # If a SQL dump is placed at ./backend/db/initdb.sql it will be executed on first container init
+      - ./backend/db/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql:ro
+
+volumes:
+  postgres_data:
