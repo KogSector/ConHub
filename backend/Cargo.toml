@@ -42,7 +42,6 @@ uuid = { version = "1.6", features = ["v4", "serde"] }
 # Module dependencies (local workspace members)
 conhub-auth = { path = "../auth" }
 conhub-billing = { path = "../billing" }
-conhub-ai = { path = "../ai" }
 conhub-security = { path = "../security" }
 conhub-indexers = { path = "../indexers" }
 conhub-shared-models = { path = "../shared/models" }
