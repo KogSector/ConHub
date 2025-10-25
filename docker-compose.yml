@@ -24,20 +24,21 @@ services:
     networks:
       - conhub-network
 
-  # Auth Microservice
-  auth-service:
+  # Unified Backend Service (replaces all microservices)
+  backend:
     build:
       context: .
-      dockerfile: services/auth-service/Dockerfile
-    container_name: conhub-auth-service
+      dockerfile: backend/Dockerfile
+    container_name: conhub-backend
     ports:
-      - "3010:3010"
+      - "8000:8000"
     environment:
       - ENV_MODE=docker
       - RUST_LOG=info
-      - AUTH_SERVICE_PORT=3010
+      - BACKEND_PORT=8000
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
       - REDIS_URL=redis://redis:6379
+      - QDRANT_URL=http://qdrant:6333
       - JWT_SECRET=${JWT_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
@@ -49,120 +50,23 @@ services:
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_USERNAME=${SMTP_USERNAME}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
-    networks:
-      - conhub-network
-
-  # Billing Microservice
-  billing-service:
-    build:
-      context: .
-      dockerfile: services/billing-service/Dockerfile
-    container_name: conhub-billing-service
-    ports:
-      - "3011:3011"
-    environment:
-      - ENV_MODE=docker
-      - RUST_LOG=info
-      - BILLING_SERVICE_PORT=3011
-      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-    networks:
-      - conhub-network
-
-  # AI Microservice
-  ai-service:
-    build:
-      context: .
-      dockerfile: services/ai-service/Dockerfile
-    container_name: conhub-ai-service
-    ports:
-      - "3012:3012"
-    environment:
-      - ENV_MODE=docker
-      - RUST_LOG=info
-      - AI_SERVICE_PORT=3012
-      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-    networks:
-      - conhub-network
-
-  # Data Microservice
-  data-service:
-    build:
-      context: .
-      dockerfile: services/data-service/Dockerfile
-    container_name: conhub-data-service
-    ports:
-      - "3013:3013"
-    environment:
-      - ENV_MODE=docker
-      - RUST_LOG=info
-      - DATA_SERVICE_PORT=3013
-      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
-      - QDRANT_URL=http://qdrant:6333
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - GITLAB_TOKEN=${GITLAB_TOKEN}
       - NOTION_TOKEN=${NOTION_TOKEN}
-    networks:
-      - conhub-network
-
-  # Security Microservice
-  security-service:
-    build:
-      context: .
-      dockerfile: services/security-service/Dockerfile
-    container_name: conhub-security-service
-    ports:
-      - "3014:3014"
-    environment:
-      - ENV_MODE=docker
-      - RUST_LOG=info
-      - SECURITY_SERVICE_PORT=3014
-      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
-    networks:
-      - conhub-network
-
-  # Webhook Microservice
-  webhook-service:
-    build:
-      context: .
-      dockerfile: services/webhook-service/Dockerfile
-    container_name: conhub-webhook-service
-    ports:
-      - "3015:3015"
-    environment:
-      - ENV_MODE=docker
-      - RUST_LOG=info
-      - WEBHOOK_SERVICE_PORT=3015
-      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
       - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
       - GITLAB_WEBHOOK_SECRET=${GITLAB_WEBHOOK_SECRET}
-    networks:
-      - conhub-network
-
-  # Unified Indexing Service
-  unified-indexer:
-    build:
-      context: .
-      dockerfile: indexers/Dockerfile
-    container_name: conhub-unified-indexer
-    ports:
-      - "8080:8080"
-    environment:
-      - ENV_MODE=docker
-      - RUST_LOG=info
-      - INDEXER_HOST=0.0.0.0
-      - INDEXER_PORT=8080
-      - QDRANT_URL=http://qdrant:6333
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - MAX_FILE_SIZE=10485760
       - CHUNK_SIZE=1000
       - CHUNK_OVERLAP=200
       - MAX_CONCURRENT_INDEXING=4
-    volumes:
-      - indexer_data:/app/data
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
     networks:
       - conhub-network
 
