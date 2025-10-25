@@ -1,0 +1,23 @@
+[package]
+name = "conhub-config"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "conhub_config"
+path = "src/mod.rs"
+
+[dependencies]
+# Configuration
+dotenv = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
