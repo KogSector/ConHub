@@ -1,0 +1,98 @@
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::error::Error;
+
+
+#[async_trait]
+pub trait AIAgentConnector: Send + Sync {
+    
+    #[allow(dead_code)]
+    async fn connect(&self, credentials: &HashMap<String, String>) -> Result<bool, Box<dyn Error>>;
+    
+    
+    #[allow(dead_code)]
+    async fn disconnect(&self) -> Result<bool, Box<dyn Error>>;
+    
+    
+    #[allow(dead_code)]
+    async fn query(&self, prompt: &str, context: Option<&str>) -> Result<String, Box<dyn Error>>;
+    
+    
+    #[allow(dead_code)]
+    fn get_agent(&self) -> AIAgent;
+    
+    
+    #[allow(dead_code)]
+    async fn test_connection(&self) -> Result<bool, Box<dyn Error>>;
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AIAgent {
+    pub id: String,
+    pub agent_type: String,
+    pub name: String,
+    pub description: String,
+    pub capabilities: Vec<String>,
+    pub is_connected: bool,
+    pub status: AgentStatus,
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum AgentStatus {
+    Connected,
+    Disconnected,
+    Error(String),
+    Connecting,
+}
+
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct AgentQueryRequest {
+    pub prompt: String,
+    pub context: Option<String>,
+    pub max_tokens: Option<u32>,
+    pub temperature: Option<f32>,
+}
+
+
+#[derive(Debug, Serialize)]
+pub struct AgentQueryResponse {
+    pub response: String,
+    pub usage: AgentUsage,
+    pub metadata: HashMap<String, serde_json::Value>,
+}
+
+
+#[derive(Debug, Serialize)]
+pub struct AgentUsage {
+    pub tokens_used: u32,
+    pub response_time_ms: u64,
+    pub model: Option<String>,
+}
+
+
+#[allow(dead_code)]
+pub struct AIAgentFactory;
+
+impl AIAgentFactory {
+    #[allow(dead_code)]
+    pub fn create_agent(agent_type: &str) -> Result<Box<dyn AIAgentConnector>, Box<dyn Error + Send + Sync>> {
+        match agent_type {
+            "github_copilot" => Ok(Box::new(crate::agents::githubcopilot::GitHubCopilotAgent::new())),
+            "amazon_q" => Ok(Box::new(crate::agents::amazonq::AmazonQAgent::new())),
+            "cursor_ide" => Ok(Box::new(crate::agents::cursoride::CursorIDEAgent::new())),
+            "cline" => Ok(Box::new(crate::agents::cline::ClineAgent::new())),
+            "openai" => Ok(Box::new(crate::agents::openai::OpenAIAgent::new())),
+            _ => Err(format!("Unsupported AI agent type: {}", agent_type).into()),
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn list_supported_agents() -> Vec<&'static str> {
+        vec!["github_copilot", "amazon_q", "cursor_ide", "cline", "openai"]
+    }
+}
