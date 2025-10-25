@@ -7,6 +7,7 @@ services:
     ports:
       - "5432:5432"
     environment:
+      ENV_MODE: docker
       POSTGRES_DB: conhub
       POSTGRES_USER: conhub
       POSTGRES_PASSWORD: conhub_password
@@ -28,6 +29,8 @@ services:
     container_name: conhub-redis
     ports:
       - "6379:6379"
+    environment:
+      ENV_MODE: docker
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
