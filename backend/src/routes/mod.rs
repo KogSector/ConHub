@@ -1,6 +1,5 @@
 pub mod auth;
 pub mod billing;
-pub mod ai;
 pub mod data;
 pub mod indexing;
 pub mod security;
@@ -14,7 +13,6 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
         web::scope("/api")
             .configure(auth::configure_auth_routes)
             .configure(billing::configure_billing_routes)
-            .configure(ai::configure_ai_routes)
             .configure(data::configure_data_routes)
             .configure(indexing::configure_indexing_routes)
             .configure(security::configure_security_routes)
