@@ -217,7 +217,7 @@ services:
   # MCP Filesystem Server
   mcp-filesystem:
     build:
-      context: ./mcp-servers/filesystem
+      context: ./mcp/servers/filesystem
       dockerfile: Dockerfile
     container_name: conhub-mcp-filesystem
     ports:
