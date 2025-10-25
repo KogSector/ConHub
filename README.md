@@ -33,39 +33,171 @@ ConHub uses a modern **decoupled microservices architecture**:
 ## ⚡ Quick Start
 
 ### Prerequisites
+- Node.js >= 18.0.0
+- Rust (latest stable)
+- Docker and Docker Compose
+- Cargo (comes with Rust)
 
-- Docker & Docker Compose
-- At least 8GB RAM
-- Ports 80, 3000, 3004-3007, 3010-3015, 5432, 6333-6334, 6379, 8080 available
+### Local Development Setup
 
-### Installation (5 Minutes)
+1. **Start Databases**
+   ```bash
+   cd database
+   docker-compose up -d
+   cd ..
+   ```
 
+2. **Configure Environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys and configuration
+   # ENV_MODE should be set to 'local'
+   ```
+
+3. **Install Dependencies**
+   ```bash
+   npm install
+   ```
+
+4. **Start All Services**
+   ```bash
+   npm start
+   ```
+
+   This starts 12 services:
+   - Frontend (Next.js) on port 3000
+   - 6 Rust microservices (ports 3010-3015)
+   - Unified Indexer on port 8080
+   - MCP Service on port 3004
+   - 3 MCP Servers (ports 3005-3007)
+
+5. **Verify Setup**
+   ```bash
+   npm run test:local
+   ```
+
+6. **Access Application**
+   - Frontend: http://localhost:3000
+   - API Services: http://localhost:3010-3015
+
+### Docker Deployment
+
+1. **Create Network**
+   ```bash
+   docker network create conhub-network
+   ```
+
+2. **Start Databases**
+   ```bash
+   cd database
+   docker-compose up -d
+   cd ..
+   ```
+
+3. **Build and Start Services**
+   ```bash
+   docker-compose up --build
+   ```
+
+4. **Verify Setup**
+   ```bash
+   npm run test:docker
+   ```
+
+5. **Access Application**
+   - Frontend: http://localhost (via Nginx on port 80)
+
+### Development Workflows
+
+**Run Individual Services (for debugging):**
 ```bash
-# 1. Clone and configure
-git clone <your-repo-url>
-cd ConHub
-cp .env.example .env
-# Edit .env with your API keys (JWT_SECRET, STRIPE_SECRET_KEY, OPENAI_API_KEY, etc.)
+# Individual Rust services
+npm run dev:auth
+npm run dev:billing
+npm run dev:ai
+npm run dev:data
+npm run dev:security
+npm run dev:webhook
+npm run dev:indexer
 
-# 2. Create Docker network
-docker network create conhub-network
+# Frontend only
+npm run dev:frontend
 
-# 3. Start databases (wait ~30 seconds for healthy status)
-cd database
-docker-compose up -d
-docker-compose ps  # Verify all healthy
-
-# 4. Start application services (first build takes 10-20 min)
-cd ..
-docker-compose up -d --build
-
-# 5. Verify services
-curl http://localhost/health                # Nginx gateway
-curl http://localhost/api/auth/health       # Auth service
-curl http://localhost/api/billing/health    # Billing service
-curl http://localhost/api/ai/health         # AI service
-open http://localhost:3000                  # Frontend
+# Individual MCP services
+npm run dev:mcp-service
+npm run dev:mcp-gdrive
+npm run dev:mcp-fs
+npm run dev:mcp-dropbox
 ```
+
+**Build for Production:**
+```bash
+npm run build        # Builds both frontend and backend
+npm run build:frontend   # Next.js production build
+npm run build:backend    # Cargo release build
+```
+
+**Database Management:**
+```bash
+npm run db:start     # Start databases
+npm run db:test      # Test database connection
+npm run db:clear     # Clear database
+```
+
+**Stop Services:**
+```bash
+# Local development
+Ctrl+C in the terminal running npm start
+
+# Docker
+docker-compose down
+
+# Force stop (kill all processes)
+npm run force-stop
+```
+
+### Troubleshooting
+
+**Port Conflicts:**
+```bash
+npm run cleanup      # Kills processes on required ports
+```
+
+**Database Connection Issues:**
+- Verify databases are running: `docker ps | grep conhub`
+- Check ENV_MODE matches your setup (local vs docker)
+- Verify .env has correct DATABASE_URL_LOCAL or DATABASE_URL_DOCKER
+
+**Rust Build Failures:**
+```bash
+cargo clean
+cargo build          # Rebuild from scratch
+```
+
+**MCP Service Issues:**
+```bash
+cd mcp/service && npm install
+cd ../servers/google-drive && npm install
+cd ../filesystem && npm install
+cd ../dropbox && npm install
+```
+
+**Docker Build Failures:**
+- Frontend: Verify `output: 'standalone'` in next.config.js
+- Services: Check ENV_MODE=docker in docker-compose.yml
+- Network: Ensure conhub-network exists
+
+### Environment Configuration
+
+**ENV_MODE Variable:**
+- `local`: Services run locally, connect to databases on localhost
+- `docker`: All services run in Docker containers
+
+**Database URLs:**
+- Local: `DATABASE_URL_LOCAL=postgresql://conhub:conhub_password@localhost:5432/conhub`
+- Docker: `DATABASE_URL_DOCKER=postgresql://conhub:conhub_password@postgres:5432/conhub`
+
+Services automatically select the correct URL based on ENV_MODE.
 
 ## 🏗️ Project Structure
 

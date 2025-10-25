@@ -14,6 +14,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - ENV_MODE=docker
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://nginx
       - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
@@ -36,6 +37,7 @@ services:
     ports:
       - "3010:3010"
     environment:
+      - ENV_MODE=docker
       - RUST_LOG=info
       - AUTH_SERVICE_PORT=3010
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
@@ -63,6 +65,7 @@ services:
     ports:
       - "3011:3011"
     environment:
+      - ENV_MODE=docker
       - RUST_LOG=info
       - BILLING_SERVICE_PORT=3011
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
@@ -79,6 +82,7 @@ services:
     ports:
       - "3012:3012"
     environment:
+      - ENV_MODE=docker
       - RUST_LOG=info
       - AI_SERVICE_PORT=3012
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
@@ -96,6 +100,7 @@ services:
     ports:
       - "3013:3013"
     environment:
+      - ENV_MODE=docker
       - RUST_LOG=info
       - DATA_SERVICE_PORT=3013
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
@@ -115,6 +120,7 @@ services:
     ports:
       - "3014:3014"
     environment:
+      - ENV_MODE=docker
       - RUST_LOG=info
       - SECURITY_SERVICE_PORT=3014
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
@@ -130,6 +136,7 @@ services:
     ports:
       - "3015:3015"
     environment:
+      - ENV_MODE=docker
       - RUST_LOG=info
       - WEBHOOK_SERVICE_PORT=3015
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
@@ -148,6 +155,7 @@ services:
     ports:
       - "8080:8080"
     environment:
+      - ENV_MODE=docker
       - RUST_LOG=info
       - INDEXER_HOST=0.0.0.0
       - INDEXER_PORT=8080
@@ -171,6 +179,7 @@ services:
     ports:
       - "3004:3004"
     environment:
+      - ENV_MODE=docker
       - NODE_ENV=production
       - MCP_SERVICE_PORT=3004
       - REDIS_URL=redis://redis:6379
@@ -191,6 +200,7 @@ services:
     ports:
       - "3005:3005"
     environment:
+      - ENV_MODE=docker
       - NODE_ENV=production
       - PORT=3005
       - GOOGLE_DRIVE_CLIENT_ID=${GOOGLE_DRIVE_CLIENT_ID}
@@ -207,6 +217,7 @@ services:
     ports:
       - "3006:3006"
     environment:
+      - ENV_MODE=docker
       - NODE_ENV=production
       - PORT=3006
       - DROPBOX_APP_KEY=${DROPBOX_APP_KEY}
@@ -223,6 +234,7 @@ services:
     ports:
       - "3007:3007"
     environment:
+      - ENV_MODE=docker
       - NODE_ENV=production
       - PORT=3007
       - MCP_FILESYSTEM_ROOT_PATH=/data
