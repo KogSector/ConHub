@@ -2,7 +2,6 @@ use crate::config::AppConfig;
 use crate::services::{
     auth_service::AuthService,
     billing_service::BillingService,
-    ai_service::AIService,
     data_service::DataService,
     indexing_service::IndexingService,
     security_service::SecurityService,
@@ -18,7 +17,6 @@ pub struct AppState {
     // Service instances
     pub auth_service: Arc<AuthService>,
     pub billing_service: Arc<BillingService>,
-    pub ai_service: Arc<AIService>,
     pub data_service: Arc<DataService>,
     pub indexing_service: Arc<IndexingService>,
     pub security_service: Arc<SecurityService>,
