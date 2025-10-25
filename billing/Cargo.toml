@@ -1,0 +1,12 @@
+[package]
+name = "conhub-billing"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres"] }
+tokio = { version = "1", features = ["full"] }
+log = "0.4"
+uuid = { version = "1.6", features = ["v4"] }
+conhub-shared-models = { path = "../shared/models" }
