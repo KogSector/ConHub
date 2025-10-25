@@ -70,9 +70,9 @@ Created 6 independent microservices:
 ### ✅ Phase 4: MCP Servers Dockerization (COMPLETE)
 
 Created Dockerfiles for:
-- `mcp-servers/google-drive/Dockerfile` (Port 3005)
-- `mcp-servers/dropbox/Dockerfile` (Port 3006)
-- `mcp-servers/filesystem/Dockerfile` (Port 3007)
+- `mcp/servers/google-drive/Dockerfile` (Port 3005)
+- `mcp/servers/dropbox/Dockerfile` (Port 3006)
+- `mcp/servers/filesystem/Dockerfile` (Port 3007)
 
 ### ✅ Phase 5: Indexers Update (COMPLETE)
 
@@ -187,8 +187,9 @@ ConHub/
 ├── shared/ (shared Rust libraries)
 ├── frontend/ (Next.js)
 ├── indexers/ (unified-indexer)
-├── mcp/ (MCP service)
-├── mcp-servers/ (3 dockerized servers)
+├── mcp/ (MCP components)
+│   ├── service/ (MCP protocol service)
+│   └── servers/ (3 provider servers)
 ├── nginx/ (API gateway)
 ├── docker-compose.yml (application services)
 └── Cargo.toml (workspace configuration)
