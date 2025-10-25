@@ -40,11 +40,6 @@ impl AppState {
             config.stripe_secret_key.clone(),
         ));
 
-        let ai_service = Arc::new(AIService::new(
-            config.openai_api_key.clone(),
-            config.anthropic_api_key.clone(),
-        ));
-
         let data_service = Arc::new(DataService::new(
             db_pool.clone(),
             config.clone(),
