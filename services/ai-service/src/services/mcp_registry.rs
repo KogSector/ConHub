@@ -170,7 +170,7 @@ impl McpRegistry {
     ) -> Result<AuthConfig, McpRegistryError> {
         match auth_method {
             McpAuthMethod::None => Ok(AuthConfig {
-                method: crate::models::mcp::AuthMethod::ApiKey,
+                method: conhub_models::mcp::AuthMethod::ApiKey,
                 credentials: serde_json::json!({}),
             }),
             McpAuthMethod::OAuth2 {
@@ -272,14 +272,14 @@ mod tests {
         // Test None auth
         let auth = McpAuthMethod::None;
         let config = registry.create_auth_config(&auth).unwrap();
-        assert_eq!(config.method, crate::models::mcp::AuthMethod::ApiKey);
+        assert_eq!(config.method, conhub_models::mcp::AuthMethod::ApiKey);
 
         // Test API Key auth
         let auth = McpAuthMethod::ApiKey {
             key: "test-key".to_string(),
         };
         let config = registry.create_auth_config(&auth).unwrap();
-        assert_eq!(config.method, crate::models::mcp::AuthMethod::ApiKey);
+        assert_eq!(config.method, conhub_models::mcp::AuthMethod::ApiKey);
         assert_eq!(
             config.credentials["api_key"],
             serde_json::json!("test-key")
@@ -290,7 +290,7 @@ mod tests {
             token: "test-token".to_string(),
         };
         let config = registry.create_auth_config(&auth).unwrap();
-        assert_eq!(config.method, crate::models::mcp::AuthMethod::Bearer);
+        assert_eq!(config.method, conhub_models::mcp::AuthMethod::Bearer);
     }
 
     #[tokio::test]
