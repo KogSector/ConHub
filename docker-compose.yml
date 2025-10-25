@@ -83,7 +83,7 @@ services:
       - NODE_ENV=production
       - MCP_SERVICE_PORT=3004
       - REDIS_URL=redis://redis:6379
-      - AUTH_SERVICE_URL=http://auth-service:3010
+      - AUTH_SERVICE_URL=http://backend:8000
       - GITHUB_COPILOT_WEBHOOK_SECRET=${GITHUB_COPILOT_WEBHOOK_SECRET}
       - AMAZON_Q_WEBHOOK_SECRET=${AMAZON_Q_WEBHOOK_SECRET}
       - CLINE_WEBHOOK_SECRET=${CLINE_WEBHOOK_SECRET}
@@ -91,10 +91,10 @@ services:
     networks:
       - conhub-network
 
-  # MCP Google Drive Server
+  # MCP Google Drive Server (Data Source)
   mcp-google-drive:
     build:
-      context: ./mcp/servers/google-drive
+      context: ./mcp/servers/sources/google-drive
       dockerfile: Dockerfile
     container_name: conhub-mcp-google-drive
     ports:
@@ -108,10 +108,10 @@ services:
     networks:
       - conhub-network
 
-  # MCP Dropbox Server
+  # MCP Dropbox Server (Data Source)
   mcp-dropbox:
     build:
-      context: ./mcp/servers/dropbox
+      context: ./mcp/servers/sources/dropbox
       dockerfile: Dockerfile
     container_name: conhub-mcp-dropbox
     ports:
@@ -125,10 +125,10 @@ services:
     networks:
       - conhub-network
 
-  # MCP Filesystem Server
+  # MCP Filesystem Server (Data Source)
   mcp-filesystem:
     build:
-      context: ./mcp/servers/filesystem
+      context: ./mcp/servers/sources/filesystem
       dockerfile: Dockerfile
     container_name: conhub-mcp-filesystem
     ports:
@@ -140,6 +140,61 @@ services:
       - MCP_FILESYSTEM_ROOT_PATH=/data
     volumes:
       - ./data:/data
+    networks:
+      - conhub-network
+
+  # MCP GitHub Copilot Agent Server
+  mcp-github-copilot:
+    build:
+      context: ./mcp/servers/agents/github-copilot
+      dockerfile: Dockerfile
+    container_name: conhub-mcp-github-copilot
+    ports:
+      - "3008:3008"
+    environment:
+      - ENV_MODE=docker
+      - NODE_ENV=production
+      - MCP_GITHUB_COPILOT_PORT=3008
+      - GITHUB_COPILOT_API_URL=${GITHUB_COPILOT_API_URL}
+      - GITHUB_COPILOT_WEBHOOK_SECRET=${GITHUB_COPILOT_WEBHOOK_SECRET}
+    networks:
+      - conhub-network
+
+  # MCP Amazon Q Agent Server
+  mcp-amazon-q:
+    build:
+      context: ./mcp/servers/agents/amazon-q
+      dockerfile: Dockerfile
+    container_name: conhub-mcp-amazon-q
+    ports:
+      - "3009:3009"
+    environment:
+      - ENV_MODE=docker
+      - NODE_ENV=production
+      - MCP_AMAZON_Q_PORT=3009
+      - AMAZON_Q_API_URL=${AMAZON_Q_API_URL}
+      - AMAZON_Q_WEBHOOK_SECRET=${AMAZON_Q_WEBHOOK_SECRET}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    networks:
+      - conhub-network
+
+  # MCP Cline Agent Server
+  mcp-cline:
+    build:
+      context: ./mcp/servers/agents/cline
+      dockerfile: Dockerfile
+    container_name: conhub-mcp-cline
+    ports:
+      - "3010:3010"
+    environment:
+      - ENV_MODE=docker
+      - NODE_ENV=production
+      - MCP_CLINE_PORT=3010
+      - CLINE_API_URL=${CLINE_API_URL}
+      - CLINE_WEBHOOK_SECRET=${CLINE_WEBHOOK_SECRET}
+      - CLINE_API_KEY=${CLINE_API_KEY}
     networks:
       - conhub-network
 
