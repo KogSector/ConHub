@@ -7,8 +7,8 @@ use tokio::sync::Mutex;
 use chrono::Utc;
 use lazy_static::lazy_static;
 
-use crate::models::mcp::*;
-use crate::models::ApiResponse;
+use conhub_models::mcp::*;
+use conhub_models::ApiResponse;
 use crate::services::mcp_server::ConHubMcpServer;
 use crate::services::mcp_client::{McpClient, AuthConfig, McpClientConfig};
 

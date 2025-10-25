@@ -7,7 +7,7 @@ use bcrypt::{hash, verify, DEFAULT_COST};
 use jsonwebtoken::{encode, Header, EncodingKey};
 use sqlx::PgPool;
 
-use crate::models::auth::*;
+use conhub_models::auth::*;
 use crate::services::auth::password_reset::PASSWORD_RESET_SERVICE;
 use crate::services::auth::users::UserService;
 

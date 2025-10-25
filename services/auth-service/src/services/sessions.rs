@@ -3,7 +3,7 @@ use dashmap::DashMap;
 use uuid::Uuid;
 use chrono::{DateTime, Utc, Duration};
 use serde::{Deserialize, Serialize};
-use crate::models::auth::Claims;
+use conhub_models::auth::Claims;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSession {

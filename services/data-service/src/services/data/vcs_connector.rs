@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde_json::Value;
 
-use crate::models::{
+use conhub_models::{
     VcsType, VcsProvider, RepositoryInfo, RepositoryCredentials, 
     CredentialType
 };

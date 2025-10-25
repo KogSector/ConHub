@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use anyhow::{Result, anyhow};
 use bcrypt::{hash, verify, DEFAULT_COST};
 
-use crate::models::auth::{User, RegisterRequest};
+use conhub_models::auth::{User, RegisterRequest};
 
 pub struct UserService {
     pool: PgPool,

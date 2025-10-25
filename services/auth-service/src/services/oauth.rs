@@ -5,7 +5,7 @@ use reqwest::Client;
 use chrono::{DateTime, Utc, Duration};
 use uuid::Uuid;
 
-use crate::models::auth::User;
+use conhub_models::auth::User;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OAuthProvider {

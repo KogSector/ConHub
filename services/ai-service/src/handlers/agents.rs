@@ -3,7 +3,7 @@ use serde_json::json;
 use reqwest::Client;
 
 
-use crate::models::ApiResponse;
+use conhub_models::ApiResponse;
 
 #[derive(serde::Deserialize)]
 pub struct AgentQueryRequest {

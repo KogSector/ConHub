@@ -2,7 +2,7 @@ use reqwest::Client;
 use serde_json::json;
 use serde::{Deserialize, Serialize};
 use crate::services::RepositoryService;
-use crate::models::{VcsType, VcsProvider, CredentialType, RepositoryCredentials, ConnectRepositoryRequest, DataSourceType};
+use conhub_models::{VcsType, VcsProvider, CredentialType, RepositoryCredentials, ConnectRepositoryRequest, DataSourceType};
 use crate::errors::ServiceError as AppError;
 use std::collections::HashMap;
 #[derive(Deserialize)]

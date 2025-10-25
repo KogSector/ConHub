@@ -1,6 +1,6 @@
 use regex::Regex;
 use url::Url;
-use crate::models::{VcsType, VcsProvider};
+use conhub_models::{VcsType, VcsProvider};
 
 pub struct VcsDetector;
 

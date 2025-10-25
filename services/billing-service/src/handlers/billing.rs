@@ -3,7 +3,7 @@ use validator::Validate;
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::models::billing::*;
+use conhub_models::billing::*;
 use crate::services::billing::BillingService;
 use crate::errors::ServiceError;
 

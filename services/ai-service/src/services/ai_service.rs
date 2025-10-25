@@ -8,8 +8,8 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use std::time::Duration;
 
-use crate::models::{AgentRecord, AgentContext, AgentInvokeRequest, AgentInvokeResponse, AgentInvokeUsage};
-use crate::models::mcp::*;
+use conhub_models::{AgentRecord, AgentContext, AgentInvokeRequest, AgentInvokeResponse, AgentInvokeUsage};
+use conhub_models::mcp::*;
 use crate::services::mcp_server::ConHubMcpServer;
 use crate::services::mcp_client::{McpClient, AuthConfig};
 

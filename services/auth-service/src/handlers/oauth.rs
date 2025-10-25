@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::services::auth::oauth::{OAuthService, OAuthProvider};
 use crate::handlers::auth::auth::generate_jwt_token;
-use crate::models::auth::{AuthResponse, UserProfile, User};
+use conhub_models::auth::{AuthResponse, UserProfile, User};
 
 #[derive(Debug, Deserialize)]
 pub struct OAuthCallbackQuery {

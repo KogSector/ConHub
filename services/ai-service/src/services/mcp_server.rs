@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::models::mcp::*;
+use conhub_models::mcp::*;
 use super::mcp::McpClient;
 
 // ConHub MCP Server implementation

@@ -1,7 +1,7 @@
 use actix_web::{web, HttpResponse, Result};
 use serde_json::json;
 
-use crate::models::{
+use conhub_models::{
     ApiResponse, ConnectRepositoryRequest,
     RepositoryConfig, RepositoryCredentials
 };

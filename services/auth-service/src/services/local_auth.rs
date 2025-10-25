@@ -2,7 +2,7 @@ use sqlx::PgPool;
 use anyhow::Result;
 use bcrypt::{hash, verify, DEFAULT_COST};
 
-use crate::models::auth::{User, RegisterRequest, LoginRequest};
+use conhub_models::auth::{User, RegisterRequest, LoginRequest};
 use crate::services::auth::users::UserService;
 
 pub struct LocalAuthService {

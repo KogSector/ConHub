@@ -7,7 +7,7 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 use chrono::Utc;
 
-use crate::models::mcp::*;
+use conhub_models::mcp::*;
 
 
 
