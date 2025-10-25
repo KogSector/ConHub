@@ -4,7 +4,7 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 
 use conhub_config::mcp_servers::{McpServersConfig, McpServerConfig, McpAuthMethod};
-use crate::services::ai::mcp::{McpClient, McpClientConfig, AuthConfig};
+use crate::services::mcp::{McpClient, McpClientConfig, AuthConfig};
 
 /// MCP Registry manages connections to external MCP servers
 /// and maintains them throughout the application lifecycle
