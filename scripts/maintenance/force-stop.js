@@ -3,8 +3,20 @@
 const { execSync } = require('child_process');
 const os = require('os');
 
-const PROCESSES = ['node', 'next-server', 'conhub-backend', 'lexor', 'python', 'uvicorn'];
-const PORTS = [3000, 3001, 3002, 8001, 8003];
+const PROCESSES = [
+  'node',
+  'next-server',
+  'auth-service',
+  'billing-service',
+  'ai-service',
+  'data-service',
+  'security-service',
+  'webhook-service',
+  'unified-indexer',
+  'python',
+  'uvicorn'
+];
+const PORTS = [3000, 3010, 3011, 3012, 3013, 3014, 3015, 3004, 3005, 3006, 3007, 8080];
 const isWindows = os.platform() === 'win32';
 
 console.log('Force stopping ConHub related processes...');
