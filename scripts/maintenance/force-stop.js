@@ -47,7 +47,7 @@ PROCESSES.forEach(procName => {
         try {
           const cmdline = execSync(`ps -p ${pid} -o command=`, { encoding: 'utf8' });
           // Check if command line contains relevant patterns
-          if (/3000|3001|3002|8001|8003|conhub|lexor|uvicorn/.test(cmdline)) {
+          if (/3000|3004|3005|3006|3007|3010|3011|3012|3013|3014|3015|8080|conhub|uvicorn/.test(cmdline)) {
             console.log(`Killing process ${procName} with PID ${pid}`);
             execSync(`kill -9 ${pid}`, { stdio: 'ignore' });
           }
