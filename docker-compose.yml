@@ -14,6 +14,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - ENV_MODE=docker
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://nginx
       - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
@@ -36,6 +37,7 @@ services:
     ports:
       - "3010:3010"
     environment:
+      - ENV_MODE=docker
       - RUST_LOG=info
       - AUTH_SERVICE_PORT=3010
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
