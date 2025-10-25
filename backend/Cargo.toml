@@ -1,0 +1,47 @@
+[package]
+name = "conhub-backend"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+# HTTP Server
+actix-web = "4.4"
+actix-cors = "0.7"
+
+# Authentication
+jsonwebtoken = "9.2"
+bcrypt = "0.15"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres"] }
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Logging
+env_logger = "0.11"
+log = "0.4"
+
+# Validation
+validator = { version = "0.18", features = ["derive"] }
+
+# HTTP Client
+reqwest = { version = "0.11", features = ["json"] }
+
+# Environment
+dotenv = "0.15"
+
+# Module dependencies (local workspace members)
+conhub-auth = { path = "../auth" }
+conhub-billing = { path = "../billing" }
+conhub-ai = { path = "../ai" }
+conhub-security = { path = "../security" }
+conhub-indexers = { path = "../indexers" }
+conhub-shared-models = { path = "../shared/models" }
+conhub-shared-utils = { path = "../shared/utils" }
+conhub-shared-config = { path = "../shared/config" }
