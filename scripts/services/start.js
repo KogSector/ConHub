@@ -48,25 +48,18 @@ console.log('');
 
 process.env.ENV_MODE = 'local';
 
-const concurrently = spawn('npx', [
-  'concurrently',
-  '--names', 'Frontend,Auth,Billing,AI,Data,Security,Webhook,Indexer,MCP-Svc,MCP-GDrive,MCP-FS,MCP-Dropbox',
-  '--prefix-colors', 'cyan,blue,magenta,green,yellow,red,gray,white,bgBlue,bgGreen,bgYellow,bgMagenta',
-  '--restart-tries', '2',
-  '--kill-others-on-fail',
-  'npm run dev:frontend',
-  'npm run dev:auth',
-  'npm run dev:billing',
-  'npm run dev:ai',
-  'npm run dev:data',
-  'npm run dev:security',
-  'npm run dev:webhook',
-  'npm run dev:indexer',
-  'npm run dev:mcp-service',
-  'npm run dev:mcp-gdrive',
-  'npm run dev:mcp-fs',
-  'npm run dev:mcp-dropbox'
-], { stdio: 'inherit', shell: true });
+const concurrently = spawn('npm', ['run', 'dev:concurrently'], {
+  stdio: 'inherit'
+});
+
+const handleExit = (signal) => {
+  console.log(`\n${colors.yellow}[STOP] Received ${signal}, stopping all services...${colors.reset}`);
+  concurrently.kill();
+  process.exit(0);
+};
+
+process.on('SIGINT', () => handleExit('SIGINT'));
+process.on('SIGTERM', () => handleExit('SIGTERM'));
 
 concurrently.on('close', (code) => {
   process.exit(code);
