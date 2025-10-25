@@ -60,7 +60,6 @@ impl AppState {
             config,
             auth_service,
             billing_service,
-            ai_service,
             data_service,
             indexing_service,
             security_service,
