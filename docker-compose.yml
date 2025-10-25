@@ -207,16 +207,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - auth-service
-      - billing-service
-      - ai-service
-      - data-service
-      - security-service
-      - webhook-service
+      - backend
       - frontend
     networks:
       - conhub-network
-
-volumes:
-  indexer_data:
-    driver: local
