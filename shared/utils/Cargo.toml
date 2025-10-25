@@ -1,0 +1,23 @@
+[package]
+name = "conhub-utils"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "conhub_utils"
+path = "src/lib.rs"
+
+[dependencies]
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }
+log = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }

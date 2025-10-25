@@ -1,0 +1,24 @@
+[package]
+name = "conhub-models"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "conhub_models"
+path = "src/lib.rs"
+
+[dependencies]
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Database
+sqlx = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Validation
+validator = { workspace = true }
+
+# Decimal types for billing
+rust_decimal = { workspace = true }

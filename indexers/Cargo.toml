@@ -1,0 +1,98 @@
+[package]
+name = "unified-indexer"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "unified-indexer"
+path = "src/main.rs"
+
+[dependencies]
+# Shared workspace libraries (if needed)
+# conhub-models = { path = "../shared/models" }
+# conhub-utils = { path = "../shared/utils" }
+
+# Web framework
+actix-web = { workspace = true }
+actix-cors = { workspace = true }
+warp = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+log = { workspace = true }
+
+# Search and indexing
+tantivy = { workspace = true }
+walkdir = { workspace = true }
+regex = { workspace = true }
+ignore = { workspace = true }
+
+# File operations
+mime_guess = { workspace = true }
+encoding_rs = { workspace = true }
+tempfile = { workspace = true }
+
+# Tree-sitter parsers
+tree-sitter = { workspace = true }
+tree-sitter-rust = { workspace = true }
+tree-sitter-javascript = { workspace = true }
+tree-sitter-python = { workspace = true }
+tree-sitter-java = { workspace = true }
+tree-sitter-c = { workspace = true }
+tree-sitter-cpp = { workspace = true }
+tree-sitter-go = { workspace = true }
+tree-sitter-typescript = { workspace = true }
+
+# Parallelism
+rayon = { workspace = true }
+num_cpus = { workspace = true }
+
+# Utilities
+lazy_static = { workspace = true }
+once_cell = { workspace = true }
+dashmap = { workspace = true }
+
+# Date and time
+chrono = { workspace = true }
+
+# UUID
+uuid = { workspace = true }
+
+# Vector database
+qdrant-client = { workspace = true }
+
+# HTTP client
+reqwest = { workspace = true }
+
+# Git operations
+git2 = { workspace = true }
+
+# Collections
+indexmap = { workspace = true }
+itertools = { workspace = true }
+
+# Config parsing
+yaml-rust2 = { workspace = true }
+
+# Configuration
+dotenv = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Crypto
+sha2 = { workspace = true }
+hex = { workspace = true }
+md5 = { workspace = true }
+
+# URL parsing
+url = { workspace = true }

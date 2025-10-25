@@ -1,32 +1,29 @@
 # Build stage
-FROM rust:1.75 as builder
+FROM rust:1.75-alpine as builder
 
-WORKDIR /app
+WORKDIR /workspace
 
-# Copy Cargo files
-COPY Cargo.toml ./
+# Install build dependencies
+RUN apk add --no-cache musl-dev openssl-dev pkgconfig git
 
-# Copy source code
-COPY src ./src
+# Copy workspace files
+COPY Cargo.toml Cargo.lock ./
+COPY shared/ ./shared/
+COPY indexers/ ./indexers/
 
-# Build the application
-RUN cargo build --release
+# Build the unified-indexer
+RUN cargo build --release --bin unified-indexer
 
 # Runtime stage
-FROM debian:bookworm-slim
+FROM alpine:latest
 
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    libssl3 \
-    curl \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ca-certificates libgcc libssl3 curl git
 
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /app/target/release/unified-indexer /app/unified-indexer
+COPY --from=builder /workspace/target/release/unified-indexer /app/unified-indexer
 
 # Create data directories
 RUN mkdir -p /app/data/index /app/data/temp

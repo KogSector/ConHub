@@ -1,0 +1,50 @@
+[package]
+name = "ai-service"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "ai-service"
+path = "src/main.rs"
+
+[dependencies]
+# Shared workspace libraries
+conhub-models = { path = "../../shared/models" }
+conhub-utils = { path = "../../shared/utils" }
+conhub-middleware = { path = "../../shared/middleware" }
+conhub-config = { path = "../../shared/config" }
+
+# Web framework
+actix-web = { workspace = true }
+actix-cors = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-actix-web = { workspace = true }
+log = { workspace = true }
+
+# Database
+sqlx = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# HTTP client for AI APIs
+reqwest = { workspace = true }
+
+# Configuration
+dotenv = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Base64 encoding
+base64 = { workspace = true }
