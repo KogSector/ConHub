@@ -49,6 +49,8 @@ services:
     ports:
       - "6333:6333"
       - "6334:6334"
+    environment:
+      ENV_MODE: docker
     volumes:
       - qdrant_data:/qdrant/storage
       - ./qdrant/config:/qdrant/config:ro
