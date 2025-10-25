@@ -3,7 +3,6 @@ members = [
     "backend",
     "auth",
     "billing",
-    "ai",
     "security",
     "indexers",
     "shared/models",
