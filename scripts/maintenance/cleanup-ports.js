@@ -9,7 +9,7 @@ const colors = {
   reset: '\x1b[0m'
 };
 
-const PORTS = [3000, 3001, 3002, 8001, 8003];
+const PORTS = [3000, 3010, 3011, 3012, 3013, 3014, 3015, 3004, 3005, 3006, 3007, 8080];
 const isWindows = os.platform() === 'win32';
 
 PORTS.forEach(port => {
