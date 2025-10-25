@@ -5,7 +5,7 @@ edition = "2021"
 
 [lib]
 name = "conhub_utils"
-path = "src/mod.rs"
+path = "src/lib.rs"
 
 [dependencies]
 # Logging
