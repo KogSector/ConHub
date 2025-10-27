@@ -9,10 +9,10 @@ path = "src/main.rs"
 
 [dependencies]
 # Shared workspace libraries
-conhub-models = { path = "../../shared/models" }
-conhub-utils = { path = "../../shared/utils" }
-conhub-middleware = { path = "../../shared/middleware" }
-conhub-config = { path = "../../shared/config" }
+conhub-models = { path = "../shared/models" }
+conhub-utils = { path = "../shared/utils" }
+conhub-middleware = { path = "../shared/middleware" }
+conhub-config = { path = "../shared/config" }
 
 # Web framework
 actix-web = "4.4"
