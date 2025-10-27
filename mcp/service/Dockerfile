@@ -10,15 +10,14 @@ RUN apk add --no-cache \
     curl \
     && rm -rf /var/cache/apk/*
 
-# Copy root package files (shared dependencies)
-COPY package*.json ./
+# Copy package files
+COPY mcp/service/package*.json ./
 
-# Install dependencies from root
-RUN npm ci --only=production && npm cache clean --force
+# Install dependencies
+RUN npm install --omit=dev
 
-# Copy MCP service source code
-COPY mcp/src/ ./mcp/src/
-COPY mcp/package.json ./mcp/
+# Copy application code
+COPY mcp/service/ .
 
 # Create logs directory
 RUN mkdir -p logs

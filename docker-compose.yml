@@ -2,14 +2,14 @@ version: '3.8'
 
 networks:
   conhub-network:
-    external: true
+    driver: bridge
 
 services:
   # Frontend Service
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
     container_name: conhub-frontend
     ports:
       - "3000:3000"
@@ -182,36 +182,29 @@ services:
   # MCP Service
   mcp-service:
     build:
-      context: ./mcp/service
-      dockerfile: Dockerfile
-    container_name: conhub-mcp
+      context: .
+      dockerfile: mcp/service/Dockerfile
+    container_name: conhub-mcp-service
     ports:
-      - "3004:3004"
+      - "3001:3001"
     environment:
-      - ENV_MODE=docker
-      - NODE_ENV=production
-      - MCP_SERVICE_PORT=3004
-      - REDIS_URL=redis://redis:6379
-      - AUTH_SERVICE_URL=http://backend:8000
-      - GITHUB_COPILOT_WEBHOOK_SECRET=${GITHUB_COPILOT_WEBHOOK_SECRET}
-      - AMAZON_Q_WEBHOOK_SECRET=${AMAZON_Q_WEBHOOK_SECRET}
-      - CLINE_WEBHOOK_SECRET=${CLINE_WEBHOOK_SECRET}
-      - JWT_SECRET=${JWT_SECRET}
+      - DATABASE_URL=${DATABASE_URL_DOCKER}
+      - REDIS_URL=${REDIS_URL_DOCKER}
+    depends_on:
+      - postgres
+      - redis
     networks:
       - conhub-network
 
   # MCP Google Drive Server (Data Source)
   mcp-google-drive:
     build:
-      context: ./mcp/servers/sources/google-drive
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: mcp/servers/sources/google-drive/Dockerfile
     container_name: conhub-mcp-google-drive
     ports:
       - "3005:3005"
     environment:
-      - ENV_MODE=docker
-      - NODE_ENV=production
-      - PORT=3005
       - GOOGLE_DRIVE_CLIENT_ID=${GOOGLE_DRIVE_CLIENT_ID}
       - GOOGLE_DRIVE_CLIENT_SECRET=${GOOGLE_DRIVE_CLIENT_SECRET}
     networks:
@@ -220,15 +213,12 @@ services:
   # MCP Dropbox Server (Data Source)
   mcp-dropbox:
     build:
-      context: ./mcp/servers/sources/dropbox
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: mcp/servers/sources/dropbox/Dockerfile
     container_name: conhub-mcp-dropbox
     ports:
       - "3006:3006"
     environment:
-      - ENV_MODE=docker
-      - NODE_ENV=production
-      - PORT=3006
       - DROPBOX_APP_KEY=${DROPBOX_APP_KEY}
       - DROPBOX_APP_SECRET=${DROPBOX_APP_SECRET}
     networks:
@@ -237,53 +227,36 @@ services:
   # MCP Filesystem Server (Data Source)
   mcp-filesystem:
     build:
-      context: ./mcp/servers/sources/filesystem
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: mcp/servers/sources/filesystem/Dockerfile
     container_name: conhub-mcp-filesystem
     ports:
       - "3007:3007"
-    environment:
-      - ENV_MODE=docker
-      - NODE_ENV=production
-      - PORT=3007
-      - MCP_FILESYSTEM_ROOT_PATH=/data
-    volumes:
-      - ./data:/data
     networks:
       - conhub-network
 
   # MCP GitHub Copilot Agent Server
   mcp-github-copilot:
     build:
-      context: ./mcp/servers/agents/github-copilot
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: mcp/servers/agents/github-copilot/Dockerfile
     container_name: conhub-mcp-github-copilot
     ports:
       - "3008:3008"
     environment:
-      - ENV_MODE=docker
-      - NODE_ENV=production
-      - MCP_GITHUB_COPILOT_PORT=3008
-      - GITHUB_COPILOT_API_URL=${GITHUB_COPILOT_API_URL}
-      - GITHUB_COPILOT_WEBHOOK_SECRET=${GITHUB_COPILOT_WEBHOOK_SECRET}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
     networks:
       - conhub-network
 
   # MCP Amazon Q Agent Server
   mcp-amazon-q:
     build:
-      context: ./mcp/servers/agents/amazon-q
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: mcp/servers/agents/amazon-q/Dockerfile
     container_name: conhub-mcp-amazon-q
     ports:
       - "3009:3009"
     environment:
-      - ENV_MODE=docker
-      - NODE_ENV=production
-      - MCP_AMAZON_Q_PORT=3009
-      - AMAZON_Q_API_URL=${AMAZON_Q_API_URL}
-      - AMAZON_Q_WEBHOOK_SECRET=${AMAZON_Q_WEBHOOK_SECRET}
-      - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
     networks:
@@ -292,31 +265,103 @@ services:
   # MCP Cline Agent Server
   mcp-cline:
     build:
-      context: ./mcp/servers/agents/cline
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: mcp/servers/agents/cline/Dockerfile
     container_name: conhub-mcp-cline
     ports:
       - "3010:3010"
     environment:
-      - ENV_MODE=docker
-      - NODE_ENV=production
-      - MCP_CLINE_PORT=3010
-      - CLINE_API_URL=${CLINE_API_URL}
-      - CLINE_WEBHOOK_SECRET=${CLINE_WEBHOOK_SECRET}
       - CLINE_API_KEY=${CLINE_API_KEY}
     networks:
       - conhub-network
 
   # Nginx API Gateway
   nginx:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
     container_name: conhub-nginx
     ports:
       - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - backend
       - frontend
+      - backend
+      - auth
+      - billing
+      - security
+      - data
+      - ai
+      - webhook
     networks:
       - conhub-network
+
+  # Infrastructure Services
+  postgres:
+    image: postgres:15-alpine
+    container_name: conhub-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      ENV_MODE: docker
+      POSTGRES_DB: conhub
+      POSTGRES_USER: conhub
+      POSTGRES_PASSWORD: conhub_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/postgres/migrations:/migrations:ro
+      - ./database/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conhub -d conhub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - conhub-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: conhub-redis
+    ports:
+      - "6379:6379"
+    environment:
+      ENV_MODE: docker
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - conhub-network
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: conhub-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    environment:
+      ENV_MODE: docker
+    volumes:
+      - qdrant_data:/qdrant/storage
+      - ./database/qdrant/config:/qdrant/config:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - conhub-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  qdrant_data:
+    driver: local

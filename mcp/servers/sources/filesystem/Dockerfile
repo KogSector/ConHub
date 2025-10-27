@@ -3,13 +3,13 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY mcp/servers/sources/filesystem/package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
 # Copy application code
-COPY . .
+COPY mcp/servers/sources/filesystem/ .
 
 EXPOSE 3007
 

@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.75-alpine as builder
+FROM rustlang/rust:nightly-alpine as builder
 
 WORKDIR /workspace
 

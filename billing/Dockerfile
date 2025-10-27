@@ -1,14 +1,11 @@
-FROM rust:1.75 AS builder
+FROM rustlang/rust:nightly AS builder
 WORKDIR /app
+
+# Copy shared dependencies first (to parent directory structure)
+COPY shared/ ../shared/
 
 # Copy service Cargo files
 COPY billing/Cargo.toml ./Cargo.toml
-
-# Copy shared dependencies
-COPY shared/models/ ./shared/models/
-COPY shared/utils/ ./shared/utils/
-COPY shared/middleware/ ./shared/middleware/
-COPY shared/config/ ./shared/config/
 
 # Copy service source code
 COPY billing/src ./src

@@ -1,20 +1,17 @@
-FROM rust:1.75 AS builder
+FROM rustlang/rust:nightly AS builder
 WORKDIR /app
+
+# Copy shared dependencies first (to parent directory structure)
+COPY shared/ ../shared/
+
+# Copy library crates that backend depends on (to parent directory structure)
+COPY auth/ ../auth/
+COPY billing/ ../billing/
+COPY security/ ../security/
+COPY indexers/ ../indexers/
 
 # Copy backend Cargo files
 COPY backend/Cargo.toml ./Cargo.toml
-
-# Copy library crates that backend depends on
-COPY auth/ ./auth/
-COPY billing/ ./billing/
-COPY security/ ./security/
-COPY indexers/ ./indexers/
-
-# Copy shared dependencies
-COPY shared/models/ ./shared/models/
-COPY shared/utils/ ./shared/utils/
-COPY shared/middleware/ ./shared/middleware/
-COPY shared/config/ ./shared/config/
 
 # Copy backend source code
 COPY backend/src ./src

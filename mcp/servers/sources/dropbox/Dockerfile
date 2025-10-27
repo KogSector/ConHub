@@ -1,15 +1,18 @@
 FROM node:18-alpine
 
+# Install git for GitHub dependencies
+RUN apk add --no-cache git
+
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY mcp/servers/sources/dropbox/package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
 # Copy application code
-COPY . .
+COPY mcp/servers/sources/dropbox/ .
 
 EXPOSE 3006
 

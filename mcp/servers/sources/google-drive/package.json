@@ -7,7 +7,7 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@isaacphi/mcp-gdrive": "^1.0.0"
+    "@isaacphi/mcp-gdrive": "^0.2.0"
   },
   "engines": {
     "node": ">=18.0.0"
