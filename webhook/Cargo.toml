@@ -1,14 +1,10 @@
 [package]
-name = "billing-service"
+name = "webhook-service"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-name = "conhub_billing"
-path = "src/lib.rs"
-
 [[bin]]
-name = "billing-service"
+name = "webhook-service"
 path = "src/main.rs"
 
 [dependencies]
@@ -40,10 +36,14 @@ log = "0.4"
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "migrate"] }
 uuid = { version = "1.6", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
-rust_decimal = { version = "1.33", features = ["serde"] }
 
-# Stripe payment processing
-async-stripe = { version = "0.41.0", features = ["runtime-tokio-hyper-rustls"] }
+# Webhook verification
+sha2 = "0.10"
+hmac = "0.12"
+hex = "0.4"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json"] }
 
 # Configuration
 dotenv = "0.15"

@@ -20,11 +20,17 @@ services:
       - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     depends_on:
       - backend
+      - auth
+      - billing
+      - security
+      - data
+      - ai
+      - webhook
       - mcp-service
     networks:
       - conhub-network
 
-  # Unified Backend Service (replaces all microservices)
+  # Backend Service
   backend:
     build:
       context: .
@@ -40,6 +46,27 @@ services:
       - REDIS_URL=redis://redis:6379
       - QDRANT_URL=http://qdrant:6333
       - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+    networks:
+      - conhub-network
+
+  # Auth Service
+  auth:
+    build:
+      context: .
+      dockerfile: auth/Dockerfile
+    container_name: conhub-auth
+    ports:
+      - "3010:3010"
+    environment:
+      - ENV_MODE=docker
+      - RUST_LOG=info
+      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
@@ -50,23 +77,105 @@ services:
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_USERNAME=${SMTP_USERNAME}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - GITHUB_TOKEN=${GITHUB_TOKEN}
-      - GITLAB_TOKEN=${GITLAB_TOKEN}
-      - NOTION_TOKEN=${NOTION_TOKEN}
-      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
-      - GITLAB_WEBHOOK_SECRET=${GITLAB_WEBHOOK_SECRET}
-      - MAX_FILE_SIZE=10485760
-      - CHUNK_SIZE=1000
-      - CHUNK_OVERLAP=200
-      - MAX_CONCURRENT_INDEXING=4
     depends_on:
       - postgres
       - redis
+    networks:
+      - conhub-network
+
+  # Billing Service
+  billing:
+    build:
+      context: .
+      dockerfile: billing/Dockerfile
+    container_name: conhub-billing
+    ports:
+      - "3011:3011"
+    environment:
+      - ENV_MODE=docker
+      - RUST_LOG=info
+      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+    depends_on:
+      - postgres
+    networks:
+      - conhub-network
+
+  # Security Service
+  security:
+    build:
+      context: .
+      dockerfile: security/Dockerfile
+    container_name: conhub-security
+    ports:
+      - "3012:3012"
+    environment:
+      - ENV_MODE=docker
+      - RUST_LOG=info
+      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
+    depends_on:
+      - postgres
+    networks:
+      - conhub-network
+
+  # Data Service
+  data:
+    build:
+      context: .
+      dockerfile: data/Dockerfile
+    container_name: conhub-data
+    ports:
+      - "3013:3013"
+    environment:
+      - ENV_MODE=docker
+      - RUST_LOG=info
+      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
+      - QDRANT_URL=http://qdrant:6333
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITLAB_TOKEN=${GITLAB_TOKEN}
+      - NOTION_TOKEN=${NOTION_TOKEN}
+    depends_on:
+      - postgres
       - qdrant
+    networks:
+      - conhub-network
+
+  # AI Service
+  ai:
+    build:
+      context: .
+      dockerfile: ai/Dockerfile
+    container_name: conhub-ai
+    ports:
+      - "3014:3014"
+    environment:
+      - ENV_MODE=docker
+      - RUST_LOG=info
+      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    depends_on:
+      - postgres
+    networks:
+      - conhub-network
+
+  # Webhook Service
+  webhook:
+    build:
+      context: .
+      dockerfile: webhook/Dockerfile
+    container_name: conhub-webhook
+    ports:
+      - "3015:3015"
+    environment:
+      - ENV_MODE=docker
+      - RUST_LOG=info
+      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+      - GITLAB_WEBHOOK_SECRET=${GITLAB_WEBHOOK_SECRET}
+    depends_on:
+      - postgres
     networks:
       - conhub-network
 

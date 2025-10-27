@@ -9,16 +9,16 @@ path = "src/lib.rs"
 
 [dependencies]
 # Serialization
-serde = { workspace = true }
-serde_json = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 # Database
-sqlx = { workspace = true }
-uuid = { workspace = true }
-chrono = { workspace = true }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "migrate"] }
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
 
 # Validation
-validator = { workspace = true }
+validator = { version = "0.18", features = ["derive"] }
 
 # Decimal types for billing
-rust_decimal = { workspace = true }
+rust_decimal = { version = "1.33", features = ["serde"] }

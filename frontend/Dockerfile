@@ -6,19 +6,18 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy package files from root and frontend
-COPY package*.json ./
-COPY frontend/package*.json ./frontend/
+# Copy frontend package files only
+COPY frontend/package*.json ./
 RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY frontend/ .
 
 # Build the frontend
-RUN npm run build:frontend
+RUN npm run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -30,9 +29,9 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Copy built application
-COPY --from=builder /app/frontend/.next/standalone ./
-COPY --from=builder /app/frontend/.next/static ./frontend/.next/static
-COPY --from=builder /app/frontend/public ./frontend/public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
 
 USER nextjs
 
@@ -41,4 +40,4 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-CMD ["node", "frontend/server.js"]
+CMD ["node", "server.js"]
