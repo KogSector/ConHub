@@ -1,29 +1,24 @@
-# Stage 1: Build
-FROM rust:1.75-alpine AS builder
-
-WORKDIR /workspace
-
-# Install build dependencies
-RUN apk add --no-cache musl-dev openssl-dev pkgconfig
-
-# Copy workspace files
-COPY Cargo.toml Cargo.lock ./
-COPY shared/ ./shared/
-COPY services/auth-service/ ./services/auth-service/
-
-# Build only auth service
-RUN cargo build --release --bin auth-service
-
-# Stage 2: Runtime
-FROM alpine:latest
-
-RUN apk add --no-cache libgcc
-
+FROM rust:1.75 AS builder
 WORKDIR /app
 
-# Copy binary from builder
-COPY --from=builder /workspace/target/release/auth-service /app/
+# Copy service Cargo files
+COPY auth/Cargo.toml ./Cargo.toml
 
+# Copy shared dependencies
+COPY shared/models/ ./shared/models/
+COPY shared/utils/ ./shared/utils/
+COPY shared/middleware/ ./shared/middleware/
+COPY shared/config/ ./shared/config/
+
+# Copy service source code
+COPY auth/src ./src
+
+# Build
+RUN cargo build --release
+
+# Runtime stage
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y ca-certificates libssl3 && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /app/target/release/auth-service /usr/local/bin/
 EXPOSE 3010
-
-CMD ["./auth-service"]
+CMD ["auth-service"]
