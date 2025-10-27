@@ -15,36 +15,36 @@ conhub-middleware = { path = "../../shared/middleware" }
 conhub-config = { path = "../../shared/config" }
 
 # Web framework
-actix-web = { workspace = true }
-actix-cors = { workspace = true }
+actix-web = "4.4"
+actix-cors = "0.7"
 
 # Async runtime
-tokio = { workspace = true }
-futures = { workspace = true }
-async-trait = { workspace = true }
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+async-trait = "0.1"
 
 # Serialization
-serde = { workspace = true }
-serde_json = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 # Logging
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-tracing-actix-web = { workspace = true }
-log = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter", "chrono"] }
+tracing-actix-web = "0.7"
+log = "0.4"
 
 # Database
-sqlx = { workspace = true }
-uuid = { workspace = true }
-chrono = { workspace = true }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "migrate"] }
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
 
 # HTTP client for AI APIs
-reqwest = { workspace = true }
+reqwest = { version = "0.11", features = ["json"] }
 
 # Configuration
-dotenv = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
+dotenv = "0.15"
+anyhow = "1.0"
+thiserror = "1.0"
 
 # Base64 encoding
-base64 = { workspace = true }
+base64 = "0.21"
