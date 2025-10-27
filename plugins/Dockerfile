@@ -1,5 +1,5 @@
 # Multi-stage build for the unified plugins service
-FROM rust:1.75 as builder
+FROM rustlang/rust:nightly AS builder
 
 WORKDIR /app
 

@@ -1,0 +1,38 @@
+{
+  "name": "conhub",
+  "version": "1.0.0",
+  "description": "ConHub - Unified development environment orchestration",
+  "scripts": {
+    "start": "cd scripts && npm run docker:start",
+    "stop": "cd scripts && npm run docker:stop",
+    "status": "cd scripts && npm run docker:status",
+    "logs": "cd scripts && npm run docker:logs",
+    "build": "cd scripts && npm run docker:build",
+    "rebuild": "cd scripts && npm run docker:rebuild",
+    "clean": "cd scripts && npm run docker:clean",
+    "setup": "cd scripts && npm run docker:setup",
+    "dev": "cd scripts && npm run dev:concurrently",
+    "test:local": "cd scripts && npm run test:local",
+    "test:docker": "cd scripts && npm run test:docker"
+  },
+  "workspaces": [
+    "frontend",
+    "scripts"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/conhub.git"
+  },
+  "keywords": [
+    "microservices",
+    "docker",
+    "rust",
+    "nextjs",
+    "ai",
+    "development"
+  ],
+  "license": "MIT"
+}
