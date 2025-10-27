@@ -15,53 +15,53 @@ conhub-middleware = { path = "../../shared/middleware" }
 conhub-config = { path = "../../shared/config" }
 
 # Web framework
-actix-web = { workspace = true }
-actix-cors = { workspace = true }
-actix-web-httpauth = { workspace = true }
-actix-session = { workspace = true }
+actix-web = "4.4"
+actix-cors = "0.7"
+actix-web-httpauth = "0.8"
+actix-session = "0.9"
 
 # Async runtime
-tokio = { workspace = true }
-futures = { workspace = true }
-async-trait = { workspace = true }
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+async-trait = "0.1"
 
 # Serialization
-serde = { workspace = true }
-serde_json = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 # Logging
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-tracing-actix-web = { workspace = true }
-log = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter", "chrono"] }
+tracing-actix-web = "0.7"
+log = "0.4"
 
 # Database
-sqlx = { workspace = true }
-uuid = { workspace = true }
-chrono = { workspace = true }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "migrate"] }
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
 
 # Authentication
-bcrypt = { workspace = true }
-jsonwebtoken = { workspace = true }
-oauth2 = { workspace = true }
-base64 = { workspace = true }
+bcrypt = "0.15"
+jsonwebtoken = "9.2"
+oauth2 = "4.4"
+base64 = "0.21"
 
 # Validation
-validator = { workspace = true }
+validator = { version = "0.18", features = ["derive"] }
 
 # Redis for sessions
-redis = { workspace = true }
+redis = { version = "0.24", features = ["tokio-comp"] }
 
 # Email for password reset
-lettre = { workspace = true }
+lettre = { version = "0.11.19", features = ["tokio1", "tokio1-native-tls"] }
 
 # Configuration
-dotenv = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
+dotenv = "0.15"
+anyhow = "1.0"
+thiserror = "1.0"
 
 # HTTP client for OAuth
-reqwest = { workspace = true }
+reqwest = { version = "0.11", features = ["json"] }
 
 # URL encoding
-urlencoding = { workspace = true }
+urlencoding = "2.1"
