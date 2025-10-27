@@ -20,6 +20,12 @@ services:
       - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     depends_on:
       - backend
+      - auth
+      - billing
+      - security
+      - data
+      - ai
+      - webhook
       - mcp-service
     networks:
       - conhub-network
