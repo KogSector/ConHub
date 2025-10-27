@@ -1,0 +1,131 @@
+{
+  "plugins": {
+    "dropbox-main": {
+      "instance_id": "dropbox-main",
+      "plugin_type": "Source",
+      "plugin_name": "dropbox",
+      "enabled": false,
+      "auto_start": false,
+      "config": {
+        "enabled": false,
+        "settings": {
+          "access_token": "",
+          "sync_interval_minutes": 30
+        }
+      },
+      "metadata": null
+    },
+    "google-drive-main": {
+      "instance_id": "google-drive-main",
+      "plugin_type": "Source",
+      "plugin_name": "google-drive",
+      "enabled": false,
+      "auto_start": false,
+      "config": {
+        "enabled": false,
+        "settings": {
+          "client_id": "",
+          "client_secret": "",
+          "refresh_token": "",
+          "sync_interval_minutes": 30
+        }
+      },
+      "metadata": null
+    },
+    "onedrive-main": {
+      "instance_id": "onedrive-main",
+      "plugin_type": "Source",
+      "plugin_name": "onedrive",
+      "enabled": false,
+      "auto_start": false,
+      "config": {
+        "enabled": false,
+        "settings": {
+          "client_id": "",
+          "client_secret": "",
+          "refresh_token": "",
+          "sync_interval_minutes": 30
+        }
+      },
+      "metadata": null
+    },
+    "notion-main": {
+      "instance_id": "notion-main",
+      "plugin_type": "Source",
+      "plugin_name": "notion",
+      "enabled": false,
+      "auto_start": false,
+      "config": {
+        "enabled": false,
+        "settings": {
+          "api_key": "",
+          "sync_interval_minutes": 30
+        }
+      },
+      "metadata": null
+    },
+    "github-main": {
+      "instance_id": "github-main",
+      "plugin_type": "Source",
+      "plugin_name": "github",
+      "enabled": false,
+      "auto_start": false,
+      "config": {
+        "enabled": false,
+        "settings": {
+          "access_token": "",
+          "organizations": [],
+          "sync_interval_minutes": 60
+        }
+      },
+      "metadata": null
+    },
+    "cline-main": {
+      "instance_id": "cline-main",
+      "plugin_type": "Agent",
+      "plugin_name": "cline",
+      "enabled": false,
+      "auto_start": false,
+      "config": {
+        "enabled": false,
+        "settings": {
+          "api_key": "",
+          "model": "claude-3-sonnet",
+          "max_tokens": 4096
+        }
+      },
+      "metadata": null
+    },
+    "amazon-q-main": {
+      "instance_id": "amazon-q-main",
+      "plugin_type": "Agent",
+      "plugin_name": "amazon-q",
+      "enabled": false,
+      "auto_start": false,
+      "config": {
+        "enabled": false,
+        "settings": {
+          "region": "us-east-1",
+          "access_key_id": "",
+          "secret_access_key": ""
+        }
+      },
+      "metadata": null
+    },
+    "github-copilot-main": {
+      "instance_id": "github-copilot-main",
+      "plugin_type": "Agent",
+      "plugin_name": "github-copilot",
+      "enabled": false,
+      "auto_start": false,
+      "config": {
+        "enabled": false,
+        "settings": {
+          "api_key": "",
+          "model": "gpt-4"
+        }
+      },
+      "metadata": null
+    }
+  }
+}
