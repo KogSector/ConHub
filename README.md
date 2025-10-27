@@ -738,3 +738,629 @@ MIT License - see LICENSE file for details.
 - 1 nginx gateway
 
 **Ports Used**: 80, 3000, 3004-3007, 3010-3015, 5432, 6333-6334, 6379, 8080
+
+---
+
+# Additional Documentation
+
+## ConHub Microservices Architecture Details
+
+This section describes the new microservices architecture where each service manages its own dependencies independently.
+
+### Microservices with Node.js Dependencies
+
+Each of the following microservices has its own `package.json` file and manages dependencies independently:
+
+#### Frontend Service
+- **Location**: `frontend/`
+- **Package**: `frontend/package.json`
+- **Purpose**: Next.js web application
+- **Start**: `cd frontend && npm run dev`
+
+#### Scripts Service (Orchestration)
+- **Location**: `scripts/`
+- **Package**: `scripts/package.json`
+- **Purpose**: Orchestration and utility scripts
+- **Dependencies**: concurrently, dotenv, nodemon
+- **Start**: `cd scripts && npm run start`
+
+#### MCP Service
+- **Location**: `mcp/service/`
+- **Package**: `mcp/service/package.json`
+- **Purpose**: Model Context Protocol service
+- **Start**: `cd mcp/service && npm start`
+
+#### MCP Servers
+Each MCP server has its own package.json:
+
+**Source Servers**
+- **Filesystem**: `mcp/servers/sources/filesystem/`
+- **Dropbox**: `mcp/servers/sources/dropbox/`
+- **Google Drive**: `mcp/servers/sources/google-drive/`
+
+**Agent Servers**
+- **Amazon Q**: `mcp/servers/agents/amazon-q/`
+- **Cline**: `mcp/servers/agents/cline/`
+- **GitHub Copilot**: `mcp/servers/agents/github-copilot/`
+
+### Rust Microservices
+
+The following services use Cargo.toml for dependency management:
+- `ai/` - AI service
+- `auth/` - Authentication service
+- `backend/` - Main backend service
+- `billing/` - Billing service
+- `data/` - Data service
+- `indexers/` - Indexing service
+- `plugins/` - Plugins service
+- `security/` - Security service
+- `webhook/` - Webhook service
+
+### Microservices Quick Start
+
+#### Using the Orchestration Script
+```bash
+# Start all development services
+node start.js dev
+
+# Start with Docker
+node start.js docker
+
+# Stop all services
+node start.js stop
+
+# Check status
+node start.js status
+
+# Start only frontend
+node start.js frontend
+
+# Clean up ports
+node start.js cleanup
+
+# Show help
+node start.js help
+```
+
+#### Manual Service Management
+```bash
+# Frontend
+cd frontend && npm run dev
+
+# Scripts/Orchestration
+cd scripts && npm run start
+
+# MCP Service
+cd mcp/service && npm start
+
+# Individual MCP servers
+cd mcp/servers/sources/filesystem && npm start
+cd mcp/servers/sources/dropbox && npm start
+# ... etc
+```
+
+### Development Workflow
+
+1. **Install Dependencies**: Each microservice manages its own dependencies
+   ```bash
+   cd frontend && npm install
+   cd scripts && npm install
+   cd mcp/service && npm install
+   # ... for each Node.js microservice
+   ```
+
+2. **Start Services**: Use the orchestration script or start individually
+   ```bash
+   node start.js dev  # Recommended
+   ```
+
+3. **Add Dependencies**: Add to the specific microservice's package.json
+   ```bash
+   cd frontend && npm install new-package
+   cd scripts && npm install new-utility
+   ```
+
+### Migration Notes
+
+- **Removed**: Root-level `package.json` and `package-lock.json`
+- **Added**: Individual `package.json` files for each Node.js microservice
+- **Changed**: Scripts now delegate to the scripts microservice
+- **Benefit**: True microservice independence with isolated dependencies
+
+### Service URLs
+
+- **Frontend**: http://localhost:3000
+- **Auth Service**: http://localhost:3010
+- **Billing Service**: http://localhost:3011
+- **AI Service**: http://localhost:3012
+- **Data Service**: http://localhost:3013
+- **Security Service**: http://localhost:3014
+- **Webhook Service**: http://localhost:3015
+- **Indexer Service**: http://localhost:8080
+- **MCP Service**: http://localhost:3004
+- **MCP Google Drive**: http://localhost:3005
+- **MCP Filesystem**: http://localhost:3006
+- **MCP Dropbox**: http://localhost:3007
+
+## Architecture Migration Guide: From Microservices to Plugin System
+
+### Overview
+
+This section outlines the migration from individual microservices for each source and agent to a unified plugin-based architecture that can scale to hundreds of sources and agents.
+
+### Problem Statement
+
+#### Current Issues
+- **Resource Overhead**: Each source/agent runs as a separate microservice with its own container, port, and process
+- **Management Complexity**: Hundreds of services would be impossible to manage
+- **Deployment Complexity**: Each service needs individual deployment, monitoring, and configuration
+- **Resource Waste**: Most services are idle most of the time but still consume resources
+
+#### Current Structure
+```
+mcp/servers/
+├── sources/
+│   ├── dropbox/          # Separate microservice
+│   ├── google-drive/     # Separate microservice
+│   └── filesystem/       # Separate microservice
+└── agents/
+    ├── cline/            # Separate microservice
+    ├── amazon-q/         # Separate microservice
+    └── github-copilot/   # Separate microservice
+```
+
+### New Architecture
+
+#### Plugin-Based System
+- **Single Service**: One unified plugins service hosts all sources and agents
+- **Dynamic Loading**: Plugins are loaded/unloaded on demand
+- **Shared Resources**: All plugins share the same process, memory, and network resources
+- **Centralized Management**: Single API for managing all plugins
+
+#### New Structure
+```
+plugins/                          # Unified plugins service
+├── src/
+│   ├── main.rs                  # Main service
+│   ├── handlers/                # API handlers
+│   └── services/                # Core services
+├── plugins/                     # Plugin implementations
+│   ├── dropbox/                 # Dropbox plugin
+│   ├── google-drive/            # Google Drive plugin
+│   ├── cline/                   # Cline agent plugin
+│   └── amazon-q/                # Amazon Q agent plugin
+├── config/
+│   └── plugins.json             # Plugin configurations
+└── Dockerfile                   # Single container
+
+shared/plugins/                   # Plugin framework
+├── src/
+│   ├── lib.rs                   # Core plugin traits
+│   ├── sources.rs               # Source plugin interfaces
+│   ├── agents.rs                # Agent plugin interfaces
+│   ├── registry.rs              # Plugin registry
+│   └── config.rs                # Configuration management
+```
+
+### Key Components
+
+#### 1. Plugin Framework (`shared/plugins/`)
+- **Core Traits**: Define interfaces for all plugins
+- **Registry System**: Manages plugin lifecycle
+- **Configuration**: Unified config management
+- **Error Handling**: Standardized error types
+
+#### 2. Unified Service (`plugins/`)
+- **Single Process**: Hosts all plugins
+- **REST API**: Manage plugins via HTTP
+- **Dynamic Loading**: Load/unload plugins at runtime
+- **Health Monitoring**: Monitor all plugins from one place
+
+#### 3. Plugin Implementations (`plugins/plugins/`)
+- **Modular**: Each plugin is a separate crate
+- **Standardized**: All implement the same interfaces
+- **Configurable**: Runtime configuration support
+- **Isolated**: Plugins can't interfere with each other
+
+### Benefits
+
+#### Scalability
+- **Resource Efficiency**: Single process for hundreds of plugins
+- **Memory Sharing**: Shared libraries and resources
+- **Connection Pooling**: Shared HTTP clients and database connections
+
+#### Management
+- **Single API**: One endpoint to manage all plugins
+- **Centralized Logging**: All logs in one place
+- **Unified Monitoring**: Single health check endpoint
+- **Configuration Management**: One config file for all plugins
+
+#### Development
+- **Standardized Interfaces**: Consistent plugin development
+- **Hot Reloading**: Update plugins without service restart
+- **Testing**: Easier to test individual plugins
+- **Deployment**: Single container deployment
+
+### Migration Steps
+
+#### Phase 1: Framework Setup ✅
+- [x] Create plugin framework (`shared/plugins/`)
+- [x] Define core traits and interfaces
+- [x] Implement registry system
+- [x] Create configuration management
+
+#### Phase 2: Service Implementation ✅
+- [x] Create unified plugins service
+- [x] Implement REST API handlers
+- [x] Add plugin lifecycle management
+- [x] Create Docker configuration
+
+#### Phase 3: Plugin Migration
+- [ ] Migrate Dropbox source to plugin
+- [ ] Migrate Google Drive source to plugin
+- [ ] Migrate Cline agent to plugin
+- [ ] Migrate Amazon Q agent to plugin
+- [ ] Add remaining sources and agents
+
+#### Phase 4: Integration
+- [ ] Update data service to use plugins API
+- [ ] Update AI service to use plugins API
+- [ ] Update frontend to manage plugins
+- [ ] Remove old MCP servers
+
+#### Phase 5: Testing & Deployment
+- [ ] Integration testing
+- [ ] Performance testing
+- [ ] Production deployment
+- [ ] Monitor and optimize
+
+### API Examples
+
+#### Plugin Management
+```bash
+# List available plugin types
+GET /api/plugins/registry/sources
+GET /api/plugins/registry/agents
+
+# Start a plugin
+POST /api/plugins/start/dropbox-main
+
+# Stop a plugin
+POST /api/plugins/stop/dropbox-main
+
+# Get plugin status
+GET /api/plugins/status/dropbox-main
+```
+
+#### Source Operations
+```bash
+# List documents from a source
+GET /api/plugins/sources/dropbox-main/documents
+
+# Search documents
+POST /api/plugins/sources/dropbox-main/search
+{
+  "query": "project proposal"
+}
+
+# Sync source
+POST /api/plugins/sources/dropbox-main/sync
+```
+
+#### Agent Operations
+```bash
+# Chat with an agent
+POST /api/plugins/agents/cline-main/chat
+{
+  "message": "Help me debug this code",
+  "context": {...}
+}
+
+# Get agent functions
+GET /api/plugins/agents/cline-main/functions
+```
+
+### Configuration
+
+#### Plugin Configuration (`plugins/config/plugins.json`)
+```json
+{
+  "plugins": {
+    "dropbox-main": {
+      "instance_id": "dropbox-main",
+      "plugin_type": "Source",
+      "plugin_name": "dropbox",
+      "enabled": true,
+      "auto_start": true,
+      "config": {
+        "enabled": true,
+        "settings": {
+          "access_token": "your-token",
+          "sync_interval_minutes": 30
+        }
+      }
+    }
+  }
+}
+```
+
+#### Environment Variables
+```bash
+PLUGINS_SERVICE_PORT=3020
+PLUGIN_CONFIG_PATH=./config/plugins.json
+DATABASE_URL=postgresql://...
+```
+
+### Deployment
+
+#### Docker Compose Update
+```yaml
+services:
+  plugins:
+    build: ./plugins
+    ports:
+      - "3020:3020"
+    environment:
+      - PLUGINS_SERVICE_PORT=3020
+      - PLUGIN_CONFIG_PATH=/app/config/plugins.json
+    volumes:
+      - ./plugins/config:/app/config
+    depends_on:
+      - postgres
+      - qdrant
+
+  # Remove individual MCP services
+  # dropbox-mcp: (removed)
+  # google-drive-mcp: (removed)
+  # cline-mcp: (removed)
+```
+
+### Monitoring
+
+#### Health Checks
+- **Service Health**: `/health` endpoint
+- **Plugin Health**: Individual plugin status
+- **Resource Usage**: Memory, CPU per plugin
+- **Error Tracking**: Centralized error logging
+
+#### Metrics
+- **Plugin Count**: Active/inactive plugins
+- **Request Rate**: API requests per plugin
+- **Response Time**: Plugin operation latency
+- **Error Rate**: Plugin failure rates
+
+### Security
+
+#### Plugin Isolation
+- **Memory Isolation**: Plugins can't access each other's data
+- **Configuration Isolation**: Separate config per plugin
+- **Error Isolation**: Plugin failures don't affect others
+- **Resource Limits**: CPU/memory limits per plugin
+
+#### API Security
+- **Authentication**: JWT tokens for API access
+- **Authorization**: Role-based plugin access
+- **Rate Limiting**: Prevent API abuse
+- **Input Validation**: Sanitize all inputs
+
+### Performance
+
+#### Optimizations
+- **Lazy Loading**: Load plugins only when needed
+- **Connection Pooling**: Shared HTTP/DB connections
+- **Caching**: Cache plugin responses
+- **Async Operations**: Non-blocking plugin operations
+
+#### Scaling
+- **Horizontal**: Multiple plugin service instances
+- **Load Balancing**: Distribute plugin load
+- **Resource Management**: Dynamic resource allocation
+- **Auto-scaling**: Scale based on plugin usage
+
+### Troubleshooting
+
+#### Common Issues
+1. **Plugin Won't Start**: Check configuration and logs
+2. **High Memory Usage**: Monitor plugin resource usage
+3. **API Timeouts**: Check plugin response times
+4. **Configuration Errors**: Validate plugin config schema
+
+#### Debugging
+- **Logs**: Centralized logging with plugin context
+- **Metrics**: Real-time plugin performance metrics
+- **Health Checks**: Automated plugin health monitoring
+- **Tracing**: Request tracing across plugins
+
+### Future Enhancements
+
+#### Plugin Marketplace
+- **Plugin Discovery**: Browse available plugins
+- **Plugin Installation**: Install plugins from registry
+- **Version Management**: Update plugins independently
+- **Community Plugins**: Third-party plugin support
+
+#### Advanced Features
+- **Plugin Dependencies**: Manage plugin dependencies
+- **Plugin Composition**: Combine multiple plugins
+- **Plugin Workflows**: Chain plugin operations
+- **Plugin Analytics**: Usage analytics per plugin
+
+## Plugins Integration Guide
+
+This section explains how to integrate the data and AI services with the new unified plugins system.
+
+### Overview
+
+The new plugin system replaces individual MCP microservices with a unified plugins service that manages all source and agent plugins through a single API.
+
+### API Endpoints
+
+#### Base URL
+```
+http://localhost:3020/api
+```
+
+#### Plugin Management
+
+##### Get Plugin Status
+```http
+GET /status
+```
+
+Response:
+```json
+{
+  "total_configured": 5,
+  "total_active": 4,
+  "active_sources": 2,
+  "active_agents": 2,
+  "enabled_plugins": 5,
+  "auto_start_plugins": 4,
+  "operation_stats": {...},
+  "last_updated": "2024-01-15T10:30:00Z"
+}
+```
+
+##### List All Plugins
+```http
+GET /plugins
+```
+
+##### Start/Stop Plugins
+```http
+POST /lifecycle/{instance_id}/start
+POST /lifecycle/{instance_id}/stop
+POST /lifecycle/{instance_id}/restart
+GET /lifecycle/{instance_id}/status
+```
+
+#### Source Plugin Operations
+
+##### List Documents
+```http
+GET /sources/{instance_id}/documents?limit=50&offset=0
+```
+
+##### Get Document
+```http
+GET /sources/{instance_id}/documents/{document_id}
+```
+
+##### Search Documents
+```http
+GET /sources/{instance_id}/search?q={query}&limit=20
+```
+
+##### Sync Documents
+```http
+POST /sources/{instance_id}/sync
+```
+
+##### Upload Document
+```http
+POST /sources/{instance_id}/upload
+Content-Type: multipart/form-data
+
+file: <file_data>
+metadata: {"title": "Document Title", "tags": ["tag1", "tag2"]}
+```
+
+##### Delete Document
+```http
+DELETE /sources/{instance_id}/documents/{document_id}
+```
+
+#### Agent Plugin Operations
+
+##### Send Message
+```http
+POST /agents/{instance_id}/chat
+Content-Type: application/json
+
+{
+  "message": {
+    "content": "Hello, can you help me with this code?",
+    "role": "user",
+    "metadata": {}
+  },
+  "context": {
+    "conversation_id": "conv_123",
+    "user_id": "user_456",
+    "session_data": {}
+  }
+}
+```
+
+##### Stream Chat
+```http
+POST /agents/{instance_id}/stream
+Content-Type: application/json
+
+{
+  "message": {...},
+  "context": {...}
+}
+```
+
+##### Get Available Functions
+```http
+GET /agents/{instance_id}/functions
+```
+
+##### Execute Action
+```http
+POST /agents/{instance_id}/actions/{action_name}
+Content-Type: application/json
+
+{
+  "parameters": {
+    "param1": "value1",
+    "param2": "value2"
+  },
+  "context": {...}
+}
+```
+
+### Integration Examples
+
+#### Data Service Integration
+
+##### Rust Example (using reqwest)
+
+```rust
+use reqwest::Client;
+use serde_json::{json, Value};
+use anyhow::Result;
+
+pub struct PluginsClient {
+    client: Client,
+    base_url: String,
+}
+
+impl PluginsClient {
+    pub fn new(base_url: String) -> Self {
+        Self {
+            client: Client::new(),
+            base_url,
+        }
+    }
+
+    pub async fn list_documents(&self, instance_id: &str) -> Result<Value> {
+        let url = format!("{}/sources/{}/documents", self.base_url, instance_id);
+        let response = self.client.get(&url).send().await?;
+        let data = response.json::<Value>().await?;
+        Ok(data)
+    }
+
+    pub async fn search_documents(&self, instance_id: &str, query: &str) -> Result<Value> {
+        let url = format!("{}/sources/{}/search", self.base_url, instance_id);
+        let response = self.client
+            .get(&url)
+            .query(&[("q", query)])
+            .send()
+            .await?;
+        let data = response.json::<Value>().await?;
+        Ok(data)
+    }
+}
+```

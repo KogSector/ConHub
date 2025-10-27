@@ -15,8 +15,12 @@ const colors = {
 
 console.log(`${colors.green}[START] Starting ConHub...${colors.reset}`);
 
-if (!fs.existsSync('package.json')) {
-  console.log(`${colors.red}[ERROR] Run from project root${colors.reset}`);
+// Check if we're in the scripts directory or project root
+const scriptsPackageJson = path.join(__dirname, '../package.json');
+const rootPackageJson = path.join(__dirname, '../../package.json');
+
+if (!fs.existsSync(scriptsPackageJson) && !fs.existsSync(rootPackageJson)) {
+  console.log(`${colors.red}[ERROR] Run from project root or scripts directory${colors.reset}`);
   process.exit(1);
 }
 
