@@ -1,12 +1,51 @@
 [package]
-name = "conhub-billing"
-version = "1.0.0"
+name = "billing-service"
+version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "conhub_billing"
+path = "src/lib.rs"
+
+[[bin]]
+name = "billing-service"
+path = "src/main.rs"
+
 [dependencies]
+# Shared workspace libraries
+conhub-models = { path = "../shared/models" }
+conhub-utils = { path = "../shared/utils" }
+conhub-middleware = { path = "../shared/middleware" }
+conhub-config = { path = "../shared/config" }
+
+# Web framework
+actix-web = "4.4"
+actix-cors = "0.7"
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+
+# Serialization
 serde = { version = "1.0", features = ["derive"] }
-sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres"] }
-tokio = { version = "1", features = ["full"] }
+serde_json = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter", "chrono"] }
+tracing-actix-web = "0.7"
 log = "0.4"
-uuid = { version = "1.6", features = ["v4"] }
-conhub-shared-models = { path = "../shared/models" }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "migrate"] }
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+rust_decimal = { version = "1.33", features = ["serde"] }
+
+# Stripe payment processing
+async-stripe = { version = "0.41.0", features = ["runtime-tokio-hyper-rustls"] }
+
+# Configuration
+dotenv = "0.15"
+anyhow = "1.0"
+thiserror = "1.0"
