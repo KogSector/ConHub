@@ -85,6 +85,8 @@ incremental/
 /doc/
 **/*.orig
 .cargo/config
+CACHEDIR.TAG
+.rustc_info.json
 
 # === Python (requirements.txt only - no Python services) ===
 __pycache__/
