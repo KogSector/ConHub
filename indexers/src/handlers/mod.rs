@@ -17,6 +17,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
         web::scope("/search")
             .route("", web::post().to(search::search))
             .route("/code", web::post().to(search::search_code))
+            .route("/fusion", web::post().to(search::fusion_search))
     )
     .service(
         web::scope("/status")
