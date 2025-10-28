@@ -15,6 +15,7 @@ pub mod ops;
 pub mod schema;
 pub mod services;
 pub mod utils;
+pub mod utils_functions;
 
 // Re-export main types for convenience
 pub use config::IndexerConfig;
