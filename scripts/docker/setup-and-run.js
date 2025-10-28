@@ -256,6 +256,7 @@ async function showStatus() {
 async function main() {
     const args = process.argv.slice(2);
     const forceBuild = args.includes('--force-build') || args.includes('-f');
+    const startOnly = args.includes('--start-only');
     const helpRequested = args.includes('--help') || args.includes('-h');
     
     if (helpRequested) {
@@ -267,12 +268,14 @@ async function main() {
         log(`  - Handles environment setup automatically\n`);
         
         log(`${colors.cyan}Usage:${colors.reset}`);
-        log(`  npm run docker:setup              # Setup and run (build only if needed)`);
-        log(`  npm run docker:setup -- --force-build  # Force rebuild all containers`);
-        log(`  npm run docker:setup -- --help         # Show this help\n`);
+        log(`  npm run docker:setup                  # Setup and run (build only if needed)`);
+        log(`  npm run docker:start                  # Start services without rebuilding existing images`);
+        log(`  npm run docker:setup -- --force-build # Force rebuild all containers`);
+        log(`  npm run docker:setup -- --help        # Show this help\n`);
         
         log(`${colors.cyan}Flags:${colors.reset}`);
         log(`  --force-build, -f    Force rebuild all containers even if they exist`);
+        log(`  --start-only         Skip container teardown and reuse existing images when available`);
         log(`  --help, -h           Show this help message`);
         
         return;
@@ -308,10 +311,12 @@ async function main() {
         }
         logSuccess('Environment configuration ready');
 
-        // Stop any running containers
-        await stopRunningContainers();
+        if (startOnly) {
+            logStep('CLEANUP', 'Start-only mode detected; skipping container teardown');
+        } else {
+            await stopRunningContainers();
+        }
 
-        // Build containers (only if needed or forced)
         await buildContainers(forceBuild);
 
         // Start containers
