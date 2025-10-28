@@ -21,3 +21,4 @@ anyhow = "1.0"
 
 # Logging
 tracing = "0.1"
+reqwest = "0.12.24"

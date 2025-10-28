@@ -52,8 +52,10 @@ console.log('');
 
 process.env.ENV_MODE = 'local';
 
-const concurrently = spawn('npm', ['run', 'dev:concurrently'], {
-  stdio: 'inherit'
+const concurrently = spawn('npm run dev:concurrently', {
+  stdio: 'inherit',
+  cwd: path.join(__dirname, '..'),
+  shell: true
 });
 
 const handleExit = (signal) => {
