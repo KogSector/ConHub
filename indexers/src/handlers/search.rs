@@ -1,8 +1,10 @@
 use actix_web::{web, HttpResponse, Result};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::time::Instant;
 
 use crate::models::*;
+use crate::services::fusion::IntermediateResult;
 use crate::IndexerState;
 
 pub async fn search(
