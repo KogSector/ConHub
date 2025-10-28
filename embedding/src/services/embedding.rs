@@ -4,9 +4,9 @@ use rand::Rng;
 use std::collections::HashMap;
 
 const HIDDEN_SIZE: usize = 768;
-const NUM_LAYERS: usize = 12;
+const NUM_LAYERS: usize = 2; // Reduced for development/testing (was 12)
 const NUM_HEADS: usize = 12;
-const VOCAB_SIZE: usize = 30522; // BERT vocab size
+const VOCAB_SIZE: usize = 1000; // Reduced for development/testing (was 30522)
 const MAX_SEQ_LENGTH: usize = 512;
 
 /// Minimalistic BGE-M3 embedding service with placeholder transformer architecture
