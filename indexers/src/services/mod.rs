@@ -6,6 +6,7 @@ pub mod chunking;
 pub mod state;
 pub mod evaluation;
 pub mod qdrant;
+pub mod fusion;
 
 use crate::models::StatusResponse;
 
