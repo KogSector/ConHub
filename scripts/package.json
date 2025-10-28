@@ -1,0 +1,39 @@
+{
+  "name": "conhub-scripts",
+  "version": "1.0.0",
+  "description": "ConHub orchestration and utility scripts",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node services/start.js",
+    "stop": "node services/stop.js",
+    "status": "node services/status.js",
+    "dev:concurrently": "concurrently --names Frontend,Auth,Billing,AI,Data,Security,Webhook,Indexer,MCP-Svc,MCP-GDrive,MCP-FS,MCP-Dropbox --prefix-colors cyan,blue,magenta,green,yellow,red,gray,white,bgBlue,bgGreen,bgYellow,bgMagenta --restart-tries 2 --kill-others-on-fail \"npm run dev:frontend\" \"npm run dev:auth\" \"npm run dev:billing\" \"npm run dev:ai\" \"npm run dev:data\" \"npm run dev:security\" \"npm run dev:webhook\" \"npm run dev:indexer\" \"npm run dev:mcp-service\" \"npm run dev:mcp-gdrive\" \"npm run dev:mcp-fs\" \"npm run dev:mcp-dropbox\"",
+    "docker:setup": "node docker/setup-and-run.js",
+    "docker:start": "node docker/setup-and-run.js --start-only",
+    "docker:stop": "node docker/stop.js",
+    "docker:status": "node docker/status.js",
+    "docker:logs": "docker-compose logs -f",
+    "docker:build": "docker-compose build",
+    "docker:rebuild": "node docker/setup-and-run.js --force-rebuild",
+    "docker:clean": "node docker/stop.js --cleanup",
+    "docker:force-stop": "node docker/stop.js --force",
+    "cleanup": "node maintenance/cleanup-ports.js",
+    "force-stop": "node maintenance/force-stop.js",
+    "test:local": "node test/validate-setup.js local",
+    "test:docker": "node test/validate-setup.js docker",
+    "db:clear": "node database/clear-database.js",
+    "db:test": "node database/test-connection.js",
+    "db:reset-password": "node database/reset-postgres-password.js",
+    "db:start": "node database/start-docker-postgres.js"
+  },
+  "dependencies": {
+    "concurrently": "^9.0.1",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

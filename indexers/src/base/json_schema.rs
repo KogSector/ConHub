@@ -1,6 +1,7 @@
 use crate::prelude::*;
 
 use crate::utils::immutable::RefList;
+use crate::base::spec;
 use schemars::schema::{
     ArrayValidation, InstanceType, ObjectValidation, Schema, SchemaObject, SingleOrVec,
     SubschemaValidation,

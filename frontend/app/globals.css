@@ -172,7 +172,7 @@ All colors use HSL for better performance and consistency.
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
 
   body {

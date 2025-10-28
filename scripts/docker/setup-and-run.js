@@ -86,7 +86,9 @@ async function checkDockerRunning() {
 }
 
 async function checkDockerComposeExists() {
-    const composePath = path.join(process.cwd(), 'docker-compose.yml');
+    // Look for docker-compose.yml in the project root (parent of scripts directory)
+    const projectRoot = path.resolve(__dirname, '..', '..');
+    const composePath = path.join(projectRoot, 'docker-compose.yml');
     return fs.existsSync(composePath);
 }
 
@@ -118,8 +120,10 @@ async function getAllContainers() {
 }
 
 async function checkEnvFile() {
-    const envPath = path.join(process.cwd(), '.env');
-    const envExamplePath = path.join(process.cwd(), '.env.example');
+    // Look for .env files in the project root (parent of scripts directory)
+    const projectRoot = path.resolve(__dirname, '..', '..');
+    const envPath = path.join(projectRoot, '.env');
+    const envExamplePath = path.join(projectRoot, '.env.example');
     
     if (!fs.existsSync(envPath)) {
         if (fs.existsSync(envExamplePath)) {
@@ -151,7 +155,9 @@ async function checkEnvFile() {
 async function stopRunningContainers() {
     try {
         logStep('CLEANUP', 'Stopping any running ConHub containers...');
-        await runCommand('docker-compose down', process.cwd(), true);
+        // Run docker-compose from project root directory
+        const projectRoot = path.resolve(__dirname, '..', '..');
+        await runCommand('docker-compose down', projectRoot, true);
         logSuccess('Existing containers stopped');
     } catch (error) {
         logInfo('No running containers to stop');
@@ -176,7 +182,9 @@ async function buildContainers(forceBuild = false) {
             logInfo('Building all containers... This may take several minutes.');
         }
         
-        await runCommand('docker-compose build --parallel');
+        // Run docker-compose from project root directory
+        const projectRoot = path.resolve(__dirname, '..', '..');
+        await runCommand('docker-compose build --parallel', projectRoot);
         logSuccess('All containers built successfully');
     } catch (error) {
         logError('Failed to build containers');
@@ -187,7 +195,9 @@ async function buildContainers(forceBuild = false) {
 async function startContainers() {
     try {
         logStep('START', 'Starting all ConHub services...');
-        await runCommand('docker-compose up -d');
+        // Run docker-compose from project root directory
+        const projectRoot = path.resolve(__dirname, '..', '..');
+        await runCommand('docker-compose up -d', projectRoot);
         logSuccess('All services started successfully');
     } catch (error) {
         logError('Failed to start containers');

@@ -1,0 +1,22 @@
+[package]
+name = "google-drive-plugin"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+conhub-plugins = { path = "../../../shared/plugins" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.11", features = ["json", "multipart"] }
+anyhow = "1.0"
+tracing = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+url = "2.4"
+base64 = "0.21"
+mime = "0.3"
+uuid = { version = "1.0", features = ["v4"] }
+async-trait = "0.1"
+
+[lib]
+crate-type = ["cdylib", "rlib"]

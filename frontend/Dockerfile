@@ -15,6 +15,7 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend/ .
+COPY feature-toggles.json ../
 
 # Build the frontend
 RUN npm run build

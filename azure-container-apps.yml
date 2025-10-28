@@ -1,0 +1,456 @@
+# Azure Container Apps Configuration for ConHub
+# This file defines the deployment configuration for Microsoft Azure Container Apps
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: conhub-config
+data:
+  # Environment Configuration
+  environment: "production"
+  log_level: "info"
+  
+  # Database Configuration
+  postgres_host: "conhub-postgres.postgres.database.azure.com"
+  postgres_port: "5432"
+  postgres_database: "conhub"
+  
+  # Redis Configuration  
+  redis_host: "conhub-redis.redis.cache.windows.net"
+  redis_port: "6380"
+  redis_ssl: "true"
+  
+  # Service Discovery
+  auth_service_url: "https://conhub-auth.internal"
+  billing_service_url: "https://conhub-billing.internal"
+  security_service_url: "https://conhub-security.internal"
+  data_service_url: "https://conhub-data.internal"
+  ai_service_url: "https://conhub-ai.internal"
+  webhook_service_url: "https://conhub-webhook.internal"
+  plugins_service_url: "https://conhub-plugins.internal"
+
+---
+# Backend Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: conhub-backend
+  labels:
+    app: conhub-backend
+    tier: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: conhub-backend
+  template:
+    metadata:
+      labels:
+        app: conhub-backend
+    spec:
+      containers:
+      - name: backend
+        image: ${CONTAINER_REGISTRY}/conhub-backend:${IMAGE_TAG}
+        ports:
+        - containerPort: 8000
+        env:
+        - name: PORT
+          value: "8000"
+        - name: RUST_LOG
+          value: "info"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+# Auth Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: conhub-auth
+  labels:
+    app: conhub-auth
+    tier: auth
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: conhub-auth
+  template:
+    metadata:
+      labels:
+        app: conhub-auth
+    spec:
+      containers:
+      - name: auth
+        image: ${CONTAINER_REGISTRY}/conhub-auth:${IMAGE_TAG}
+        ports:
+        - containerPort: 8001
+        env:
+        - name: PORT
+          value: "8001"
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: conhub-secrets
+              key: jwt-secret
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+
+---
+# Billing Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: conhub-billing
+  labels:
+    app: conhub-billing
+    tier: billing
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: conhub-billing
+  template:
+    metadata:
+      labels:
+        app: conhub-billing
+    spec:
+      containers:
+      - name: billing
+        image: ${CONTAINER_REGISTRY}/conhub-billing:${IMAGE_TAG}
+        ports:
+        - containerPort: 8002
+        env:
+        - name: PORT
+          value: "8002"
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: conhub-secrets
+              key: stripe-secret-key
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+
+---
+# Security Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: conhub-security
+  labels:
+    app: conhub-security
+    tier: security
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: conhub-security
+  template:
+    metadata:
+      labels:
+        app: conhub-security
+    spec:
+      containers:
+      - name: security
+        image: ${CONTAINER_REGISTRY}/conhub-security:${IMAGE_TAG}
+        ports:
+        - containerPort: 8003
+        env:
+        - name: PORT
+          value: "8003"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+
+---
+# Data Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: conhub-data
+  labels:
+    app: conhub-data
+    tier: data
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: conhub-data
+  template:
+    metadata:
+      labels:
+        app: conhub-data
+    spec:
+      containers:
+      - name: data
+        image: ${CONTAINER_REGISTRY}/conhub-data:${IMAGE_TAG}
+        ports:
+        - containerPort: 8004
+        env:
+        - name: PORT
+          value: "8004"
+        - name: QDRANT_URL
+          value: "https://conhub-qdrant.search.windows.net"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+
+---
+# AI Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: conhub-ai
+  labels:
+    app: conhub-ai
+    tier: ai
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: conhub-ai
+  template:
+    metadata:
+      labels:
+        app: conhub-ai
+    spec:
+      containers:
+      - name: ai
+        image: ${CONTAINER_REGISTRY}/conhub-ai:${IMAGE_TAG}
+        ports:
+        - containerPort: 8005
+        env:
+        - name: PORT
+          value: "8005"
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: conhub-secrets
+              key: openai-api-key
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+
+---
+# Webhook Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: conhub-webhook
+  labels:
+    app: conhub-webhook
+    tier: webhook
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: conhub-webhook
+  template:
+    metadata:
+      labels:
+        app: conhub-webhook
+    spec:
+      containers:
+      - name: webhook
+        image: ${CONTAINER_REGISTRY}/conhub-webhook:${IMAGE_TAG}
+        ports:
+        - containerPort: 8006
+        env:
+        - name: PORT
+          value: "8006"
+        - name: GITHUB_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: conhub-secrets
+              key: github-webhook-secret
+        - name: GITLAB_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: conhub-secrets
+              key: gitlab-webhook-secret
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+
+---
+# Plugins Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: conhub-plugins
+  labels:
+    app: conhub-plugins
+    tier: plugins
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: conhub-plugins
+  template:
+    metadata:
+      labels:
+        app: conhub-plugins
+    spec:
+      containers:
+      - name: plugins
+        image: ${CONTAINER_REGISTRY}/conhub-plugins:${IMAGE_TAG}
+        ports:
+        - containerPort: 8007
+        env:
+        - name: PORT
+          value: "8007"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+
+---
+# Services for Load Balancing
+apiVersion: v1
+kind: Service
+metadata:
+  name: conhub-backend-service
+spec:
+  selector:
+    app: conhub-backend
+  ports:
+  - port: 80
+    targetPort: 8000
+  type: LoadBalancer
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: conhub-auth-service
+spec:
+  selector:
+    app: conhub-auth
+  ports:
+  - port: 80
+    targetPort: 8001
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: conhub-billing-service
+spec:
+  selector:
+    app: conhub-billing
+  ports:
+  - port: 80
+    targetPort: 8002
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: conhub-security-service
+spec:
+  selector:
+    app: conhub-security
+  ports:
+  - port: 80
+    targetPort: 8003
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: conhub-data-service
+spec:
+  selector:
+    app: conhub-data
+  ports:
+  - port: 80
+    targetPort: 8004
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: conhub-ai-service
+spec:
+  selector:
+    app: conhub-ai
+  ports:
+  - port: 80
+    targetPort: 8005
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: conhub-webhook-service
+spec:
+  selector:
+    app: conhub-webhook
+  ports:
+  - port: 80
+    targetPort: 8006
+  type: LoadBalancer
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: conhub-plugins-service
+spec:
+  selector:
+    app: conhub-plugins
+  ports:
+  - port: 80
+    targetPort: 8007
+  type: ClusterIP

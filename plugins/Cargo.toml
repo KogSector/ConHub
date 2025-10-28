@@ -1,0 +1,48 @@
+[package]
+name = "conhub-plugins-service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Core dependencies
+tokio = { version = "1.0", features = ["full"] }
+actix-web = "4.0"
+actix-cors = "0.6"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+uuid = { version = "1.0", features = ["v4"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+env_logger = "0.10"
+dotenv = "0.15"
+chrono = { version = "0.4", features = ["serde"] }
+
+# Plugin system
+conhub-plugins = { path = "../shared/plugins" }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"] }
+
+# HTTP client for external APIs
+reqwest = { version = "0.11", features = ["json"] }
+
+# Configuration
+config = "0.13"
+
+# Async utilities
+futures = "0.3"
+futures-util = "0.3"
+async-stream = "0.3"
+
+# Plugin implementations
+dropbox-plugin = { path = "./plugins/dropbox", optional = true }
+google-drive-plugin = { path = "./plugins/google-drive", optional = true }
+cline-plugin = { path = "./plugins/cline", optional = true }
+amazon-q-plugin = { path = "./plugins/amazon-q", optional = true }
+
+[features]
+default = ["all-plugins"]
+all-plugins = ["sources", "agents"]
+sources = ["dropbox-plugin", "google-drive-plugin"]
+agents = ["cline-plugin", "amazon-q-plugin"]
