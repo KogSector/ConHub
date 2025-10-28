@@ -2,16 +2,15 @@ import NextAuth, { NextAuthOptions, Session, User } from "next-auth"
 import { JWT } from "next-auth/jwt"
 import GithubProvider from "next-auth/providers/github"
 import GoogleProvider from "next-auth/providers/google"
-import { OAuthConfig } from "next-auth/providers"
 
 // Bitbucket OAuth provider configuration
 const BitbucketProvider = (options: {
   clientId: string
   clientSecret: string
-}): OAuthConfig<any> => ({
+}) => ({
   id: "bitbucket",
   name: "Bitbucket",
-  type: "oauth",
+  type: "oauth" as const,
   authorization: {
     url: "https://bitbucket.org/site/oauth2/authorize",
     params: { scope: "account email" }

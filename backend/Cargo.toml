@@ -44,6 +44,6 @@ auth-service = { path = "../auth" }
 billing-service = { path = "../billing" }
 security-service = { path = "../security" }
 conhub-indexers = { path = "../indexers" }
-conhub-shared-models = { path = "../shared/models" }
-conhub-shared-utils = { path = "../shared/utils" }
-conhub-shared-config = { path = "../shared/config" }
+conhub-models = { path = "../shared/models" }
+conhub-utils = { path = "../shared/utils" }
+conhub-config = { path = "../shared/config" }
