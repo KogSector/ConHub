@@ -31,6 +31,7 @@ const_format = "0.2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter", "chrono"] }
 log = "0.4"
+env_logger = "0.10"
 
 # Search and indexing
 tantivy = "0.22"
@@ -97,3 +98,7 @@ md5 = "0.7"
 
 # URL parsing
 url = "2.4"
+
+[[bin]]
+name = "unified-indexer"
+path = "src/main.rs"

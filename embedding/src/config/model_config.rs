@@ -19,7 +19,7 @@ pub struct ModelConfig {
     pub settings: ModelSettings,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ModelType {
     Text,
     Image,

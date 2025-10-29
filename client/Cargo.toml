@@ -32,6 +32,10 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter", "chrono"] }
 tracing-actix-web = "0.7"
 log = "0.4"
+env_logger = "0.10"
+
+# Static variables
+lazy_static = "1.4"
 
 # Database
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "migrate"] }

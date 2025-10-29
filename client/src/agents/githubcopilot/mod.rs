@@ -49,7 +49,7 @@ impl GitHubCopilotAgent {
     }
 
     async fn send_copilot_request(&self, prompt: &str, context: Option<&str>) -> Result<String, Box<dyn Error>> {
-        
+        // Mock implementation for GitHub Copilot API
         
         let full_prompt = if let Some(ctx) = context {
             format!("Context:\n{}\n\nPrompt: {}", ctx, prompt)
@@ -57,26 +57,26 @@ impl GitHubCopilotAgent {
             prompt.to_string()
         };
 
-        
+        // Generate mock response
         let response = format!(
-            "GitHub Copilot suggests:\n\n```\n
-            prompt,
-            self.generate_mock_response(&full_prompt)
+            "GitHub Copilot suggests:\n\n```\n{}\n```\n\nFor prompt: {}",
+            self.generate_mock_response(&full_prompt),
+            prompt
         );
 
         Ok(response)
     }
 
     fn generate_mock_response(&self, prompt: &str) -> String {
-        
+        // Generate mock code suggestions based on prompt content
         if prompt.to_lowercase().contains("function") {
-            "function exampleFunction() {\n    
+            "function exampleFunction() {\n    // TODO: Implement function logic\n    return null;\n}".to_string()
         } else if prompt.to_lowercase().contains("class") {
-            "class ExampleClass {\n    constructor() {\n        
+            "class ExampleClass {\n    constructor() {\n        // TODO: Initialize class\n    }\n}".to_string()
         } else if prompt.to_lowercase().contains("bug") || prompt.to_lowercase().contains("fix") {
-            "
+            "// Suggested fix:\n// Check for null values and add proper error handling".to_string()
         } else {
-            "
+            "// GitHub Copilot suggestion based on your prompt\n// Please review and modify as needed".to_string()
         }
     }
 }
@@ -166,7 +166,7 @@ pub async fn query_with_code_context(
         usage: AgentUsage {
             tokens_used: request.prompt.len() as u32, 
             response_time_ms: elapsed.as_millis() as u64,
-            model: Some("github-copilot".to_string()),
+            model: Some("github_copilot".to_string()),
         },
         metadata: {
             let mut meta = HashMap::new();

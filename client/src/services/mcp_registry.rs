@@ -63,7 +63,7 @@ impl McpRegistry {
 
         log::info!("Found {} enabled MCP server(s)", enabled_servers.len());
 
-        for server_config in enabled_servers {
+        for server_config in &enabled_servers {
             match self.connect_server_with_retry(server_config).await {
                 Ok(connection_id) => {
                     log::info!(

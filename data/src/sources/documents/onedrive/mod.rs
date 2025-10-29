@@ -247,32 +247,34 @@ impl OneDriveConnector {
         }
     }
 
-    async fn fetch_folder_recursive(
-        &self,
-        drive_id: &str,
-        item_id: &str,
-        config: &Value,
-    ) -> Result<Vec<OneDriveItem>, Box<dyn std::error::Error + Send + Sync>> {
-        let mut all_files = Vec::new();
-        let children = self.list_children(drive_id, item_id).await?;
+    fn fetch_folder_recursive<'a>(
+        &'a self,
+        drive_id: &'a str,
+        item_id: &'a str,
+        config: &'a Value,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<OneDriveItem>, Box<dyn std::error::Error + Send + Sync>>> + Send + 'a>> {
+        Box::pin(async move {
+            let mut all_files = Vec::new();
+            let children = self.list_children(drive_id, item_id).await?;
 
-        for child in children {
-            if child.folder.is_some() {
-                // Recursively fetch folder contents
-                let recursive = config.get("recursive")
-                    .and_then(|r| r.as_bool())
-                    .unwrap_or(true);
+            for child in children {
+                if child.folder.is_some() {
+                    // Recursively fetch folder contents
+                    let recursive = config.get("recursive")
+                        .and_then(|r| r.as_bool())
+                        .unwrap_or(true);
 
-                if recursive {
-                    let subfolder_files = self.fetch_folder_recursive(drive_id, &child.id, config).await?;
-                    all_files.extend(subfolder_files);
-                }
-            } else if child.file.is_some() {
+                    if recursive {
+                        let subfolder_files = self.fetch_folder_recursive(drive_id, &child.id, config).await?;
+                        all_files.extend(subfolder_files);
+                    }
+                } else if child.file.is_some() {
                 all_files.push(child);
             }
         }
 
-        Ok(all_files)
+            Ok(all_files)
+        })
     }
 
     fn should_include_file(&self, item: &OneDriveItem, config: &Value) -> bool {

@@ -47,11 +47,7 @@ pub struct CreateCustomerRequest {
     pub name: String,
 }
 
-#[derive(serde::Deserialize, Validate)]
-pub struct CreateSubscriptionRequest {
-    pub customer_id: String,
-    pub price_id: String,
-}
+// Using CreateSubscriptionRequest from conhub_models::billing
 
 #[derive(serde::Deserialize, Validate)]
 pub struct CreatePaymentIntentRequest {
@@ -97,11 +93,10 @@ pub async fn create_payment_intent(request: web::Json<CreatePaymentIntentRequest
 
     let billing_service = BillingService::new();
 
-    match billing_service.create_payment_intent(request.amount, &request.currency, &request.customer_id).await {
-        Ok(payment_intent) => Ok(HttpResponse::Ok().json(json!({
+    match billing_service.create_payment_intent(request.amount, &request.currency).await {
+        Ok(payment_intent_id) => Ok(HttpResponse::Ok().json(json!({
             "success": true,
-            "client_secret": payment_intent.client_secret,
-            "payment_intent_id": payment_intent.id
+            "payment_intent_id": payment_intent_id
         }))),
         Err(e) => {
             log::error!("Failed to create payment intent: {}", e);
@@ -121,10 +116,9 @@ pub async fn create_setup_intent(request: web::Json<serde_json::Value>) -> Resul
     let billing_service = BillingService::new();
 
     match billing_service.create_setup_intent(customer_id).await {
-        Ok(setup_intent) => Ok(HttpResponse::Ok().json(json!({
+        Ok(setup_intent_id) => Ok(HttpResponse::Ok().json(json!({
             "success": true,
-            "client_secret": setup_intent.client_secret,
-            "setup_intent_id": setup_intent.id
+            "setup_intent_id": setup_intent_id
         }))),
         Err(e) => {
             log::error!("Failed to create setup intent: {}", e);
@@ -144,16 +138,22 @@ pub async fn create_subscription(request: web::Json<CreateSubscriptionRequest>) 
         })));
     }
 
+    // For demo purposes, using a fixed user ID - in real app, extract from JWT token
+    let user_id = match Uuid::parse_str(DEMO_USER_ID) {
+        Ok(id) => id,
+        Err(_) => return Ok(HttpResponse::InternalServerError().json(json!({
+            "error": "Invalid demo user ID"
+        })))
+    };
+
     let billing_service = BillingService::new();
 
-    match billing_service.create_subscription(&request.customer_id, &request.price_id).await {
+    match billing_service.create_subscription(user_id, &request).await {
         Ok(subscription) => Ok(HttpResponse::Ok().json(json!({
             "success": true,
             "subscription_id": subscription.id,
             "status": subscription.status,
-            "client_secret": subscription.latest_invoice
-                .and_then(|invoice| invoice.payment_intent)
-                .and_then(|pi| pi.client_secret)
+            "plan_id": subscription.plan_id
         }))),
         Err(e) => {
             log::error!("Failed to create subscription: {}", e);
@@ -204,10 +204,17 @@ pub async fn get_payment_methods(path: web::Path<String>) -> Result<HttpResponse
 
 
 pub async fn get_invoices(path: web::Path<String>) -> Result<HttpResponse, ServiceError> {
-    let customer_id = path.into_inner();
+    let customer_id_str = path.into_inner();
+    let customer_id = match Uuid::parse_str(&customer_id_str) {
+        Ok(id) => id,
+        Err(_) => return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Invalid customer ID format"
+        })))
+    };
+    
     let billing_service = BillingService::new();
 
-    match billing_service.get_invoices(&customer_id).await {
+    match billing_service.get_invoices(customer_id).await {
         Ok(invoices) => Ok(HttpResponse::Ok().json(json!({
             "success": true,
             "invoices": invoices
@@ -241,6 +248,49 @@ pub async fn handle_stripe_webhook(req: HttpRequest, body: web::Bytes) -> Result
             log::error!("Failed to handle webhook: {}", e);
             Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Failed to handle webhook"
+            })))
+        }
+    }
+}
+
+pub async fn get_subscription(path: web::Path<String>) -> Result<HttpResponse, ServiceError> {
+    let user_id = match Uuid::parse_str(&path) {
+        Ok(id) => id,
+        Err(_) => return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Invalid user ID format"
+        })))
+    };
+
+    let billing_service = BillingService::new();
+    match billing_service.get_subscription(user_id).await {
+        Ok(Some(subscription)) => Ok(HttpResponse::Ok().json(subscription)),
+        Ok(None) => Ok(HttpResponse::NotFound().json(json!({
+            "error": "No subscription found for user"
+        }))),
+        Err(e) => {
+            log::error!("Failed to get subscription: {}", e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to get subscription"
+            })))
+        }
+    }
+}
+
+pub async fn add_payment_method(request: web::Json<CreatePaymentMethodRequest>) -> Result<HttpResponse, ServiceError> {
+    let user_id = match Uuid::parse_str(DEMO_USER_ID) {
+        Ok(id) => id,
+        Err(_) => return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Invalid user ID format"
+        })))
+    };
+
+    let billing_service = BillingService::new();
+    match billing_service.add_payment_method(user_id, request.into_inner()).await {
+        Ok(payment_method) => Ok(HttpResponse::Created().json(payment_method)),
+        Err(e) => {
+            log::error!("Failed to add payment method: {}", e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to add payment method"
             })))
         }
     }

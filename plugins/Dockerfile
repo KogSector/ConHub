@@ -3,11 +3,6 @@ FROM rustlang/rust:nightly AS builder
 
 WORKDIR /app
 
-# Development stage
-FROM builder AS development
-RUN cargo install cargo-watch
-CMD ["cargo", "watch", "-q", "-x", "run"]
-
 # Copy shared dependencies first
 COPY shared/ ./shared/
 
@@ -17,6 +12,11 @@ COPY plugins/ ./plugins/
 # Build the plugins service
 WORKDIR /app/plugins
 RUN cargo build --release
+
+# Development stage
+FROM builder AS development
+RUN cargo install cargo-watch
+CMD ["cargo", "watch", "-q", "-x", "run"]
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -32,7 +32,7 @@ RUN useradd -r -s /bin/false conhub
 
 # Create directories
 RUN mkdir -p /app/config /app/logs
-COPY --from=builder /app/plugins/target/release/conhub-plugins-service /app/
+COPY --from=builder /app/plugins/target/release/conhub-plugins-service /app/conhub-plugins-service
 COPY --from=builder /app/plugins/config/ /app/config/
 
 # Set ownership

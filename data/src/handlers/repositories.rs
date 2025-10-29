@@ -3,10 +3,11 @@ use serde_json::json;
 
 use conhub_models::{
     ApiResponse, ConnectRepositoryRequest,
-    RepositoryConfig, RepositoryCredentials
+    RepositoryConfig, RepositoryCredentials,
+    VcsType, VcsProvider, RepositorySyncStatus, CredentialType
 };
-use crate::services::{RepositoryService, CredentialValidator};
-use crate::services::vcs_connector::VcsError;
+use crate::services::data::{RepositoryService, CredentialValidator};
+use crate::services::data::vcs_connector::VcsError;
 
 
 pub async fn connect_repository(
@@ -46,7 +47,7 @@ pub async fn get_repository(path: web::Path<String>) -> Result<HttpResponse> {
     let repo_id = path.into_inner();
     let repository_service = RepositoryService::new();
     
-    match repository_service.get_repository(&repo_id) {
+    match repository_service.get_repository(&repo_id).await {
         Some(repo_info) => Ok(HttpResponse::Ok().json(ApiResponse {
             success: true,
             message: "Repository retrieved successfully".to_string(),
@@ -65,7 +66,7 @@ pub async fn get_repository(path: web::Path<String>) -> Result<HttpResponse> {
 
 pub async fn list_repositories() -> Result<HttpResponse> {
     let repository_service = RepositoryService::new();
-    let repositories = repository_service.list_repositories();
+    let repositories = repository_service.list_repositories().await;
     
     Ok(HttpResponse::Ok().json(ApiResponse {
         success: true,
@@ -83,7 +84,7 @@ pub async fn update_repository_config(
     let repo_id = path.into_inner();
     let repository_service = RepositoryService::new();
     
-    match repository_service.update_repository_config(&repo_id, req.into_inner()) {
+    match repository_service.update_repository_config(&repo_id, req.into_inner()).await {
         Ok(()) => Ok(HttpResponse::Ok().json(ApiResponse {
             success: true,
             message: "Repository configuration updated successfully".to_string(),
@@ -168,7 +169,7 @@ pub async fn disconnect_repository(path: web::Path<String>) -> Result<HttpRespon
     let repo_id = path.into_inner();
     let repository_service = RepositoryService::new();
     
-    match repository_service.disconnect_repository(&repo_id) {
+    match repository_service.disconnect_repository(&repo_id).await {
         Ok(()) => Ok(HttpResponse::Ok().json(ApiResponse {
             success: true,
             message: "Repository disconnected successfully".to_string(),
@@ -225,7 +226,7 @@ pub async fn update_repository_credentials(
     let repo_id = path.into_inner();
     let repository_service = RepositoryService::new();
     
-    match repository_service.update_repository_credentials(&repo_id, req.into_inner()) {
+    match repository_service.update_repository_credentials(&repo_id, req.into_inner()).await {
         Ok(()) => Ok(HttpResponse::Ok().json(ApiResponse {
             success: true,
             message: "Repository credentials updated successfully".to_string(),
@@ -285,8 +286,8 @@ pub async fn setup_repository_webhook(
 
 #[derive(serde::Deserialize)]
 pub struct ValidateCredentialsRequest {
-    pub vcs_type: crate::models::VcsType,
-    pub provider: crate::models::VcsProvider,
+    pub vcs_type: VcsType,
+    pub provider: VcsProvider,
     pub credentials: RepositoryCredentials,
 }
 
@@ -320,18 +321,18 @@ pub async fn validate_credentials(
 
 pub async fn get_repository_stats() -> Result<HttpResponse> {
     let repository_service = RepositoryService::new();
-    let repositories = repository_service.list_repositories();
+    let repositories = repository_service.list_repositories().await;
     
     let mut stats = std::collections::HashMap::new();
     stats.insert("total_repositories", repositories.len());
     
     let connected_count = repositories.iter()
-        .filter(|r| r.sync_status == crate::models::RepositorySyncStatus::Connected)
+        .filter(|r| r.sync_status == RepositorySyncStatus::Connected)
         .count();
     stats.insert("connected", connected_count);
     
     let syncing_count = repositories.iter()
-        .filter(|r| r.sync_status == crate::models::RepositorySyncStatus::Syncing)
+        .filter(|r| r.sync_status == RepositorySyncStatus::Syncing)
         .count();
     stats.insert("syncing", syncing_count);
     
@@ -376,7 +377,7 @@ pub struct ValidateUrlResponse {
 pub async fn validate_repository_url(
     req: web::Json<ValidateUrlRequest>,
 ) -> Result<HttpResponse> {
-    use crate::services::vcs_detector::VcsDetector;
+    use crate::services::data::vcs_detector::VcsDetector;
     
     let url = &req.repo_url;
     
@@ -443,8 +444,8 @@ pub struct FetchBranchesResponse {
 pub async fn fetch_branches(
     req: web::Json<FetchBranchesRequest>,
 ) -> Result<HttpResponse> {
-    use crate::services::vcs_connector::VcsConnectorFactory;
-    use crate::services::vcs_detector::VcsDetector;
+    use crate::services::data::vcs_connector::VcsConnectorFactory;
+    use crate::services::data::vcs_detector::VcsDetector;
     
     let (vcs_type, _provider) = match VcsDetector::detect_from_url(&req.repo_url) {
         Ok(result) => result,
@@ -462,7 +463,7 @@ pub async fn fetch_branches(
     
     
     let credentials = req.credentials.as_ref().unwrap_or(&RepositoryCredentials {
-        credential_type: crate::models::CredentialType::None,
+        credential_type: CredentialType::None,
         expires_at: None,
     });
     
@@ -495,11 +496,11 @@ pub async fn fetch_branches(
         }
         Err(e) => {
             let (mut status, error_msg) = match e {
-                crate::services::vcs_connector::VcsError::AuthenticationFailed(msg) => (HttpResponse::Unauthorized(), msg),
-                crate::services::vcs_connector::VcsError::RepositoryNotFound(msg) => (HttpResponse::NotFound(), msg),
-                crate::services::vcs_connector::VcsError::InvalidCredentials(msg) => (HttpResponse::BadRequest(), msg),
-                crate::services::vcs_connector::VcsError::InvalidUrl(msg) => (HttpResponse::BadRequest(), msg),
-                crate::services::vcs_connector::VcsError::PermissionDenied(msg) => (HttpResponse::Forbidden(), msg),
+                VcsError::AuthenticationFailed(msg) => (HttpResponse::Unauthorized(), msg),
+                VcsError::RepositoryNotFound(msg) => (HttpResponse::NotFound(), msg),
+                VcsError::InvalidCredentials(msg) => (HttpResponse::BadRequest(), msg),
+                VcsError::InvalidUrl(msg) => (HttpResponse::BadRequest(), msg),
+                VcsError::PermissionDenied(msg) => (HttpResponse::Forbidden(), msg),
                 _ => (HttpResponse::InternalServerError(), e.to_string()),
             };
             

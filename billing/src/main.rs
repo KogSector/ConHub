@@ -4,6 +4,8 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::env;
 
 mod handlers;
+mod services;
+mod errors;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

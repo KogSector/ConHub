@@ -59,10 +59,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/ai")
-            .route("/agents", web::get().to(handlers::ai::list_agents))
-            .route("/agents/{agent_id}", web::get().to(handlers::ai::get_agent))
-            .route("/agents/{agent_id}/execute", web::post().to(handlers::ai::execute_agent))
-            .route("/chat", web::post().to(handlers::ai::chat))
+            .route("/agents", web::get().to(handlers::get_agents))
+            .route("/query", web::post().to(handlers::query_agents))
     );
 }
 

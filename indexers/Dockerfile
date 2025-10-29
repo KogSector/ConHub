@@ -1,15 +1,17 @@
 # Build stage
 FROM rustlang/rust:nightly-alpine as builder
 
-WORKDIR /workspace
+WORKDIR /build
 
 # Install build dependencies
 RUN apk add --no-cache musl-dev openssl-dev pkgconfig git
 
-# Copy workspace files
-COPY Cargo.toml Cargo.lock ./
-COPY shared/ ./shared/
-COPY indexers/ ./indexers/
+# Copy shared dependencies first (to parent directory structure)
+COPY shared/ ../shared/
+
+# Copy service files
+COPY indexers/Cargo.toml indexers/Cargo.lock ./
+COPY indexers/src ./src
 
 # Build the unified-indexer
 RUN cargo build --release --bin unified-indexer
@@ -23,7 +25,7 @@ RUN apk add --no-cache ca-certificates libgcc libssl3 curl git
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /workspace/target/release/unified-indexer /app/unified-indexer
+COPY --from=builder /build/target/release/unified-indexer /app/unified-indexer
 
 # Create data directories
 RUN mkdir -p /app/data/index /app/data/temp
