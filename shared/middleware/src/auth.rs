@@ -7,12 +7,11 @@ use futures_util::future::LocalBoxFuture;
 use std::future::{ready, Ready};
 use std::rc::Rc;
 use std::sync::Arc;
-use crate::services::auth_service::{AuthService, AuthError};
-use crate::models::auth::Claims;
+use conhub_models::auth::Claims;
+use jsonwebtoken::{decode, DecodingKey, Validation};
 
 pub struct AuthMiddleware<S> {
     service: Rc<S>,
-    auth_service: Arc<AuthService>,
 }
 
 impl<S, B> Service<ServiceRequest> for AuthMiddleware<S>
@@ -29,38 +28,22 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let service = Rc::clone(&self.service);
-        let auth_service = Arc::clone(&self.auth_service);
 
         Box::pin(async move {
-            let auth_header = req.headers().get("Authorization");
-            
-            if let Some(auth_value) = auth_header {
-                if let Ok(auth_str) = auth_value.to_str() {
+            if let Some(auth_header) = req.headers().get("Authorization") {
+                if let Ok(auth_str) = auth_header.to_str() {
                     if auth_str.starts_with("Bearer ") {
                         let token = &auth_str[7..];
+                        let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());
                         
-                        match auth_service.verify_token(token) {
-                            Ok(claims) => {
-                                req.extensions_mut().insert(claims);
-                                let res = service.call(req).await?;
-                                return Ok(res.map_into_left_body());
-                            },
-                            Err(AuthError::TokenExpired) => {
-                                return Ok(req.into_response(
-                                    HttpResponse::Unauthorized()
-                                        .json(serde_json::json!({
-                                            "error": "Token expired"
-                                        }))
-                                ).map_into_right_body());
-                            },
-                            Err(_) => {
-                                return Ok(req.into_response(
-                                    HttpResponse::Unauthorized()
-                                        .json(serde_json::json!({
-                                            "error": "Invalid token"
-                                        }))
-                                ).map_into_right_body());
-                            }
+                        if let Ok(token_data) = decode::<Claims>(
+                            token,
+                            &DecodingKey::from_secret(secret.as_ref()),
+                            &Validation::default(),
+                        ) {
+                            req.extensions_mut().insert(token_data.claims);
+                            let res = service.call(req).await?;
+                            return Ok(res.map_into_left_body());
                         }
                     }
                 }
@@ -76,15 +59,7 @@ where
     }
 }
 
-pub struct AuthMiddlewareFactory {
-    auth_service: Arc<AuthService>,
-}
-
-impl AuthMiddlewareFactory {
-    pub fn new(auth_service: Arc<AuthService>) -> Self {
-        Self { auth_service }
-    }
-}
+pub struct AuthMiddlewareFactory;
 
 impl<S, B> Transform<S, ServiceRequest> for AuthMiddlewareFactory
 where
@@ -101,7 +76,6 @@ where
     fn new_transform(&self, service: S) -> Self::Future {
         ready(Ok(AuthMiddleware {
             service: Rc::new(service),
-            auth_service: Arc::clone(&self.auth_service),
         }))
     }
 }

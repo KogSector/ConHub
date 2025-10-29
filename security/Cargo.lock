@@ -582,7 +582,9 @@ dependencies = [
  "actix-web",
  "actix-web-httpauth",
  "chrono",
+ "conhub-models",
  "futures",
+ "futures-util",
  "jsonwebtoken",
  "log",
  "serde",
@@ -591,6 +593,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

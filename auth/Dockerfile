@@ -6,6 +6,7 @@ COPY shared/ ../shared/
 
 # Copy service Cargo files
 COPY auth/Cargo.toml ./Cargo.toml
+COPY auth/Cargo.lock ./Cargo.lock
 
 # Copy service source code
 COPY auth/src ./src

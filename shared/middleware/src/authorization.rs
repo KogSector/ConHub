@@ -5,7 +5,7 @@ use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
 use uuid::Uuid;
 use std::collections::HashSet;
 
-use crate::models::auth::{Claims, UserRole, SubscriptionTier};
+use conhub_models::auth::{Claims, UserRole, SubscriptionTier};
 
 pub struct AuthGuard {
     pub required_roles: Option<Vec<UserRole>>,

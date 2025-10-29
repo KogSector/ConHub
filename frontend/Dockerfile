@@ -1,6 +1,15 @@
 # Multi-stage build for Next.js frontend
 FROM node:18-alpine AS base
 
+# Development stage
+FROM base AS development
+WORKDIR /app
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ .
+EXPOSE 3000
+CMD ["npm", "run", "dev"]
+
 # Install dependencies only when needed
 FROM base AS deps
 RUN apk add --no-cache libc6-compat

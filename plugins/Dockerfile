@@ -3,6 +3,11 @@ FROM rustlang/rust:nightly AS builder
 
 WORKDIR /app
 
+# Development stage
+FROM builder AS development
+RUN cargo install cargo-watch
+CMD ["cargo", "watch", "-q", "-x", "run"]
+
 # Copy shared dependencies first
 COPY shared/ ./shared/
 
