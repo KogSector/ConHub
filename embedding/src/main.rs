@@ -2,6 +2,7 @@ use actix_web::{web, App, HttpServer};
 use std::env;
 use std::sync::Arc;
 
+mod config;
 mod handlers;
 mod models;
 mod services;
@@ -35,6 +36,8 @@ async fn main() -> std::io::Result<()> {
             .expect("Failed to initialize reranking service")
     );
     log::info!("Models initialized successfully");
+
+    // Service ready for production use
 
     // Start HTTP server
     log::info!("Starting HTTP server...");

@@ -1,0 +1,41 @@
+{
+  "id": "filesystem",
+  "name": "Filesystem Connector",
+  "version": "1.0.0",
+  "description": "Connector for accessing local filesystem files and directories",
+  "capabilities": [
+    "files",
+    "directories",
+    "search",
+    "metadata",
+    "read",
+    "write"
+  ],
+  "metadata": {
+    "category": "local-storage",
+    "provider": "filesystem",
+    "supportedFormats": ["*"],
+    "rateLimits": {
+      "requestsPerMinute": 1000,
+      "requestsPerDay": 100000
+    }
+  },
+  "authentication": {
+    "type": "none"
+  },
+  "settings": {
+    "maxFileSize": "100MB",
+    "allowedPaths": [
+      "/workspace",
+      "/tmp",
+      "/home"
+    ],
+    "supportedOperations": [
+      "list",
+      "search",
+      "read",
+      "write",
+      "metadata"
+    ]
+  }
+}

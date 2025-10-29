@@ -5,10 +5,10 @@ WORKDIR /app
 COPY shared/ ../shared/
 
 # Copy service Cargo files
-COPY ai/Cargo.toml ./Cargo.toml
+COPY client/Cargo.toml ./Cargo.toml
 
 # Copy service source code
-COPY ai/src ./src
+COPY client/src ./src
 
 # Build
 RUN cargo build --release
@@ -16,6 +16,6 @@ RUN cargo build --release
 # Runtime stage
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates libssl3 && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/release/ai-service /usr/local/bin/
+COPY --from=builder /app/target/release/client-service /usr/local/bin/
 EXPOSE 3014
-CMD ["ai-service"]
+CMD ["client-service"]

@@ -6,6 +6,10 @@ services:
   # Frontend Service
   frontend:
     build:
+      # Use repository root as build context so the Dockerfile can access
+      # top-level files (feature-toggles.json, public, etc.). The Dockerfile
+      # already references paths like `frontend/` so keeping the Dockerfile
+      # path unchanged keeps the current multi-stage build semantics.
       context: .
       dockerfile: frontend/Dockerfile
     container_name: conhub-frontend
@@ -22,7 +26,7 @@ services:
       - billing
       - security
       - data
-      - ai
+      - client
       - webhook
       - plugins
     networks:
@@ -31,6 +35,8 @@ services:
   # Backend Service
   backend:
     build:
+      # Use repository root as build context because the backend Dockerfile
+      # copies files from multiple top-level folders (shared/, auth/, billing/, etc.).
       context: .
       dockerfile: backend/Dockerfile
     container_name: conhub-backend
@@ -139,12 +145,12 @@ services:
     networks:
       - conhub-network
 
-  # AI Service
-  ai:
+  # Client Service
+  client:
     build:
       context: .
-      dockerfile: ai/Dockerfile
-    container_name: conhub-ai
+      dockerfile: client/Dockerfile
+    container_name: conhub-client
     ports:
       - "3014:3014"
     environment:
@@ -225,8 +231,8 @@ services:
   # Nginx API Gateway
   nginx:
     build:
-      context: .
-      dockerfile: nginx/Dockerfile
+      context: ./nginx
+      dockerfile: Dockerfile
     container_name: conhub-nginx
     ports:
       - "80:80"
@@ -237,7 +243,7 @@ services:
       - billing
       - security
       - data
-      - ai
+      - client
       - webhook
     networks:
       - conhub-network

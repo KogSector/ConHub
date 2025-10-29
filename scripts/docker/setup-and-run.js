@@ -77,11 +77,19 @@ async function runCommand(command, cwd = process.cwd(), silent = false) {
 }
 
 async function checkDockerRunning() {
+    // Primary check: try 'docker info' which requires server connectivity
     try {
         await runCommand('docker info', process.cwd(), true);
-        return true;
+        return { running: true };
     } catch (error) {
-        return false;
+        // Secondary: gather diagnostic information from 'docker version' or the original error
+        try {
+            const versionOutput = await runCommand('docker version', process.cwd(), true);
+            return { running: false, diagnostic: versionOutput.trim() };
+        } catch (err2) {
+            // Fall back to the original error message
+            return { running: false, diagnostic: (error && error.message) ? error.message : String(error) };
+        }
     }
 }
 
@@ -95,9 +103,64 @@ async function checkDockerComposeExists() {
 async function getExistingImages() {
     try {
         const output = await runCommand('docker images --format "{{.Repository}}:{{.Tag}}"', process.cwd(), true);
-        return output.split('\n').filter(line => line.trim() && line.includes('conhub'));
+        return output.split('\n').filter(line => line.trim());
     } catch (error) {
         return [];
+    }
+}
+
+function parseComposeDeclaredImages() {
+    try {
+        const projectRoot = path.resolve(__dirname, '..', '..');
+        const composePath = path.join(projectRoot, 'docker-compose.yml');
+        const content = fs.readFileSync(composePath, 'utf8');
+
+        const lines = content.split(/\r?\n/);
+        const images = [];
+        const servicesWithBuild = new Set();
+
+        let currentService = null;
+        let inServices = false;
+        for (let rawLine of lines) {
+            const line = rawLine.replace(/\t/g, '    ');
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+
+            if (/^services:\s*$/.test(trimmed)) {
+                inServices = true;
+                continue;
+            }
+
+            if (!inServices) continue;
+
+            // service definition (starts at column 2 or 0) - detect by pattern 'name:' at 2-space indent
+            const serviceMatch = /^([a-zA-Z0-9_\-]+):\s*$/.exec(trimmed);
+            if (serviceMatch && line.startsWith('  ')) {
+                currentService = serviceMatch[1];
+                continue;
+            }
+
+            if (!currentService) continue;
+
+            const imageMatch = /^image:\s*(.+)$/.exec(trimmed);
+            if (imageMatch) {
+                let img = imageMatch[1].trim();
+                // remove quotes
+                img = img.replace(/^['"]|['"]$/g, '');
+                images.push(img);
+                continue;
+            }
+
+            const buildMatch = /^build:\s*(?:\n)?/.exec(trimmed);
+            if (buildMatch) {
+                servicesWithBuild.add(currentService);
+                continue;
+            }
+        }
+
+        return { images, servicesWithBuild: Array.from(servicesWithBuild) };
+    } catch (error) {
+        return { images: [], servicesWithBuild: [] };
     }
 }
 
@@ -165,24 +228,36 @@ async function stopRunningContainers() {
 }
 
 async function buildContainers(forceBuild = false) {
+    // Inspect docker-compose.yml to know which images are declared and which services have build contexts
+    const { images: declaredImages, servicesWithBuild } = parseComposeDeclaredImages();
+
     const existingImages = await getExistingImages();
-    const hasConHubImages = existingImages.length > 0;
-    
-    if (!forceBuild && hasConHubImages) {
-        logInfo('ConHub Docker images already exist. Skipping build...');
+    const existingSet = new Set(existingImages.map(i => i.toLowerCase()));
+
+    // Determine which declared images are missing locally
+    const missingDeclared = declaredImages.filter(img => !existingSet.has(img.toLowerCase()));
+
+    // If any service has a build context, or any declared image is missing, we should build (unless forceBuild false and nothing missing)
+    const shouldBuild = forceBuild || missingDeclared.length > 0 || servicesWithBuild.length > 0 && declaredImages.length === 0;
+
+    if (!shouldBuild) {
+        logInfo('All declared images are present locally. Skipping build...');
         logInfo('Use --force-build flag to rebuild images');
         return;
     }
-    
+
     try {
-        logStep('BUILD', hasConHubImages ? 'Rebuilding Docker containers...' : 'Building Docker containers for the first time...');
-        
-        if (!hasConHubImages) {
-            logInfo('This is your first time setting up ConHub with Docker.');
-            logInfo('Building all containers... This may take several minutes.');
+        logStep('BUILD', forceBuild ? 'Force rebuilding Docker containers...' : 'Building Docker containers...');
+
+        if (missingDeclared.length > 0) {
+            logInfo('Missing images detected:');
+            missingDeclared.forEach(i => log(`  • ${i}`));
         }
-        
-        // Run docker-compose from project root directory
+        if (servicesWithBuild.length > 0) {
+            logInfo('Services with build contexts detected:');
+            servicesWithBuild.forEach(s => log(`  • ${s}`));
+        }
+
         const projectRoot = path.resolve(__dirname, '..', '..');
         await runCommand('docker-compose build --parallel', projectRoot);
         logSuccess('All containers built successfully');
@@ -256,6 +331,7 @@ async function showStatus() {
 async function main() {
     const args = process.argv.slice(2);
     const forceBuild = args.includes('--force-build') || args.includes('-f');
+    const startOnly = args.includes('--start-only');
     const helpRequested = args.includes('--help') || args.includes('-h');
     
     if (helpRequested) {
@@ -267,12 +343,14 @@ async function main() {
         log(`  - Handles environment setup automatically\n`);
         
         log(`${colors.cyan}Usage:${colors.reset}`);
-        log(`  npm run docker:setup              # Setup and run (build only if needed)`);
-        log(`  npm run docker:setup -- --force-build  # Force rebuild all containers`);
-        log(`  npm run docker:setup -- --help         # Show this help\n`);
+        log(`  npm run docker:setup                  # Setup and run (build only if needed)`);
+        log(`  npm run docker:start                  # Start services without rebuilding existing images`);
+        log(`  npm run docker:setup -- --force-build # Force rebuild all containers`);
+        log(`  npm run docker:setup -- --help        # Show this help\n`);
         
         log(`${colors.cyan}Flags:${colors.reset}`);
         log(`  --force-build, -f    Force rebuild all containers even if they exist`);
+        log(`  --start-only         Skip container teardown and reuse existing images when available`);
         log(`  --help, -h           Show this help message`);
         
         return;
@@ -281,11 +359,18 @@ async function main() {
     try {
         log(`${colors.bright}${colors.magenta}🐳 ConHub Docker Setup & Run Script${colors.reset}\n`);
         
-        // Check if Docker is running
+        // Check if Docker is running (with diagnostics)
         logStep('DOCKER', 'Verifying Docker is running...');
-        const dockerRunning = await checkDockerRunning();
-        if (!dockerRunning) {
+        const dockerCheck = await checkDockerRunning();
+        if (!dockerCheck.running) {
             logError('Docker is not running. Please start Docker Desktop and try again.');
+            if (dockerCheck.diagnostic) {
+                logInfo('Docker diagnostic output:');
+                // Print diagnostic output indented for readability
+                dockerCheck.diagnostic.split('\n').forEach(line => {
+                    if (line.trim()) log(`  ${line}`);
+                });
+            }
             logInfo('Make sure Docker Desktop is installed and running before proceeding.');
             process.exit(1);
         }
@@ -308,10 +393,12 @@ async function main() {
         }
         logSuccess('Environment configuration ready');
 
-        // Stop any running containers
-        await stopRunningContainers();
+        if (startOnly) {
+            logStep('CLEANUP', 'Start-only mode detected; skipping container teardown');
+        } else {
+            await stopRunningContainers();
+        }
 
-        // Build containers (only if needed or forced)
         await buildContainers(forceBuild);
 
         // Start containers

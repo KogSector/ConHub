@@ -7,6 +7,7 @@ pub struct IndexerConfig {
     pub backend_url: String,
     pub qdrant_url: Option<String>,
     pub qdrant_api_key: Option<String>,
+    pub embedding_service_url: String,
     pub openai_api_key: Option<String>,
     pub max_file_size: usize,
     pub chunk_size: usize,
@@ -31,6 +32,8 @@ impl IndexerConfig {
                 .unwrap_or_else(|_| "http://localhost:3001".to_string()),
             qdrant_url: std::env::var("QDRANT_URL").ok(),
             qdrant_api_key: std::env::var("QDRANT_API_KEY").ok(),
+            embedding_service_url: std::env::var("EMBEDDING_SERVICE_URL")
+                .unwrap_or_else(|_| "http://localhost:8082".to_string()),
             openai_api_key: std::env::var("OPENAI_API_KEY").ok(),
             max_file_size: std::env::var("MAX_FILE_SIZE")
                 .unwrap_or_else(|_| "10485760".to_string()) 
@@ -60,10 +63,11 @@ impl fmt::Display for IndexerConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "IndexerConfig {{ host: {}, port: {}, backend_url: {}, qdrant_enabled: {}, openai_enabled: {} }}",
+            "IndexerConfig {{ host: {}, port: {}, backend_url: {}, embedding_service_url: {}, qdrant_enabled: {}, openai_enabled: {} }}",
             self.host,
             self.port,
             self.backend_url,
+            self.embedding_service_url,
             self.qdrant_url.is_some(),
             self.openai_api_key.is_some()
         )

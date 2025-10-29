@@ -1,0 +1,46 @@
+{
+  "timestamp": "2025-10-29T10:53:06.259Z",
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0
+  },
+  "tests": [
+    {
+      "name": "ConnectorLoader Initialization",
+      "passed": true,
+      "message": "Loader initialized successfully",
+      "timestamp": "2025-10-29T10:53:06.234Z"
+    },
+    {
+      "name": "BaseConnector File Exists",
+      "passed": true,
+      "message": "BaseConnector.js file found",
+      "timestamp": "2025-10-29T10:53:06.237Z"
+    },
+    {
+      "name": "Connector Discovery",
+      "passed": true,
+      "message": "Found 6 connectors",
+      "timestamp": "2025-10-29T10:53:06.247Z"
+    },
+    {
+      "name": "Filesystem Connector Loading",
+      "passed": true,
+      "message": "Filesystem connector loaded successfully",
+      "timestamp": "2025-10-29T10:53:06.254Z"
+    },
+    {
+      "name": "Loader Health Check",
+      "passed": true,
+      "message": "Health status: undefined",
+      "timestamp": "2025-10-29T10:53:06.256Z"
+    },
+    {
+      "name": "Loader Cleanup",
+      "passed": true,
+      "message": "Cleanup completed successfully",
+      "timestamp": "2025-10-29T10:53:06.258Z"
+    }
+  ]
+}
