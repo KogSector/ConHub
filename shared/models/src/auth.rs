@@ -4,13 +4,15 @@ use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use validator::Validate;
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[sqlx(type_name = "user_role", rename_all = "lowercase")]
 pub enum UserRole {
     User,
     Admin,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[sqlx(type_name = "subscription_tier", rename_all = "lowercase")]
 pub enum SubscriptionTier {
     Free,
     Personal,

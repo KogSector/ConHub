@@ -1,11 +1,13 @@
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 use serde::{Deserialize, Serialize};
 use anyhow::{Result, anyhow};
 use reqwest::Client;
 use chrono::{DateTime, Utc, Duration};
 use uuid::Uuid;
 
-use conhub_models::auth::User;
+use bcrypt;
+
+use conhub_models::auth::{User, UserRole, SubscriptionTier};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OAuthProvider {
@@ -305,72 +307,85 @@ impl OAuthService {
         avatar_url: Option<String>,
     ) -> Result<User> {
         
-        let existing = sqlx::query!(
+        let existing = sqlx::query(
             r#"
             SELECT user_id FROM social_connections
             WHERE platform = $1 AND platform_user_id = $2 AND is_active = true
-            "#,
-            provider.to_string(),
-            provider_user_id
+            "#
         )
+        .bind(provider.to_string())
+        .bind(provider_user_id)
         .fetch_optional(&self.pool)
         .await?;
 
         if let Some(connection) = existing {
+            let user_id: Uuid = connection.get("user_id");
             
-            let user = sqlx::query!(
+            let user = sqlx::query(
                 r#"
                 SELECT id, email, password_hash, name, avatar_url, organization,
                        role::text as role, subscription_tier::text as subscription_tier,
                        is_verified, is_active, created_at, updated_at, last_login_at
                 FROM users
                 WHERE id = $1 AND is_active = true
-                "#,
-                connection.user_id
+                "#
             )
+            .bind(user_id)
             .fetch_one(&self.pool)
             .await?;
 
+            let role = match user.get::<Option<String>, _>("role").as_deref() {
+                Some("admin") => UserRole::Admin,
+                _ => UserRole::User,
+            };
+
+            let subscription_tier = match user.get::<Option<String>, _>("subscription_tier").as_deref() {
+                Some("personal") => SubscriptionTier::Personal,
+                Some("team") => SubscriptionTier::Team,
+                Some("enterprise") => SubscriptionTier::Enterprise,
+                _ => SubscriptionTier::Free,
+            };
+
             return Ok(User {
-                id: user.id,
-                email: user.email,
-                password_hash: user.password_hash,
-                name: user.name,
-                avatar_url: user.avatar_url,
-                organization: user.organization,
-                role: user.role.unwrap_or_else(|| "user".to_string()),
-                subscription_tier: user.subscription_tier.unwrap_or_else(|| "free".to_string()),
-                is_verified: user.is_verified,
-                is_active: user.is_active,
-                created_at: user.created_at,
-                updated_at: user.updated_at,
-                last_login_at: user.last_login_at,
+                id: user.get("id"),
+                email: user.get("email"),
+                password_hash: user.get("password_hash"),
+                name: user.get("name"),
+                avatar_url: user.get("avatar_url"),
+                organization: user.get("organization"),
+                role,
+                subscription_tier,
+                is_verified: user.get("is_verified"),
+                is_active: user.get("is_active"),
+                created_at: user.get("created_at"),
+                updated_at: user.get("updated_at"),
+                last_login_at: user.get("last_login_at"),
             });
         }
 
         
-        let existing_user = sqlx::query!(
+        let existing_user = sqlx::query(
             r#"
             SELECT id, email, password_hash, name, avatar_url, organization,
                    role::text as role, subscription_tier::text as subscription_tier,
                    is_verified, is_active, created_at, updated_at, last_login_at
             FROM users
             WHERE email = $1 AND is_active = true
-            "#,
-            email
+            "#
         )
+        .bind(&email)
         .fetch_optional(&self.pool)
         .await?;
 
         let user_id = if let Some(user) = existing_user {
-            user.id
+            user.get("id")
         } else {
             
             let new_user_id = Uuid::new_v4();
             let now = Utc::now();
             let dummy_password_hash = bcrypt::hash("oauth_user_no_password", bcrypt::DEFAULT_COST)?;
 
-            sqlx::query!(
+            sqlx::query(
                 r#"
                 INSERT INTO users (
                     id, email, password_hash, name, avatar_url, organization,
@@ -379,10 +394,16 @@ impl OAuthService {
                     $1, $2, $3, $4, $5, $6,
                     'user'::user_role, 'free'::subscription_tier, true, true, $7, $8
                 )
-                "#,
-                new_user_id, email, dummy_password_hash, name,
-                avatar_url.as_ref(), None::<String>, now, now
+                "#
             )
+            .bind(new_user_id)
+            .bind(email)
+            .bind(dummy_password_hash)
+            .bind(name)
+            .bind(avatar_url.as_ref())
+            .bind(None::<String>)
+            .bind(now)
+            .bind(now)
             .execute(&self.pool)
             .await?;
 
@@ -390,33 +411,41 @@ impl OAuthService {
         };
 
         
-        let user = sqlx::query!(
+        let user = sqlx::query(
             r#"
             SELECT id, email, password_hash, name, avatar_url, organization,
                    role::text as role, subscription_tier::text as subscription_tier,
                    is_verified, is_active, created_at, updated_at, last_login_at
             FROM users
             WHERE id = $1
-            "#,
-            user_id
+            "#
         )
+        .bind(user_id)
         .fetch_one(&self.pool)
         .await?;
 
         Ok(User {
-            id: user.id,
-            email: user.email,
-            password_hash: user.password_hash,
-            name: user.name,
-            avatar_url: user.avatar_url,
-            organization: user.organization,
-            role: user.role.unwrap_or_else(|| "user".to_string()),
-            subscription_tier: user.subscription_tier.unwrap_or_else(|| "free".to_string()),
-            is_verified: user.is_verified,
-            is_active: user.is_active,
-            created_at: user.created_at,
-            updated_at: user.updated_at,
-            last_login_at: user.last_login_at,
+            id: user.get("id"),
+            email: user.get("email"),
+            password_hash: user.get("password_hash"),
+            name: user.get("name"),
+            avatar_url: user.get("avatar_url"),
+            organization: user.get("organization"),
+            role: match user.get::<String, _>("role").as_str() {
+                "admin" => UserRole::Admin,
+                _ => UserRole::User,
+            },
+            subscription_tier: match user.get::<String, _>("subscription_tier").as_str() {
+                "personal" => SubscriptionTier::Personal,
+                "team" => SubscriptionTier::Team,
+                "enterprise" => SubscriptionTier::Enterprise,
+                _ => SubscriptionTier::Free,
+            },
+            is_verified: user.get("is_verified"),
+            is_active: user.get("is_active"),
+            created_at: user.get("created_at"),
+            updated_at: user.get("updated_at"),
+            last_login_at: user.get("last_login_at"),
         })
     }
 
@@ -436,7 +465,7 @@ impl OAuthService {
         let now = Utc::now();
 
         
-        sqlx::query!(
+        sqlx::query(
             r#"
             INSERT INTO social_connections (
                 id, user_id, platform, platform_user_id, username,
@@ -453,20 +482,20 @@ impl OAuthService {
                 scope = EXCLUDED.scope,
                 is_active = true,
                 updated_at = EXCLUDED.updated_at
-            "#,
-            Uuid::new_v4(),
-            user_id,
-            provider.to_string(),
-            provider_user_id,
-            username,
-            access_token,
-            refresh_token,
-            expires_at,
-            scope.unwrap_or_default(),
-            true,
-            now,
-            now
+            "#
         )
+        .bind(Uuid::new_v4())
+        .bind(user_id)
+        .bind(provider.to_string())
+        .bind(provider_user_id)
+        .bind(username)
+        .bind(access_token)
+        .bind(refresh_token)
+        .bind(expires_at)
+        .bind(scope.unwrap_or_default())
+        .bind(true)
+        .bind(now)
+        .bind(now)
         .execute(&self.pool)
         .await?;
 

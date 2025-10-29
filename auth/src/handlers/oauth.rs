@@ -4,8 +4,8 @@ use serde_json::json;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::services::auth::oauth::{OAuthService, OAuthProvider};
-use crate::handlers::auth::auth::generate_jwt_token;
+use crate::services::oauth::{OAuthService, OAuthProvider};
+use crate::handlers::auth::generate_jwt_token;
 use conhub_models::auth::{AuthResponse, UserProfile, User};
 
 #[derive(Debug, Deserialize)]
@@ -57,6 +57,33 @@ pub async fn oauth_init(
     }))
 }
 
+pub async fn oauth_login(
+    provider: web::Path<String>,
+    pool: web::Data<PgPool>,
+) -> Result<HttpResponse> {
+    let oauth_service = OAuthService::new(pool.get_ref().clone());
+    
+    let provider_enum = match provider.to_lowercase().as_str() {
+        "google" => OAuthProvider::Google,
+        "microsoft" => OAuthProvider::Microsoft,
+        "github" => OAuthProvider::GitHub,
+        _ => {
+            return Ok(HttpResponse::BadRequest().json(json!({
+                "error": "Invalid provider",
+                "message": "Supported providers: google, microsoft, github"
+            })));
+        }
+    };
+
+    let state = Uuid::new_v4().to_string();
+    let authorization_url = oauth_service.get_authorization_url(provider_enum, &state);
+
+    Ok(HttpResponse::Ok().json(json!({
+        "authorization_url": authorization_url,
+        "state": state
+    })))
+}
+
 
 pub async fn oauth_callback(
     query: web::Query<OAuthCallbackQuery>,
@@ -84,20 +111,20 @@ pub async fn oauth_callback(
             log::error!("Failed to exchange OAuth code: {}", e);
             return Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Failed to exchange authorization code",
-                "message": e.to_string()
+                "message": format!("{}", e)
             })));
         }
     };
 
     
-    let (provider_user_id, email, name, avatar_url) = 
+    let (provider_user_id, email, name, avatar_url): (String, String, String, Option<String>) = 
         match oauth_service.get_user_info(provider.clone(), &token_response.access_token).await {
             Ok(info) => info,
             Err(e) => {
                 log::error!("Failed to get user info from OAuth provider: {}", e);
                 return Ok(HttpResponse::InternalServerError().json(json!({
                     "error": "Failed to retrieve user information",
-                    "message": e.to_string()
+                    "message": format!("{}", e)
                 })));
             }
         };
@@ -115,7 +142,7 @@ pub async fn oauth_callback(
             log::error!("Failed to find/create OAuth user: {}", e);
             return Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to create/find user account",
-                "message": e.to_string()
+                "message": format!("{}", e)
             })));
         }
     };
@@ -160,7 +187,7 @@ pub async fn oauth_callback(
 
 pub async fn oauth_disconnect(
     provider: web::Path<String>,
-    pool: web::Data<PgPool>,
+    _pool: web::Data<PgPool>,
     
 ) -> Result<HttpResponse> {
     
@@ -179,7 +206,7 @@ pub async fn oauth_disconnect(
 
 
 pub async fn oauth_connections(
-    pool: web::Data<PgPool>,
+    _pool: web::Data<PgPool>,
     
 ) -> Result<HttpResponse> {
     

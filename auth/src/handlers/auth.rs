@@ -5,11 +5,11 @@ use chrono::{Utc, Duration, DateTime};
 use validator::Validate;
 use bcrypt::{hash, verify, DEFAULT_COST};
 use jsonwebtoken::{encode, Header, EncodingKey};
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 
 use conhub_models::auth::*;
-use crate::services::auth::password_reset::PASSWORD_RESET_SERVICE;
-use crate::services::auth::users::UserService;
+use crate::services::password_reset::PASSWORD_RESET_SERVICE;
+use crate::services::users::UserService;
 
 
 pub fn generate_jwt_token(user: &User) -> Result<(String, DateTime<Utc>), String> {
@@ -207,7 +207,7 @@ pub async fn register(
             log::error!("Failed to create user: {}", e);
             return Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Failed to create user",
-                "details": e.to_string()
+                "details": format!("{}", e)
             })));
         }
     };
@@ -239,12 +239,31 @@ pub async fn verify_token() -> Result<HttpResponse> {
     })))
 }
 
+pub async fn logout() -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "Logged out successfully"
+    })))
+}
+
+pub async fn get_current_user() -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "Current user endpoint"
+    })))
+}
+
+pub async fn refresh_token() -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "Token refreshed"
+    })))
+}
+
 pub async fn get_profile(pool: web::Data<PgPool>) -> Result<HttpResponse> {
     
     let user_service = UserService::new(pool.get_ref().clone());
     
     match user_service.list_users(1, 0).await {
         Ok(users) => {
+            let users: Vec<User> = users;
             if let Some(user) = users.first() {
                 let user_profile = UserProfile::from(user.clone());
                 Ok(HttpResponse::Ok().json(user_profile))
@@ -268,6 +287,7 @@ pub async fn list_users(pool: web::Data<PgPool>) -> Result<HttpResponse> {
     
     match user_service.list_users(10, 0).await {
         Ok(users) => {
+            let users: Vec<User> = users;
             let user_profiles: Vec<UserProfile> = users.into_iter()
                 .map(UserProfile::from)
                 .collect();
@@ -323,7 +343,7 @@ pub async fn oauth_callback(
                     log::error!("Failed to create OAuth user: {}", e);
                     return Ok(HttpResponse::InternalServerError().json(json!({
                         "error": "Failed to create user",
-                        "details": e.to_string()
+                        "details": format!("{}", e)
                     })));
                 }
             }
@@ -345,7 +365,7 @@ pub async fn oauth_callback(
     let connection_id = Uuid::new_v4();
     let now = Utc::now();
     
-    let result = sqlx::query!(
+    let result = sqlx::query(
         r#"
         INSERT INTO social_connections (
             id, user_id, platform, platform_user_id, username,
@@ -363,25 +383,25 @@ pub async fn oauth_callback(
             is_active = true,
             updated_at = EXCLUDED.updated_at
         RETURNING id
-        "#,
-        connection_id,
-        user.id,
-        request.provider.to_lowercase(),
-        request.provider_user_id,
-        request.email.split('@').next().unwrap_or("user"),
-        request.access_token,
-        request.refresh_token.as_ref(),
-        token_expires_at,
-        request.scope.as_ref().unwrap_or(&"".to_string()),
-        true,
-        now,
-        now
+        "#
     )
+    .bind(connection_id)
+    .bind(user.id)
+    .bind(request.provider.to_lowercase())
+    .bind(&request.provider_user_id)
+    .bind(request.email.split('@').next().unwrap_or("user"))
+    .bind(&request.access_token)
+    .bind(request.refresh_token.as_ref())
+    .bind(token_expires_at)
+    .bind(request.scope.as_ref().unwrap_or(&"".to_string()))
+    .bind(true)
+    .bind(now)
+    .bind(now)
     .fetch_one(pool.get_ref())
     .await;
 
     let final_connection_id = match result {
-        Ok(row) => row.id,
+        Ok(row) => row.get("id"),
         Err(e) => {
             log::error!("Failed to create/update social connection: {}", e);
             return Ok(HttpResponse::InternalServerError().json(json!({

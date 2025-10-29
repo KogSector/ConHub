@@ -137,8 +137,6 @@ impl EmbeddingService {
         );
 
         Ok(embed_response.embeddings)
-            }
-        }
     }
 
     /// Store embedding in Qdrant (handled by QdrantService, kept for compatibility)

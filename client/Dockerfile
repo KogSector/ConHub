@@ -1,11 +1,6 @@
 FROM rustlang/rust:nightly AS builder
 WORKDIR /app
 
-# Development stage
-FROM builder AS development
-RUN cargo install cargo-watch
-CMD ["cargo", "watch", "-q", "-x", "run"]
-
 # Copy shared dependencies first (to parent directory structure)
 COPY shared/ ../shared/
 
@@ -17,6 +12,11 @@ COPY client/src ./src
 
 # Build
 RUN cargo build --release
+
+# Development stage
+FROM builder AS development
+RUN cargo install cargo-watch
+CMD ["cargo", "watch", "-q", "-x", "run"]
 
 # Runtime stage
 FROM debian:bookworm-slim

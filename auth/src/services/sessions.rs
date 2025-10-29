@@ -111,12 +111,12 @@ impl SessionService {
     
     #[allow(dead_code)]
     pub async fn remove_user_sessions(&self, user_id: Uuid) {
-        self.sessions.retain(|_, session| session.user_id != user_id);
+        self.sessions.retain(|_, session: &mut UserSession| session.user_id != user_id);
     }
 
     
     pub async fn cleanup_expired_sessions(&self) {
-        self.sessions.retain(|_, session| !session.is_expired());
+        self.sessions.retain(|_, session: &mut UserSession| !session.is_expired());
     }
 
     

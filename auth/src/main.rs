@@ -2,6 +2,7 @@ use actix_web::{web, App, HttpServer, middleware::Logger};
 use actix_cors::Cors;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::env;
+use tracing_subscriber;
 
 mod services;
 mod handlers;
@@ -9,7 +10,7 @@ mod handlers;
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
-    env_logger::init();
+    tracing_subscriber::fmt::init();
 
     // Load environment variables
     dotenv::dotenv().ok();

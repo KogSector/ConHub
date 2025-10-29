@@ -35,6 +35,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter", "chrono"] }
 tracing-actix-web = "0.7"
 log = "0.4"
+env_logger = "0.11"
 
 # Database
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "migrate"] }
@@ -48,4 +49,7 @@ async-stripe = { version = "0.41.0", features = ["runtime-tokio-hyper-rustls"] }
 # Configuration
 dotenv = "0.15"
 anyhow = "1.0"
+
+# Validation
+validator = { version = "0.18", features = ["derive"] }
 thiserror = "1.0"
