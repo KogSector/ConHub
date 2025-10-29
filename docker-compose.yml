@@ -26,7 +26,7 @@ services:
       - billing
       - security
       - data
-      - ai
+      - client
       - webhook
       - plugins
     networks:
@@ -145,12 +145,12 @@ services:
     networks:
       - conhub-network
 
-  # AI Service
-  ai:
+  # Client Service
+  client:
     build:
       context: .
-      dockerfile: ai/Dockerfile
-    container_name: conhub-ai
+      dockerfile: client/Dockerfile
+    container_name: conhub-client
     ports:
       - "3014:3014"
     environment:
@@ -243,7 +243,7 @@ services:
       - billing
       - security
       - data
-      - ai
+      - client
       - webhook
     networks:
       - conhub-network

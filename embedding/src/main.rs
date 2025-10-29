@@ -2,10 +2,10 @@ use actix_web::{web, App, HttpServer};
 use std::env;
 use std::sync::Arc;
 
+mod config;
 mod handlers;
 mod models;
 mod services;
-mod examples;
 
 use handlers::{embed_handler, health_handler, rerank_handler};
 use services::{EmbeddingService, RerankService};
@@ -37,15 +37,7 @@ async fn main() -> std::io::Result<()> {
     );
     log::info!("Models initialized successfully");
 
-    // Run fusion demo if requested
-    if env::var("RUN_FUSION_DEMO").unwrap_or_else(|_| "false".to_string()) == "true" {
-        log::info!("Running fusion embedding demo...");
-        if let Err(e) = examples::run_fusion_demo() {
-            log::error!("Fusion demo failed: {}", e);
-        } else {
-            log::info!("Fusion demo completed successfully");
-        }
-    }
+    // Service ready for production use
 
     // Start HTTP server
     log::info!("Starting HTTP server...");

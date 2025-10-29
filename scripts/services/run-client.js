@@ -13,14 +13,14 @@ process.env.RUST_LOG = 'info';
 process.env.RUST_BACKTRACE = '1';
 process.env.ENV_MODE = 'local';
 
-if (!fs.existsSync('target/debug/ai-service')) {
-  console.log(`${colors.cyan}[BUILD] Building ai-service...${colors.reset}`);
-  execSync('cargo build --bin ai-service', { stdio: 'inherit' });
+if (!fs.existsSync('target/debug/client-service')) {
+  console.log(`${colors.cyan}[BUILD] Building client-service...${colors.reset}`);
+  execSync('cargo build --bin client-service', { stdio: 'inherit' });
 }
 
-console.log(`${colors.green}[AI] Starting on port 3012...${colors.reset}`);
+console.log(`${colors.green}[CLIENT] Starting on port 3012...${colors.reset}`);
 
-const service = spawn('./target/debug/ai-service', [], {
+const service = spawn('./target/debug/client-service', [], {
   stdio: 'inherit',
   env: { ...process.env }
 });

@@ -1,0 +1,38 @@
+{
+  "id": "dropbox",
+  "name": "Dropbox Connector",
+  "version": "1.0.0",
+  "description": "Connector for accessing Dropbox files and folders",
+  "capabilities": [
+    "files",
+    "folders",
+    "search",
+    "metadata",
+    "download"
+  ],
+  "metadata": {
+    "category": "cloud-storage",
+    "provider": "dropbox",
+    "supportedFormats": ["*"],
+    "rateLimits": {
+      "requestsPerMinute": 120,
+      "requestsPerDay": 25000
+    }
+  },
+  "authentication": {
+    "type": "oauth2",
+    "scopes": [
+      "files.metadata.read",
+      "files.content.read"
+    ]
+  },
+  "settings": {
+    "maxFileSize": "150MB",
+    "supportedOperations": [
+      "list",
+      "search",
+      "download",
+      "metadata"
+    ]
+  }
+}

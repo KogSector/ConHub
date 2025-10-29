@@ -10,13 +10,14 @@ ConHub is a comprehensive AI-powered platform built on a **microservices archite
 
 ConHub uses a modern **decoupled microservices architecture**:
 
-**6 Backend Microservices** (Rust):
+**7 Backend Microservices** (Rust):
 - **Auth Service** (3010) - Authentication, OAuth, sessions
 - **Billing Service** (3011) - Stripe payments & subscriptions
 - **AI Service** (3012) - AI agents & LLM operations
 - **Data Service** (3013) - Data sources & integrations
 - **Security Service** (3014) - Security & rulesets
 - **Webhook Service** (3015) - External webhooks
+- **Embedding Service** (8082) - Fusion embeddings & vector generation
 
 **Infrastructure**:
 - **PostgreSQL** (5432) - Main database
@@ -218,6 +219,11 @@ ConHub/
 │   ├── data-service/            # Port 3013
 │   ├── security-service/        # Port 3014
 │   └── webhook-service/         # Port 3015
+│
+├── embedding/                    # Embedding microservice (8082)
+│   ├── src/                     # Fusion embedding implementation
+│   ├── tests/                   # Comprehensive test suite
+│   └── Cargo.toml               # Dependencies & configuration
 │
 ├── shared/                       # Shared Rust libraries
 │   ├── models/                  # Data models
@@ -791,6 +797,7 @@ The following services use Cargo.toml for dependency management:
 - `backend/` - Main backend service
 - `billing/` - Billing service
 - `data/` - Data service
+- `embedding/` - Fusion embedding service
 - `indexers/` - Indexing service
 - `plugins/` - Plugins service
 - `security/` - Security service
@@ -876,6 +883,7 @@ cd mcp/servers/sources/dropbox && npm start
 - **Data Service**: http://localhost:3013
 - **Security Service**: http://localhost:3014
 - **Webhook Service**: http://localhost:3015
+- **Embedding Service**: http://localhost:8082
 - **Indexer Service**: http://localhost:8080
 - **MCP Service**: http://localhost:3004
 - **MCP Google Drive**: http://localhost:3005
@@ -1083,6 +1091,366 @@ GET /api/plugins/agents/cline-main/functions
   }
 }
 ```
+
+---
+
+# Fusion Embedding Service
+
+The Fusion Embedding Service is a high-performance microservice that provides advanced multimodal embedding generation and fusion capabilities for ConHub's RAG (Retrieval-Augmented Generation) pipeline.
+
+## 🎯 Overview
+
+The Fusion Embedding Service implements a sophisticated embedding architecture that can:
+- Generate embeddings for multiple modalities (text, image, audio, video, code)
+- Fuse embeddings from different models using various strategies
+- Provide deterministic reference model implementations
+- Handle batch processing with parallel execution
+- Serve embeddings via REST API for integration with indexing services
+
+## 🏗️ Architecture
+
+### Core Components
+
+#### `Embedding` Structure
+```rust
+pub struct Embedding {
+    pub id: Uuid,
+    pub modality: EmbeddingModality,
+    pub vector: Vec<f32>,
+    pub dimension: usize,
+    pub model_name: String,
+    pub metadata: HashMap<String, String>,
+}
+```
+
+#### `FusedEmbedding` Structure
+```rust
+pub struct FusedEmbedding {
+    pub id: Uuid,
+    pub individual_embeddings: Vec<Embedding>,
+    pub fused_vector: Vec<f32>,
+    pub fusion_strategy: FusionStrategy,
+    pub dimension: usize,
+    pub metadata: HashMap<String, String>,
+}
+```
+
+#### `FusionEmbeddingService`
+Main service for managing embeddings and fusion operations:
+```rust
+pub struct FusionEmbeddingService {
+    embeddings: HashMap<Uuid, Embedding>,
+    fused_embeddings: HashMap<Uuid, FusedEmbedding>,
+}
+```
+
+### Supported Modalities
+
+```rust
+pub enum EmbeddingModality {
+    Text,        // Text documents, articles, etc.
+    Image,       // Visual content
+    Audio,       // Audio signals, speech
+    Video,       // Video content
+    Code,        // Source code
+    Multimodal,  // Combined modalities
+}
+```
+
+### Fusion Strategies
+
+1. **Concatenation**: Combines embeddings by concatenating vectors
+   ```rust
+   FusionStrategy::Concatenation
+   ```
+
+2. **Sum**: Element-wise addition of embedding vectors
+   ```rust
+   FusionStrategy::Sum
+   ```
+
+3. **Weighted Sum**: Weighted combination with custom weights
+   ```rust
+   FusionStrategy::WeightedSum(vec![0.7, 0.3])
+   ```
+
+4. **Average**: Mean of all embedding vectors
+   ```rust
+   FusionStrategy::Average
+   ```
+
+5. **Max**: Element-wise maximum across embeddings
+   ```rust
+   FusionStrategy::Max
+   ```
+
+6. **Attention-Weighted**: Automatic weighting based on embedding norms
+   ```rust
+   FusionStrategy::AttentionWeighted
+   ```
+
+## 🚀 Usage Examples
+
+### Basic Usage
+
+```rust
+use embedding::services::fusion::*;
+
+// Initialize the service
+let mut service = FusionEmbeddingService::new();
+
+// Create embeddings
+let text_emb = Embedding::new(
+    EmbeddingModality::Text,
+    vec![1.0, 2.0, 3.0],
+    "text-model".to_string(),
+)?;
+
+let image_emb = Embedding::new(
+    EmbeddingModality::Image,
+    vec![4.0, 5.0, 6.0],
+    "image-model".to_string(),
+)?;
+
+// Add to service
+let text_id = service.add_embedding(text_emb);
+let image_id = service.add_embedding(image_emb);
+
+// Create fused embedding
+let fused_id = service.create_fused_embedding(
+    vec![text_id, image_id],
+    FusionStrategy::Average,
+)?;
+
+// Retrieve result
+let fused = service.get_fused_embedding(&fused_id).unwrap();
+println!("Fused vector: {:?}", fused.fused_vector);
+```
+
+### Reference Model Usage
+
+```rust
+// Generate embeddings using reference models
+let text = "Artificial intelligence is transforming the world.";
+
+let bge_emb = ReferenceModels::bge_embedding(text)?;      // 768-dim
+let qwen3_emb = ReferenceModels::qwen3_embedding(text)?;  // 4096-dim  
+let e5_emb = ReferenceModels::e5_embedding(text)?;       // 768-dim
+
+// Fuse compatible dimensions
+let fused_id = service.create_fused_embedding(
+    vec![bge_id, e5_id],
+    FusionStrategy::AttentionWeighted,
+)?;
+```
+
+### Batch Processing
+
+```rust
+// Prepare batch requests
+let batch_requests = vec![
+    (vec![emb1_id, emb2_id], FusionStrategy::Sum),
+    (vec![emb3_id, emb4_id], FusionStrategy::Average),
+    (vec![emb5_id, emb6_id], FusionStrategy::Max),
+];
+
+// Process in parallel
+let fused_ids = service.batch_fuse_embeddings(batch_requests)?;
+```
+
+## 🔧 Reference Model Implementations
+
+### BGE (BAAI/bge-base-en-v1.5)
+- **Dimension**: 768
+- **Architecture**: BERT-based encoder
+- **Specialization**: General-purpose text embeddings
+- **Normalization**: L2 normalized output
+
+### Qwen3 8B Embedding
+- **Dimension**: 4096
+- **Architecture**: Large language model embeddings
+- **Specialization**: High-capacity text understanding
+- **Normalization**: L2 normalized output
+
+### E5 (intfloat/e5-base-v2)
+- **Dimension**: 768
+- **Architecture**: Contrastive learning based
+- **Specialization**: Retrieval and similarity tasks
+- **Normalization**: L2 normalized output
+
+## 🌐 REST API
+
+The embedding service provides a REST API for integration with other microservices:
+
+### Health Check
+```bash
+GET /health
+```
+
+Response:
+```json
+{
+  "status": "healthy",
+  "model_loaded": true
+}
+```
+
+### Generate Embeddings
+```bash
+POST /embed
+Content-Type: application/json
+
+{
+  "text": ["First text", "Second text"],
+  "normalize": true
+}
+```
+
+Response:
+```json
+{
+  "embeddings": [
+    [0.1, 0.2, 0.3, ...],
+    [0.4, 0.5, 0.6, ...]
+  ],
+  "dimension": 768,
+  "model": "fusion-embedding-v1"
+}
+```
+
+### Rerank Documents
+```bash
+POST /rerank
+Content-Type: application/json
+
+{
+  "query": "search query",
+  "documents": ["doc1", "doc2", "doc3"],
+  "top_k": 2
+}
+```
+
+Response:
+```json
+{
+  "results": [
+    {"index": 1, "score": 0.95},
+    {"index": 0, "score": 0.87}
+  ]
+}
+```
+
+## 🧪 Testing
+
+The service includes a comprehensive test suite with 21+ tests covering:
+
+- **Unit Tests**: Individual component functionality
+- **Integration Tests**: Service interactions
+- **Performance Tests**: Batch processing and parallel execution
+- **API Tests**: REST endpoint validation
+- **Reference Model Tests**: Deterministic output verification
+
+Run tests:
+```bash
+cd embedding
+cargo test
+```
+
+Run with output:
+```bash
+cargo test -- --nocapture
+```
+
+## ⚡ Performance Features
+
+- **Parallel Processing**: Batch operations use Rayon for parallel execution
+- **Memory Optimization**: Efficient vector operations and memory management
+- **Caching**: Intelligent caching of computed embeddings
+- **Streaming**: Support for large document processing
+- **Configurable Batch Sizes**: Optimized for different workloads
+
+## 🔗 Integration with RAG Pipeline
+
+The embedding service is designed to integrate seamlessly with ConHub's RAG pipeline:
+
+```
+Text Input → Embedding Service → Vector Storage → Indexing Service → Search & Retrieval
+```
+
+### Integration Example
+
+```rust
+// From indexing service
+use reqwest::Client;
+
+let embedding_client = Client::new();
+let response = embedding_client
+    .post("http://embedding-service:8082/embed")
+    .json(&json!({
+        "text": ["Document content"],
+        "normalize": true
+    }))
+    .send()
+    .await?;
+
+let embeddings: Vec<Vec<f32>> = response.json().await?;
+```
+
+## 🛠️ Configuration
+
+### Environment Variables
+
+- `EMBEDDING_PORT`: Service port (default: 8082)
+- `EMBEDDING_HOST`: Service host (default: 0.0.0.0)
+- `RUST_LOG`: Logging level (default: info)
+- `VOCAB_SIZE`: Vocabulary size (default: 1000 for development)
+- `NUM_LAYERS`: Transformer layers (default: 2 for development)
+
+### Production Configuration
+
+For production deployment, update the model parameters:
+
+```rust
+// In src/services/embedding.rs
+const VOCAB_SIZE: usize = 30522;  // Full vocabulary
+const NUM_LAYERS: usize = 12;     // Full transformer depth
+```
+
+## 🚀 Deployment
+
+### Docker Deployment
+
+```bash
+# Build image
+docker build -t conhub-embedding ./embedding
+
+# Run container
+docker run -p 8082:8082 \
+  -e RUST_LOG=info \
+  -e EMBEDDING_PORT=8082 \
+  conhub-embedding
+```
+
+### Local Development
+
+```bash
+cd embedding
+cargo run
+```
+
+The service will start on `http://localhost:8082` with the following endpoints:
+- `/health` - Health check
+- `/embed` - Generate embeddings
+- `/rerank` - Rerank documents
+
+## 🔮 Future Enhancements
+
+- **GPU Acceleration**: CUDA support for faster inference
+- **Model Loading**: Dynamic loading of pre-trained weights
+- **Advanced Fusion**: Transformer-based fusion strategies
+- **Multimodal Support**: Full image, audio, and video processing
+- **Distributed Processing**: Multi-node embedding generation
+- **Model Serving**: Support for multiple embedding models simultaneously
 
 #### Environment Variables
 ```bash

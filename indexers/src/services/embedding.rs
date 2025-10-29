@@ -2,6 +2,12 @@ use crate::config::IndexerConfig;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use tokio::time::sleep;
+
+/// Retry configuration constants
+const MAX_RETRIES: u32 = 3;
+const INITIAL_RETRY_DELAY: Duration = Duration::from_millis(500);
+const MAX_RETRY_DELAY: Duration = Duration::from_secs(10);
 
 /// Request to embedding service
 #[derive(Debug, Serialize)]
@@ -26,11 +32,13 @@ pub struct EmbeddingService {
 }
 
 impl EmbeddingService {
-    pub fn new(config: IndexerConfig, embedding_service_url: String) -> Self {
+    pub fn new(config: IndexerConfig) -> Self {
         let http_client = reqwest::Client::builder()
             .timeout(Duration::from_secs(10))
             .build()
             .unwrap_or_default();
+
+        let embedding_service_url = config.embedding_service_url.clone();
 
         Self {
             config,
@@ -48,14 +56,13 @@ impl EmbeddingService {
             .ok_or_else(|| anyhow!("No embedding returned"))
     }
 
-    /// Generate embeddings for multiple texts
+    /// Generate embeddings for multiple texts with retry logic
     pub async fn generate_batch_embeddings(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
         if texts.is_empty() {
             return Ok(Vec::new());
         }
 
         let url = format!("{}/embed", self.embedding_service_url);
-
         let request = EmbedRequest {
             text: texts.to_vec(),
             normalize: true,
@@ -63,39 +70,73 @@ impl EmbeddingService {
 
         log::debug!("Requesting embeddings from: {}", url);
 
-        match self
-            .http_client
-            .post(&url)
-            .json(&request)
-            .send()
-            .await
-        {
-            Ok(response) => {
-                if response.status().is_success() {
-                    match response.json::<EmbedResponse>().await {
-                        Ok(embed_response) => {
-                            log::debug!(
-                                "Received {} embeddings (dim: {})",
-                                embed_response.count,
-                                embed_response.dimension
-                            );
-                            Ok(embed_response.embeddings)
-                        }
-                        Err(e) => {
-                            log::error!("Failed to parse embed response: {}", e);
-                            Err(anyhow!("Failed to parse embed response: {}", e))
-                        }
+        for attempt in 0..=MAX_RETRIES {
+            match self.try_generate_embeddings(&url, &request).await {
+                Ok(embeddings) => {
+                    if attempt > 0 {
+                        log::info!("Embedding request succeeded after {} retries", attempt);
                     }
-                } else {
-                    let status = response.status();
-                    let error_text = response.text().await.unwrap_or_default();
-                    log::error!("Embedding service error: {} - {}", status, error_text);
-                    Err(anyhow!("Embedding service returned error: {}", status))
+                    return Ok(embeddings);
+                }
+                Err(e) => {
+                    if attempt == MAX_RETRIES {
+                        log::error!("Embedding request failed after {} attempts: {}", MAX_RETRIES + 1, e);
+                        return Err(e);
+                    }
+
+                    let delay = std::cmp::min(
+                        INITIAL_RETRY_DELAY * 2_u32.pow(attempt),
+                        MAX_RETRY_DELAY,
+                    );
+
+                    log::warn!(
+                        "Embedding request failed (attempt {}/{}), retrying in {:?}: {}",
+                        attempt + 1,
+                        MAX_RETRIES + 1,
+                        delay,
+                        e
+                    );
+
+                    sleep(delay).await;
                 }
             }
-            Err(e) => {
-                log::error!("Failed to connect to embedding service: {}", e);
-                Err(anyhow!("Failed to connect to embedding service: {}", e))
+        }
+
+        unreachable!("Loop should have returned or errored")
+    }
+
+    /// Single attempt to generate embeddings
+    async fn try_generate_embeddings(
+        &self,
+        url: &str,
+        request: &EmbedRequest,
+    ) -> Result<Vec<Vec<f32>>> {
+        let response = self
+            .http_client
+            .post(url)
+            .json(request)
+            .send()
+            .await
+            .map_err(|e| anyhow!("Failed to connect to embedding service: {}", e))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(anyhow!("Embedding service returned error {}: {}", status, error_text));
+        }
+
+        let embed_response = response
+            .json::<EmbedResponse>()
+            .await
+            .map_err(|e| anyhow!("Failed to parse embed response: {}", e))?;
+
+        log::debug!(
+            "Received {} embeddings (dim: {})",
+            embed_response.count,
+            embed_response.dimension
+        );
+
+        Ok(embed_response.embeddings)
             }
         }
     }

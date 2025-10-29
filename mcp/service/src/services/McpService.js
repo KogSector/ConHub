@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { EventEmitter } from 'events';
+import { ConnectorLoader } from '../connectors/loader.js';
 
 
 export class McpService extends EventEmitter {
@@ -12,10 +13,70 @@ export class McpService extends EventEmitter {
     this.tools = new Map();
     this.contexts = new Map();
     
+    // Initialize connector loader
+    this.connectorLoader = new ConnectorLoader(logger);
+    this.connectors = new Map();
     
     this.protocolVersion = '2024-11-05';
     
     this.logger.info('MCP Service initialized');
+    this.initializeConnectors();
+  }
+
+  // Initialize and load all connectors
+  async initializeConnectors() {
+    try {
+      await this.connectorLoader.initialize();
+      const loadedConnectors = await this.connectorLoader.loadConnectors();
+      
+      for (const [id, connector] of loadedConnectors) {
+        this.connectors.set(id, connector);
+        this.logger.info(`Connector loaded: ${id}`, { 
+          name: connector.name,
+          capabilities: connector.capabilities 
+        });
+      }
+      
+      this.logger.info(`Initialized ${this.connectors.size} connectors`);
+    } catch (error) {
+      this.logger.error('Failed to initialize connectors', { error: error.message });
+    }
+  }
+
+  // Register a new connector
+  async registerConnector(id, connectorInfo) {
+    try {
+      this.connectors.set(id, connectorInfo);
+      this.logger.info(`Connector registered: ${id}`, { 
+        name: connectorInfo.name,
+        capabilities: connectorInfo.capabilities 
+      });
+      
+      // Emit event for connector registration
+      this.emit('connectorRegistered', { id, connector: connectorInfo });
+      
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to register connector: ${id}`, { error: error.message });
+      throw error;
+    }
+  }
+
+  // Get available connectors
+  getConnectors() {
+    return Array.from(this.connectors.entries()).map(([id, connector]) => ({
+      id,
+      name: connector.name,
+      version: connector.version,
+      capabilities: connector.capabilities,
+      metadata: connector.metadata,
+      status: connector.connector ? 'active' : 'inactive'
+    }));
+  }
+
+  // Get specific connector
+  getConnector(id) {
+    return this.connectors.get(id);
   }
 
   
@@ -425,5 +486,156 @@ export class McpService extends EventEmitter {
       tools: this.tools.size,
       uptime: process.uptime()
     };
+  }
+
+  // Connector-related methods
+  async searchConnectors(query, options = {}) {
+    try {
+      const results = [];
+      
+      for (const [id, connectorInfo] of this.connectors) {
+        if (connectorInfo.connector && typeof connectorInfo.connector.search === 'function') {
+          try {
+            const connectorResults = await connectorInfo.connector.search(query, options);
+            results.push({
+              connectorId: id,
+              connectorName: connectorInfo.name,
+              ...connectorResults
+            });
+          } catch (error) {
+            this.logger.warn(`Search failed for connector ${id}`, { error: error.message });
+          }
+        }
+      }
+      
+      return {
+        query,
+        results,
+        totalConnectors: this.connectors.size,
+        searchedConnectors: results.length
+      };
+    } catch (error) {
+      this.logger.error('Connector search failed', { error: error.message });
+      throw error;
+    }
+  }
+
+  async getConnectorContext(connectorId, resourceId, options = {}) {
+    try {
+      const connectorInfo = this.connectors.get(connectorId);
+      
+      if (!connectorInfo || !connectorInfo.connector) {
+        throw new Error(`Connector not found: ${connectorId}`);
+      }
+
+      if (typeof connectorInfo.connector.getContext !== 'function') {
+        throw new Error(`Connector ${connectorId} does not support context retrieval`);
+      }
+
+      return await connectorInfo.connector.getContext(resourceId, options);
+    } catch (error) {
+      this.logger.error('Failed to get connector context', { 
+        connectorId, 
+        resourceId, 
+        error: error.message 
+      });
+      throw error;
+    }
+  }
+
+  async fetchConnectorData(connectorId, query) {
+    try {
+      const connectorInfo = this.connectors.get(connectorId);
+      
+      if (!connectorInfo || !connectorInfo.connector) {
+        throw new Error(`Connector not found: ${connectorId}`);
+      }
+
+      if (typeof connectorInfo.connector.fetchData !== 'function') {
+        throw new Error(`Connector ${connectorId} does not support data fetching`);
+      }
+
+      return await connectorInfo.connector.fetchData(query);
+    } catch (error) {
+      this.logger.error('Failed to fetch connector data', { 
+        connectorId, 
+        query, 
+        error: error.message 
+      });
+      throw error;
+    }
+  }
+
+  async getConnectorHealth(connectorId) {
+    try {
+      const connectorInfo = this.connectors.get(connectorId);
+      
+      if (!connectorInfo || !connectorInfo.connector) {
+        return {
+          status: 'not_found',
+          message: `Connector not found: ${connectorId}`
+        };
+      }
+
+      if (typeof connectorInfo.connector.healthCheck === 'function') {
+        return await connectorInfo.connector.healthCheck();
+      }
+
+      return {
+        status: 'unknown',
+        message: 'Health check not supported'
+      };
+    } catch (error) {
+      this.logger.error('Connector health check failed', { 
+        connectorId, 
+        error: error.message 
+      });
+      return {
+        status: 'error',
+        message: error.message
+      };
+    }
+  }
+
+  async getAllConnectorHealth() {
+    const healthStatus = {};
+    
+    for (const [id, connectorInfo] of this.connectors) {
+      healthStatus[id] = await this.getConnectorHealth(id);
+    }
+    
+    return healthStatus;
+  }
+
+  // Cleanup connectors on service shutdown
+  async cleanup() {
+    try {
+      this.logger.info('Cleaning up MCP Service and connectors');
+      
+      for (const [id, connectorInfo] of this.connectors) {
+        if (connectorInfo.connector && typeof connectorInfo.connector.cleanup === 'function') {
+          try {
+            await connectorInfo.connector.cleanup();
+            this.logger.info(`Connector ${id} cleaned up successfully`);
+          } catch (error) {
+            this.logger.warn(`Failed to cleanup connector ${id}`, { error: error.message });
+          }
+        }
+      }
+      
+      if (this.connectorLoader) {
+        await this.connectorLoader.cleanup();
+      }
+      
+      this.connectors.clear();
+      this.connections.clear();
+      this.resources.clear();
+      this.tools.clear();
+      this.contexts.clear();
+      
+      this.logger.info('MCP Service cleanup completed');
+    } catch (error) {
+      this.logger.error('MCP Service cleanup failed', { error: error.message });
+    }
   }
 }

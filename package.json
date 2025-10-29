@@ -15,7 +15,7 @@
     "dev:frontend": "cd frontend && npm run dev",
     "dev:auth": "cd auth && cargo run",
     "dev:billing": "cd billing && cargo run",
-    "dev:ai": "cd ai && cargo run",
+    "dev:client": "cd client && cargo run",
     "dev:data": "cd data && cargo run",
     "dev:security": "cd security && cargo run",
     "dev:webhook": "cd webhook && cargo run",
@@ -40,7 +40,7 @@
     "docker",
     "rust",
     "nextjs",
-    "ai",
+    "client",
     "development"
   ],
   "license": "MIT"

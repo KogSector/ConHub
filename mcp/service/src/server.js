@@ -13,10 +13,11 @@ import { WebSocketServer } from 'ws';
 import winston from 'winston';
 
 
+import healthRoutes from './routes/health.js';
 import mcpRoutes from './routes/mcp.js';
 import webhookRoutes from './routes/webhooks.js';
 import agentRoutes from './routes/agents.js';
-import healthRoutes from './routes/health.js';
+import connectorsRoutes from './routes/connectors.js';
 
 
 import { McpService } from './services/McpService.js';
@@ -120,6 +121,7 @@ app.use('/api/health', healthRoutes);
 app.use('/api/mcp', mcpRoutes(mcpService));
 app.use('/api/webhooks', webhookRoutes(webhookService));
 app.use('/api/agents', agentRoutes(agentManager));
+app.use('/api/connectors', connectorsRoutes(mcpService));
 
 
 app.use((error, req, res, next) => {
@@ -139,16 +141,18 @@ app.use('*', (req, res) => {
 });
 
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
+  await mcpService.cleanup();
   server.close(() => {
     logger.info('Process terminated');
     process.exit(0);
   });
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
+  await mcpService.cleanup();
   server.close(() => {
     logger.info('Process terminated');
     process.exit(0);
