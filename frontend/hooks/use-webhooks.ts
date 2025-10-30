@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-
+import { apiClient } from '@/lib/api';
 export interface Webhook {
   id: string;
   name: string;
@@ -16,8 +16,6 @@ export interface CreateWebhookRequest {
   events: string[];
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
 export function useWebhooks(userId: string = 'default') {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,14 +24,13 @@ export function useWebhooks(userId: string = 'default') {
   const fetchWebhooks = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/settings/${userId}/webhooks`);
-      const result = await response.json();
-      
-      if (result.success) {
+      const result = await apiClient.get(`/api/settings/${userId}/webhooks`) as any;
+
+      if (result?.success) {
         setWebhooks(result.data || []);
         setError(null);
       } else {
-        setError(result.error || 'Failed to fetch webhooks');
+        setError(result?.error || 'Failed to fetch webhooks');
       }
     } catch (err) {
       setError('Network error while fetching webhooks');
@@ -44,21 +41,13 @@ export function useWebhooks(userId: string = 'default') {
 
   const createWebhook = async (webhookData: CreateWebhookRequest) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/settings/${userId}/webhooks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(webhookData),
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
+      const result = await apiClient.post(`/api/settings/${userId}/webhooks`, webhookData) as any;
+
+      if (result?.success) {
         await fetchWebhooks(); 
         return result.data;
       } else {
-        setError(result.error || 'Failed to create webhook');
+        setError(result?.error || 'Failed to create webhook');
         return null;
       }
     } catch (err) {
@@ -69,17 +58,13 @@ export function useWebhooks(userId: string = 'default') {
 
   const deleteWebhook = async (webhookId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/settings/${userId}/webhooks/${webhookId}`, {
-        method: 'DELETE',
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
+      const result = await apiClient.delete(`/api/settings/${userId}/webhooks/${webhookId}`) as any;
+
+      if (result?.success) {
         await fetchWebhooks(); 
         return true;
       } else {
-        setError(result.error || 'Failed to delete webhook');
+        setError(result?.error || 'Failed to delete webhook');
         return false;
       }
     } catch (err) {

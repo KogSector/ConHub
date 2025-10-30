@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-
+import { apiClient } from '@/lib/api';
 export interface TeamMember {
   id: string;
   name: string;
@@ -15,8 +15,6 @@ export interface InviteTeamMemberRequest {
   role: string;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
 export function useTeam(userId: string = 'default') {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,14 +23,13 @@ export function useTeam(userId: string = 'default') {
   const fetchMembers = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/settings/${userId}/team`);
-      const result = await response.json();
-      
-      if (result.success) {
+      const result = await apiClient.get(`/api/settings/${userId}/team`) as any;
+
+      if (result?.success) {
         setMembers(result.data || []);
         setError(null);
       } else {
-        setError(result.error || 'Failed to fetch team members');
+        setError(result?.error || 'Failed to fetch team members');
       }
     } catch (err) {
       setError('Network error while fetching team members');
@@ -43,21 +40,13 @@ export function useTeam(userId: string = 'default') {
 
   const inviteMember = async (memberData: InviteTeamMemberRequest) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/settings/${userId}/team`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(memberData),
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
+      const result = await apiClient.post(`/api/settings/${userId}/team`, memberData) as any;
+
+      if (result?.success) {
         await fetchMembers(); 
         return result.data;
       } else {
-        setError(result.error || 'Failed to invite team member');
+        setError(result?.error || 'Failed to invite team member');
         return null;
       }
     } catch (err) {
@@ -68,17 +57,13 @@ export function useTeam(userId: string = 'default') {
 
   const removeMember = async (memberId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/settings/${userId}/team/${memberId}`, {
-        method: 'DELETE',
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
+      const result = await apiClient.delete(`/api/settings/${userId}/team/${memberId}`) as any;
+
+      if (result?.success) {
         await fetchMembers(); 
         return true;
       } else {
-        setError(result.error || 'Failed to remove team member');
+        setError(result?.error || 'Failed to remove team member');
         return false;
       }
     } catch (err) {

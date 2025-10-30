@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { apiClient, unwrapResponse } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,13 +25,8 @@ export function ConnectDataSourceDialog({ open, onOpenChange, onSuccess }: Conne
   const handleConnect = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/data-sources/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, credentials, config: { ...config, name } })
-      });
-      
-      const data = await response.json();
+      const resp = await apiClient.post('/api/data-sources/connect', { type, credentials, config: { ...config, name } });
+      const data = unwrapResponse<unknown[]>(resp) || []
       if (data.success) {
         onSuccess();
         onOpenChange(false);

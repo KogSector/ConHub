@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiClient } from '@/lib/api';
 
 export interface ProfileSettings {
   first_name: string;
@@ -34,8 +35,6 @@ export interface UpdateSettingsRequest {
   security?: SecuritySettings;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
 export function useSettings(userId: string = 'default') {
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,14 +43,13 @@ export function useSettings(userId: string = 'default') {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/settings/${userId}`);
-      const result = await response.json();
-      
-      if (result.success) {
+      const result = await apiClient.get(`/api/settings/${userId}`) as any;
+
+      if (result?.success) {
         setSettings(result.data);
         setError(null);
       } else {
-        setError(result.error || 'Failed to fetch settings');
+        setError(result?.error || 'Failed to fetch settings');
       }
     } catch (err) {
       setError('Network error while fetching settings');
@@ -63,22 +61,14 @@ export function useSettings(userId: string = 'default') {
   const updateSettings = async (updates: UpdateSettingsRequest) => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/settings/${userId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updates),
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
+      const result = await apiClient.put(`/api/settings/${userId}`, updates) as any;
+
+      if (result?.success) {
         setSettings(result.data);
         setError(null);
         return true;
       } else {
-        setError(result.error || 'Failed to update settings');
+        setError(result?.error || 'Failed to update settings');
         return false;
       }
     } catch (err) {

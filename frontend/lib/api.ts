@@ -77,7 +77,7 @@ export interface AgentInvokeResponse {
   context_used: string[];
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
   data?: T;
@@ -96,7 +96,7 @@ export class ApiClient {
   }
 
   private async handleResponse<T>(response: Response): Promise<T> {
-    let data;
+    let data: unknown;
     try {
       data = await response.json();
     } catch (error) {
@@ -104,19 +104,21 @@ export class ApiClient {
     }
 
     if (!response.ok) {
-      const errorMessage = data?.error || data?.message || `HTTP error! status: ${response.status}`;
-      throw new Error(errorMessage);
+      const dataObj = typeof data === 'object' && data !== null ? data as Record<string, unknown> : {}
+      const errorMessage = typeof dataObj['error'] === 'string' ? dataObj['error'] : (typeof dataObj['message'] === 'string' ? dataObj['message'] : `HTTP error! status: ${response.status}`)
+      throw new Error(errorMessage)
     }
 
-    return data;
+    return data as T;
   }
 
-  async get<T = any>(endpoint: string): Promise<T> {
+  async get<T = unknown>(endpoint: string, headers: Record<string, string> = {}): Promise<T> {
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          ...headers,
         },
       });
       return this.handleResponse<T>(response);
@@ -125,13 +127,13 @@ export class ApiClient {
       throw error;
     }
   }
-
-  async post<T = any>(endpoint: string, data: any): Promise<T> {
+  async post<T = unknown>(endpoint: string, data: unknown, headers: Record<string, string> = {}): Promise<T> {
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...headers,
         },
         body: JSON.stringify(data),
       });
@@ -141,13 +143,13 @@ export class ApiClient {
       throw error;
     }
   }
-
-  async put<T = any>(endpoint: string, data: any): Promise<T> {
+  async put<T = unknown>(endpoint: string, data: unknown, headers: Record<string, string> = {}): Promise<T> {
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          ...headers,
         },
         body: JSON.stringify(data),
       });
@@ -157,13 +159,13 @@ export class ApiClient {
       throw error;
     }
   }
-
-  async delete<T = any>(endpoint: string): Promise<T> {
+  async delete<T = unknown>(endpoint: string, headers: Record<string, string> = {}): Promise<T> {
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          ...headers,
         },
       });
       return this.handleResponse<T>(response);
@@ -264,3 +266,15 @@ export class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
+/**
+ * Safely extract the `data` field from an API response or return the value itself.
+ * Avoids use of `any` in callers by operating on unknown.
+ */
+export function unwrapResponse<T = unknown>(resp: unknown): T | undefined {
+  if (typeof resp === 'object' && resp !== null) {
+    const r = resp as Record<string, unknown>
+    if ('data' in r) return r.data as T
+  }
+  return resp as T | undefined
+}

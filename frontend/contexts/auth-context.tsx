@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import { apiClient } from '@/lib/api';
+import { API_CONFIG } from '@/lib/config';
 
 export interface User {
   id: string
@@ -50,7 +52,8 @@ interface SessionData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+// use API_CONFIG.baseUrl when a raw URL is required (e.g. for AbortController fetch)
+// otherwise prefer apiClient for requests
 const SESSION_TIMEOUT = 2 * 60 * 60 * 1000 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -142,11 +145,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyToken = async (tokenToVerify: string) => {
     try {
-      
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 2000) 
-      
-      const response = await fetch(`${API_BASE_URL}/api/auth/verify`, {
+      const timeoutId = setTimeout(() => controller.abort(), 2000)
+
+      const response = await fetch(`${API_CONFIG.baseUrl}/api/auth/verify`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${tokenToVerify}`,
@@ -160,14 +162,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const data = await response.json()
         if (data.valid) {
-          
           await fetchUserProfile(tokenToVerify)
         } else {
-          
           clearSession()
         }
       } else {
-        
         clearSession()
       }
     } catch (error) {
@@ -188,16 +187,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserProfile = async (authToken: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (response.ok) {
-        const userData = await response.json()
-        setUser(userData)
+      const result = await apiClient.get('/api/auth/profile', { Authorization: `Bearer ${authToken}` }) as any;
+      if (result?.success) {
+        setUser(result.data)
       } else {
         throw new Error('Failed to fetch user profile')
       }
@@ -212,23 +204,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
+      const result = await apiClient.post('/api/auth/login', { email, password }) as any;
 
-      if (response.ok) {
-        const data: AuthResponse = await response.json()
+      if (result?.success) {
+        const data: AuthResponse = result.data
         setUser(data.user)
         setToken(data.token)
         saveSession(data.token, data.expires_at)
         router.push('/dashboard')
       } else {
-        const error = await response.json()
-        throw new Error(error.error || 'Login failed')
+        throw new Error(result?.error || 'Login failed')
       }
     } catch (error) {
       console.error('Login error:', error)
@@ -241,23 +226,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterData) => {
     setIsLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
+      const result = await apiClient.post('/api/auth/register', data) as any;
 
-      if (response.ok) {
-        const authData: AuthResponse = await response.json()
+      if (result?.success) {
+        const authData: AuthResponse = result.data
         setUser(authData.user)
         setToken(authData.token)
         saveSession(authData.token, authData.expires_at)
         router.push('/dashboard')
       } else {
-        const error = await response.json()
-        throw new Error(error.error || 'Registration failed')
+        throw new Error(result?.error || 'Registration failed')
       }
     } catch (error) {
       console.error('Registration error:', error)
@@ -276,21 +254,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) throw new Error('No authentication token')
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
+      const result = await apiClient.put('/api/auth/profile', data, { Authorization: `Bearer ${token}` }) as any;
 
-      if (response.ok) {
-        const updatedUser = await response.json()
-        setUser(updatedUser)
+      if (result?.success) {
+        setUser(result.data)
       } else {
-        const error = await response.json()
-        throw new Error(error.error || 'Profile update failed')
+        throw new Error(result?.error || 'Profile update failed')
       }
     } catch (error) {
       console.error('Profile update error:', error)
@@ -302,21 +271,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) throw new Error('No authentication token')
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          current_password: currentPassword,
-          new_password: newPassword,
-        }),
-      })
+      const result = await apiClient.post('/api/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword,
+      }, { Authorization: `Bearer ${token}` }) as any;
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Password change failed')
+      if (!result?.success) {
+        throw new Error(result?.error || 'Password change failed')
       }
     } catch (error) {
       console.error('Password change error:', error)

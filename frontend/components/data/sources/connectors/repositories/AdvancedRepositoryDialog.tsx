@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { AlertCircle, Github, Key, Zap, Shield, Users, Check } from 'lucide-react';
+import { apiClient, unwrapResponse } from '@/lib/api';
 
 interface AdvancedRepositoryDialogProps {
   open: boolean;
@@ -49,10 +50,10 @@ export function AdvancedRepositoryDialog({ open, onOpenChange, onSuccess }: Adva
       setError(null);
       
       const state = Math.random().toString(36).substring(7);
-      const response = await fetch('/api/auth/github/url?state=' + state);
-      const data = await response.json();
-      
-      if (data.success) {
+      const resp = await apiClient.get(`/api/auth/github/url?state=${state}`);
+      const data = unwrapResponse<{ success?: boolean; oauthUrl?: string; error?: string }>(resp) ?? resp;
+
+      if (data && data.success) {
         
         const popup = window.open(
           data.oauthUrl,
@@ -82,13 +83,13 @@ export function AdvancedRepositoryDialog({ open, onOpenChange, onSuccess }: Adva
   const loadInstallations = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/auth/github/installations');
-      const data = await response.json();
-      
-      if (data.success) {
-        setInstallations(data.installations);
+      const resp = await apiClient.get('/api/auth/github/installations');
+      const data = unwrapResponse<{ success?: boolean; installations?: unknown[]; error?: string }>(resp) ?? resp;
+
+      if (data && data.success) {
+        setInstallations(data.installations || []);
       } else {
-        setError(data.error || 'Failed to load installations');
+        setError((data && (data as Record<string, unknown>)['error']) as string || 'Failed to load installations');
       }
     } catch (error) {
       console.error('Failed to load installations:', error);
@@ -140,20 +141,14 @@ export function AdvancedRepositoryDialog({ open, onOpenChange, onSuccess }: Adva
         }
       };
       
-      const response = await fetch('/api/data-sources/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
+      const resp = await apiClient.post('/api/data-sources/connect', payload);
+      const data = unwrapResponse<{ success?: boolean; error?: string }>(resp) ?? resp;
+      if (data && data.success) {
         onSuccess();
         onOpenChange(false);
         resetForm();
       } else {
-        setError(data.error || 'Failed to connect repository');
+        setError((data && (data as Record<string, unknown>)['error']) as string || 'Failed to connect repository');
       }
     } catch (error) {
       console.error('Connection failed:', error);

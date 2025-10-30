@@ -12,8 +12,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Upload, File, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Upload, File as FileIcon, X, CheckCircle, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api";
 
 interface FileUploadZoneProps {
   open: boolean;
@@ -110,21 +111,16 @@ export function FileUploadZone({ open, onOpenChange, onUploadComplete }: FileUpl
         const docType = getDocumentType(fileExtension);
         const fileSize = formatFileSize(uploadFile.file.size);
         
-        const response = await fetch('http://localhost:3001/api/documents', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: uploadFile.file.name,
-            source: 'Local Upload',
-            doc_type: docType,
-            size: fileSize,
-            tags: [fileExtension, 'uploaded']
-          }),
+        // Use shared ApiClient so base URL / env is respected and avoid hardcoded ports
+        const apiResp = await apiClient.createDocument({
+          name: uploadFile.file.name,
+          source: 'Local Upload',
+          doc_type: docType,
+          size: fileSize,
+          tags: [fileExtension, 'uploaded'],
         });
 
-        if (!response.ok) throw new Error('Upload failed');
+        if (!apiResp || !apiResp.success) throw new Error(apiResp?.error || 'Upload failed');
 
         
         for (let progress = 0; progress <= 100; progress += 20) {
@@ -186,8 +182,8 @@ export function FileUploadZone({ open, onOpenChange, onUploadComplete }: FileUpl
         return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'error':
         return <AlertCircle className="w-4 h-4 text-red-500" />;
-      default:
-        return <File className="w-4 h-4 text-muted-foreground" />;
+    default:
+      return <FileIcon className="w-4 h-4 text-muted-foreground" />;
     }
   };
 

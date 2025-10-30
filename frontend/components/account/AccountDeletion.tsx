@@ -95,7 +95,7 @@ export function AccountDeletion() {
         <CardContent>
           <div className="space-y-4">
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h4 className="font-medium mb-2">What's included in your export:</h4>
+              <h4 className="font-medium mb-2">What&apos;s included in your export:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Profile information and settings</li>
                 <li>• Repository connections and configurations</li>
@@ -109,8 +109,8 @@ export function AccountDeletion() {
               <div>
                 <h3 className="font-medium">Request Data Export</h3>
                 <p className="text-sm text-muted-foreground">
-                  We'll email you a download link when your export is ready
-                </p>
+                    We&apos;ll email you a download link when your export is ready.
+                  </p>
               </div>
               <Button onClick={handleExportData} variant="outline">
                 <Download className="h-4 w-4 mr-2" />

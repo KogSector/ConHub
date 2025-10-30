@@ -12,7 +12,6 @@ import {
   Plus, 
   Settings,
   Activity,
-  Code,
   Network,
   Shield,
   GitBranch,

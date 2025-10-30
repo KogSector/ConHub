@@ -1,96 +1,52 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { apiClient } from './api';
 
 export class SettingsAPI {
-  private static async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<{ success: boolean; data?: T; error?: string }> {
-    try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-        ...options,
-      });
-
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      return {
-        success: false,
-        error: 'Network error occurred',
-      };
-    }
-  }
-
-  
   static async getSettings(userId: string) {
-    return this.request(`/api/settings/${userId}`);
+    return apiClient.get(`/api/settings/${userId}`);
   }
 
-  static async updateSettings(userId: string, settings: any) {
-    return this.request(`/api/settings/${userId}`, {
-      method: 'PUT',
-      body: JSON.stringify(settings),
-    });
+  static async updateSettings(userId: string, settings: unknown) {
+    return apiClient.put(`/api/settings/${userId}`, settings);
   }
 
-  
   static async getApiTokens(userId: string) {
-    return this.request(`/api/settings/${userId}/api-tokens`);
+    return apiClient.get(`/api/settings/${userId}/api-tokens`);
   }
 
   static async createApiToken(userId: string, tokenData: { name: string; permissions: string[] }) {
-    return this.request(`/api/settings/${userId}/api-tokens`, {
-      method: 'POST',
-      body: JSON.stringify(tokenData),
-    });
+    return apiClient.post(`/api/settings/${userId}/api-tokens`, tokenData);
   }
 
   static async deleteApiToken(userId: string, tokenId: string) {
-    return this.request(`/api/settings/${userId}/api-tokens/${tokenId}`, {
-      method: 'DELETE',
-    });
+    return apiClient.delete(`/api/settings/${userId}/api-tokens/${tokenId}`);
   }
 
-  
   static async getWebhooks(userId: string) {
-    return this.request(`/api/settings/${userId}/webhooks`);
+    return apiClient.get(`/api/settings/${userId}/webhooks`);
   }
 
   static async createWebhook(userId: string, webhookData: { name: string; url: string; events: string[] }) {
-    return this.request(`/api/settings/${userId}/webhooks`, {
-      method: 'POST',
-      body: JSON.stringify(webhookData),
-    });
+    return apiClient.post(`/api/settings/${userId}/webhooks`, webhookData);
   }
 
   static async deleteWebhook(userId: string, webhookId: string) {
-    return this.request(`/api/settings/${userId}/webhooks/${webhookId}`, {
-      method: 'DELETE',
-    });
+    return apiClient.delete(`/api/settings/${userId}/webhooks/${webhookId}`);
   }
 
-  
   static async getTeamMembers(userId: string) {
-    return this.request(`/api/settings/${userId}/team`);
+    return apiClient.get(`/api/settings/${userId}/team`);
   }
 
   static async inviteTeamMember(userId: string, memberData: { email: string; role: string }) {
-    return this.request(`/api/settings/${userId}/team`, {
-      method: 'POST',
-      body: JSON.stringify(memberData),
-    });
+    return apiClient.post(`/api/settings/${userId}/team`, memberData);
   }
 
   static async removeTeamMember(userId: string, memberId: string) {
-    return this.request(`/api/settings/${userId}/team/${memberId}`, {
-      method: 'DELETE',
-    });
+    return apiClient.delete(`/api/settings/${userId}/team/${memberId}`);
   }
 
-  
+  // Local/mocked responses for billing/invoices/sessions
   static async getBillingInfo(userId: string) {
     return {
       success: true,
@@ -124,13 +80,11 @@ export class SettingsAPI {
     };
   }
 
-  
-  static async updateNotificationSettings(userId: string, settings: any) {
+  static async updateNotificationSettings(userId: string, settings: unknown) {
     return this.updateSettings(userId, { notifications: settings });
   }
 
-  
-  static async updateSecuritySettings(userId: string, settings: any) {
+  static async updateSecuritySettings(userId: string, settings: unknown) {
     return this.updateSettings(userId, { security: settings });
   }
 

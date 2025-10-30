@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
+import { apiClient, unwrapResponse } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AuthStatus } from '@/components/auth/AuthStatus'
 import { Footer } from '@/components/ui/footer'
@@ -10,9 +11,11 @@ export const dynamic = 'force-dynamic'
 
 export default function ApiTestPage() {
   const testApi = async () => {
-    const response = await fetch('http://localhost:3001/health')
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-    return response.json()
+    const resp = await apiClient.health()
+    if (!resp.success) {
+      throw new Error(resp.error || 'Health check failed')
+    }
+    return resp
   }
   const [status, setStatus] = useState<string>('Not tested')
   const [isLoading, setIsLoading] = useState(false)
@@ -21,7 +24,9 @@ export default function ApiTestPage() {
     setIsLoading(true)
     try {
       const response = await testApi()
-      setStatus(`✅ Connected! Backend responded: ${response.service}`)
+      const data = unwrapResponse<{ service?: string }>(response)
+      const serviceName = data?.service || response.message || JSON.stringify(response)
+      setStatus(`✅ Connected! Backend responded: ${serviceName}`)
     } catch (error) {
       setStatus(`❌ Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {

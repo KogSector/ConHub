@@ -3,6 +3,7 @@
 import { useToast } from "@/hooks/use-toast";
 import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { apiClient, unwrapResponse } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -137,34 +138,25 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       }
 
       
-      const urlValidationResponse = await fetch('/api/repositories/validate-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repo_url: repositoryUrl.trim() }),
-      });
-      
-      const urlValidation = await urlValidationResponse.json();
-      if (!urlValidation.success) {
-        throw new Error(urlValidation.error || "Invalid repository URL format.");
+      const urlResp = await apiClient.post('/api/repositories/validate-url', { repo_url: repositoryUrl.trim() });
+      const urlValidation = unwrapResponse<{ success?: boolean; error?: string }>(urlResp) ?? urlResp;
+      if (!urlValidation || !urlValidation.success) {
+        const errMsg = urlValidation && typeof (urlValidation as Record<string, unknown>)['error'] === 'string'
+          ? (urlValidation as Record<string, unknown>)['error'] as string
+          : 'Invalid repository URL format.';
+        throw new Error(errMsg);
       }
 
       
-      const response = await fetch('/api/repositories/fetch-branches', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          repo_url: repositoryUrl.trim(),
-          credentials: credentialsPayload
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || "Failed to fetch branches.");
+      const resp = await apiClient.post('/api/repositories/fetch-branches', { repo_url: repositoryUrl.trim(), credentials: credentialsPayload });
+      const data = unwrapResponse<{ success?: boolean; data?: { branches: string[]; default_branch?: string }; error?: string }>(resp) ?? resp;
+      if (!data || !data.success) {
+        const errMsg = data && typeof (data as Record<string, unknown>)['error'] === 'string'
+          ? (data as Record<string, unknown>)['error'] as string
+          : 'Failed to fetch branches.';
+        throw new Error(errMsg);
       }
-
-      const { branches: fetchedBranches, default_branch } = data.data;
+      const { branches: fetchedBranches, default_branch } = data.data || { branches: [], default_branch: undefined };
       
       if (!fetchedBranches || fetchedBranches.length === 0) {
         setFetchBranchesError("No branches found. Please check the repository URL and permissions.");
@@ -176,9 +168,9 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         
         console.log(`Successfully fetched ${fetchedBranches.length} branches from ${repositoryUrl}`);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Branch fetching error:', err);
-      let errorMessage = err.message;
+      const errorMessage = err instanceof Error ? err.message : String(err);
       
       
       if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
@@ -219,21 +211,14 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         } 
       };
       
-      const response = await fetch('/api/data-sources/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
+      const resp = await apiClient.post('/api/data-sources/connect', payload);
+      const data = unwrapResponse<{ success?: boolean; error?: string }>(resp) ?? resp;
+      if (data && data.success) {
         onSuccess();
         onOpenChange(false);
         resetForm();
       } else {
-        
-        const errorMessage = data.error || 'Failed to connect repository';
+        const errorMessage = (data && (data as Record<string, unknown>)['error']) as string || 'Failed to connect repository';
         
         if (errorMessage.includes('token')) {
           setError(`${errorMessage}\n\nPlease check:\n• Token is not expired\n• Token has correct permissions\n• For public repos: use 'public_repo' scope\n• For private repos: use 'repo' scope`);

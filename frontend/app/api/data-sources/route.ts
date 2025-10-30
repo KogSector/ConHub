@@ -1,35 +1,39 @@
-import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
+import { NextResponse } from 'next/server'
+import { apiClient } from '@/lib/api'
+
+type ApiResp = { success?: boolean; error?: string; data?: unknown }
+
+function isApiResp(obj: unknown): obj is ApiResp {
+  return typeof obj === 'object' && obj !== null
+}
+
+function succeeded(resp: unknown): boolean {
+  return isApiResp(resp) && resp.success === true
+}
+
+function getData<T = unknown>(resp: unknown): T | undefined {
+  if (isApiResp(resp) && 'data' in resp) return resp.data as T
+  return undefined
+}
+
+export async function GET() {
   try {
-    
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
-    const response = await fetch(`${backendUrl}/api/data-sources`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return NextResponse.json(
-        { success: false, error: errorData.message || 'Failed to fetch data sources' },
-        { status: response.status }
-      );
+    const resp = await apiClient.get('/api/data-sources')
+    if (!succeeded(resp)) {
+      const err = isApiResp(resp) ? resp.error : undefined
+      return NextResponse.json({ success: false, error: err || 'Failed to fetch data sources' }, { status: 502 })
     }
 
-    const result = await response.json();
-    return NextResponse.json({
-      success: true,
-      dataSources: result.data || []
-    });
+    const data = getData<unknown[]>(resp) || []
+    return NextResponse.json({ success: true, dataSources: data })
 
   } catch (error) {
-    console.error('Error fetching data sources:', error);
+    console.error('Error fetching data sources:', error)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
-    );
+    )
   }
 }

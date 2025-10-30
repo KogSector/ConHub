@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from "@/components/ui/button";
-import { Menu, X, LogOut } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
@@ -9,7 +9,7 @@ import { isLoginEnabled } from "@/lib/feature-toggles";
 
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, isAuthenticated, isLoading, loginWithRedirect, logout } = useAuth();
+  const { isAuthenticated, isLoading, loginWithRedirect, logout } = useAuth();
 
   const handleAuthClick = () => {
     if (!isLoginEnabled()) {

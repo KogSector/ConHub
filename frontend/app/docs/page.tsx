@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Navbar } from "@/components/ui/navbar";
 import { Footer } from "@/components/ui/footer";
 import { useAuth } from "@/hooks/use-auth";
-import Link from "next/link";
+// Link not used in this file
 import { 
   BookOpen, 
   Bot, 

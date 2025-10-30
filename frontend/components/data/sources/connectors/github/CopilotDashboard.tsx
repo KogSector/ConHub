@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,14 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { useToast } from '@/hooks/use-toast';
+import { apiClient, unwrapResponse } from '@/lib/api';
 import { 
   Github, 
   Users, 
   GitBranch, 
   Star, 
-  GitCommit, 
-  MessageSquare, 
-  GitPullRequest,
   Bot,
   Activity,
   Building2,
@@ -73,8 +71,6 @@ export default function GitHubCopilotDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_LANGCHAIN_SERVICE_URL || 'http://localhost:3001';
-
   
   const connectToGitHub = async () => {
     if (!githubToken.trim()) {
@@ -88,21 +84,10 @@ export default function GitHubCopilotDashboard() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/github/user`, {
-        headers: {
-          'Authorization': `Bearer ${githubToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to connect to GitHub');
-      }
-
-      const data = await response.json();
-      setCurrentUser(data.data);
-      setIsConnected(true);
-      
+  const resp = await apiClient.get('/api/github/user', { Authorization: `Bearer ${githubToken}` });
+  const data = unwrapResponse<{ success?: boolean; data?: any }>(resp) ?? resp;
+  setCurrentUser((data && data.data) || data || null);
+  setIsConnected(true);
       toast({
         title: 'Success',
         description: `Connected to GitHub as ${data.data.login}`,
@@ -127,17 +112,9 @@ export default function GitHubCopilotDashboard() {
   
   const loadRepositories = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/github/repositories`, {
-        headers: {
-          'Authorization': `Bearer ${githubToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setRepositories(data.data);
-      }
+  const resp = await apiClient.get('/api/github/repositories', { Authorization: `Bearer ${githubToken}` });
+  const data = unwrapResponse<{ success?: boolean; data?: Repository[] }>(resp) ?? resp;
+  setRepositories((data && data.data) || data || []);
     } catch (error) {
       console.error('Failed to load repositories:', error);
     }
@@ -146,17 +123,9 @@ export default function GitHubCopilotDashboard() {
   
   const loadOrganizations = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/github/organizations`, {
-        headers: {
-          'Authorization': `Bearer ${githubToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setOrganizations(data.data);
-      }
+  const resp = await apiClient.get('/api/github/organizations', { Authorization: `Bearer ${githubToken}` });
+  const data = unwrapResponse<{ success?: boolean; data?: Organization[] }>(resp) ?? resp;
+  setOrganizations((data && data.data) || data || []);
     } catch (error) {
       console.error('Failed to load organizations:', error);
     }
@@ -165,15 +134,9 @@ export default function GitHubCopilotDashboard() {
   
   const loadCopilotUsage = async (org: string) => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/copilot/seats/${org}`, {
-        headers: {
-          'Authorization': `Bearer ${githubToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+      const resp = await apiClient.get(`/api/copilot/seats/${org}`, { Authorization: `Bearer ${githubToken}` });
+      const data = unwrapResponse<{ success?: boolean; data?: CopilotUsage }>(resp) ?? resp;
+      if (data && data.data) {
         setCopilotUsage(data.data);
       } else {
         toast({
@@ -193,17 +156,9 @@ export default function GitHubCopilotDashboard() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/github/search/repositories?q=${encodeURIComponent(searchQuery)}`, {
-        headers: {
-          'Authorization': `Bearer ${githubToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setRepositories(data.data.items);
-      }
+  const resp = await apiClient.get(`/api/github/search/repositories?q=${encodeURIComponent(searchQuery)}`, { Authorization: `Bearer ${githubToken}` });
+  const data = unwrapResponse<{ success?: boolean; data?: { items?: Repository[] } }>(resp) ?? resp;
+  setRepositories(((data && data.data && data.data.items) || (data && (data as Repository[])) || []) as Repository[]);
     } catch (error) {
       toast({
         title: 'Error',

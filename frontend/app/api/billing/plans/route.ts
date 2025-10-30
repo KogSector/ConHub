@@ -1,27 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-dynamic'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+import { NextResponse } from 'next/server'
+import { apiClient } from '@/lib/api'
 
-export async function GET(request: NextRequest) {
+type ApiResp = { success?: boolean; error?: string; data?: unknown }
+
+function isApiResp(obj: unknown): obj is ApiResp {
+  return typeof obj === 'object' && obj !== null
+}
+
+function succeeded(resp: unknown): boolean {
+  return isApiResp(resp) && resp.success === true
+}
+
+export async function GET() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/billing/plans`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const data = await response.json()
-    return NextResponse.json(data)
+    const resp = await apiClient.get('/api/billing/plans')
+    if (!succeeded(resp)) throw new Error('Failed to fetch plans')
+    return NextResponse.json(resp)
   } catch (error) {
     console.error('Error fetching subscription plans:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch subscription plans' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch subscription plans' }, { status: 500 })
   }
 }

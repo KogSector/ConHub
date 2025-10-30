@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Mail, ArrowRight, Sparkles, ArrowLeft, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
+import { apiClient, unwrapResponse } from '@/lib/api'
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState('')
@@ -20,26 +21,19 @@ export function ForgotPasswordForm() {
     setIsLoading(true)
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/forgot-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      })
-
-      const data = await response.json()
-      
-      if (response.ok) {
-        setIsSubmitted(true)
-      } else {
-        
+      try {
+        const resp = await apiClient.post('/api/auth/forgot-password', { email })
+        const result = unwrapResponse<{ success?: boolean; error?: string; message?: string }>(resp) ?? resp
+        if (result && (result as Record<string, unknown>)['success']) {
+          setIsSubmitted(true)
+        } else {
+          setError((result && (result as Record<string, unknown>)['error']) as string || (result && (result as Record<string, unknown>)['message']) as string || '')
+          setIsSubmitted(true)
+        }
+      } catch (err) {
+        setError('Network error')
         setIsSubmitted(true)
       }
-      
-    } catch (err) {
-      
-      setIsSubmitted(true)
     } finally {
       setIsLoading(false)
     }
@@ -72,14 +66,14 @@ export function ForgotPasswordForm() {
               </div>
               <CardTitle className="text-3xl font-bold text-white">Check your email</CardTitle>
               <CardDescription className="text-gray-300">
-                We've sent a password reset link to
+                We&apos;ve sent a password reset link to
               </CardDescription>
               <p className="text-purple-400 font-medium">{email}</p>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="text-center space-y-4">
                 <p className="text-gray-300 text-sm">
-                  Didn't receive the email? Check your spam folder or try again.
+                  Didn&apos;t receive the email? Check your spam folder or try again.
                 </p>
                 
                 <Button
@@ -136,7 +130,7 @@ export function ForgotPasswordForm() {
           <CardHeader className="space-y-1 text-center pb-6">
             <CardTitle className="text-3xl font-bold text-white">Reset your password</CardTitle>
             <CardDescription className="text-gray-300">
-              Enter your email address and we'll send you a link to reset your password
+              Enter your email address and we&apos;ll send you a link to reset your password
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">

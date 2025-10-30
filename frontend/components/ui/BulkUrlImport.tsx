@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Upload, Loader2, CheckCircle, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api";
 
 interface BulkUrlImportProps {
   open: boolean;
@@ -79,26 +80,17 @@ export function BulkUrlImport({ open, onOpenChange, onImportComplete }: BulkUrlI
         });
       } else {
         try {
-          const response = await fetch("http://localhost:3001/api/urls", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ url }),
-          });
-
-          const result = await response.json();
-          
+          const result = await apiClient.createUrl({ url });
           importResults.push({
             url,
-            success: result.success,
-            error: result.success ? undefined : result.message
+            success: !!result?.success,
+            error: result?.success ? undefined : result?.error || result?.message || 'Failed',
           });
         } catch (error) {
           importResults.push({
             url,
             success: false,
-            error: "Network error"
+            error: 'Network error',
           });
         }
       }
