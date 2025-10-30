@@ -141,6 +141,17 @@ tokio-postgres = "0.7"
 neo4rs = "0.7"
 retryable = "0.1"
 
+# Commonly used runtime + utility crates referenced by sources; add as
+# crate-local dependencies so `indexers` can compile in isolation. These
+# versions are conservative; if the workspace provides other versions we
+# can switch to those later.
+sqlx = { version = "0.6", features = ["postgres", "runtime-tokio-native-tls", "macros"] }
+rand = "0.8"
+urlencoding = "2.1"
+json5 = "0.3"
+scraper = "0.14"
+async-openai = "0.7"
+
 
 [[bin]]
 name = "unified-indexer"
