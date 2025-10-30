@@ -3,7 +3,7 @@ use crate::llm::{
 };
 use crate::ops::sdk::*;
 use crate::prelude::*;
-use base::json_schema::build_json_schema;
+use crate::base::json_schema::build_json_schema;
 use schemars::schema::SchemaObject;
 use std::borrow::Cow;
 
@@ -25,7 +25,7 @@ struct Executor {
     model: String,
     output_json_schema: SchemaObject,
     system_prompt: String,
-    value_extractor: base::json_schema::ValueExtractor,
+    value_extractor: crate::base::json_schema::ValueExtractor,
 }
 
 fn get_system_prompt(instructions: &Option<String>, extra_instructions: Option<String>) -> String {

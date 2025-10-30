@@ -141,6 +141,10 @@ tokio-postgres = "0.7"
 neo4rs = "0.7"
 retryable = "0.1"
 
+# Python integration
+pyo3 = { version = "0.27", features = ["auto-initialize"] }
+pyo3-async-runtimes = { version = "0.27", features = ["tokio"] }
+
 # Commonly used runtime + utility crates referenced by sources; add as
 # crate-local dependencies so `indexers` can compile in isolation. These
 # versions are conservative; if the workspace provides other versions we

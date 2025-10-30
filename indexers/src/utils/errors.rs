@@ -5,11 +5,7 @@ pub trait AnyhowIntoPyResult<T> {
     fn into_py_result(self) -> Result<T>;
 }
 
-impl<T> AnyhowIntoPyResult<T> for Result<T> {
-    fn into_py_result(self) -> Result<T> {
-        self
-    }
-}
+
 
 impl<T, E> AnyhowIntoPyResult<T> for std::result::Result<T, E>
 where

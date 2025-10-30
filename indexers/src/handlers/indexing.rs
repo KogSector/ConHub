@@ -19,7 +19,7 @@ pub async fn index_repository(
 
     log::info!("Indexing repository: {}", request.repository_url);
 
-    let mut metadata = std::collections::HashMap::new();
+    let mut metadata: std::collections::HashMap<String, String> = std::collections::HashMap::new();
     if let Some(ref branch) = request.branch {
         metadata.insert("branch".to_string(), branch.clone());
     }
@@ -69,7 +69,7 @@ pub async fn index_documentation(
 
     log::info!("Indexing documentation: {}", request.documentation_url);
 
-    let mut metadata = std::collections::HashMap::new();
+    let mut metadata: std::collections::HashMap<String, String> = std::collections::HashMap::new();
     if let Some(ref doc_type) = request.doc_type {
         metadata.insert("doc_type".to_string(), doc_type.clone());
     }
@@ -116,7 +116,7 @@ pub async fn index_url(
 
     log::info!("Indexing URL: {}", request.url);
 
-    let mut metadata = std::collections::HashMap::new();
+    let mut metadata: std::collections::HashMap<String, String> = std::collections::HashMap::new();
     if let Some(ref content_type) = request.content_type {
         metadata.insert("content_type".to_string(), content_type.clone());
     }

@@ -1,5 +1,6 @@
 use crate::prelude::*;
 use crate::setup::ResourceSetupChange;
+use serde::de::DeserializeOwned;
 use std::fmt::Debug;
 use std::hash::Hash;
 
