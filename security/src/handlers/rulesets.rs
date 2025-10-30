@@ -18,7 +18,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     );
 }
 
-async fn create_ruleset(
+pub async fn create_ruleset(
     pool: web::Data<PgPool>,
     user_id: web::ReqData<Uuid>,
     req: web::Json<CreateRulesetRequest>,
@@ -31,7 +31,7 @@ async fn create_ruleset(
     }
 }
 
-async fn list_rulesets(
+pub async fn list_rulesets(
     pool: web::Data<PgPool>,
     user_id: web::ReqData<Uuid>,
 ) -> impl Responder {
@@ -43,7 +43,7 @@ async fn list_rulesets(
     }
 }
 
-async fn get_ruleset(
+pub async fn get_ruleset(
     pool: web::Data<PgPool>,
     user_id: web::ReqData<Uuid>,
     path: web::Path<Uuid>,
@@ -58,7 +58,7 @@ async fn get_ruleset(
     }
 }
 
-async fn update_ruleset(
+pub async fn update_ruleset(
     pool: web::Data<PgPool>,
     user_id: web::ReqData<Uuid>,
     path: web::Path<Uuid>,
@@ -74,7 +74,7 @@ async fn update_ruleset(
     }
 }
 
-async fn delete_ruleset(
+pub async fn delete_ruleset(
     pool: web::Data<PgPool>,
     user_id: web::ReqData<Uuid>,
     path: web::Path<Uuid>,

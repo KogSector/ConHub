@@ -37,26 +37,23 @@ pub async fn store_rule(
     rule_bank: web::Data<AIRuleBankService>,
     req: web::Json<CreateRuleRequest>,
 ) -> Result<HttpResponse> {
-    let rule = AIRule {
-        id: Uuid::new_v4(),
+    let create_request = crate::services::rule_bank::CreateRuleRequest {
+        agent_id: Uuid::new_v4(), // Default agent ID for now
         title: req.title.clone(),
         description: req.description.clone(),
         content: req.content.clone(),
         rule_type: req.rule_type.clone(),
-        metadata: RuleMetadata::default(),
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
-        version: 1,
         priority: req.priority.unwrap_or(0),
-        is_active: true,
         tags: req.tags.clone().unwrap_or_default(),
     };
 
-    match rule_bank.store_rule(rule.clone()).await {
-        Ok(id) => Ok(HttpResponse::Created().json(RuleResponse {
+    let created_by = Uuid::new_v4(); // Default user ID for now
+
+    match rule_bank.store_rule(create_request, created_by).await {
+        Ok(rule) => Ok(HttpResponse::Created().json(RuleResponse {
             success: true,
-            data: Some(rule),
-            message: format!("Rule created successfully with ID: {}", id),
+            data: Some(rule.clone()),
+            message: format!("Rule created successfully with ID: {}", rule.id),
         })),
         Err(e) => Ok(HttpResponse::InternalServerError().json(RuleResponse {
             success: false,

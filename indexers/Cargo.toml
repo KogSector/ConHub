@@ -16,6 +16,7 @@ path = "src/lib.rs"
 tokio = { version = "1.0", features = ["full"] }
 futures = "0.3"
 async-trait = "0.1"
+async-stream = "0.3"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -46,14 +47,35 @@ tempfile = "3.8"
 
 # Tree-sitter parsers
 tree-sitter = "0.22"
-tree-sitter-rust = "0.21"
-tree-sitter-javascript = "0.21"
-tree-sitter-python = "0.21"
-tree-sitter-java = "0.21"
-tree-sitter-c = "0.21"
-tree-sitter-cpp = "0.21"
-tree-sitter-go = "0.21"
-tree-sitter-typescript = "0.21"
+tree-sitter-rust = "0.23"
+tree-sitter-javascript = "0.23"
+tree-sitter-python = "0.23"
+tree-sitter-java = "0.23"
+tree-sitter-c = "0.23"
+tree-sitter-cpp = "0.23"
+tree-sitter-go = "0.23"
+tree-sitter-typescript = "0.23"
+tree-sitter-html = "0.20"
+tree-sitter-json = "0.23"
+tree-sitter-kotlin = "0.3"
+tree-sitter-kotlin-ng = "1.0"
+tree-sitter-md = "0.2"
+tree-sitter-pascal = "0.10"
+tree-sitter-php = "0.22"
+tree-sitter-ruby = "0.23"
+tree-sitter-sql = "0.0.2"
+tree-sitter-swift = "0.4"
+tree-sitter-toml = "0.20"
+tree-sitter-toml-ng = "0.6"
+tree-sitter-sequel = "0.3"
+tree-sitter-xml = "0.6"
+tree-sitter-yaml = "0.6"
+tree-sitter-c-sharp = "0.23"
+tree-sitter-css = "0.23"
+tree-sitter-fortran = "0.5"
+tree-sitter-r = "1.0"
+tree-sitter-scala = "0.23"
+tree-sitter-solidity = "1.2"
 
 # Parallelism
 rayon = "1.8"
@@ -66,6 +88,7 @@ dashmap = "5.5"
 
 # Date and time
 chrono = { version = "0.4", features = ["serde"] }
+time = "0.3"
 
 # UUID
 uuid = { version = "1.6", features = ["v4", "serde"] }
@@ -75,6 +98,18 @@ qdrant-client = "1.7"
 
 # HTTP client
 reqwest = { version = "0.11", features = ["json"] }
+
+# AWS SDK
+aws-config = "0.57"
+aws-sdk-sqs = "0.37"
+aws-sdk-s3 = "0.37"
+aws-types = "0.57"
+
+# Azure SDK
+azure_core = "0.19"
+azure_identity = "0.19"
+azure_storage = "0.19"
+azure_storage_blobs = "0.19"
 
 # Git operations
 git2 = "0.19"
@@ -98,6 +133,14 @@ md5 = "0.7"
 
 # URL parsing
 url = "2.4"
+
+# Additional dependencies
+phf = { version = "0.11", features = ["macros"] }
+google-drive3 = "5.0"
+tokio-postgres = "0.7"
+neo4rs = "0.7"
+retryable = "0.1"
+
 
 [[bin]]
 name = "unified-indexer"

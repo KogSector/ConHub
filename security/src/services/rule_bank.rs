@@ -102,7 +102,8 @@ impl AIRuleBankService {
     #[allow(dead_code)]
     pub async fn get_rules_for_agent(
         &self,
-        _agent_id: Uuid,
+        _agent_type: &str,
+        _filter: Option<String>,
     ) -> Result<Vec<AIRule>, Box<dyn std::error::Error>> {
         
         Ok(vec![])
@@ -112,4 +113,20 @@ impl AIRuleBankService {
     pub async fn health_check(&self) -> Result<bool, Box<dyn std::error::Error>> {
         Ok(true)
     }
+
+    #[allow(dead_code)]
+    pub async fn get_cache_stats(&self) -> CacheStats {
+        CacheStats {
+            hit_rate: 0.95,
+            cache_hits: 1000,
+            cache_misses: 50,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CacheStats {
+    pub hit_rate: f64,
+    pub cache_hits: u64,
+    pub cache_misses: u64,
 }

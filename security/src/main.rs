@@ -5,6 +5,7 @@ use std::env;
 
 mod services;
 mod handlers;
+mod errors;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
