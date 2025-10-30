@@ -1,4 +1,6 @@
 use crate::prelude::*;
+use pyo3_async_runtimes::generic::run;
+use retryable::{Retryable, RetryOptions};
 
 use crate::llm::{LlmEmbeddingClient, LlmEmbeddingRequest, LlmEmbeddingResponse};
 use phf::phf_map;
@@ -75,7 +77,7 @@ impl LlmEmbeddingClient for Client {
             payload["input_type"] = serde_json::Value::String(task_type.into());
         }
 
-        let resp = retryable::run(
+        let resp = run(
             || async {
                 self.client
                     .post(url)
@@ -85,7 +87,7 @@ impl LlmEmbeddingClient for Client {
                     .await?
                     .error_for_status()
             },
-            &retryable::HEAVY_LOADED_OPTIONS,
+            RetryOptions::default(),
         )
         .await
         .context("Voyage AI API error")?;

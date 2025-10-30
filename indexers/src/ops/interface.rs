@@ -12,6 +12,9 @@ pub struct FlowInstanceContext {
     pub py_exec_ctx: Option<Arc<crate::py::PythonExecutionContext>>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct AuthRegistry {}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Ordinal(pub Option<i64>);
 

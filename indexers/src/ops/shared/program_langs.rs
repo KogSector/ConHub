@@ -188,7 +188,7 @@ static LANGUAGE_INFO_BY_NAME: LazyLock<
     add(
         "html",
         &[".html", ".htm", ".hta", ".html.hl", ".xht", ".xhtml"],
-    Some(TreeSitterLanguageInfo::new(tree_sitter_html::LANGUAGE, [])),
+    Some(TreeSitterLanguageInfo::new(tree_sitter_html::language(), [])),
     );
     add("hyprlang", &[".hl"], None);
     add("ini", &[".ini", ".cfg"], None);
@@ -312,7 +312,7 @@ static LANGUAGE_INFO_BY_NAME: LazyLock<
             "md",
         ],
         Some(TreeSitterLanguageInfo::new(
-            tree_sitter_md::LANGUAGE,
+            tree_sitter_md::language(),
             ["inline", "indented_code_block", "fenced_code_block"],
         )),
     );
@@ -407,7 +407,7 @@ static LANGUAGE_INFO_BY_NAME: LazyLock<
         "solidity",
         &[".sol"],
         Some(TreeSitterLanguageInfo::new(
-            tree_sitter_solidity::LANGUAGE,
+            tree_sitter_solidity::language(),
             [],
         )),
     );
@@ -426,7 +426,7 @@ static LANGUAGE_INFO_BY_NAME: LazyLock<
     add(
         "swift",
         &[".swift"],
-    Some(TreeSitterLanguageInfo::new(tree_sitter_swift::LANGUAGE, [])),
+    Some(TreeSitterLanguageInfo::new(tree_sitter_swift::language(), [])),
     );
     add("tablegen", &[".td"], None);
     add("tcl", &[".tcl"], None);
@@ -435,7 +435,7 @@ static LANGUAGE_INFO_BY_NAME: LazyLock<
         "toml",
         &[".toml"],
         Some(TreeSitterLanguageInfo::new(
-            tree_sitter_toml_ng::LANGUAGE,
+            tree_sitter_toml_ng::language(),
             [],
         )),
     );
@@ -480,7 +480,7 @@ static LANGUAGE_INFO_BY_NAME: LazyLock<
     add(
         "yaml",
         &[".yaml", ".yml"],
-    Some(TreeSitterLanguageInfo::new(tree_sitter_yaml::LANGUAGE, [])),
+    Some(TreeSitterLanguageInfo::new(tree_sitter_yaml::language(), [])),
     );
     add("yuck", &[".yuck"], None);
     add("zig", &[".zig"], None);

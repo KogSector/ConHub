@@ -1,10 +1,12 @@
 use crate::prelude::*;
 use base64::prelude::*;
+use pyo3_async_runtimes::generic::run;
+use retryable::{Retryable, RetryOptions};
 
-use super::{LlmEmbeddingClient, LlmGenerationClient, detect_image_mime_type};
+use super::{detect_image_mime_type, LlmEmbeddingClient, LlmGenerationClient};
 use async_openai::{
-    Client as OpenAIClient,
     config::OpenAIConfig,
+    Client as OpenAIClient,
     error::OpenAIError,
     types::{
         ChatCompletionRequestMessage, ChatCompletionRequestMessageContentPartImage,
@@ -12,7 +14,7 @@ use async_openai::{
         ChatCompletionRequestSystemMessageContent, ChatCompletionRequestUserMessage,
         ChatCompletionRequestUserMessageContent, ChatCompletionRequestUserMessageContentPart,
         CreateChatCompletionRequest, CreateEmbeddingRequest, EmbeddingInput, ImageDetail,
-        ResponseFormat, ResponseFormatJsonSchema,
+        ImageUrl, ResponseFormat, ResponseFormatJsonSchema,
     },
 };
 use phf::phf_map;
@@ -99,7 +101,7 @@ fn create_llm_generation_request(
                 ),
                 ChatCompletionRequestUserMessageContentPart::ImageUrl(
                     ChatCompletionRequestMessageContentPartImage {
-                        image_url: async_openai::types::ImageUrl {
+                        image_url: ImageUrl {
                             url: image_url,
                             detail: Some(ImageDetail::Auto),
                         },
@@ -145,13 +147,13 @@ impl LlmGenerationClient for Client {
         request: super::LlmGenerateRequest<'req>,
     ) -> Result<super::LlmGenerateResponse> {
         let request = &request;
-        let response = retryable::run(
+        let response = run(
             || async {
                 let req = create_llm_generation_request(request)?;
                 let response = self.client.chat().create(req).await?;
-                retryable::Ok(response)
+                Ok(response)
             },
-            &retryable::RetryOptions::default(),
+            RetryOptions::default(),
         )
         .await?;
 
@@ -182,7 +184,7 @@ impl LlmEmbeddingClient for Client {
         &self,
         request: super::LlmEmbeddingRequest<'req>,
     ) -> Result<super::LlmEmbeddingResponse> {
-        let response = retryable::run(
+        let response = run(
             || async {
                 self.client
                     .embeddings()
@@ -194,7 +196,7 @@ impl LlmEmbeddingClient for Client {
                     })
                     .await
             },
-            &retryable::RetryOptions::default(),
+            RetryOptions::default(),
         )
         .await?;
         Ok(super::LlmEmbeddingResponse {

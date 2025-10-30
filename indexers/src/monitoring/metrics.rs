@@ -380,7 +380,7 @@ pub struct PerformanceMetrics {
     /// Network metrics
     pub network_metrics: NetworkMetrics,
     
-    /// Storage metrics
+/// Storage metrics
     pub storage_metrics: StorageMetrics,
     
     /// Concurrency metrics
@@ -1357,6 +1357,36 @@ pub struct IndexMetrics {
 }
 
 /// Concurrency metrics
+#[derive(Debug, Clone, Default)]
+pub struct StorageMetrics {
+    /// Total storage size
+    pub total_size_bytes: u64,
+    
+    /// Used storage size
+    pub used_size_bytes: u64,
+    
+    /// Storage utilization
+    pub utilization: f64,
+    
+    /// Read operations per second
+    pub read_ops_per_sec: f64,
+    
+    /// Write operations per second
+    pub write_ops_per_sec: f64,
+    
+    /// Read bytes per second
+    pub read_bytes_per_sec: f64,
+    
+    /// Write bytes per second
+    pub write_bytes_per_sec: f64,
+    
+    /// Average read latency
+    pub avg_read_latency: Duration,
+    
+    /// Average write latency
+    pub avg_write_latency: Duration,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct ConcurrencyMetrics {
     /// Active tasks
