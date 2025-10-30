@@ -26,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
 import { ConnectRepositoryDialog } from "./ConnectRepositoryDialog";
-import { apiClient, unwrapResponse } from '@/lib/api';
+import { apiClient, ApiResponse } from '@/lib/api';
 import { ChangeBranchDialog } from "./ChangeBranchDialog";
 
 interface Repository {
@@ -121,10 +121,9 @@ export function RepositoriesPageClient() {
 
   const fetchDataSources = async () => {
     try {
-        const resp = await apiClient.get('/api/data-sources');
-        const data = unwrapResponse<{ success?: boolean; dataSources?: DataSource[] }>(resp) ?? resp;
-        if (data && data.success) {
-          const repoDataSources = data.dataSources?.filter((ds: DataSource) => 
+        const resp = await apiClient.get<ApiResponse<{ dataSources: DataSource[] }>>('/api/data-sources');
+        if (resp.success && resp.data) {
+          const repoDataSources = resp.data.dataSources?.filter((ds: DataSource) => 
             ['github', 'bitbucket'].includes(ds.type)
           ) || [];
           setDataSources(repoDataSources);
@@ -171,9 +170,8 @@ export function RepositoriesPageClient() {
       );
       
       if (dataSource) {
-        const resp = await apiClient.post(`/api/data-sources/${dataSource.id}/sync`, {});
-        const result = unwrapResponse<{ success?: boolean }>(resp) ?? resp;
-        if (!result || result.success === undefined || result.success) {
+        const resp = await apiClient.post<ApiResponse>(`/api/data-sources/${dataSource.id}/sync`, {});
+        if (resp.success) {
           fetchDataSources();
         }
       }

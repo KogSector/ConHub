@@ -95,7 +95,7 @@ export const authOptions: NextAuthOptions = {
             if (succeeded(resp)) {
               const userData = getData<Record<string, unknown>>(resp)
               if (userData && typeof userData['user_id'] === 'string') {
-                (user as Record<string, unknown>)['id'] = (userData['user_id'] as string) || user.id
+                (user as any).id = (userData['user_id'] as string) || user.id
               }
             } else {
               console.error('Failed to sync user with backend:', resp)

@@ -185,9 +185,9 @@ class ConHubLogger {
           
           const fidObserver = new PerformanceObserver((list) => {
             for (const entry of list.getEntries()) {
-              const processingStart = typeof (entry as Record<string, unknown>)['processingStart'] === 'number' ? (entry as Record<string, unknown>)['processingStart'] as number : undefined
+              const processingStart = (entry as any).processingStart as number | undefined;
               if (typeof processingStart === 'number') {
-                this.trackPerformance('first_input_delay', processingStart - (entry as PerformanceEntry).startTime)
+                this.trackPerformance('first_input_delay', processingStart - entry.startTime);
               }
             }
           });
