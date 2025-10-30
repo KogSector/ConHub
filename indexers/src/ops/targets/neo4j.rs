@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 use super::shared::property_graph::*;
 
-use crate::setup::components::{self, State, apply_component_changes};
+use crate::setup::components::{self, apply_component_changes, State};
 use crate::setup::{ResourceSetupChange, SetupChangeType};
 use crate::{ops::sdk::*, setup::CombinedState};
 
@@ -10,6 +10,10 @@ use indoc::formatdoc;
 use neo4rs::{BoltType, ConfigBuilder, Graph};
 use std::fmt::Write;
 use tokio::sync::OnceCell;
+use crate::ops::interface::AuthRegistry;
+use bytes::Bytes;
+use retryable::{Retryable, RetryOptions};
+use pyo3_async_runtimes::generic::run;
 
 const DEFAULT_DB: &str = "neo4j";
 
@@ -51,15 +55,7 @@ impl GraphKey {
     }
 }
 
-impl retryable::IsRetryable for neo4rs::Error {
-    fn is_retryable(&self) -> bool {
-        match self {
-            neo4rs::Error::ConnectionError => true,
-            neo4rs::Error::Neo4j(e) => e.kind() == neo4rs::Neo4jErrorKind::Transient,
-            _ => false,
-        }
-    }
-}
+
 
 #[derive(Default)]
 pub struct GraphPool {
@@ -117,30 +113,28 @@ pub struct ExportContext {
 
 fn json_value_to_bolt_value(value: &serde_json::Value) -> Result<BoltType> {
     let bolt_value = match value {
-        serde_json::Value::Null => BoltType::Null(neo4rs::BoltNull),
-        serde_json::Value::Bool(v) => BoltType::Boolean(neo4rs::BoltBoolean::new(*v)),
+        serde_json::Value::Null => BoltType::Null,
+        serde_json::Value::Bool(v) => BoltType::Boolean(*v),
         serde_json::Value::Number(v) => {
             if let Some(i) = v.as_i64() {
-                BoltType::Integer(neo4rs::BoltInteger::new(i))
+                BoltType::Integer(i)
             } else if let Some(f) = v.as_f64() {
-                BoltType::Float(neo4rs::BoltFloat::new(f))
+                BoltType::Float(f)
             } else {
                 anyhow::bail!("Unsupported JSON number: {}", v)
             }
         }
-        serde_json::Value::String(v) => BoltType::String(neo4rs::BoltString::new(v)),
-        serde_json::Value::Array(v) => BoltType::List(neo4rs::BoltList {
-            value: v
-                .iter()
+        serde_json::Value::String(v) => BoltType::String(v.clone()),
+        serde_json::Value::Array(v) => BoltType::List(
+            v.iter()
                 .map(json_value_to_bolt_value)
                 .collect::<Result<_>>()?,
-        }),
-        serde_json::Value::Object(v) => BoltType::Map(neo4rs::BoltMap {
-            value: v
-                .into_iter()
-                .map(|(k, v)| Ok((neo4rs::BoltString::new(k), json_value_to_bolt_value(v)?)))
+        ),
+        serde_json::Value::Object(v) => BoltType::Map(
+            v.into_iter()
+                .map(|(k, v)| Ok((k.clone(), json_value_to_bolt_value(v)?)))
                 .collect::<Result<_>>()?,
-        }),
+        ),
     };
     Ok(bolt_value)
 }
@@ -153,16 +147,16 @@ fn field_values_to_bolt<'a>(
     field_values: impl IntoIterator<Item = &'a value::Value>,
     schema: impl IntoIterator<Item = &'a schema::FieldSchema>,
 ) -> Result<BoltType> {
-    let bolt_value = BoltType::Map(neo4rs::BoltMap {
-        value: std::iter::zip(schema, field_values)
+    let bolt_value = BoltType::Map(
+        std::iter::zip(schema, field_values)
             .map(|(schema, value)| {
                 Ok((
-                    neo4rs::BoltString::new(&schema.name),
+                    schema.name.clone(),
                     value_to_bolt(value, &schema.value_type.typ)?,
                 ))
             })
             .collect::<Result<_>>()?,
-    });
+    );
     Ok(bolt_value)
 }
 
@@ -171,58 +165,48 @@ fn mapped_field_values_to_bolt(
     fields_input_idx: &[usize],
     field_values: &FieldValues,
 ) -> Result<BoltType> {
-    let bolt_value = BoltType::Map(neo4rs::BoltMap {
-        value: std::iter::zip(fields_schema.iter(), fields_input_idx.iter())
+    let bolt_value = BoltType::Map(
+        std::iter::zip(fields_schema.iter(), fields_input_idx.iter())
             .map(|(schema, field_idx)| {
                 Ok((
-                    neo4rs::BoltString::new(&schema.name),
+                    schema.name.clone(),
                     value_to_bolt(&field_values.fields[*field_idx], &schema.value_type.typ)?,
                 ))
             })
             .collect::<Result<_>>()?,
-    });
+    );
     Ok(bolt_value)
 }
 
 fn basic_value_to_bolt(value: &BasicValue, schema: &BasicValueType) -> Result<BoltType> {
     let bolt_value = match value {
-        BasicValue::Bytes(v) => {
-            BoltType::Bytes(neo4rs::BoltBytes::new(bytes::Bytes::from_owner(v.clone())))
-        }
-        BasicValue::Str(v) => BoltType::String(neo4rs::BoltString::new(v)),
-        BasicValue::Bool(v) => BoltType::Boolean(neo4rs::BoltBoolean::new(*v)),
-        BasicValue::Int64(v) => BoltType::Integer(neo4rs::BoltInteger::new(*v)),
-        BasicValue::Float64(v) => BoltType::Float(neo4rs::BoltFloat::new(*v)),
-        BasicValue::Float32(v) => BoltType::Float(neo4rs::BoltFloat::new(*v as f64)),
-        BasicValue::Range(v) => BoltType::List(neo4rs::BoltList {
-            value: [
-                BoltType::Integer(neo4rs::BoltInteger::new(v.start as i64)),
-                BoltType::Integer(neo4rs::BoltInteger::new(v.end as i64)),
-            ]
-            .into(),
-        }),
-        BasicValue::Uuid(v) => BoltType::String(neo4rs::BoltString::new(&v.to_string())),
-        BasicValue::Date(v) => BoltType::Date(neo4rs::BoltDate::from(*v)),
-        BasicValue::Time(v) => BoltType::LocalTime(neo4rs::BoltLocalTime::from(*v)),
-        BasicValue::LocalDateTime(v) => {
-            BoltType::LocalDateTime(neo4rs::BoltLocalDateTime::from(*v))
-        }
-        BasicValue::OffsetDateTime(v) => BoltType::DateTime(neo4rs::BoltDateTime::from(*v)),
-        BasicValue::TimeDelta(v) => BoltType::Duration(neo4rs::BoltDuration::new(
-            neo4rs::BoltInteger { value: 0 },
-            neo4rs::BoltInteger { value: 0 },
-            neo4rs::BoltInteger {
-                value: v.num_seconds(),
-            },
-            v.subsec_nanos().into(),
-        )),
+        BasicValue::Bytes(v) => BoltType::Bytes(Bytes::from(v.clone())),
+        BasicValue::Str(v) => BoltType::String(v.clone()),
+        BasicValue::Bool(v) => BoltType::Boolean(*v),
+        BasicValue::Int64(v) => BoltType::Integer(*v),
+        BasicValue::Float64(v) => BoltType::Float(*v),
+        BasicValue::Float32(v) => BoltType::Float(*v as f64),
+        BasicValue::Range(v) => BoltType::List(vec![
+            BoltType::Integer(v.start as i64),
+            BoltType::Integer(v.end as i64),
+        ]),
+        BasicValue::Uuid(v) => BoltType::String(v.to_string()),
+        BasicValue::Date(v) => BoltType::Date(*v),
+        BasicValue::Time(v) => BoltType::LocalTime(*v),
+        BasicValue::LocalDateTime(v) => BoltType::LocalDateTime(*v),
+        BasicValue::OffsetDateTime(v) => BoltType::DateTime(*v),
+        BasicValue::TimeDelta(v) => BoltType::Duration(
+            0,
+            0,
+            v.num_seconds(),
+            v.subsec_nanos() as i32,
+        ),
         BasicValue::Vector(v) => match schema {
-            BasicValueType::Vector(t) => BoltType::List(neo4rs::BoltList {
-                value: v
-                    .iter()
+            BasicValueType::Vector(t) => BoltType::List(
+                v.iter()
                     .map(|v| basic_value_to_bolt(v, &t.element_type))
                     .collect::<Result<_>>()?,
-            }),
+            ),
             _ => anyhow::bail!("Non-vector type got vector value: {}", schema),
         },
         BasicValue::Json(v) => json_value_to_bolt_value(v)?,
@@ -243,7 +227,7 @@ fn basic_value_to_bolt(value: &BasicValue, schema: &BasicValueType) -> Result<Bo
 
 fn value_to_bolt(value: &Value, schema: &schema::ValueType) -> Result<BoltType> {
     let bolt_value = match value {
-        Value::Null => BoltType::Null(neo4rs::BoltNull),
+        Value::Null => BoltType::Null,
         Value::Basic(v) => match schema {
             ValueType::Basic(t) => basic_value_to_bolt(v, t)?,
             _ => anyhow::bail!("Non-basic type got basic value: {}", schema),
@@ -253,18 +237,16 @@ fn value_to_bolt(value: &Value, schema: &schema::ValueType) -> Result<BoltType> 
             _ => anyhow::bail!("Non-struct type got struct value: {}", schema),
         },
         Value::UTable(v) | Value::LTable(v) => match schema {
-            ValueType::Table(t) => BoltType::List(neo4rs::BoltList {
-                value: v
-                    .iter()
+            ValueType::Table(t) => BoltType::List(
+                v.iter()
                     .map(|v| field_values_to_bolt(v.0.fields.iter(), t.row.fields.iter()))
                     .collect::<Result<_>>()?,
-            }),
+            ),
             _ => anyhow::bail!("Non-table type got table value: {}", schema),
         },
         Value::KTable(v) => match schema {
-            ValueType::Table(t) => BoltType::List(neo4rs::BoltList {
-                value: v
-                    .iter()
+            ValueType::Table(t) => BoltType::List(
+                v.iter()
                     .map(|(k, v)| {
                         field_values_to_bolt(
                             k.to_values().iter().chain(v.0.fields.iter()),
@@ -272,7 +254,7 @@ fn value_to_bolt(value: &Value, schema: &schema::ValueType) -> Result<BoltType> 
                         )
                     })
                     .collect::<Result<_>>()?,
-            }),
+            ),
             _ => anyhow::bail!("Non-table type got table value: {}", schema),
         },
     };
@@ -1067,11 +1049,11 @@ impl TargetFactoryBase for Factory {
                 .or_insert_with(Vec::new)
                 .push(mut_with_ctx);
         }
-        let retry_options = retryable::RetryOptions::default();
+        let retry_options = RetryOptions::default();
         for muts in muts_by_graph.values_mut() {
             muts.sort_by_key(|m| m.export_context.create_order);
             let graph = &muts[0].export_context.graph;
-            retryable::run(
+            run(
                 async || {
                     let mut queries = vec![];
                     for mut_with_ctx in muts.iter() {
@@ -1089,9 +1071,9 @@ impl TargetFactoryBase for Factory {
                     let mut txn = graph.start_txn().await?;
                     txn.run_queries(queries).await?;
                     txn.commit().await?;
-                    retryable::Ok(())
+                    Ok(())
                 },
-                &retry_options,
+                retry_options,
             )
             .await?;
         }

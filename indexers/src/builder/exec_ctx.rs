@@ -132,18 +132,25 @@ fn build_export_op_exec_ctx(
     let mut compatible_target_ids = HashSet::<Option<i32>>::new();
     let mut reusable_schema_version_ids = HashSet::<Option<usize>>::new();
     for existing_state in existing_target_states.iter().flat_map(|v| v.iter()) {
-        let compatibility = if let Some(key_type) = &analyzed_target_ss.key_type
-            && let Some(existing_key_type) = &existing_state.common.key_type
-            && key_type != existing_key_type
-        {
-            SetupStateCompatibility::NotCompatible
-        } else if analyzed_target_ss.setup_by_user != existing_state.common.setup_by_user {
-            SetupStateCompatibility::NotCompatible
-        } else {
-            target_factory.check_state_compatibility(
-                &analyzed_target_ss.desired_setup_state,
-                &existing_state.state,
-            )?
+        let compatibility = {
+            let key_types_different = if let (Some(key_type), Some(existing_key_type)) =
+                (&analyzed_target_ss.key_type, &existing_state.common.key_type)
+            {
+                key_type != existing_key_type
+            } else {
+                false
+            };
+
+            if key_types_different {
+                SetupStateCompatibility::NotCompatible
+            } else if analyzed_target_ss.setup_by_user != existing_state.common.setup_by_user {
+                SetupStateCompatibility::NotCompatible
+            } else {
+                target_factory.check_state_compatibility(
+                    &analyzed_target_ss.desired_setup_state,
+                    &existing_state.state,
+                )?
+            }
         };
         let compatible_target_id = if compatibility != SetupStateCompatibility::NotCompatible {
             reusable_schema_version_ids.insert(

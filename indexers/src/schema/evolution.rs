@@ -1880,7 +1880,7 @@ pub enum BreakingChangeType {
 #[derive(Debug, Clone)]
 pub struct MigrationEngine {
     /// Migration strategies
-    strategies: Vec<Box<dyn MigrationStrategy>>,
+    strategies: Vec<Box<dyn MigrationStrategyTrait>>,
     
     /// Migration executor
     executor: MigrationExecutor,
@@ -1893,7 +1893,7 @@ pub struct MigrationEngine {
 }
 
 /// Migration strategy trait
-pub trait MigrationStrategy: Send + Sync {
+pub trait MigrationStrategyTrait: Send + Sync {
     /// Check if strategy can handle migration
     fn can_handle(&self, migration: &Migration) -> bool;
     

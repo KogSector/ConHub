@@ -4,10 +4,13 @@ use crate::llm::{
     LlmEmbeddingClient, LlmGenerateRequest, LlmGenerateResponse, LlmGenerationClient, OutputFormat,
     ToJsonSchemaOptions, detect_image_mime_type,
 };
-use base64::prelude::*;
+use base64::{engine::general_purpose, Engine as _};
+use pyo3_async_runtimes::generic::run;
+use retryable::RetryOptions;
 use google_cloud_aiplatform_v1 as vertexai;
 use google_cloud_gax::exponential_backoff::ExponentialBackoff;
 use google_cloud_gax::options::RequestOptionsBuilder;
+use google_cloud_gax::error;
 use google_cloud_gax::retry_policy::{Aip194Strict, RetryPolicyExt};
 use google_cloud_gax::retry_throttler::{AdaptiveThrottler, SharedRetryThrottler};
 use serde_json::Value;
@@ -115,7 +118,7 @@ impl LlmGenerationClient for AiStudioClient {
 
         // Add image part if present
         if let Some(image_bytes) = &request.image {
-            let base64_image = BASE64_STANDARD.encode(image_bytes.as_ref());
+            let base64_image = general_purpose::STANDARD.encode(image_bytes.as_ref());
             let mime_type = detect_image_mime_type(image_bytes.as_ref())?;
             user_parts.push(serde_json::json!({
                 "inlineData": {
@@ -150,9 +153,9 @@ impl LlmGenerationClient for AiStudioClient {
         }
 
         let url = self.get_api_url(request.model, "generateContent");
-        let resp = retryable::run(
+        let resp = run(
             || self.client.post(&url).json(&payload).send(),
-            &retryable::HEAVY_LOADED_OPTIONS,
+            RetryOptions::default(),
         )
         .await?;
         if !resp.status().is_success() {
@@ -208,7 +211,7 @@ impl LlmEmbeddingClient for AiStudioClient {
             request.task_type.as_deref(),
             request.output_dimension,
         );
-        let resp = retryable::run(
+        let resp = run(
             || async {
                 self.client
                     .post(&url)
@@ -217,7 +220,7 @@ impl LlmEmbeddingClient for AiStudioClient {
                     .await?
                     .error_for_status()
             },
-            &retryable::HEAVY_LOADED_OPTIONS,
+            RetryOptions::default(),
         )
         .await
         .context("Gemini API error")?;
@@ -248,7 +251,7 @@ impl google_cloud_gax::retry_policy::RetryPolicy for CustomizedGoogleCloudRetryP
     fn on_error(
         &self,
         state: &google_cloud_gax::retry_state::RetryState,
-        error: google_cloud_gax::error::Error,
+        error: error::Error,
     ) -> google_cloud_gax::retry_result::RetryResult {
         use google_cloud_gax::retry_result::RetryResult;
 
@@ -256,10 +259,10 @@ impl google_cloud_gax::retry_policy::RetryPolicy for CustomizedGoogleCloudRetryP
             if status.code == google_cloud_gax::error::rpc::Code::ResourceExhausted {
                 return RetryResult::Continue(error);
             }
-        } else if let Some(code) = error.http_status_code()
-            && code == reqwest::StatusCode::TOO_MANY_REQUESTS.as_u16()
-        {
-            return RetryResult::Continue(error);
+        } else if let Some(code) = error.http_status_code() {
+            if code == reqwest::StatusCode::TOO_MANY_REQUESTS.as_u16() {
+                return RetryResult::Continue(error);
+            }
         }
         Aip194Strict.on_error(state, error)
     }
@@ -281,7 +284,7 @@ impl VertexAiClient {
         };
         let client = vertexai::client::PredictionService::builder()
             .with_retry_policy(
-                CustomizedGoogleCloudRetryPolicy.with_time_limit(retryable::DEFAULT_RETRY_TIMEOUT),
+                CustomizedGoogleCloudRetryPolicy.with_time_limit(std::time::Duration::from_secs(60)),
             )
             .with_backoff_policy(ExponentialBackoff::default())
             .with_retry_throttler(SHARED_RETRY_THROTTLER.clone())

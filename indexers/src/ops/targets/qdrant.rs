@@ -1,5 +1,6 @@
 use crate::ops::sdk::*;
 use crate::prelude::*;
+use crate::ops::interface::AuthRegistry;
 
 use crate::ops::registry::ExecutorFactoryRegistry;
 use crate::setup;

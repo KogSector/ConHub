@@ -20,13 +20,13 @@ pub async fn index_repository(
     log::info!("Indexing repository: {}", request.repository_url);
 
     let mut metadata: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-    if let Some(ref branch) = request.branch {
-        metadata.insert("branch".to_string(), branch.clone());
+    if let Some(branch) = &request.branch {
+        metadata.insert("branch".to_string(), branch.to_string());
     }
-    if let Some(ref patterns) = request.include_patterns {
+    if let Some(patterns) = &request.include_patterns {
         metadata.insert("include_patterns".to_string(), patterns.join(","));
     }
-    if let Some(ref patterns) = request.exclude_patterns {
+    if let Some(patterns) = &request.exclude_patterns {
         metadata.insert("exclude_patterns".to_string(), patterns.join(","));
     }
 
@@ -70,8 +70,8 @@ pub async fn index_documentation(
     log::info!("Indexing documentation: {}", request.documentation_url);
 
     let mut metadata: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-    if let Some(ref doc_type) = request.doc_type {
-        metadata.insert("doc_type".to_string(), doc_type.clone());
+    if let Some(doc_type) = &request.doc_type {
+        metadata.insert("doc_type".to_string(), doc_type.to_string());
     }
     if let Some(crawl_depth) = request.crawl_depth {
         metadata.insert("crawl_depth".to_string(), crawl_depth.to_string());
@@ -117,8 +117,8 @@ pub async fn index_url(
     log::info!("Indexing URL: {}", request.url);
 
     let mut metadata: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-    if let Some(ref content_type) = request.content_type {
-        metadata.insert("content_type".to_string(), content_type.clone());
+    if let Some(content_type) = &request.content_type {
+        metadata.insert("content_type".to_string(), content_type.to_string());
     }
 
     match state.web_indexer.index_url(

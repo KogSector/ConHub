@@ -6,14 +6,14 @@ use crate::setup;
 use chrono::TimeZone;
 use serde::Serialize;
 
+#[derive(Debug, Clone, Default)]
+pub struct AuthRegistry {}
+
 pub struct FlowInstanceContext {
     pub flow_instance_name: String,
     pub auth_registry: Arc<AuthRegistry>,
     pub py_exec_ctx: Option<Arc<crate::py::PythonExecutionContext>>,
 }
-
-#[derive(Debug, Clone, Default)]
-pub struct AuthRegistry {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Ordinal(pub Option<i64>);

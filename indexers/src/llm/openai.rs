@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use base64::prelude::*;
+use base64::{engine::general_purpose, Engine as _};
 use pyo3_async_runtimes::generic::run;
 use retryable::{Retryable, RetryOptions};
 
@@ -26,11 +26,11 @@ static DEFAULT_EMBEDDING_DIMENSIONS: phf::Map<&str, u32> = phf_map! {
 };
 
 pub struct Client {
-    client: async_openai::Client<OpenAIConfig>,
+    client: async_openai::Client,
 }
 
 impl Client {
-    pub(crate) fn from_parts(client: async_openai::Client<OpenAIConfig>) -> Self {
+    pub(crate) fn from_parts(client: async_openai::Client) -> Self {
         Self { client }
     }
 
@@ -90,7 +90,7 @@ fn create_llm_generation_request(
     // Add user message
     let user_message_content = match &request.image {
         Some(img_bytes) => {
-            let base64_image = BASE64_STANDARD.encode(img_bytes.as_ref());
+            let base64_image = general_purpose::STANDARD.encode(img_bytes.as_ref());
             let mime_type = detect_image_mime_type(img_bytes.as_ref())?;
             let image_url = format!("data:{mime_type};base64,{base64_image}");
             ChatCompletionRequestUserMessageContent::Array(vec![
