@@ -189,7 +189,7 @@ services:
   plugins:
     build:
       context: .
-      dockerfile: plugins/Dockerfile
+      dockerfile: services/plugins/Dockerfile
     container_name: conhub-plugins
     ports:
       - "3020:3020"
