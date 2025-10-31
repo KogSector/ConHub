@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::utils;
 
 use crate::llm::{
     LlmEmbeddingClient, LlmGenerateRequest, LlmGenerateResponse, LlmGenerationClient, OutputFormat,
@@ -251,17 +252,17 @@ impl google_cloud_gax::retry_policy::RetryPolicy for CustomizedGoogleCloudRetryP
     fn on_error(
         &self,
         state: &google_cloud_gax::retry_state::RetryState,
-        error: error::Error,
+        error: &error::Error,
     ) -> google_cloud_gax::retry_result::RetryResult {
         use google_cloud_gax::retry_result::RetryResult;
 
         if let Some(status) = error.status() {
-            if status.code == google_cloud_gax::error::rpc::Code::ResourceExhausted {
-                return RetryResult::Continue(error);
+            if status.code() == google_cloud_gax::error::rpc::Code::ResourceExhausted {
+                return RetryResult::Continue;
             }
         } else if let Some(code) = error.http_status_code() {
             if code == reqwest::StatusCode::TOO_MANY_REQUESTS.as_u16() {
-                return RetryResult::Continue(error);
+                return RetryResult::Continue;
             }
         }
         Aip194Strict.on_error(state, error)

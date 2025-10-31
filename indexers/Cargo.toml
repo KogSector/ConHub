@@ -99,6 +99,11 @@ qdrant-client = "1.7"
 # HTTP client
 reqwest = { version = "0.11", features = ["json"] }
 
+# Google Cloud GAX
+google-cloud-gax = "1.1.0"
+google-cloud-aiplatform-v1 = "1.2.0"
+retryable = "0.1"
+
 # AWS SDK
 aws-config = "0.57"
 aws-sdk-sqs = "0.37"
@@ -139,7 +144,6 @@ phf = { version = "0.11", features = ["macros"] }
 google-drive3 = "5.0"
 tokio-postgres = "0.7"
 neo4rs = "0.7"
-retryable = "0.1"
 
 # Python integration
 pyo3 = { version = "0.27", features = ["auto-initialize"] }
