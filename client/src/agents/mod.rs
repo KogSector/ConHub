@@ -1,4 +1,5 @@
 pub mod core;
+pub mod llm;
 pub mod githubcopilot;
 pub mod amazonq;
 pub mod cursoride;

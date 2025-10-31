@@ -2,6 +2,8 @@ use actix_web::{web, App, HttpServer, middleware::Logger};
 use actix_cors::Cors;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::env;
+use tracing::{info, error};
+use tracing_subscriber;
 
 mod handlers;
 mod services;
@@ -10,7 +12,7 @@ mod errors;
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
-    env_logger::init();
+    tracing_subscriber::fmt::init();
 
     // Load environment variables
     dotenv::dotenv().ok();
@@ -25,19 +27,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let database_url = env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgresql://conhub:conhub_password@postgres:5432/conhub".to_string());
 
-    println!("📊 [Billing Service] Connecting to database...");
+    tracing::info!("📊 [Billing Service] Connecting to database...");
     let pool = PgPoolOptions::new()
         .max_connections(10)
         .connect(&database_url)
         .await?;
 
-    println!("✅ [Billing Service] Database connection established");
+    tracing::info!("✅ [Billing Service] Database connection established");
 
     // Stripe API key
     let stripe_key = env::var("STRIPE_SECRET_KEY")
         .expect("STRIPE_SECRET_KEY must be set");
 
-    println!("🚀 [Billing Service] Starting on port {}", port);
+    tracing::info!("🚀 [Billing Service] Starting on port {}", port);
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -76,7 +78,7 @@ async fn health_check(pool: web::Data<PgPool>) -> actix_web::Result<web::Json<se
     let db_status = match sqlx::query("SELECT 1 as test").fetch_one(pool.get_ref()).await {
         Ok(_) => "connected",
         Err(e) => {
-            log::error!("[Billing Service] Database health check failed: {}", e);
+            tracing::error!("[Billing Service] Database health check failed: {}", e);
             "disconnected"
         }
     };

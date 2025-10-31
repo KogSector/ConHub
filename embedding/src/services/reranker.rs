@@ -29,7 +29,7 @@ impl RerankService {
     pub fn rerank(
         &self,
         query: &str,
-        documents: Vec<(String, String)>,
+        documents: &[(String, String)],
     ) -> Result<Vec<(String, f32)>> {
         if query.is_empty() {
             return Err(anyhow!("Query cannot be empty"));
@@ -41,7 +41,7 @@ impl RerankService {
 
         let mut results = Vec::new();
 
-        for (doc_id, doc_text) in documents {
+        for (doc_id, doc_text) in documents.iter() {
             // Create query-document pair
             let combined = format!("{} [SEP] {}", query, doc_text);
 
@@ -51,10 +51,10 @@ impl RerankService {
                 // Truncate if too long
                 let truncated = &tokens[..MAX_SEQ_LENGTH];
                 let score = self.model.score(truncated)?;
-                results.push((doc_id, score));
+                results.push((doc_id.clone(), score));
             } else {
                 let score = self.model.score(&tokens)?;
-                results.push((doc_id, score));
+                results.push((doc_id.clone(), score));
             }
         }
 

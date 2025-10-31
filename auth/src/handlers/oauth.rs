@@ -1,4 +1,5 @@
 use actix_web::{web, HttpResponse, Result};
+use actix_session::Session;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::PgPool;
@@ -60,6 +61,7 @@ pub async fn oauth_init(
 pub async fn oauth_login(
     provider: web::Path<String>,
     pool: web::Data<PgPool>,
+    session: Session,
 ) -> Result<HttpResponse> {
     let oauth_service = OAuthService::new(pool.get_ref().clone());
     
@@ -76,6 +78,7 @@ pub async fn oauth_login(
     };
 
     let state = Uuid::new_v4().to_string();
+    session.insert("oauth_state", state.clone())?;
     let authorization_url = oauth_service.get_authorization_url(provider_enum, &state);
 
     Ok(HttpResponse::Ok().json(json!({
@@ -88,7 +91,23 @@ pub async fn oauth_login(
 pub async fn oauth_callback(
     query: web::Query<OAuthCallbackQuery>,
     pool: web::Data<PgPool>,
+    session: Session,
 ) -> Result<HttpResponse> {
+    let session_state = match session.get::<String>("oauth_state")? {
+        Some(state) => state,
+        None => {
+            return Ok(HttpResponse::BadRequest().json(json!({
+                "error": "Invalid state"
+            })));
+        }
+    };
+
+    if session_state != query.state {
+        return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Invalid state"
+        })));
+    }
+
     let oauth_service = OAuthService::new(pool.get_ref().clone());
     
     let provider = match query.provider.to_lowercase().as_str() {
@@ -108,7 +127,7 @@ pub async fn oauth_callback(
     let token_response = match oauth_service.exchange_code_for_token(provider.clone(), &query.code).await {
         Ok(token) => token,
         Err(e) => {
-            log::error!("Failed to exchange OAuth code: {}", e);
+            tracing::error!("Failed to exchange OAuth code: {}", e);
             return Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Failed to exchange authorization code",
                 "message": format!("{}", e)
@@ -121,7 +140,7 @@ pub async fn oauth_callback(
         match oauth_service.get_user_info(provider.clone(), &token_response.access_token).await {
             Ok(info) => info,
             Err(e) => {
-                log::error!("Failed to get user info from OAuth provider: {}", e);
+                tracing::error!("Failed to get user info from OAuth provider: {}", e);
                 return Ok(HttpResponse::InternalServerError().json(json!({
                     "error": "Failed to retrieve user information",
                     "message": format!("{}", e)
@@ -139,7 +158,7 @@ pub async fn oauth_callback(
     ).await {
         Ok(user) => user,
         Err(e) => {
-            log::error!("Failed to find/create OAuth user: {}", e);
+            tracing::error!("Failed to find/create OAuth user: {}", e);
             return Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to create/find user account",
                 "message": format!("{}", e)
@@ -158,7 +177,7 @@ pub async fn oauth_callback(
         token_response.expires_in,
         token_response.scope,
     ).await {
-        log::warn!("Failed to store OAuth connection: {}", e);
+        tracing::warn!("Failed to store OAuth connection: {}", e);
         
     }
 
@@ -166,7 +185,7 @@ pub async fn oauth_callback(
     let (token, expires_at) = match generate_jwt_token(&user) {
         Ok(result) => result,
         Err(e) => {
-            log::error!("Failed to generate JWT token: {}", e);
+            tracing::error!("Failed to generate JWT token: {}", e);
             return Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to generate authentication token",
                 "message": e

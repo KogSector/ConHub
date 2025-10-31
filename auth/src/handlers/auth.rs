@@ -63,7 +63,7 @@ pub async fn login(
 
     
     if let Err(e) = user_service.update_last_login(user.id).await {
-        log::warn!("Failed to update last login for user {}: {}", user.id, e);
+        tracing::warn!("Failed to update last login for user {}: {}", user.id, e);
     }
 
     
@@ -98,7 +98,7 @@ pub async fn forgot_password(
     }
 
     let email = &request.email;
-    log::info!("Password reset requested for email: {}", email);
+    tracing::info!("Password reset requested for email: {}", email);
     
     let user_service = UserService::new(pool.get_ref().clone());
     
@@ -134,13 +134,13 @@ pub async fn reset_password(
     let token = &request.token;
     let new_password = &request.new_password;
     
-    log::info!("Password reset attempted for token: {}", token);
+    tracing::info!("Password reset attempted for token: {}", token);
     
     
     let email = match PASSWORD_RESET_SERVICE.validate_token(token) {
         Ok(email) => email,
         Err(e) => {
-            log::warn!("Invalid password reset token: {}", e);
+            tracing::warn!("Invalid password reset token: {}", e);
             return Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Invalid or expired reset token",
                 "details": e
@@ -152,7 +152,7 @@ pub async fn reset_password(
     let new_password_hash = match hash(new_password, DEFAULT_COST) {
         Ok(hash) => hash,
         Err(e) => {
-            log::error!("Failed to hash password: {}", e);
+            tracing::error!("Failed to hash password: {}", e);
             return Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to process password reset"
             })));
@@ -172,14 +172,14 @@ pub async fn reset_password(
     };
     
     
-    if let Err(e) = user_service.update_password(user.id, new_password).await {
-        log::error!("Failed to update password for user {}: {}", user.id, e);
+    if let Err(e) = user_service.update_password(user.id, &new_password_hash).await {
+        tracing::error!("Failed to update password for user {}: {}", user.id, e);
         return Ok(HttpResponse::InternalServerError().json(json!({
             "error": "Failed to update password"
         })));
     }
     
-    log::info!("Password successfully reset for email: {}", email);
+    tracing::info!("Password successfully reset for email: {}", email);
 
     Ok(HttpResponse::Ok().json(json!({
         "message": "Password has been reset successfully. You can now log in with your new password.",
@@ -204,7 +204,7 @@ pub async fn register(
     let new_user = match user_service.create_user(&request).await {
         Ok(user) => user,
         Err(e) => {
-            log::error!("Failed to create user: {}", e);
+            tracing::error!("Failed to create user: {}", e);
             return Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Failed to create user",
                 "details": format!("{}", e)
@@ -216,7 +216,7 @@ pub async fn register(
     let (token, expires_at) = match generate_jwt_token(&new_user) {
         Ok((token, expires_at)) => (token, expires_at),
         Err(e) => {
-            log::error!("Failed to generate JWT token for user {}: {}", new_user.id, e);
+            tracing::error!("Failed to generate JWT token for user {}: {}", new_user.id, e);
             return Ok(HttpResponse::InternalServerError().json(json!({
                 "error": e
             })));
@@ -274,7 +274,7 @@ pub async fn get_profile(pool: web::Data<PgPool>) -> Result<HttpResponse> {
             }
         }
         Err(e) => {
-            log::error!("Failed to get user profile: {}", e);
+            tracing::error!("Failed to get user profile: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to get profile"
             })))
@@ -298,7 +298,7 @@ pub async fn list_users(pool: web::Data<PgPool>) -> Result<HttpResponse> {
             })))
         }
         Err(e) => {
-            log::error!("Failed to list users: {}", e);
+            tracing::error!("Failed to list users: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to list users"
             })))
@@ -336,11 +336,11 @@ pub async fn oauth_callback(
             
             match user_service.create_user(&register_request).await {
                 Ok(new_user) => {
-                    log::info!("Created new user via OAuth: {} ({})", new_user.email, new_user.id);
+                    tracing::info!("Created new user via OAuth: {} ({})", new_user.email, new_user.id);
                     (new_user, true)
                 },
                 Err(e) => {
-                    log::error!("Failed to create OAuth user: {}", e);
+                    tracing::error!("Failed to create OAuth user: {}", e);
                     return Ok(HttpResponse::InternalServerError().json(json!({
                         "error": "Failed to create user",
                         "details": format!("{}", e)
@@ -352,7 +352,7 @@ pub async fn oauth_callback(
 
     // Update last login
     if let Err(e) = user_service.update_last_login(user.id).await {
-        log::warn!("Failed to update last login for OAuth user {}: {}", user.id, e);
+        tracing::warn!("Failed to update last login for OAuth user {}: {}", user.id, e);
     }
 
     // Calculate token expiration datetime
@@ -403,14 +403,14 @@ pub async fn oauth_callback(
     let final_connection_id = match result {
         Ok(row) => row.get("id"),
         Err(e) => {
-            log::error!("Failed to create/update social connection: {}", e);
+            tracing::error!("Failed to create/update social connection: {}", e);
             return Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to store social connection"
             })));
         }
     };
 
-    log::info!("OAuth callback successful for user {} with provider {}", user.id, request.provider);
+    tracing::info!("OAuth callback successful for user {} with provider {}", user.id, request.provider);
 
     Ok(HttpResponse::Ok().json(OAuthCallbackResponse {
         user_id: user.id,

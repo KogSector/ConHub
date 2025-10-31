@@ -3,7 +3,7 @@ use base64::{engine::general_purpose, Engine as _};
 use pyo3_async_runtimes::generic::run;
 use retryable::{Retryable, RetryOptions};
 
-use super::{detect_image_mime_type, LlmEmbeddingClient, LlmGenerationClient};
+use super::{detect_image_mime_type, LlmGenerationClient};
 use async_openai::{
     config::OpenAIConfig,
     Client as OpenAIClient,
@@ -13,16 +13,9 @@ use async_openai::{
         ChatCompletionRequestMessageContentPartText, ChatCompletionRequestSystemMessage,
         ChatCompletionRequestSystemMessageContent, ChatCompletionRequestUserMessage,
         ChatCompletionRequestUserMessageContent, ChatCompletionRequestUserMessageContentPart,
-        CreateChatCompletionRequest, CreateEmbeddingRequest, EmbeddingInput, ImageDetail,
+        CreateChatCompletionRequest, ImageDetail,
         ImageUrl, ResponseFormat, ResponseFormatJsonSchema,
     },
-};
-use phf::phf_map;
-
-static DEFAULT_EMBEDDING_DIMENSIONS: phf::Map<&str, u32> = phf_map! {
-    "text-embedding-3-small" => 1536,
-    "text-embedding-3-large" => 3072,
-    "text-embedding-ada-002" => 1536,
 };
 
 pub struct Client {
@@ -30,10 +23,6 @@ pub struct Client {
 }
 
 impl Client {
-    pub(crate) fn from_parts(client: async_openai::Client) -> Self {
-        Self { client }
-    }
-
     pub fn new(address: Option<String>, api_config: Option<super::LlmApiConfig>) -> Result<Self> {
         let config = match api_config {
             Some(super::LlmApiConfig::OpenAi(config)) => config,
@@ -175,41 +164,5 @@ impl LlmGenerationClient for Client {
             extract_descriptions: false,
             top_level_must_be_object: true,
         }
-    }
-}
-
-#[async_trait]
-impl LlmEmbeddingClient for Client {
-    async fn embed_text<'req>(
-        &self,
-        request: super::LlmEmbeddingRequest<'req>,
-    ) -> Result<super::LlmEmbeddingResponse> {
-        let response = run(
-            || async {
-                self.client
-                    .embeddings()
-                    .create(CreateEmbeddingRequest {
-                        model: request.model.to_string(),
-                        input: EmbeddingInput::String(request.text.to_string()),
-                        dimensions: request.output_dimension,
-                        ..Default::default()
-                    })
-                    .await
-            },
-            RetryOptions::default(),
-        )
-        .await?;
-        Ok(super::LlmEmbeddingResponse {
-            embedding: response
-                .data
-                .into_iter()
-                .next()
-                .ok_or_else(|| anyhow::anyhow!("No embedding returned from OpenAI"))?
-                .embedding,
-        })
-    }
-
-    fn get_default_embedding_dimension(&self, model: &str) -> Option<u32> {
-        DEFAULT_EMBEDDING_DIMENSIONS.get(model).copied()
     }
 }

@@ -1,6 +1,7 @@
 use actix_web::{web, HttpResponse, Result};
 use serde_json::json;
 use reqwest::Client;
+use tracing::error;
 
 
 use conhub_models::ApiResponse;
@@ -88,7 +89,7 @@ pub async fn query_agents(
                 }
             }
             Err(e) => {
-                eprintln!("Code search failed: {}", e);
+                tracing::error!("Code search failed: {}", e);
             }
         }
     }
@@ -108,7 +109,7 @@ pub async fn query_agents(
                 }
             }
             Err(e) => {
-                eprintln!("Document search failed: {}", e);
+                tracing::error!("Document search failed: {}", e);
             }
         }
     }
@@ -124,7 +125,7 @@ pub async fn query_agents(
         match generate_ai_response(&client, &ai_service_url, &req.query, &context, agent_type).await {
             Ok(response) => Some(response),
             Err(e) => {
-                eprintln!("AI response generation failed: {}", e);
+                tracing::error!("AI response generation failed: {}", e);
                 None
             }
         }

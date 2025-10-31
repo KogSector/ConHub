@@ -130,3 +130,15 @@ impl From<reqwest::Error> for ServiceError {
         ServiceError::ExternalApiError(error.to_string())
     }
 }
+
+impl From<(actix_web::http::StatusCode, String)> for ServiceError {
+    fn from(error: (actix_web::http::StatusCode, String)) -> Self {
+        match error.0 {
+            actix_web::http::StatusCode::UNAUTHORIZED => ServiceError::Unauthorized(error.1),
+            actix_web::http::StatusCode::NOT_FOUND => ServiceError::NotFound(error.1),
+            actix_web::http::StatusCode::BAD_REQUEST => ServiceError::BadRequest(error.1),
+            actix_web::http::StatusCode::FORBIDDEN => ServiceError::Unauthorized(error.1),
+            _ => ServiceError::InternalServerError(error.1),
+        }
+    }
+}

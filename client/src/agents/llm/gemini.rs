@@ -2,7 +2,7 @@ use crate::prelude::*;
 use crate::utils;
 
 use crate::llm::{
-    LlmEmbeddingClient, LlmGenerateRequest, LlmGenerateResponse, LlmGenerationClient, OutputFormat,
+    LlmGenerateRequest, LlmGenerateResponse, LlmGenerationClient, OutputFormat,
     ToJsonSchemaOptions, detect_image_mime_type,
 };
 use base64::{engine::general_purpose, Engine as _};
@@ -16,21 +16,6 @@ use google_cloud_gax::retry_policy::{Aip194Strict, RetryPolicyExt};
 use google_cloud_gax::retry_throttler::{AdaptiveThrottler, SharedRetryThrottler};
 use serde_json::Value;
 use urlencoding::encode;
-
-fn get_embedding_dimension(model: &str) -> Option<u32> {
-    let model = model.to_ascii_lowercase();
-    if model.starts_with("gemini-embedding-") {
-        Some(3072)
-    } else if model.starts_with("text-embedding-") {
-        Some(768)
-    } else if model.starts_with("embedding-") {
-        Some(768)
-    } else if model.starts_with("text-multilingual-embedding-") {
-        Some(768)
-    } else {
-        None
-    }
-}
 
 pub struct AiStudioClient {
     api_key: String,
@@ -80,30 +65,6 @@ impl AiStudioClient {
             encode(&self.api_key)
         )
     }
-}
-
-fn build_embed_payload(
-    model: &str,
-    text: &str,
-    task_type: Option<&str>,
-    output_dimension: Option<u32>,
-) -> serde_json::Value {
-    let mut payload = serde_json::json!({
-        "model": model,
-        "content": { "parts": [{ "text": text }] },
-    });
-    if let Some(task_type) = task_type {
-        payload["taskType"] = serde_json::Value::String(task_type.to_string());
-    }
-    if let Some(output_dimension) = output_dimension {
-        payload["outputDimensionality"] = serde_json::json!(output_dimension);
-        if model.starts_with("gemini-embedding-") {
-            payload["config"] = serde_json::json!({
-                "outputDimensionality": output_dimension,
-            });
-        }
-    }
-    payload
 }
 
 #[async_trait]
@@ -187,56 +148,6 @@ impl LlmGenerationClient for AiStudioClient {
             extract_descriptions: false,
             top_level_must_be_object: true,
         }
-    }
-}
-
-#[derive(Deserialize)]
-struct ContentEmbedding {
-    values: Vec<f32>,
-}
-#[derive(Deserialize)]
-struct EmbedContentResponse {
-    embedding: ContentEmbedding,
-}
-
-#[async_trait]
-impl LlmEmbeddingClient for AiStudioClient {
-    async fn embed_text<'req>(
-        &self,
-        request: super::LlmEmbeddingRequest<'req>,
-    ) -> Result<super::LlmEmbeddingResponse> {
-        let url = self.get_api_url(request.model, "embedContent");
-        let payload = build_embed_payload(
-            request.model,
-            request.text.as_ref(),
-            request.task_type.as_deref(),
-            request.output_dimension,
-        );
-        let resp = run(
-            || async {
-                self.client
-                    .post(&url)
-                    .json(&payload)
-                    .send()
-                    .await?
-                    .error_for_status()
-            },
-            RetryOptions::default(),
-        )
-        .await
-        .context("Gemini API error")?;
-        let embedding_resp: EmbedContentResponse = resp.json().await.context("Invalid JSON")?;
-        Ok(super::LlmEmbeddingResponse {
-            embedding: embedding_resp.embedding.values,
-        })
-    }
-
-    fn get_default_embedding_dimension(&self, model: &str) -> Option<u32> {
-        get_embedding_dimension(model)
-    }
-
-    fn behavior_version(&self) -> Option<u32> {
-        Some(2)
     }
 }
 
@@ -384,57 +295,5 @@ impl LlmGenerationClient for VertexAiClient {
             extract_descriptions: false,
             top_level_must_be_object: true,
         }
-    }
-}
-
-#[async_trait]
-impl LlmEmbeddingClient for VertexAiClient {
-    async fn embed_text<'req>(
-        &self,
-        request: super::LlmEmbeddingRequest<'req>,
-    ) -> Result<super::LlmEmbeddingResponse> {
-        // Create the instances for the request
-        let mut instance = serde_json::json!({
-            "content": request.text
-        });
-        // Add task type if specified
-        if let Some(task_type) = &request.task_type {
-            instance["task_type"] = serde_json::Value::String(task_type.to_string());
-        }
-
-        let instances = vec![instance];
-
-        // Prepare the request parameters
-        let mut parameters = serde_json::json!({});
-        if let Some(output_dimension) = request.output_dimension {
-            parameters["outputDimensionality"] = serde_json::Value::Number(output_dimension.into());
-        }
-
-        // Build the prediction request using the raw predict builder
-        let response = self
-            .client
-            .predict()
-            .set_endpoint(self.get_model_path(request.model))
-            .set_instances(instances)
-            .set_parameters(parameters)
-            .with_idempotency(true)
-            .send()
-            .await?;
-
-        // Extract the embedding from the response
-        let embeddings = response
-            .predictions
-            .into_iter()
-            .next()
-            .and_then(|mut e| e.get_mut("embeddings").map(|v| v.take()))
-            .ok_or_else(|| anyhow::anyhow!("No embeddings in response"))?;
-        let embedding: ContentEmbedding = utils::deser::from_json_value(embeddings)?;
-        Ok(super::LlmEmbeddingResponse {
-            embedding: embedding.values,
-        })
-    }
-
-    fn get_default_embedding_dimension(&self, model: &str) -> Option<u32> {
-        get_embedding_dimension(model)
     }
 }

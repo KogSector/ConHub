@@ -230,13 +230,10 @@ impl UserService {
     }
 
     
-    pub async fn update_password(&self, user_id: Uuid, new_password: &str) -> Result<()> {
-        let password_hash = hash(new_password, DEFAULT_COST)
-            .map_err(|e| anyhow!("Failed to hash password: {}", e))?;
-
+    pub async fn update_password(&self, user_id: Uuid, new_password_hash: &str) -> Result<()> {
         let now = Utc::now();
         sqlx::query("UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3")
-            .bind(password_hash)
+            .bind(new_password_hash)
             .bind(now)
             .bind(user_id)
             .execute(&self.pool)

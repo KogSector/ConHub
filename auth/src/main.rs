@@ -83,7 +83,7 @@ async fn health_check(pool: web::Data<PgPool>) -> actix_web::Result<web::Json<se
     let db_status = match sqlx::query("SELECT 1 as test").fetch_one(pool.get_ref()).await {
         Ok(_) => "connected",
         Err(e) => {
-            log::error!("[Auth Service] Database health check failed: {}", e);
+            tracing::error!("[Auth Service] Database health check failed: {}", e);
             "disconnected"
         }
     };

@@ -2,6 +2,7 @@ use actix_web::{web, HttpResponse, HttpRequest};
 use validator::Validate;
 use serde_json::json;
 use uuid::Uuid;
+use tracing::error;
 
 use conhub_models::billing::*;
 use crate::services::billing::BillingService;
@@ -14,7 +15,7 @@ pub async fn get_subscription_plans() -> Result<HttpResponse, ServiceError> {
     match billing_service.get_subscription_plans().await {
         Ok(plans) => Ok(HttpResponse::Ok().json(plans)),
         Err(e) => {
-            log::error!("Failed to get subscription plans: {}", e);
+            tracing::error!("Failed to get subscription plans: {}", e);
             Ok(HttpResponse::InternalServerError().json(serde_json::json!({
                 "error": "Failed to get subscription plans"
             })))
@@ -31,7 +32,7 @@ pub async fn get_billing_dashboard() -> Result<HttpResponse, ServiceError> {
     match billing_service.get_billing_dashboard(user_id).await {
         Ok(dashboard) => Ok(HttpResponse::Ok().json(dashboard)),
         Err(e) => {
-            log::error!("Failed to get billing dashboard: {}", e);
+            tracing::error!("Failed to get billing dashboard: {}", e);
             Ok(HttpResponse::InternalServerError().json(serde_json::json!({
                 "error": "Failed to get billing dashboard"
             })))
@@ -57,12 +58,8 @@ pub struct CreatePaymentIntentRequest {
 }
 
 
-pub async fn create_customer(request: web::Json<CreateCustomerRequest>) -> Result<HttpResponse, ServiceError> {
-    if let Err(validation_errors) = request.validate() {
-        return Ok(HttpResponse::BadRequest().json(json!({
-            "error": "Validation failed",
-            "details": validation_errors
-        })));
+if let Err(validation_errors) = request.validate() {
+        return Err(ServiceError::ValidationError(validation_errors.to_string()));
     }
 
     let billing_service = BillingService::new();
@@ -74,7 +71,7 @@ pub async fn create_customer(request: web::Json<CreateCustomerRequest>) -> Resul
             "customer_id": customer_id
         }))),
         Err(e) => {
-            log::error!("Failed to create customer: {}", e);
+            tracing::error!("Failed to create customer: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to create customer"
             })))
@@ -83,12 +80,8 @@ pub async fn create_customer(request: web::Json<CreateCustomerRequest>) -> Resul
 }
 
 
-pub async fn create_payment_intent(request: web::Json<CreatePaymentIntentRequest>) -> Result<HttpResponse, ServiceError> {
-    if let Err(validation_errors) = request.validate() {
-        return Ok(HttpResponse::BadRequest().json(json!({
-            "error": "Validation failed",
-            "details": validation_errors
-        })));
+if let Err(validation_errors) = request.validate() {
+        return Err(ServiceError::ValidationError(validation_errors.to_string()));
     }
 
     let billing_service = BillingService::new();
@@ -99,7 +92,7 @@ pub async fn create_payment_intent(request: web::Json<CreatePaymentIntentRequest
             "payment_intent_id": payment_intent_id
         }))),
         Err(e) => {
-            log::error!("Failed to create payment intent: {}", e);
+            tracing::error!("Failed to create payment intent: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to create payment intent"
             })))
@@ -121,7 +114,7 @@ pub async fn create_setup_intent(request: web::Json<serde_json::Value>) -> Resul
             "setup_intent_id": setup_intent_id
         }))),
         Err(e) => {
-            log::error!("Failed to create setup intent: {}", e);
+            tracing::error!("Failed to create setup intent: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to create setup intent"
             })))
@@ -132,18 +125,13 @@ pub async fn create_setup_intent(request: web::Json<serde_json::Value>) -> Resul
 
 pub async fn create_subscription(request: web::Json<CreateSubscriptionRequest>) -> Result<HttpResponse, ServiceError> {
     if let Err(validation_errors) = request.validate() {
-        return Ok(HttpResponse::BadRequest().json(json!({
-            "error": "Validation failed",
-            "details": validation_errors
-        })));
+        return Err(ServiceError::ValidationError(validation_errors.to_string()));
     }
 
     // For demo purposes, using a fixed user ID - in real app, extract from JWT token
     let user_id = match Uuid::parse_str(DEMO_USER_ID) {
         Ok(id) => id,
-        Err(_) => return Ok(HttpResponse::InternalServerError().json(json!({
-            "error": "Invalid demo user ID"
-        })))
+        Err(_) => return Err(ServiceError::InternalError("Invalid demo user ID".to_string()))
     };
 
     let billing_service = BillingService::new();
@@ -156,7 +144,7 @@ pub async fn create_subscription(request: web::Json<CreateSubscriptionRequest>) 
             "plan_id": subscription.plan_id
         }))),
         Err(e) => {
-            log::error!("Failed to create subscription: {}", e);
+            tracing::error!("Failed to create subscription: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to create subscription"
             })))
@@ -175,7 +163,7 @@ pub async fn cancel_subscription(path: web::Path<String>) -> Result<HttpResponse
             "message": "Subscription cancelled successfully"
         }))),
         Err(e) => {
-            log::error!("Failed to cancel subscription: {}", e);
+            tracing::error!("Failed to cancel subscription: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to cancel subscription"
             })))
@@ -194,7 +182,7 @@ pub async fn get_payment_methods(path: web::Path<String>) -> Result<HttpResponse
             "payment_methods": payment_methods
         }))),
         Err(e) => {
-            log::error!("Failed to get payment methods: {}", e);
+            tracing::error!("Failed to get payment methods: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to get payment methods"
             })))
@@ -207,9 +195,7 @@ pub async fn get_invoices(path: web::Path<String>) -> Result<HttpResponse, Servi
     let customer_id_str = path.into_inner();
     let customer_id = match Uuid::parse_str(&customer_id_str) {
         Ok(id) => id,
-        Err(_) => return Ok(HttpResponse::BadRequest().json(json!({
-            "error": "Invalid customer ID format"
-        })))
+        Err(_) => return Err(ServiceError::ParseError("Invalid customer ID format".to_string()))
     };
     
     let billing_service = BillingService::new();
@@ -220,7 +206,7 @@ pub async fn get_invoices(path: web::Path<String>) -> Result<HttpResponse, Servi
             "invoices": invoices
         }))),
         Err(e) => {
-            log::error!("Failed to get invoices: {}", e);
+            tracing::error!("Failed to get invoices: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to get invoices"
             })))
@@ -245,7 +231,7 @@ pub async fn handle_stripe_webhook(req: HttpRequest, body: web::Bytes) -> Result
             "success": true
         }))),
         Err(e) => {
-            log::error!("Failed to handle webhook: {}", e);
+            tracing::error!("Failed to handle webhook: {}", e);
             Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Failed to handle webhook"
             })))
@@ -256,9 +242,7 @@ pub async fn handle_stripe_webhook(req: HttpRequest, body: web::Bytes) -> Result
 pub async fn get_subscription(path: web::Path<String>) -> Result<HttpResponse, ServiceError> {
     let user_id = match Uuid::parse_str(&path) {
         Ok(id) => id,
-        Err(_) => return Ok(HttpResponse::BadRequest().json(json!({
-            "error": "Invalid user ID format"
-        })))
+        Err(_) => return Err(ServiceError::ParseError("Invalid user ID format".to_string()))
     };
 
     let billing_service = BillingService::new();
@@ -268,7 +252,7 @@ pub async fn get_subscription(path: web::Path<String>) -> Result<HttpResponse, S
             "error": "No subscription found for user"
         }))),
         Err(e) => {
-            log::error!("Failed to get subscription: {}", e);
+            tracing::error!("Failed to get subscription: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to get subscription"
             })))
@@ -279,16 +263,14 @@ pub async fn get_subscription(path: web::Path<String>) -> Result<HttpResponse, S
 pub async fn add_payment_method(request: web::Json<CreatePaymentMethodRequest>) -> Result<HttpResponse, ServiceError> {
     let user_id = match Uuid::parse_str(DEMO_USER_ID) {
         Ok(id) => id,
-        Err(_) => return Ok(HttpResponse::BadRequest().json(json!({
-            "error": "Invalid user ID format"
-        })))
+        Err(_) => return Err(ServiceError::InternalError("Invalid demo user ID".to_string()))
     };
 
     let billing_service = BillingService::new();
     match billing_service.add_payment_method(user_id, request.into_inner()).await {
         Ok(payment_method) => Ok(HttpResponse::Created().json(payment_method)),
         Err(e) => {
-            log::error!("Failed to add payment method: {}", e);
+            tracing::error!("Failed to add payment method: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to add payment method"
             })))

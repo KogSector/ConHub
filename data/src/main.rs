@@ -2,6 +2,8 @@ use actix_web::{web, App, HttpServer, middleware::Logger};
 use actix_cors::Cors;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::env;
+use tracing::{info, error};
+use tracing_subscriber;
 
 mod services;
 mod handlers;
@@ -11,7 +13,7 @@ mod errors;
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
-    env_logger::init();
+    tracing_subscriber::fmt::init();
 
     // Load environment variables
     dotenv::dotenv().ok();
@@ -26,23 +28,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let database_url = env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgresql://conhub:conhub_password@postgres:5432/conhub".to_string());
 
-    println!("📊 [Data Service] Connecting to database...");
+    tracing::info!("📊 [Data Service] Connecting to database...");
     let pool = PgPoolOptions::new()
         .max_connections(10)
         .connect(&database_url)
         .await?;
 
-    println!("✅ [Data Service] Database connection established");
+    tracing::info!("✅ [Data Service] Database connection established");
 
     // Qdrant connection (vector database)
     let qdrant_url = env::var("QDRANT_URL")
         .unwrap_or_else(|_| "http://qdrant:6333".to_string());
 
-    println!("📊 [Data Service] Connecting to Qdrant at {}...", qdrant_url);
+    tracing::info!("📊 [Data Service] Connecting to Qdrant at {}...", qdrant_url);
     // TODO: Initialize Qdrant client
-    println!("✅ [Data Service] Qdrant connection configured");
+    tracing::info!("✅ [Data Service] Qdrant connection configured");
 
-    println!("🚀 [Data Service] Starting on port {}", port);
+    tracing::info!("🚀 [Data Service] Starting on port {}", port);
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -105,7 +107,7 @@ async fn health_check(pool: web::Data<PgPool>) -> actix_web::Result<web::Json<se
     let db_status = match sqlx::query("SELECT 1 as test").fetch_one(pool.get_ref()).await {
         Ok(_) => "connected",
         Err(e) => {
-            log::error!("[Data Service] Database health check failed: {}", e);
+            tracing::error!("[Data Service] Database health check failed: {}", e);
             "disconnected"
         }
     };
