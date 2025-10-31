@@ -217,7 +217,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - GITHUB_COPILOT_TOKEN=${GITHUB_COPILOT_TOKEN:-}
     volumes:
-      - ./plugins/config:/app/config
+      - ./services/plugins/config:/app/config
       - plugins_logs:/app/logs
     depends_on:
       - postgres
