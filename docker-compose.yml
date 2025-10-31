@@ -129,7 +129,7 @@ services:
   data:
     build:
       context: .
-      dockerfile: data/Dockerfile
+      dockerfile: services/data/Dockerfile
     container_name: conhub-data
     ports:
       - "3013:3013"
