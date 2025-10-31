@@ -63,7 +63,7 @@ services:
   auth:
     build:
       context: .
-      dockerfile: auth/Dockerfile
+      dockerfile: services/auth/Dockerfile
     container_name: conhub-auth
     ports:
       - "3010:3010"
