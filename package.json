@@ -25,7 +25,7 @@
     "test:docker": "cd scripts && npm run test:docker"
   },
   "workspaces": [
-    "frontend",
+    "services/frontend",
     "scripts"
   ],
   "engines": {
