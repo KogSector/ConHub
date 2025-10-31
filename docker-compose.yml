@@ -93,7 +93,7 @@ services:
   billing:
     build:
       context: .
-      dockerfile: billing/Dockerfile
+      dockerfile: services/billing/Dockerfile
     container_name: conhub-billing
     ports:
       - "3011:3011"
