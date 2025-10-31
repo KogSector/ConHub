@@ -52,3 +52,16 @@ thiserror = "1.0"
 
 # Base64 encoding
 base64 = "0.21"
+
+# AI API clients
+async-openai = "0.17"
+urlencoding = "2.1"
+
+# Retry logic
+retryable = "0.1"
+
+# Schema generation
+schemars = "0.8"
+
+# File type detection
+infer = "0.15"

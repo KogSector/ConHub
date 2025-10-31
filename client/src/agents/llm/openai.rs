@@ -1,164 +1,158 @@
 use crate::prelude::*;
+use async_trait::async_trait;
 use base64::{engine::general_purpose, Engine as _};
-use pyo3_async_runtimes::generic::run;
-use retryable::{Retryable, RetryOptions};
+use serde::{Deserialize, Serialize};
 
-use super::{detect_image_mime_type, LlmGenerationClient};
-use async_openai::{
-    config::OpenAIConfig,
-    Client as OpenAIClient,
-    error::OpenAIError,
-    types::{
-        ChatCompletionRequestMessage, ChatCompletionRequestMessageContentPartImage,
-        ChatCompletionRequestMessageContentPartText, ChatCompletionRequestSystemMessage,
-        ChatCompletionRequestSystemMessageContent, ChatCompletionRequestUserMessage,
-        ChatCompletionRequestUserMessageContent, ChatCompletionRequestUserMessageContentPart,
-        CreateChatCompletionRequest, ImageDetail,
-        ImageUrl, ResponseFormat, ResponseFormatJsonSchema,
-    },
-};
+use crate::llm::{LlmGenerationClient, detect_image_mime_type};
+use crate::llm::{LlmGenerateResponse, LlmGenerateRequest, OutputFormat, LlmApiConfig, OpenAiConfig};
+use crate::base::json_schema::ToJsonSchemaOptions;
+
+#[derive(Debug, Serialize)]
+pub struct OpenAIRequest {
+    model: String,
+    messages: Vec<OpenAIMessage>,
+    max_tokens: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OpenAIMessage {
+    role: String,
+    content: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OpenAIResponse {
+    choices: Vec<OpenAIChoice>,
+    usage: OpenAIUsage,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OpenAIChoice {
+    message: OpenAIMessage,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OpenAIUsage {
+    total_tokens: u32,
+}
 
 pub struct Client {
-    client: async_openai::Client,
+    client: reqwest::Client,
+    api_key: String,
+    base_url: String,
 }
 
 impl Client {
-    pub fn new(address: Option<String>, api_config: Option<super::LlmApiConfig>) -> Result<Self> {
-        let config = match api_config {
-            Some(super::LlmApiConfig::OpenAi(config)) => config,
-            Some(_) => api_bail!("unexpected config type, expected OpenAiConfig"),
-            None => super::OpenAiConfig::default(),
+    pub fn new(address: Option<String>, api_config: Option<LlmApiConfig>) -> Result<Self> {
+        let _config = match api_config {
+            Some(LlmApiConfig::OpenAi(config)) => config,
+            Some(_) => anyhow::bail!("unexpected config type, expected OpenAiConfig"),
+            None => OpenAiConfig::default(),
         };
 
-        let mut openai_config = OpenAIConfig::new();
-        if let Some(address) = address {
-            openai_config = openai_config.with_api_base(address);
-        }
-        if let Some(org_id) = config.org_id {
-            openai_config = openai_config.with_org_id(org_id);
-        }
-        if let Some(project_id) = config.project_id {
-            openai_config = openai_config.with_project_id(project_id);
-        }
+        // Get API key from environment
+        let api_key = std::env::var("OPENAI_API_KEY")
+            .map_err(|_| anyhow::anyhow!("OPENAI_API_KEY environment variable must be set"))?;
 
-        // Verify API key is set
-        if std::env::var("OPENAI_API_KEY").is_err() {
-            api_bail!("OPENAI_API_KEY environment variable must be set");
-        }
+        let base_url = address.unwrap_or_else(|| "https://api.openai.com/v1".to_string());
+
         Ok(Self {
-            // OpenAI client will use OPENAI_API_KEY and OPENAI_API_BASE env variables by default
-            client: OpenAIClient::with_config(openai_config),
+            client: reqwest::Client::new(),
+            api_key,
+            base_url,
         })
     }
 }
 
-impl utils::retryable::IsRetryable for OpenAIError {
-    fn is_retryable(&self) -> bool {
-        match self {
-            OpenAIError::Reqwest(e) => e.is_retryable(),
-            _ => false,
-        }
-    }
-}
-
-fn create_llm_generation_request(
-    request: &super::LlmGenerateRequest,
-) -> Result<CreateChatCompletionRequest> {
+fn create_openai_request(
+    request: &LlmGenerateRequest,
+) -> Result<OpenAIRequest, Box<dyn std::error::Error>> {
     let mut messages = Vec::new();
 
     // Add system prompt if provided
     if let Some(system) = &request.system_prompt {
-        messages.push(ChatCompletionRequestMessage::System(
-            ChatCompletionRequestSystemMessage {
-                content: ChatCompletionRequestSystemMessageContent::Text(system.to_string()),
-                ..Default::default()
-            },
-        ));
+        messages.push(OpenAIMessage {
+            role: "system".to_string(),
+            content: serde_json::Value::String(system.to_string()),
+        });
     }
 
     // Add user message
-    let user_message_content = match &request.image {
+    let content = match &request.image {
         Some(img_bytes) => {
             let base64_image = general_purpose::STANDARD.encode(img_bytes.as_ref());
             let mime_type = detect_image_mime_type(img_bytes.as_ref())?;
             let image_url = format!("data:{mime_type};base64,{base64_image}");
-            ChatCompletionRequestUserMessageContent::Array(vec![
-                ChatCompletionRequestUserMessageContentPart::Text(
-                    ChatCompletionRequestMessageContentPartText {
-                        text: request.user_prompt.to_string(),
-                    },
-                ),
-                ChatCompletionRequestUserMessageContentPart::ImageUrl(
-                    ChatCompletionRequestMessageContentPartImage {
-                        image_url: ImageUrl {
-                            url: image_url,
-                            detail: Some(ImageDetail::Auto),
-                        },
-                    },
-                ),
+            
+            serde_json::json!([
+                {
+                    "type": "text",
+                    "text": request.user_prompt
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image_url
+                    }
+                }
             ])
         }
-        None => ChatCompletionRequestUserMessageContent::Text(request.user_prompt.to_string()),
-    };
-    messages.push(ChatCompletionRequestMessage::User(
-        ChatCompletionRequestUserMessage {
-            content: user_message_content,
-            ..Default::default()
-        },
-    ));
-    // Create the chat completion request
-    let request = CreateChatCompletionRequest {
-        model: request.model.to_string(),
-        messages,
-        response_format: match &request.output_format {
-            Some(super::OutputFormat::JsonSchema { name, schema }) => {
-                Some(ResponseFormat::JsonSchema {
-                    json_schema: ResponseFormatJsonSchema {
-                        name: name.to_string(),
-                        description: None,
-                        schema: Some(serde_json::to_value(&schema)?),
-                        strict: Some(true),
-                    },
-                })
-            }
-            None => None,
-        },
-        ..Default::default()
+        None => serde_json::Value::String(request.user_prompt.to_string()),
     };
 
-    Ok(request)
+    messages.push(OpenAIMessage {
+        role: "user".to_string(),
+        content,
+    });
+
+    Ok(OpenAIRequest {
+        model: request.model.to_string(),
+        messages,
+        max_tokens: Some(4000),
+    })
 }
 
 #[async_trait]
 impl LlmGenerationClient for Client {
-    async fn generate<'req>(
+    async fn generate(
         &self,
-        request: super::LlmGenerateRequest<'req>,
-    ) -> Result<super::LlmGenerateResponse> {
-        let request = &request;
-        let response = run(
-            || async {
-                let req = create_llm_generation_request(request)?;
-                let response = self.client.chat().create(req).await?;
-                Ok(response)
-            },
-            RetryOptions::default(),
-        )
-        .await?;
+        request: LlmGenerateRequest<'_>,
+    ) -> Result<LlmGenerateResponse, Box<dyn std::error::Error>> {
+        let openai_request = create_openai_request(&request)?;
+        
+        let response = self
+            .client
+            .post(&format!("{}/chat/completions", self.base_url))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .json(&openai_request)
+            .send()
+            .await?;
 
-        // Extract the response text from the first choice
-        let text = response
+        if !response.status().is_success() {
+            let error_text = response.text().await?;
+            return Err(format!("OpenAI API error: {}", error_text).into());
+        }
+
+        let openai_response: OpenAIResponse = response.json().await?;
+
+        let text = openai_response
             .choices
             .into_iter()
             .next()
-            .and_then(|choice| choice.message.content)
+            .and_then(|choice| {
+                match choice.message.content {
+                    serde_json::Value::String(s) => Some(s),
+                    _ => None,
+                }
+            })
             .ok_or_else(|| anyhow::anyhow!("No response from OpenAI"))?;
 
-        Ok(super::LlmGenerateResponse { text })
+        Ok(LlmGenerateResponse { text })
     }
 
-    fn json_schema_options(&self) -> super::ToJsonSchemaOptions {
-        super::ToJsonSchemaOptions {
+    fn json_schema_options(&self) -> ToJsonSchemaOptions {
+        ToJsonSchemaOptions {
             fields_always_required: true,
             supports_format: false,
             extract_descriptions: false,

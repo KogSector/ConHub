@@ -41,10 +41,6 @@ dotenv = "0.15"
 uuid = { version = "1.6", features = ["v4", "serde"] }
 
 # Module dependencies (local workspace members)
-auth-service = { path = "../auth" }
-billing-service = { path = "../billing" }
-security-service = { path = "../security" }
-conhub-indexers = { path = "../indexers" }
 conhub-models = { path = "../shared/models" }
 conhub-utils = { path = "../shared/utils" }
 conhub-config = { path = "../shared/config" }

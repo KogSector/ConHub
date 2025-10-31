@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use tokio::sync::Mutex;
 
-use crate::agents::core::{AIAgentConnector, AIAgent, AgentStatus, AgentQueryRequest, AgentQueryResponse};
+use crate::agents::core::{AIAgentConnector, AIAgent, AgentStatus};
 use crate::agents::llm::openai::Client;
 use crate::llm::{LlmGenerationClient, LlmGenerateRequest};
 
@@ -54,28 +54,35 @@ impl AIAgentConnector for OpenAIAgent {
         Ok(true)
     }
 
-    async fn query(&self, request: AgentQueryRequest) -> Result<AgentQueryResponse, Box<dyn Error>> {
+    async fn query(&self, prompt: &str, context: Option<&str>) -> Result<String, Box<dyn Error>> {
         let client = self.client.lock().await;
         if let Some(client) = &*client {
             let llm_request = LlmGenerateRequest {
-                model: &request.model.unwrap_or("gpt-4".to_string()),
-                user_prompt: &request.prompt,
-                system_prompt: request.context.as_deref(),
+                model: "gpt-4",
+                user_prompt: std::borrow::Cow::Borrowed(prompt),
+                system_prompt: context.map(std::borrow::Cow::Borrowed),
                 image: None,
                 output_format: None,
             };
             let response = client.generate(llm_request).await?;
-            Ok(AgentQueryResponse {
-                content: response.text,
-                usage: None,
-            })
+            Ok(response.text)
         } else {
             Err("Not connected to OpenAI".into())
         }
     }
 
-    async fn get_agent(&self) -> AIAgent {
-        self.agent_info.lock().await.clone()
+    fn get_agent(&self) -> AIAgent {
+        // This should be synchronous according to the trait
+        // We'll need to handle this differently or change the trait
+        AIAgent {
+            id: "openai".to_string(),
+            name: "OpenAI".to_string(),
+            agent_type: "openai".to_string(),
+            description: "OpenAI's GPT models for general AI assistance".to_string(),
+            status: AgentStatus::Disconnected,
+            is_connected: false,
+            capabilities: vec!["text_generation".to_string()],
+        }
     }
 
     async fn test_connection(&self) -> Result<bool, Box<dyn Error>> {

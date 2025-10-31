@@ -1,19 +1,22 @@
 use crate::prelude::*;
 use crate::utils;
+use async_trait::async_trait;
+use anyhow::{bail, Context};
 
 use crate::llm::{
     LlmGenerateRequest, LlmGenerateResponse, LlmGenerationClient, OutputFormat,
-    ToJsonSchemaOptions, detect_image_mime_type,
+    detect_image_mime_type,
 };
+use crate::base::json_schema::ToJsonSchemaOptions;
 use base64::{engine::general_purpose, Engine as _};
-use pyo3_async_runtimes::generic::run;
-use retryable::RetryOptions;
-use google_cloud_aiplatform_v1 as vertexai;
-use google_cloud_gax::exponential_backoff::ExponentialBackoff;
-use google_cloud_gax::options::RequestOptionsBuilder;
-use google_cloud_gax::error;
-use google_cloud_gax::retry_policy::{Aip194Strict, RetryPolicyExt};
-use google_cloud_gax::retry_throttler::{AdaptiveThrottler, SharedRetryThrottler};
+// use pyo3_async_runtimes::generic::run;
+// use retryable::RetryOptions;
+// use google_cloud_aiplatform_v1 as vertexai;
+// use google_cloud_gax::exponential_backoff::ExponentialBackoff;
+// use google_cloud_gax::options::RequestOptionsBuilder;
+// use google_cloud_gax::error;
+// use google_cloud_gax::retry_policy::{Aip194Strict, RetryPolicyExt};
+// use google_cloud_gax::retry_throttler::{AdaptiveThrottler, SharedRetryThrottler};
 use serde_json::Value;
 use urlencoding::encode;
 
@@ -25,11 +28,11 @@ pub struct AiStudioClient {
 impl AiStudioClient {
     pub fn new(address: Option<String>) -> Result<Self> {
         if address.is_some() {
-            api_bail!("Gemini doesn't support custom API address");
+            anyhow::bail!("Gemini doesn't support custom API address");
         }
         let api_key = match std::env::var("GEMINI_API_KEY") {
             Ok(val) => val,
-            Err(_) => api_bail!("GEMINI_API_KEY environment variable must be set"),
+            Err(_) => anyhow::bail!("GEMINI_API_KEY environment variable must be set"),
         };
         Ok(Self {
             api_key,
@@ -69,10 +72,10 @@ impl AiStudioClient {
 
 #[async_trait]
 impl LlmGenerationClient for AiStudioClient {
-    async fn generate<'req>(
+    async fn generate(
         &self,
-        request: LlmGenerateRequest<'req>,
-    ) -> Result<LlmGenerateResponse> {
+        request: LlmGenerateRequest<'_>,
+    ) -> Result<LlmGenerateResponse, Box<dyn std::error::Error>> {
         let mut user_parts: Vec<serde_json::Value> = Vec::new();
 
         // Add text part first
@@ -115,27 +118,23 @@ impl LlmGenerationClient for AiStudioClient {
         }
 
         let url = self.get_api_url(request.model, "generateContent");
-        let resp = run(
-            || self.client.post(&url).json(&payload).send(),
-            RetryOptions::default(),
-        )
-        .await?;
+        let resp = self.client.post(&url).json(&payload).send().await?;
         if !resp.status().is_success() {
-            bail!(
+            return Err(format!(
                 "Gemini API error: {:?}\n{}\n",
                 resp.status(),
                 resp.text().await?
-            );
+            ).into());
         }
         let resp_json: Value = resp.json().await.context("Invalid JSON")?;
 
         if let Some(error) = resp_json.get("error") {
-            bail!("Gemini API error: {:?}", error);
+            return Err(format!("Gemini API error: {:?}", error).into());
         }
         let mut resp_json = resp_json;
-        let text = match &mut resp_json["candidates"][0]["content"]["parts"][0]["text"] {
-            Value::String(s) => std::mem::take(s),
-            _ => bail!("No text in response"),
+        let text = match resp_json["candidates"][0]["content"]["parts"][0]["text"].take() {
+            Value::String(s) => s,
+            _ => return Err("No text in response".into()),
         };
 
         Ok(LlmGenerateResponse { text })
@@ -151,11 +150,14 @@ impl LlmGenerationClient for AiStudioClient {
     }
 }
 
+/*
 pub struct VertexAiClient {
     client: vertexai::client::PredictionService,
     config: super::VertexAiConfig,
 }
+*/
 
+/*
 #[derive(Debug)]
 struct CustomizedGoogleCloudRetryPolicy;
 
@@ -189,10 +191,10 @@ impl VertexAiClient {
         api_config: Option<super::LlmApiConfig>,
     ) -> Result<Self> {
         if address.is_some() {
-            api_bail!("VertexAi API address is not supported for VertexAi API type");
+            anyhow::bail!("VertexAi API address is not supported for VertexAi API type");
         }
         let Some(super::LlmApiConfig::VertexAi(config)) = api_config else {
-            api_bail!("VertexAi API config is required for VertexAi API type");
+            anyhow::bail!("VertexAi API config is required for VertexAi API type");
         };
         let client = vertexai::client::PredictionService::builder()
             .with_retry_policy(
@@ -220,7 +222,7 @@ impl LlmGenerationClient for VertexAiClient {
     async fn generate<'req>(
         &self,
         request: super::LlmGenerateRequest<'req>,
-    ) -> Result<super::LlmGenerateResponse> {
+    ) -> Result<super::LlmGenerateResponse, Box<dyn std::error::Error>> {
         use vertexai::model::{Blob, Content, GenerationConfig, Part, Schema, part::Data};
 
         // Compose parts
@@ -283,7 +285,7 @@ impl LlmGenerationClient for VertexAiClient {
             .and_then(|content| content.parts.into_iter().next())
             .and_then(|part| part.data)
         else {
-            bail!("No text in response");
+            return Err("No text in response".into());
         };
         Ok(super::LlmGenerateResponse { text })
     }
@@ -297,3 +299,4 @@ impl LlmGenerationClient for VertexAiClient {
         }
     }
 }
+*/

@@ -8,6 +8,10 @@ use tracing_subscriber;
 mod services;
 mod handlers;
 mod agents;
+mod llm;
+mod utils;
+mod prelude;
+mod base;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

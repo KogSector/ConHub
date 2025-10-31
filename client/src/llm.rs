@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use async_trait::async_trait;
 
 use crate::base::json_schema::ToJsonSchemaOptions;
 use infer::Infer;
@@ -17,15 +18,17 @@ pub enum LlmApiType {
     OpenRouter,
     Voyage,
     Vllm,
-    VertexAi,
+    // VertexAi,
     Bedrock,
 }
 
+/*
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VertexAiConfig {
     pub project: String,
     pub region: Option<String>,
 }
+*/
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OpenAiConfig {
@@ -36,7 +39,7 @@ pub struct OpenAiConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum LlmApiConfig {
-    VertexAi(VertexAiConfig),
+    // VertexAi(VertexAiConfig),
     OpenAi(OpenAiConfig),
 }
 
@@ -64,10 +67,10 @@ pub struct LlmGenerateResponse {
 
 #[async_trait]
 pub trait LlmGenerationClient: Send + Sync {
-    async fn generate<'req>(
+    async fn generate(
         &self,
-        request: LlmGenerateRequest<'req>,
-    ) -> Result<LlmGenerateResponse>;
+        request: LlmGenerateRequest<'_>,
+    ) -> Result<LlmGenerateResponse, Box<dyn std::error::Error>>;
 
     fn json_schema_options(&self) -> ToJsonSchemaOptions;
 }
