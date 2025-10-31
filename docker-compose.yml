@@ -170,7 +170,7 @@ services:
   webhook:
     build:
       context: .
-      dockerfile: webhook/Dockerfile
+      dockerfile: services/webhook/Dockerfile
     container_name: conhub-webhook
     ports:
       - "3015:3015"
