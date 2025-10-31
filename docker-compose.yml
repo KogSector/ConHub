@@ -234,7 +234,7 @@ services:
   indexers:
     build:
       context: .
-      dockerfile: indexers/Dockerfile
+      dockerfile: services/indexers/Dockerfile
     container_name: conhub-indexers
     ports:
       - "3016:3016"
