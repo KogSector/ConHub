@@ -6,6 +6,9 @@ use crate::setup;
 use chrono::TimeZone;
 use serde::Serialize;
 
+#[derive(Debug, Clone, Default)]
+pub struct AuthRegistry {}
+
 pub struct FlowInstanceContext {
     pub flow_instance_name: String,
     pub auth_registry: Arc<AuthRegistry>,

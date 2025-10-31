@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAuth } from '@/contexts/auth-context'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { BillingDashboard } from '@/components/billing/BillingDashboard'
@@ -13,7 +13,7 @@ import { UsageTracking } from '@/components/billing/UsageTracking'
 import { StripeProvider } from '@/components/billing/StripeProvider'
 
 export default function BillingPage() {
-  const { user, isAuthenticated } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard')
 
   if (!isAuthenticated) {

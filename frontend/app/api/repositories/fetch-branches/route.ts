@@ -1,56 +1,59 @@
-import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic'
+
+import { NextResponse } from 'next/server'
+import { apiClient } from '@/lib/api'
+
+type ApiResp = { success?: boolean; error?: string; data?: unknown }
+
+function isApiResp(obj: unknown): obj is ApiResp {
+  return typeof obj === 'object' && obj !== null
+}
+
+function getData<T = unknown>(resp: unknown): T | undefined {
+  if (isApiResp(resp) && 'data' in resp) {
+    return resp.data as T
+  }
+  return undefined
+}
+
+function succeeded(resp: unknown): boolean {
+  if (isApiResp(resp) && typeof resp.success === 'boolean') return resp.success
+  return false
+}
 
 export async function POST(request: Request) {
   try {
-    const { repoUrl } = await request.json();
+    const body = await request.json() as { repoUrl?: unknown }
+    const repoUrl = typeof body.repoUrl === 'string' ? body.repoUrl : ''
 
-    if (!repoUrl || typeof repoUrl !== 'string') {
-      return NextResponse.json({ error: 'Repository URL is required.' }, { status: 400 });
+    if (!repoUrl) {
+      return NextResponse.json({ error: 'Repository URL is required.' }, { status: 400 })
     }
 
-    
-    const validateResponse = await fetch('http://localhost:3001/api/repositories/validate-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repo_url: repoUrl })
-    });
-
-    const validateData = await validateResponse.json();
-    
-    if (!validateData.success) {
-      return NextResponse.json({ 
-        error: validateData.error || 'Invalid repository URL' 
-      }, { status: 400 });
+    const validateData = await apiClient.post('/api/repositories/validate-url', { repo_url: repoUrl })
+    if (!succeeded(validateData)) {
+      const err = isApiResp(validateData) ? validateData.error : undefined
+      return NextResponse.json({ error: err || 'Invalid repository URL' }, { status: 400 })
     }
 
-    
-    const branchesResponse = await fetch('http://localhost:3001/api/repositories/fetch-branches', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        repo_url: repoUrl,
-        credentials: null 
-      })
-    });
-
-    const branchesData = await branchesResponse.json();
-    
-    if (!branchesData.success) {
-      return NextResponse.json({ 
-        error: branchesData.error || 'Failed to fetch branches' 
-      }, { status: branchesResponse.status });
+    const branchesData = await apiClient.post('/api/repositories/fetch-branches', { repo_url: repoUrl, credentials: null })
+    if (!succeeded(branchesData)) {
+      const err = isApiResp(branchesData) ? branchesData.error : undefined
+      return NextResponse.json({ error: err || 'Failed to fetch branches' }, { status: 502 })
     }
 
-    return NextResponse.json({ 
-      branches: branchesData.data.branches,
-      defaultBranch: branchesData.data.default_branch,
-      provider: validateData.data.provider,
-      repoInfo: validateData.data
-    });
-  } catch (error: any) {
-    console.error('Failed to fetch remote branches:', error);
-    return NextResponse.json({ 
-      error: error.message || 'An unknown error occurred while fetching branches.' 
-    }, { status: 500 });
+    const branches = getData<{ branches?: unknown[]; default_branch?: string }>(branchesData)
+    const validate = getData<Record<string, unknown>>(validateData)
+
+    return NextResponse.json({
+      branches: branches?.branches,
+      defaultBranch: branches?.default_branch,
+      provider: validate?.provider,
+      repoInfo: validate,
+    })
+  } catch (error) {
+    console.error('Failed to fetch remote branches:', error)
+    const message = (error && typeof error === 'object' && typeof (error as Record<string, unknown>)['message'] === 'string') ? (error as Record<string, unknown>)['message'] as string : 'An unknown error occurred while fetching branches.'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

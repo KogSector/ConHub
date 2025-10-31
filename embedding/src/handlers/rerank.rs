@@ -38,7 +38,7 @@ pub async fn rerank_handler(
         .collect();
 
     // Perform reranking
-    match service.rerank(&req.query, docs) {
+    match service.rerank(&req.query, &docs) {
         Ok(ranked) => {
             // Apply top_k if specified
             let results: Vec<RerankResult> = if let Some(top_k) = req.top_k {

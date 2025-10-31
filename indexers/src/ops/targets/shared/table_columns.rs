@@ -3,6 +3,7 @@ use crate::{
     prelude::*,
     setup::{CombinedState, SetupChangeType},
 };
+use serde::de::DeserializeOwned;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TableColumnsSchema<T: Serialize + DeserializeOwned> {

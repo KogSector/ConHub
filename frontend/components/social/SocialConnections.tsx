@@ -4,8 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, RefreshCw, Plus, ExternalLink } from 'lucide-react';
+import { Trash2, RefreshCw, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { apiClient, unwrapResponse } from '@/lib/api';
 
 interface SocialConnection {
   id: string;
@@ -67,22 +68,12 @@ export function SocialConnections() {
 
   const fetchConnections = async () => {
     try {
-      const response = await fetch('/api/social/connections', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const resp = await apiClient.get('/api/social/connections', {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setConnections(data);
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to fetch social connections",
-          variant: "destructive"
-        });
-      }
+      const data = unwrapResponse<SocialConnection[]>(resp) ?? []
+      setConnections(data)
     } catch (error) {
       console.error('Error fetching connections:', error);
       toast({
@@ -97,20 +88,12 @@ export function SocialConnections() {
 
   const connectPlatform = async (platform: string) => {
     try {
-      const response = await fetch(`/api/social/connect/${platform}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
+      const resp = await apiClient.post(`/api/social/connect/${platform}`, {}, {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        
-        window.open(data.auth_url, '_blank', 'width=500,height=600');
-        
-        
+      const data = unwrapResponse<{ auth_url?: string }>(resp) ?? {}
+      if (data.auth_url) {
+        window.open(data.auth_url, '_blank', 'width=500,height=600')
         setTimeout(() => {
           fetchConnections();
         }, 3000);
@@ -133,26 +116,14 @@ export function SocialConnections() {
 
   const disconnectPlatform = async (connectionId: string) => {
     try {
-      const response = await fetch(`/api/social/connections/${connectionId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      await apiClient.delete(`/api/social/connections/${connectionId}`, {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
       });
-
-      if (response.ok) {
-        setConnections(prev => prev.filter(conn => conn.id !== connectionId));
-        toast({
-          title: "Success",
-          description: "Platform disconnected successfully"
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to disconnect platform",
-          variant: "destructive"
-        });
-      }
+      setConnections(prev => prev.filter(conn => conn.id !== connectionId));
+      toast({
+        title: "Success",
+        description: "Platform disconnected successfully"
+      });
     } catch (error) {
       console.error('Error disconnecting platform:', error);
       toast({
@@ -166,26 +137,14 @@ export function SocialConnections() {
   const syncPlatform = async (connectionId: string, platform: string) => {
     setSyncing(connectionId);
     try {
-      const response = await fetch(`/api/social/sync/${platform}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      await apiClient.post(`/api/social/sync/${platform}`, {}, {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
       });
-
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: `${PLATFORM_CONFIGS[platform as keyof typeof PLATFORM_CONFIGS].name} synced successfully`
-        });
-        fetchConnections();
-      } else {
-        toast({
-          title: "Error",
-          description: `Failed to sync ${platform}`,
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "Success",
+        description: `${PLATFORM_CONFIGS[platform as keyof typeof PLATFORM_CONFIGS].name} synced successfully`
+      });
+      fetchConnections();
     } catch (error) {
       console.error('Error syncing platform:', error);
       toast({

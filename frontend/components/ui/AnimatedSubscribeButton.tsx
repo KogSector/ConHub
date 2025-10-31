@@ -1,21 +1,18 @@
 "use client";
 
 import { motion, HTMLMotionProps } from "framer-motion";
-import { Check, ChevronRight } from "lucide-react";
 import { FC, ReactNode } from "react";
 
 interface AnimatedSubscribeButtonProps extends HTMLMotionProps<"button"> {
 	buttonTextColor?: string;
 	initialText: ReactNode;
 	changeText: ReactNode;
-	variant?: "default" | "destructive";
 }
 
 export const AnimatedSubscribeButton: FC<AnimatedSubscribeButtonProps> = ({
 	buttonTextColor,
 	initialText,
 	changeText,
-	variant = "default",
 	...props
 }) => {
 	return (

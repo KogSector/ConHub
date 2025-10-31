@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Eye, EyeOff, Lock, ArrowRight, Sparkles, CheckCircle, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
+import { apiClient, unwrapResponse } from '@/lib/api'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 
@@ -107,23 +108,16 @@ export function ResetPasswordForm() {
     setIsLoading(true)
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          token,
-          new_password: password
-        }),
+      const resp = await apiClient.post('/api/auth/reset-password', {
+        token,
+        new_password: password,
       })
 
-      const data = await response.json()
-
-      if (response.ok) {
+      const result = unwrapResponse<{ success?: boolean; error?: string; message?: string }>(resp) ?? resp
+      if (result && (result as Record<string, unknown>)['success']) {
         setIsSuccess(true)
       } else {
-        setError(data.error || 'Failed to reset password')
+        setError((result && (result as Record<string, unknown>)['error']) as string || (result && (result as Record<string, unknown>)['message']) as string || 'Failed to reset password')
       }
     } catch (err) {
       setError('Network error. Please try again.')

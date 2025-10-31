@@ -145,7 +145,7 @@ export function LoginForm() {
 
               <div className="text-center">
                 <p className="text-gray-300">
-                  Don't have an account?{' '}
+                  Don&apos;t have an account?{' '}
                   <Link 
                     href="/auth/register" 
                     className="font-semibold text-purple-400 hover:text-purple-300 transition-colors hover:underline"

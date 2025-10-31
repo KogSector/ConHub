@@ -38,7 +38,7 @@ pub struct FetchBranchesResponse {
 
 pub async fn connect_data_source(
     req: web::Json<ConnectDataSourceRequest>,
-) -> Result<HttpResponse> {
+) -> Result<HttpResponse, ServiceError> {
     info!("Connecting data source: {}", req.source_type);
 
     match DataSourceFactory::create_connector(&req.source_type) {
@@ -54,28 +54,20 @@ pub async fn connect_data_source(
                 }
                 Err(e) => {
                     error!("Failed to connect to {} data source: {}", req.source_type, e);
-                    Ok(HttpResponse::BadRequest().json(ConnectResponse {
-                        success: false,
-                        message: "Failed to connect data source".to_string(),
-                        error: Some(e.to_string()),
-                    }))
+                    Err(ServiceError::BadRequest(format!("Failed to connect data source: {}", e)))
                 }
             }
         }
         Err(e) => {
             error!("Unsupported data source type: {}", req.source_type);
-            Ok(HttpResponse::BadRequest().json(ConnectResponse {
-                success: false,
-                message: "Unsupported data source type".to_string(),
-                error: Some(e.to_string()),
-            }))
+            Err(ServiceError::BadRequest(format!("Unsupported data source type: {}", e)))
         }
     }
 }
 
 pub async fn fetch_branches(
     req: web::Json<FetchBranchesRequest>,
-) -> Result<HttpResponse> {
+) -> Result<HttpResponse, ServiceError> {
     info!("Fetching branches for repository: {}", req.repo_url);
 
     
@@ -84,11 +76,7 @@ pub async fn fetch_branches(
     } else if req.repo_url.contains("bitbucket.org") {
         "bitbucket"
     } else {
-        return Ok(HttpResponse::BadRequest().json(FetchBranchesResponse {
-            branches: vec![],
-            default_branch: None,
-            error: Some("Unsupported repository URL format".to_string()),
-        }));
+        return Err(ServiceError::BadRequest("Unsupported repository URL format".to_string()));
     };
 
     
@@ -97,11 +85,7 @@ pub async fn fetch_branches(
     match DataSourceFactory::create_connector(source_type) {
         Ok(mut connector) => {
             if let Err(e) = connector.connect(&credentials, &serde_json::Value::Null).await {
-                return Ok(HttpResponse::BadRequest().json(FetchBranchesResponse {
-                    branches: vec![],
-                    default_branch: None,
-                    error: Some(format!("Failed to connect: {}", e)),
-                }));
+                return Err(ServiceError::BadRequest(format!("Failed to connect: {}", e)));
             }
             
             match connector.fetch_branches(&req.repo_url).await {
@@ -123,21 +107,13 @@ pub async fn fetch_branches(
                 }
                 Err(e) => {
                     error!("Failed to fetch branches for repository {}: {}", req.repo_url, e);
-                    Ok(HttpResponse::BadRequest().json(FetchBranchesResponse {
-                        branches: vec!["main".to_string()], 
-                        default_branch: Some("main".to_string()),
-                        error: Some(e.to_string()),
-                    }))
+                    Err(ServiceError::BadRequest(format!("Failed to fetch branches: {}", e)))
                 }
             }
         }
         Err(e) => {
             error!("Unsupported repository type: {}", source_type);
-            Ok(HttpResponse::BadRequest().json(FetchBranchesResponse {
-                branches: vec![],
-                default_branch: None,
-                error: Some(e.to_string()),
-            }))
+            Err(ServiceError::BadRequest(format!("Unsupported repository type: {}", e)))
         }
     }
 }

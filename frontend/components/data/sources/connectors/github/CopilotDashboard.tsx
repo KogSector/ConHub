@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,14 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/ScrollArea';
 import { useToast } from '@/hooks/use-toast';
+import { apiClient, ApiResponse } from '@/lib/api';
 import { 
   Github, 
   Users, 
   GitBranch, 
   Star, 
-  GitCommit, 
-  MessageSquare, 
-  GitPullRequest,
   Bot,
   Activity,
   Building2,
@@ -73,8 +71,6 @@ export default function GitHubCopilotDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_LANGCHAIN_SERVICE_URL || 'http://localhost:3001';
-
   
   const connectToGitHub = async () => {
     if (!githubToken.trim()) {
@@ -88,31 +84,23 @@ export default function GitHubCopilotDashboard() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/github/user`, {
-        headers: {
-          'Authorization': `Bearer ${githubToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const resp = await apiClient.get<ApiResponse<any>>('/api/github/user', { Authorization: `Bearer ${githubToken}` });
+      if (resp.success && resp.data) {
+        setCurrentUser(resp.data);
+        setIsConnected(true);
+        toast({
+          title: 'Success',
+          description: `Connected to GitHub as ${resp.data.login}`,
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to connect to GitHub');
+        
+        await Promise.all([
+          loadRepositories(),
+          loadOrganizations(),
+        ]);
+      } else {
+        throw new Error(resp.error || 'Failed to connect to GitHub');
       }
-
-      const data = await response.json();
-      setCurrentUser(data.data);
-      setIsConnected(true);
-      
-      toast({
-        title: 'Success',
-        description: `Connected to GitHub as ${data.data.login}`,
-      });
-
-      
-      await Promise.all([
-        loadRepositories(),
-        loadOrganizations(),
-      ]);
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -127,16 +115,11 @@ export default function GitHubCopilotDashboard() {
   
   const loadRepositories = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/github/repositories`, {
-        headers: {
-          'Authorization': `Bearer ${githubToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setRepositories(data.data);
+      const resp = await apiClient.get<ApiResponse<Repository[]>>('/api/github/repositories', { Authorization: `Bearer ${githubToken}` });
+      if (resp.success && resp.data) {
+        setRepositories(resp.data);
+      } else {
+        console.error('Failed to load repositories:', resp.error);
       }
     } catch (error) {
       console.error('Failed to load repositories:', error);
@@ -146,16 +129,11 @@ export default function GitHubCopilotDashboard() {
   
   const loadOrganizations = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/github/organizations`, {
-        headers: {
-          'Authorization': `Bearer ${githubToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setOrganizations(data.data);
+      const resp = await apiClient.get<ApiResponse<Organization[]>>('/api/github/organizations', { Authorization: `Bearer ${githubToken}` });
+      if (resp.success && resp.data) {
+        setOrganizations(resp.data);
+      } else {
+        console.error('Failed to load organizations:', resp.error);
       }
     } catch (error) {
       console.error('Failed to load organizations:', error);
@@ -165,20 +143,13 @@ export default function GitHubCopilotDashboard() {
   
   const loadCopilotUsage = async (org: string) => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/copilot/seats/${org}`, {
-        headers: {
-          'Authorization': `Bearer ${githubToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCopilotUsage(data.data);
+      const resp = await apiClient.get<ApiResponse<CopilotUsage>>(`/api/copilot/seats/${org}`, { Authorization: `Bearer ${githubToken}` });
+      if (resp.success && resp.data) {
+        setCopilotUsage(resp.data);
       } else {
         toast({
           title: 'Warning',
-          description: 'Unable to load Copilot usage. You may need additional permissions.',
+          description: resp.error || 'Unable to load Copilot usage. You may need additional permissions.',
           variant: 'destructive',
         });
       }
@@ -193,16 +164,15 @@ export default function GitHubCopilotDashboard() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/github/search/repositories?q=${encodeURIComponent(searchQuery)}`, {
-        headers: {
-          'Authorization': `Bearer ${githubToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setRepositories(data.data.items);
+      const resp = await apiClient.get<ApiResponse<{ items: Repository[] }>>(`/api/github/search/repositories?q=${encodeURIComponent(searchQuery)}`, { Authorization: `Bearer ${githubToken}` });
+      if (resp.success && resp.data) {
+        setRepositories(resp.data.items || []);
+      } else {
+        toast({
+          title: 'Error',
+          description: resp.error || 'Failed to search repositories',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       toast({

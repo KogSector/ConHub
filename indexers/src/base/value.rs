@@ -600,13 +600,7 @@ impl From<serde_json::Value> for BasicValue {
     }
 }
 
-impl<T: Into<BasicValue>> From<Vec<T>> for BasicValue {
-    fn from(value: Vec<T>) -> Self {
-        BasicValue::Vector(Arc::from(
-            value.into_iter().map(|v| v.into()).collect::<Vec<_>>(),
-        ))
-    }
-}
+
 
 impl BasicValue {
     pub fn into_key(self) -> Result<KeyPart> {
@@ -737,11 +731,7 @@ pub enum Value<VS = ScopeValue> {
     LTable(Vec<VS>),
 }
 
-impl<T: Into<BasicValue>> From<T> for Value {
-    fn from(value: T) -> Self {
-        Value::Basic(value.into())
-    }
-}
+
 
 impl From<KeyPart> for Value {
     fn from(value: KeyPart) -> Self {

@@ -1,7 +1,23 @@
-import NextAuth, { NextAuthOptions, Session, User } from "next-auth"
+import NextAuth, { NextAuthOptions, Session } from "next-auth"
 import { JWT } from "next-auth/jwt"
 import GithubProvider from "next-auth/providers/github"
 import GoogleProvider from "next-auth/providers/google"
+import { apiClient } from '@/lib/api'
+
+type ApiResp = { success?: boolean; data?: Record<string, unknown>; error?: string }
+
+function isApiResp(obj: unknown): obj is ApiResp {
+  return typeof obj === 'object' && obj !== null
+}
+
+function succeeded(resp: unknown): boolean {
+  return isApiResp(resp) && resp.success === true
+}
+
+function getData<T = unknown>(resp: unknown): T | undefined {
+  if (isApiResp(resp) && 'data' in resp) return resp.data as T
+  return undefined
+}
 
 // Bitbucket OAuth provider configuration
 const BitbucketProvider = (options: {
@@ -59,18 +75,13 @@ export const authOptions: NextAuthOptions = {
   ],
   
   callbacks: {
-    async signIn({ user, account, profile }) {
+  async signIn({ user, account }) {
       // Allow sign in for all OAuth providers
       if (account?.provider && user.email) {
         try {
           // Call Rust backend to create or update user with social connection
-          const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
-          const response = await fetch(`${backendUrl}/api/auth/oauth/callback`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
+          try {
+            const resp = await apiClient.post('/api/auth/oauth/callback', {
               provider: account.provider,
               provider_user_id: account.providerAccountId,
               email: user.email,
@@ -80,17 +91,20 @@ export const authOptions: NextAuthOptions = {
               refresh_token: account.refresh_token,
               expires_at: account.expires_at,
               scope: account.scope,
-            }),
-          })
-
-          if (!response.ok) {
-            console.error("Failed to sync user with backend:", await response.text())
+            })
+            if (succeeded(resp)) {
+              const userData = getData<Record<string, unknown>>(resp)
+              if (userData && typeof userData['user_id'] === 'string') {
+                (user as any).id = (userData['user_id'] as string) || user.id
+              }
+            } else {
+              console.error('Failed to sync user with backend:', resp)
+              return false
+            }
+          } catch (err) {
+            console.error('Error syncing with backend:', err)
             return false
           }
-
-          const userData = await response.json()
-          // Store backend user ID for later use
-          user.id = userData.user_id || user.id
         } catch (error) {
           console.error("Error syncing with backend:", error)
           return false

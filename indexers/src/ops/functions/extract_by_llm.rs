@@ -3,7 +3,7 @@ use crate::llm::{
 };
 use crate::ops::sdk::*;
 use crate::prelude::*;
-use base::json_schema::build_json_schema;
+use crate::base::json_schema::build_json_schema;
 use schemars::schema::SchemaObject;
 use std::borrow::Cow;
 
@@ -25,7 +25,7 @@ struct Executor {
     model: String,
     output_json_schema: SchemaObject,
     system_prompt: String,
-    value_extractor: base::json_schema::ValueExtractor,
+    value_extractor: crate::base::json_schema::ValueExtractor,
 }
 
 fn get_system_prompt(instructions: &Option<String>, extra_instructions: Option<String>) -> String {
@@ -81,18 +81,22 @@ impl SimpleFunctionExecutor for Executor {
     }
 
     async fn evaluate(&self, input: Vec<Value>) -> Result<Value> {
-        let image_bytes: Option<Cow<'_, [u8]>> = if let Some(arg) = self.args.image.as_ref()
-            && let Some(value) = arg.value(&input)?.optional()
-        {
-            Some(Cow::Borrowed(value.as_bytes()?))
+        let image_bytes: Option<Cow<'_, [u8]>> = if let Some(arg) = self.args.image.as_ref() {
+            if let Some(value) = arg.value(&input)?.optional() {
+                Some(Cow::Borrowed(value.as_bytes()?))
+            } else {
+                None
+            }
         } else {
             None
         };
 
-        let text = if let Some(arg) = self.args.text.as_ref()
-            && let Some(value) = arg.value(&input)?.optional()
-        {
-            Some(value.as_str()?)
+        let text = if let Some(arg) = self.args.text.as_ref() {
+            if let Some(value) = arg.value(&input)?.optional() {
+                Some(value.as_str()?)
+            } else {
+                None
+            }
         } else {
             None
         };

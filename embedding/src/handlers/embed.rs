@@ -42,9 +42,9 @@ pub async fn embed_handler(
     }
 
     // Generate embeddings
-    match service.generate_embeddings(texts.clone(), req.normalize) {
+    match service.generate_embeddings(&texts, req.normalize).await {
         Ok(embeddings) => {
-            let dimension = service.get_dimension();
+            let dimension = service.get_dimension().unwrap_or(0) as usize;
             HttpResponse::Ok().json(EmbedResponse {
                 embeddings,
                 dimension,

@@ -3,7 +3,7 @@ export interface LogEntry {
   timestamp: string;
   level: 'debug' | 'info' | 'warn' | 'error';
   message: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   source: string;
   userId?: string;
   sessionId: string;
@@ -15,7 +15,7 @@ export interface PerformanceMetric {
   timestamp: string;
   metric: string;
   value: number;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   url: string;
 }
 
@@ -23,7 +23,7 @@ export interface UserAction {
   timestamp: string;
   action: string;
   element: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   userId?: string;
   sessionId: string;
   url: string;
@@ -78,31 +78,31 @@ class ConHubLogger {
     this.info('User logged in', { userId });
   }
 
-  public debug(message: string, context?: Record<string, any>, source = 'app') {
+  public debug(message: string, context?: Record<string, unknown>, source = 'app') {
     if (this.shouldLog('debug')) {
       this.log('debug', message, context, source);
     }
   }
 
-  public info(message: string, context?: Record<string, any>, source = 'app') {
+  public info(message: string, context?: Record<string, unknown>, source = 'app') {
     if (this.shouldLog('info')) {
       this.log('info', message, context, source);
     }
   }
 
-  public warn(message: string, context?: Record<string, any>, source = 'app') {
+  public warn(message: string, context?: Record<string, unknown>, source = 'app') {
     if (this.shouldLog('warn')) {
       this.log('warn', message, context, source);
     }
   }
 
-  public error(message: string, context?: Record<string, any>, source = 'app') {
+  public error(message: string, context?: Record<string, unknown>, source = 'app') {
     if (this.shouldLog('error')) {
       this.log('error', message, context, source);
     }
   }
 
-  private log(level: LogEntry['level'], message: string, context?: Record<string, any>, source = 'app') {
+  private log(level: LogEntry['level'], message: string, context?: Record<string, unknown>, source = 'app') {
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
@@ -125,7 +125,7 @@ class ConHubLogger {
     this.checkBufferLimit();
   }
 
-  public trackPerformance(metric: string, value: number, context?: Record<string, any>) {
+  public trackPerformance(metric: string, value: number, context?: Record<string, unknown>) {
     const perfMetric: PerformanceMetric = {
       timestamp: new Date().toISOString(),
       metric,
@@ -143,7 +143,7 @@ class ConHubLogger {
     }
   }
 
-  public trackUserAction(action: string, element: string, context?: Record<string, any>) {
+  public trackUserAction(action: string, element: string, context?: Record<string, unknown>) {
     const userAction: UserAction = {
       timestamp: new Date().toISOString(),
       action,
@@ -185,7 +185,10 @@ class ConHubLogger {
           
           const fidObserver = new PerformanceObserver((list) => {
             for (const entry of list.getEntries()) {
-              this.trackPerformance('first_input_delay', (entry as any).processingStart - entry.startTime);
+              const processingStart = (entry as any).processingStart as number | undefined;
+              if (typeof processingStart === 'number') {
+                this.trackPerformance('first_input_delay', processingStart - entry.startTime);
+              }
             }
           });
           fidObserver.observe({ type: 'first-input', buffered: true });

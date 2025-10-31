@@ -4,6 +4,22 @@ use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use validator::Validate;
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[sqlx(type_name = "user_role", rename_all = "lowercase")]
+pub enum UserRole {
+    User,
+    Admin,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[sqlx(type_name = "subscription_tier", rename_all = "lowercase")]
+pub enum SubscriptionTier {
+    Free,
+    Personal,
+    Team,
+    Enterprise,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
     pub id: Uuid,
@@ -12,8 +28,8 @@ pub struct User {
     pub name: String,
     pub avatar_url: Option<String>,
     pub organization: Option<String>,
-    pub role: String,
-    pub subscription_tier: String,
+    pub role: UserRole,
+    pub subscription_tier: SubscriptionTier,
     pub is_verified: bool,
     pub is_active: bool,
     pub created_at: DateTime<Utc>,
@@ -29,8 +45,8 @@ pub struct UserProfile {
     pub name: String,
     pub avatar_url: Option<String>,
     pub organization: Option<String>,
-    pub role: String,
-    pub subscription_tier: String,
+    pub role: UserRole,
+    pub subscription_tier: SubscriptionTier,
     pub is_verified: bool,
     pub is_active: bool,
     pub created_at: DateTime<Utc>,
@@ -112,8 +128,8 @@ impl From<User> for UserProfile {
             name: user.name,
             avatar_url: user.avatar_url,
             organization: user.organization,
-            role: user.role.clone(),
-            subscription_tier: user.subscription_tier.clone(),
+            role: user.role,
+            subscription_tier: user.subscription_tier,
             is_verified: user.is_verified,
             is_active: user.is_active,
             created_at: user.created_at,

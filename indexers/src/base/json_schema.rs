@@ -1402,18 +1402,28 @@ mod tests {
         let result = build_json_schema(enriched_value_type, options).unwrap();
 
         // Check if the description contains both field and type descriptions
-        if let Some(properties) = &result.schema.object
-            && let Some(uuid_field_schema) = properties.properties.get("uuid_field")
-            && let Schema::Object(schema_object) = uuid_field_schema
-            && let Some(description) = &schema_object
-                .metadata
-                .as_ref()
-                .and_then(|m| m.description.as_ref())
-        {
-            assert_eq!(
-                description.as_str(),
-                "This is a field-level description for UUID\n\nA UUID, e.g. 123e4567-e89b-12d3-a456-426614174000"
-            );
+        if let Some(properties) = &result.schema.object {
+            if let Some(uuid_field_schema) = properties.properties.get("uuid_field") {
+                if let Schema::Object(schema_object) = uuid_field_schema {
+                    if let Some(description) =
+                        &schema_object
+                            .metadata
+                            .as_ref()
+                            .and_then(|m| m.description.as_ref())
+                    {
+                        assert_eq!(
+                            description.as_str(),
+                            "This is a field-level description for UUID\n\nA UUID, e.g. 123e4567-e89b-12d3-a456-426614174000"
+                        );
+                    } else {
+                        panic!("No description found in the schema");
+                    }
+                } else {
+                    panic!("No description found in the schema");
+                }
+            } else {
+                panic!("No description found in the schema");
+            }
         } else {
             panic!("No description found in the schema");
         }

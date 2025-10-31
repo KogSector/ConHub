@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::{mpsc, RwLock};
-use aws_sdk_s3::{Client as S3Client, Config as S3Config};
-use aws_sdk_sqs::{Client as SqsClient, Config as SqsConfig};
+use aws_sdk_s3::Client as S3Client;
+use aws_sdk_sqs::Client as SqsClient;
 use aws_config::meta::region::RegionProviderChain;
 use aws_types::region::Region;
 
@@ -812,8 +812,7 @@ impl EnhancedS3Executor {
             .await;
         
         // Initialize S3 client
-        let s3_config = S3Config::from(&config);
-        let s3_client = S3Client::from_conf(s3_config);
+        let s3_client = S3Client::new(&config);
         
         let mut s3_client_guard = self.s3_client.write().await;
         *s3_client_guard = Some(s3_client);
@@ -821,8 +820,7 @@ impl EnhancedS3Executor {
         
         // Initialize SQS client if configured
         if let Some(sqs_config) = &self.spec.sqs_config {
-            let sqs_config = SqsConfig::from(&config);
-            let sqs_client = SqsClient::from_conf(sqs_config);
+            let sqs_client = SqsClient::new(&config);
             
             let mut sqs_client_guard = self.sqs_client.write().await;
             *sqs_client_guard = Some(sqs_client);

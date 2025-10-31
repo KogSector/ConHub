@@ -61,7 +61,7 @@ export function NotificationSettings() {
     <div className="space-y-6">
       {}
       <Card>
-        <CardHeader>
+          <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5" />
             Notification Preferences
@@ -220,7 +220,7 @@ export function NotificationSettings() {
         <CardHeader>
           <CardTitle>Notification Categories</CardTitle>
           <CardDescription>
-            What types of notifications you'll receive
+            What types of notifications you&apos;ll receive
           </CardDescription>
         </CardHeader>
         <CardContent>

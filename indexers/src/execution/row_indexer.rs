@@ -17,7 +17,7 @@ use crate::{
     base::value::{self, FieldValues, KeyValue},
     builder::plan::*,
     ops::interface::{
-        ExportTargetMutation, ExportTargetUpsertEntry, Ordinal, SourceExecutorReadOptions,
+        self, ExportTargetMutation, ExportTargetUpsertEntry, Ordinal, SourceExecutorReadOptions,
     },
     utils::{db::WriteAction, fingerprint::{Fingerprint, Fingerprinter}},
 };

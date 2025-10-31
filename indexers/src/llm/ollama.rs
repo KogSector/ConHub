@@ -1,4 +1,6 @@
 use crate::prelude::*;
+use pyo3_async_runtimes::generic::run;
+use retryable::{Retryable, RetryOptions};
 
 use super::{LlmEmbeddingClient, LlmGenerationClient};
 use schemars::schema::SchemaObject;
@@ -101,7 +103,7 @@ impl LlmGenerationClient for Client {
             system: request.system_prompt.as_ref().map(|s| s.as_ref()),
             stream: Some(false),
         };
-        let res = retryable::run(
+        let res = run(
             || async {
                 self.reqwest_client
                     .post(self.generate_url.as_str())
@@ -110,7 +112,7 @@ impl LlmGenerationClient for Client {
                     .await?
                     .error_for_status()
             },
-            &retryable::HEAVY_LOADED_OPTIONS,
+            RetryOptions::new(3, std::time::Duration::from_secs(5)),
         )
         .await
         .context("Ollama API error")?;
@@ -140,7 +142,7 @@ impl LlmEmbeddingClient for Client {
             model: request.model,
             input: request.text.as_ref(),
         };
-        let resp = retryable::run(
+        let resp = run(
             || async {
                 self.reqwest_client
                     .post(self.embed_url.as_str())
@@ -149,7 +151,7 @@ impl LlmEmbeddingClient for Client {
                     .await?
                     .error_for_status()
             },
-            &retryable::HEAVY_LOADED_OPTIONS,
+            RetryOptions::new(3, std::time::Duration::from_secs(5)),
         )
         .await
         .context("Ollama API error")?;

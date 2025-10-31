@@ -17,6 +17,12 @@ use aes_gcm::aead::{Aead, AeadCore, OsRng};
 use base64::{engine::general_purpose, Engine as _};
 use sha2::{Digest, Sha256};
 
+// Trait alias for stream types
+trait AsyncStream: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send {}
+
+// Implement the trait for common stream types
+impl<T> AsyncStream for T where T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send {}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TunnelConfig {
     pub listen_addr: String,
@@ -44,7 +50,7 @@ impl Default for TunnelConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TunnelConnection {
     pub id: String,
     pub client_addr: SocketAddr,
@@ -212,7 +218,7 @@ impl SecureTunnelService {
         log::info!("Handling connection: {}", connection_id);
 
         
-        let mut stream: Box<dyn tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send> = if let Some(ref acceptor) = self.tls_acceptor {
+        let mut stream: Box<dyn AsyncStream> = if let Some(ref acceptor) = self.tls_acceptor {
             match acceptor.accept(stream).await {
                 Ok(tls_stream) => Box::new(tls_stream),
                 Err(e) => {
@@ -293,7 +299,7 @@ impl SecureTunnelService {
         Ok(SecureMessage {
             id: Uuid::new_v4().to_string(),
             timestamp: Utc::now(),
-            payload: encrypted_payload,
+            payload: encrypted_payload.clone(),
             checksum: self.calculate_checksum(&encrypted_payload),
             encrypted: true,
             compressed: self.config.enable_compression,

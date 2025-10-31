@@ -2,6 +2,7 @@ use actix_web::{web, App, HttpServer, middleware::Logger};
 use actix_cors::Cors;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::env;
+use tracing_subscriber;
 
 mod services;
 mod handlers;
@@ -9,7 +10,7 @@ mod handlers;
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
-    env_logger::init();
+    tracing_subscriber::fmt::init();
 
     // Load environment variables
     dotenv::dotenv().ok();
@@ -82,7 +83,7 @@ async fn health_check(pool: web::Data<PgPool>) -> actix_web::Result<web::Json<se
     let db_status = match sqlx::query("SELECT 1 as test").fetch_one(pool.get_ref()).await {
         Ok(_) => "connected",
         Err(e) => {
-            log::error!("[Auth Service] Database health check failed: {}", e);
+            tracing::error!("[Auth Service] Database health check failed: {}", e);
             "disconnected"
         }
     };

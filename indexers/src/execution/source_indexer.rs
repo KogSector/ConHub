@@ -5,6 +5,7 @@ use futures::{future::{Ready, Shared}, FutureExt, StreamExt};
 use std::sync::{Arc, Mutex};
 use futures::future::BoxFuture;
 use anyhow::Result;
+use std::future::Future;
 use std::collections::HashSet;
 use futures::stream::BoxStream;
 use crate::builder::plan;

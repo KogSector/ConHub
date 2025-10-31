@@ -7,8 +7,8 @@ use conhub_models::{
     ConnectRepositoryRequest, RepositoryInfo, RepositoryCredentials, 
     RepositoryConfig, RepositorySyncStatus, VcsType, VcsProvider
 };
-use crate::services::vcs_detector::VcsDetector;
-use crate::services::vcs_connector::{VcsConnectorFactory, VcsError, VcsResult};
+use crate::services::data::vcs_detector::VcsDetector;
+use crate::services::data::vcs_connector::{VcsConnectorFactory, VcsError, VcsResult};
 
 lazy_static::lazy_static! {
     static ref REPOSITORIES: Mutex<HashMap<String, RepositoryInfo>> = Mutex::new(HashMap::new());

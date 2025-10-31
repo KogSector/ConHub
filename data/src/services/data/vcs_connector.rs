@@ -6,7 +6,7 @@ use conhub_models::{
     VcsType, VcsProvider, RepositoryInfo, RepositoryCredentials, 
     CredentialType
 };
-use crate::services::vcs_detector::{VcsDetector, CloneUrls};
+use crate::services::data::vcs_detector::{VcsDetector, CloneUrls};
 
 
 pub type VcsResult<T> = Result<T, VcsError>;

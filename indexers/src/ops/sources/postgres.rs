@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::ops::sdk::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -777,5 +778,72 @@ impl EnhancedPostgresExecutor {
     /// Get current ordinal state
     pub async fn get_ordinal_state(&self) -> OrdinalState {
         self.ordinal_state.read().await.clone()
+    }
+}
+
+// Minimal public Factory and dummy executor so the module exposes
+// `sources::postgres::Factory` and can register with the global registry.
+// This implementation is intentionally lightweight: it returns empty
+// results and acts as a compile-time placeholder until a full
+// Postgres source factory is implemented.
+
+pub struct Factory;
+
+struct DummyExecutor;
+
+#[async_trait]
+impl SourceExecutor for DummyExecutor {
+    async fn list(
+        &self,
+        _options: &SourceExecutorReadOptions,
+    ) -> Result<BoxStream<'async_trait, Result<Vec<PartialSourceRow>>>> {
+        let s = try_stream! {
+            // no rows
+        };
+        Ok(s.boxed())
+    }
+
+    async fn get_value(
+        &self,
+        _key: &KeyValue,
+        _key_aux_info: &serde_json::Value,
+        _options: &SourceExecutorReadOptions,
+    ) -> Result<PartialSourceRowData> {
+        Ok(PartialSourceRowData {
+            value: Some(SourceValue::NonExistence),
+            ordinal: Some(Ordinal::unavailable()),
+            content_version_fp: None,
+        })
+    }
+
+    fn provides_ordinal(&self) -> bool {
+        false
+    }
+}
+
+#[async_trait]
+impl SourceFactoryBase for Factory {
+    type Spec = EnhancedPostgresSpec;
+
+    fn name(&self) -> &str {
+        "Postgres"
+    }
+
+    async fn get_output_schema(
+        &self,
+        _spec: &Self::Spec,
+        _context: &FlowInstanceContext,
+    ) -> Result<EnrichedValueType> {
+        // Return a very small default table schema so callers can proceed.
+        Ok(EnrichedValueType::default())
+    }
+
+    async fn build_executor(
+        self: Arc<Self>,
+        _source_name: &str,
+        _spec: Self::Spec,
+        _context: Arc<FlowInstanceContext>,
+    ) -> Result<Box<dyn SourceExecutor>> {
+        Ok(Box::new(DummyExecutor))
     }
 }

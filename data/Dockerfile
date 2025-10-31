@@ -13,6 +13,11 @@ COPY data/src ./src
 # Build
 RUN cargo build --release
 
+# Development stage
+FROM builder AS development
+RUN cargo install cargo-watch
+CMD ["cargo", "watch", "-q", "-x", "run"]
+
 # Runtime stage
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates libssl3 && rm -rf /var/lib/apt/lists/*

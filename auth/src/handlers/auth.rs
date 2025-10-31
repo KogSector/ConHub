@@ -5,11 +5,11 @@ use chrono::{Utc, Duration, DateTime};
 use validator::Validate;
 use bcrypt::{hash, verify, DEFAULT_COST};
 use jsonwebtoken::{encode, Header, EncodingKey};
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 
 use conhub_models::auth::*;
-use crate::services::auth::password_reset::PASSWORD_RESET_SERVICE;
-use crate::services::auth::users::UserService;
+use crate::services::password_reset::PASSWORD_RESET_SERVICE;
+use crate::services::users::UserService;
 
 
 pub fn generate_jwt_token(user: &User) -> Result<(String, DateTime<Utc>), String> {
@@ -63,7 +63,7 @@ pub async fn login(
 
     
     if let Err(e) = user_service.update_last_login(user.id).await {
-        log::warn!("Failed to update last login for user {}: {}", user.id, e);
+        tracing::warn!("Failed to update last login for user {}: {}", user.id, e);
     }
 
     
@@ -98,7 +98,7 @@ pub async fn forgot_password(
     }
 
     let email = &request.email;
-    log::info!("Password reset requested for email: {}", email);
+    tracing::info!("Password reset requested for email: {}", email);
     
     let user_service = UserService::new(pool.get_ref().clone());
     
@@ -134,13 +134,13 @@ pub async fn reset_password(
     let token = &request.token;
     let new_password = &request.new_password;
     
-    log::info!("Password reset attempted for token: {}", token);
+    tracing::info!("Password reset attempted for token: {}", token);
     
     
     let email = match PASSWORD_RESET_SERVICE.validate_token(token) {
         Ok(email) => email,
         Err(e) => {
-            log::warn!("Invalid password reset token: {}", e);
+            tracing::warn!("Invalid password reset token: {}", e);
             return Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Invalid or expired reset token",
                 "details": e
@@ -152,7 +152,7 @@ pub async fn reset_password(
     let new_password_hash = match hash(new_password, DEFAULT_COST) {
         Ok(hash) => hash,
         Err(e) => {
-            log::error!("Failed to hash password: {}", e);
+            tracing::error!("Failed to hash password: {}", e);
             return Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to process password reset"
             })));
@@ -172,14 +172,14 @@ pub async fn reset_password(
     };
     
     
-    if let Err(e) = user_service.update_password(user.id, new_password).await {
-        log::error!("Failed to update password for user {}: {}", user.id, e);
+    if let Err(e) = user_service.update_password(user.id, &new_password_hash).await {
+        tracing::error!("Failed to update password for user {}: {}", user.id, e);
         return Ok(HttpResponse::InternalServerError().json(json!({
             "error": "Failed to update password"
         })));
     }
     
-    log::info!("Password successfully reset for email: {}", email);
+    tracing::info!("Password successfully reset for email: {}", email);
 
     Ok(HttpResponse::Ok().json(json!({
         "message": "Password has been reset successfully. You can now log in with your new password.",
@@ -204,10 +204,10 @@ pub async fn register(
     let new_user = match user_service.create_user(&request).await {
         Ok(user) => user,
         Err(e) => {
-            log::error!("Failed to create user: {}", e);
+            tracing::error!("Failed to create user: {}", e);
             return Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Failed to create user",
-                "details": e.to_string()
+                "details": format!("{}", e)
             })));
         }
     };
@@ -216,7 +216,7 @@ pub async fn register(
     let (token, expires_at) = match generate_jwt_token(&new_user) {
         Ok((token, expires_at)) => (token, expires_at),
         Err(e) => {
-            log::error!("Failed to generate JWT token for user {}: {}", new_user.id, e);
+            tracing::error!("Failed to generate JWT token for user {}: {}", new_user.id, e);
             return Ok(HttpResponse::InternalServerError().json(json!({
                 "error": e
             })));
@@ -239,12 +239,31 @@ pub async fn verify_token() -> Result<HttpResponse> {
     })))
 }
 
+pub async fn logout() -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "Logged out successfully"
+    })))
+}
+
+pub async fn get_current_user() -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "Current user endpoint"
+    })))
+}
+
+pub async fn refresh_token() -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "Token refreshed"
+    })))
+}
+
 pub async fn get_profile(pool: web::Data<PgPool>) -> Result<HttpResponse> {
     
     let user_service = UserService::new(pool.get_ref().clone());
     
     match user_service.list_users(1, 0).await {
         Ok(users) => {
+            let users: Vec<User> = users;
             if let Some(user) = users.first() {
                 let user_profile = UserProfile::from(user.clone());
                 Ok(HttpResponse::Ok().json(user_profile))
@@ -255,7 +274,7 @@ pub async fn get_profile(pool: web::Data<PgPool>) -> Result<HttpResponse> {
             }
         }
         Err(e) => {
-            log::error!("Failed to get user profile: {}", e);
+            tracing::error!("Failed to get user profile: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to get profile"
             })))
@@ -268,6 +287,7 @@ pub async fn list_users(pool: web::Data<PgPool>) -> Result<HttpResponse> {
     
     match user_service.list_users(10, 0).await {
         Ok(users) => {
+            let users: Vec<User> = users;
             let user_profiles: Vec<UserProfile> = users.into_iter()
                 .map(UserProfile::from)
                 .collect();
@@ -278,7 +298,7 @@ pub async fn list_users(pool: web::Data<PgPool>) -> Result<HttpResponse> {
             })))
         }
         Err(e) => {
-            log::error!("Failed to list users: {}", e);
+            tracing::error!("Failed to list users: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to list users"
             })))
@@ -316,14 +336,14 @@ pub async fn oauth_callback(
             
             match user_service.create_user(&register_request).await {
                 Ok(new_user) => {
-                    log::info!("Created new user via OAuth: {} ({})", new_user.email, new_user.id);
+                    tracing::info!("Created new user via OAuth: {} ({})", new_user.email, new_user.id);
                     (new_user, true)
                 },
                 Err(e) => {
-                    log::error!("Failed to create OAuth user: {}", e);
+                    tracing::error!("Failed to create OAuth user: {}", e);
                     return Ok(HttpResponse::InternalServerError().json(json!({
                         "error": "Failed to create user",
-                        "details": e.to_string()
+                        "details": format!("{}", e)
                     })));
                 }
             }
@@ -332,7 +352,7 @@ pub async fn oauth_callback(
 
     // Update last login
     if let Err(e) = user_service.update_last_login(user.id).await {
-        log::warn!("Failed to update last login for OAuth user {}: {}", user.id, e);
+        tracing::warn!("Failed to update last login for OAuth user {}: {}", user.id, e);
     }
 
     // Calculate token expiration datetime
@@ -345,7 +365,7 @@ pub async fn oauth_callback(
     let connection_id = Uuid::new_v4();
     let now = Utc::now();
     
-    let result = sqlx::query!(
+    let result = sqlx::query(
         r#"
         INSERT INTO social_connections (
             id, user_id, platform, platform_user_id, username,
@@ -363,34 +383,34 @@ pub async fn oauth_callback(
             is_active = true,
             updated_at = EXCLUDED.updated_at
         RETURNING id
-        "#,
-        connection_id,
-        user.id,
-        request.provider.to_lowercase(),
-        request.provider_user_id,
-        request.email.split('@').next().unwrap_or("user"),
-        request.access_token,
-        request.refresh_token.as_ref(),
-        token_expires_at,
-        request.scope.as_ref().unwrap_or(&"".to_string()),
-        true,
-        now,
-        now
+        "#
     )
+    .bind(connection_id)
+    .bind(user.id)
+    .bind(request.provider.to_lowercase())
+    .bind(&request.provider_user_id)
+    .bind(request.email.split('@').next().unwrap_or("user"))
+    .bind(&request.access_token)
+    .bind(request.refresh_token.as_ref())
+    .bind(token_expires_at)
+    .bind(request.scope.as_ref().unwrap_or(&"".to_string()))
+    .bind(true)
+    .bind(now)
+    .bind(now)
     .fetch_one(pool.get_ref())
     .await;
 
     let final_connection_id = match result {
-        Ok(row) => row.id,
+        Ok(row) => row.get("id"),
         Err(e) => {
-            log::error!("Failed to create/update social connection: {}", e);
+            tracing::error!("Failed to create/update social connection: {}", e);
             return Ok(HttpResponse::InternalServerError().json(json!({
                 "error": "Failed to store social connection"
             })));
         }
     };
 
-    log::info!("OAuth callback successful for user {} with provider {}", user.id, request.provider);
+    tracing::info!("OAuth callback successful for user {} with provider {}", user.id, request.provider);
 
     Ok(HttpResponse::Ok().json(OAuthCallbackResponse {
         user_id: user.id,

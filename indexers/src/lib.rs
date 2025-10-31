@@ -1,14 +1,25 @@
 // Indexers library - provides indexing functionality without HTTP server
 // This is a pure library that can be used by the backend service
 
+// Define the api_bail macro that wraps anyhow::bail
+#[macro_export]
+macro_rules! api_bail {
+    ($($arg:tt)*) => {
+        anyhow::bail!($($arg)*)
+    };
+}
+
 pub mod prelude;
 
 pub mod base;
+pub use base::value;
+pub use base::schema;
+pub use base::spec;
+pub mod setup;
 pub mod builder;
 pub mod config;
 pub mod execution;
 pub mod handlers;
-pub mod llm;
 pub mod models;
 pub mod monitoring;
 pub mod ops;

@@ -22,6 +22,7 @@ redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
+futures = "0.3"
 
 # Logging
 env_logger = "0.11"

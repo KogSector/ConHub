@@ -336,7 +336,7 @@ impl SourceFactoryBase for Factory {
         spec: Spec,
         _context: Arc<FlowInstanceContext>,
     ) -> Result<Box<dyn SourceExecutor>> {
-        let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+        let config = aws_config::load_from_env().await;
         Ok(Box::new(Executor {
             client: Client::new(&config),
             bucket_name: spec.bucket_name,

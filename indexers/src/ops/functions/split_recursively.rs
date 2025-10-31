@@ -670,18 +670,23 @@ impl SimpleFunctionExecutor for Executor {
                 lang_config,
                 next_regexp_sep_id: 0,
             })?
-        } else if let Some(lang_info) = program_langs::get_language_info(&language)
-            && let Some(tree_sitter_info) = lang_info.treesitter_info.as_ref()
-        {
-            let mut parser = tree_sitter::Parser::new();
-            parser.set_language(&tree_sitter_info.tree_sitter_lang)?;
-            let tree = parser
-                .parse(full_text.as_ref(), None)
-                .ok_or_else(|| anyhow!("failed in parsing text in language: {}", lang_info.name))?;
-            recursive_chunker.split_root_chunk(ChunkKind::TreeSitterNode {
-                tree_sitter_info,
-                node: tree.root_node(),
-            })?
+        } else if let Some(lang_info) = program_langs::get_language_info(&language) {
+            if let Some(tree_sitter_info) = lang_info.treesitter_info.as_ref() {
+                let mut parser = tree_sitter::Parser::new();
+                parser.set_language(&tree_sitter_info.tree_sitter_lang)?;
+                let tree = parser
+                    .parse(full_text.as_ref(), None)
+                    .ok_or_else(|| anyhow!("failed in parsing text in language: {}", lang_info.name))?;
+                recursive_chunker.split_root_chunk(ChunkKind::TreeSitterNode {
+                    tree_sitter_info,
+                    node: tree.root_node(),
+                })?
+            } else {
+                recursive_chunker.split_root_chunk(ChunkKind::RegexpSepChunk {
+                    lang_config: &DEFAULT_LANGUAGE_CONFIG,
+                    next_regexp_sep_id: 0,
+                })?
+            }
         } else {
             recursive_chunker.split_root_chunk(ChunkKind::RegexpSepChunk {
                 lang_config: &DEFAULT_LANGUAGE_CONFIG,

@@ -1,5 +1,7 @@
 use crate::prelude::*;
-use base64::prelude::*;
+use base64::{engine::general_purpose, Engine as _};
+use pyo3_async_runtimes::generic::run;
+use retryable::RetryOptions;
 
 use crate::llm::{
     LlmGenerateRequest, LlmGenerateResponse, LlmGenerationClient, OutputFormat,
@@ -39,7 +41,7 @@ impl LlmGenerationClient for Client {
 
         // Add image part if present
         if let Some(image_bytes) = &request.image {
-            let base64_image = BASE64_STANDARD.encode(image_bytes.as_ref());
+            let base64_image = general_purpose::STANDARD.encode(image_bytes.as_ref());
             let mime_type = detect_image_mime_type(image_bytes.as_ref())?;
             user_content_parts.push(serde_json::json!({
                 "type": "image",
@@ -88,7 +90,7 @@ impl LlmGenerationClient for Client {
 
         let encoded_api_key = encode(&self.api_key);
 
-        let resp = retryable::run(
+        let resp = run(
             || async {
                 self.client
                     .post(url)
@@ -99,7 +101,7 @@ impl LlmGenerationClient for Client {
                     .await?
                     .error_for_status()
             },
-            &retryable::HEAVY_LOADED_OPTIONS,
+            RetryOptions::default(),
         )
         .await
         .context("Anthropic API error")?;

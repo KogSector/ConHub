@@ -28,13 +28,14 @@ export async function list_remote_branches(repoUrl: string): Promise<{ branches:
     cache.set(repoUrl, { branches, defaultBranch, timestamp: Date.now() });
 
     return { branches, defaultBranch };
-  } catch (error: any) {
+  } catch (error) {
     console.error(`Error fetching branches for ${repoUrl}:`, error);
-    
-    if (error.message.includes('404') || error.message.includes('not found')) {
+    const msg = (error && typeof error === 'object' && typeof (error as Record<string, unknown>)['message'] === 'string') ? (error as Record<string, unknown>)['message'] as string : ''
+
+    if (msg.includes('404') || msg.includes('not found')) {
         throw new Error("Repository not found. Please check the URL.");
     }
-    if (error.message.includes('authentication required')) {
+    if (msg.includes('authentication required')) {
         throw new Error("This repository is private and requires authentication, which is not yet supported for branch fetching.");
     }
     throw new Error("Could not connect to the repository. Please check the URL and your network connection.");

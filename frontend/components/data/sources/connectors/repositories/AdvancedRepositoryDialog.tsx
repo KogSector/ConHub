@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { AlertCircle, Github, Key, Zap, Shield, Users, Check } from 'lucide-react';
+import { apiClient, ApiResponse } from '@/lib/api';
 
 interface AdvancedRepositoryDialogProps {
   open: boolean;
@@ -49,13 +50,12 @@ export function AdvancedRepositoryDialog({ open, onOpenChange, onSuccess }: Adva
       setError(null);
       
       const state = Math.random().toString(36).substring(7);
-      const response = await fetch('/api/auth/github/url?state=' + state);
-      const data = await response.json();
-      
-      if (data.success) {
+      const resp = await apiClient.get<ApiResponse<{ oauthUrl: string }>>(`/api/auth/github/url?state=${state}`);
+
+      if (resp.success && resp.data) {
         
         const popup = window.open(
-          data.oauthUrl,
+          resp.data.oauthUrl,
           'github-oauth',
           'width=600,height=700,scrollbars=yes,resizable=yes'
         );
@@ -69,7 +69,7 @@ export function AdvancedRepositoryDialog({ open, onOpenChange, onSuccess }: Adva
           }
         }, 1000);
       } else {
-        setError(data.error || 'Failed to initiate OAuth');
+        setError(resp.error || 'Failed to initiate OAuth');
       }
     } catch (error) {
       console.error('OAuth initialization failed:', error);
@@ -82,13 +82,12 @@ export function AdvancedRepositoryDialog({ open, onOpenChange, onSuccess }: Adva
   const loadInstallations = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/auth/github/installations');
-      const data = await response.json();
-      
-      if (data.success) {
-        setInstallations(data.installations);
+      const resp = await apiClient.get<ApiResponse<{ installations: any[] }>>('/api/auth/github/installations');
+
+      if (resp.success && resp.data) {
+        setInstallations(resp.data.installations || []);
       } else {
-        setError(data.error || 'Failed to load installations');
+        setError(resp.error || 'Failed to load installations');
       }
     } catch (error) {
       console.error('Failed to load installations:', error);
@@ -140,20 +139,13 @@ export function AdvancedRepositoryDialog({ open, onOpenChange, onSuccess }: Adva
         }
       };
       
-      const response = await fetch('/api/data-sources/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
+      const resp = await apiClient.post<ApiResponse>('/api/data-sources/connect', payload);
+      if (resp.success) {
         onSuccess();
         onOpenChange(false);
         resetForm();
       } else {
-        setError(data.error || 'Failed to connect repository');
+        setError(resp.error || 'Failed to connect repository');
       }
     } catch (error) {
       console.error('Connection failed:', error);

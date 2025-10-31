@@ -5,7 +5,7 @@ use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
 use uuid::Uuid;
 use std::collections::HashSet;
 
-use crate::models::auth::{Claims, UserRole, SubscriptionTier};
+use conhub_models::auth::{Claims, UserRole, SubscriptionTier};
 
 pub struct AuthGuard {
     pub required_roles: Option<Vec<UserRole>>,
@@ -41,16 +41,16 @@ impl AuthGuard {
         Self::new().require_roles(vec![UserRole::Admin])
     }
 
-    pub fn paid_subscription() -> Self {
-        Self::new().require_subscription(SubscriptionTier::Personal)
+    pub fn personal_subscription() -> Self {
+        Self::new().require_subscription(SubscriptionTier::Personal).require_active_subscription()
     }
 
     pub fn team_subscription() -> Self {
-        Self::new().require_subscription(SubscriptionTier::Team)
+        Self::new().require_subscription(SubscriptionTier::Team).require_active_subscription()
     }
 
     pub fn enterprise_subscription() -> Self {
-        Self::new().require_subscription(SubscriptionTier::Enterprise)
+        Self::new().require_subscription(SubscriptionTier::Enterprise).require_active_subscription()
     }
 }
 

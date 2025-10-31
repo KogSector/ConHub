@@ -8,6 +8,9 @@ name = "conhub_middleware"
 path = "src/lib.rs"
 
 [dependencies]
+# Shared workspace libraries
+conhub-models = { path = "../models" }
+
 # Web framework
 actix-web = "4.4"
 actix-web-httpauth = "0.8"
@@ -15,6 +18,7 @@ actix-web-httpauth = "0.8"
 # Async
 tokio = { version = "1.0", features = ["full"] }
 futures = "0.3"
+futures-util = "0.3"
 
 # JWT and auth
 jsonwebtoken = "9.2"
@@ -32,6 +36,7 @@ thiserror = "1.0"
 
 # Database
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "migrate"] }
+uuid = { version = "1.6", features = ["v4", "serde"] }
 
 # Date/time
 chrono = { version = "0.4", features = ["serde"] }

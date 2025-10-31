@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ExternalLink, FileText, Users, Calendar, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { apiClient, ApiResponse } from '@/lib/api';
 
 interface SocialData {
   platform: string;
@@ -54,19 +55,17 @@ export function SocialDataView() {
 
   const fetchSocialData = async () => {
     try {
-      const response = await fetch('/api/social/data', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const resp = await apiClient.get<ApiResponse<SocialData[]>>('/api/social/data', {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
       });
 
-      if (response.ok) {
-        const socialData = await response.json();
-        setData(socialData);
+      if (resp.success && resp.data) {
+        setData(resp.data);
       } else {
+        console.error('Error fetching social data:', resp.error);
         toast({
           title: "Error",
-          description: "Failed to fetch social data",
+          description: resp.error || "Failed to fetch social data",
           variant: "destructive"
         });
       }
