@@ -263,7 +263,7 @@ services:
   embedding:
     build:
       context: .
-      dockerfile: embedding/Dockerfile
+      dockerfile: services/embedding/Dockerfile
     container_name: conhub-embedding
     ports:
       - "3017:3017"
