@@ -40,7 +40,7 @@ services:
       # Use repository root as build context because the backend Dockerfile
       # copies files from multiple top-level folders (shared/, auth/, billing/, etc.).
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: services/backend/Dockerfile
     container_name: conhub-backend
     ports:
       - "8000:8000"
