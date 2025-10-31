@@ -11,7 +11,7 @@ services:
       # already references paths like `frontend/` so keeping the Dockerfile
       # path unchanged keeps the current multi-stage build semantics.
       context: .
-      dockerfile: frontend/Dockerfile
+      dockerfile: services/frontend/Dockerfile
     container_name: conhub-frontend
     ports:
       - "3000:3000"
