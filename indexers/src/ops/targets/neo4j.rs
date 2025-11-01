@@ -6,7 +6,7 @@ use crate::setup::components::{self, apply_component_changes, State};
 use crate::setup::{ResourceSetupChange, SetupChangeType};
 use crate::{ops::sdk::*, setup::CombinedState};
 
-use indoc::formatdoc;
+use pyo3::indoc::formatdoc;
 use neo4rs::{BoltType, ConfigBuilder, Graph};
 use std::fmt::Write;
 use tokio::sync::OnceCell;

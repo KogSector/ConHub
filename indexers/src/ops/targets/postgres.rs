@@ -42,17 +42,15 @@ impl setup::ResourceSetupChange for SetupChange {
         let mut changes = Vec::new();
         
         if self.delete_table {
-            changes.push(setup::ChangeDescription {
-                change_type: setup::SetupChangeType::Delete,
-                description: "Delete PostgreSQL table".to_string(),
-            });
+            changes.push(setup::ChangeDescription::Action(
+                "Delete PostgreSQL table".to_string(),
+            ));
         }
         
         if let Some(ref _state) = self.add_table {
-            changes.push(setup::ChangeDescription {
-                change_type: setup::SetupChangeType::Create,
-                description: "Create PostgreSQL table".to_string(),
-            });
+            changes.push(setup::ChangeDescription::Action(
+                "Create PostgreSQL table".to_string(),
+            ));
         }
         
         changes

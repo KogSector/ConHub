@@ -1,5 +1,8 @@
 use crate::prelude::*;
 use crate::execution::db_tracking_setup;
+use tokio_postgres;
+
+pub mod components;
 
 // Minimal stub of the `setup` module to satisfy type references across the
 // indexers crate. This is intentionally light-weight: it exposes the types,
@@ -140,7 +143,7 @@ pub async fn apply_changes_for_flow_ctx(
     _flow_ctx: &crate::lib_context::FlowContext,
     _flow_exec_ctx: &mut crate::execution::FlowExecutionContext,
     _lib_setup_ctx: &mut crate::lib_context::LibSetupContext,
-    _db_pool: &tokio_postgres::Pool<tokio_postgres::NoTls>,
+    _db_pool: &sqlx::PgPool,
     _output_buffer: &mut Vec<u8>,
 ) -> Result<()> {
     // Stub implementation - to be implemented later

@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use futures::stream::BoxStream;
 use crate::builder::plan;
 use futures::lock::Mutex as FuturesMutex;
-use crate::ops::interface;
+
 use sqlx::PgPool;
 use std::collections::{HashMap, hash_map};
 use tokio::{

@@ -22,6 +22,10 @@ async-stream = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
+# Validation and derive macros
+validator = { version = "0.16", features = ["derive"] }
+derivative = "2.2"
+
 # Schema generation
 schemars = "0.8"
 
@@ -147,8 +151,9 @@ tokio-postgres = "0.7"
 neo4rs = "0.7"
 
 # Python integration
-pyo3 = { version = "0.27", features = ["auto-initialize"] }
-pyo3-async-runtimes = { version = "0.27", features = ["tokio"] }
+pyo3 = { version = "0.26", features = ["auto-initialize"] }
+pyo3-async-runtimes = { version = "0.26", features = ["tokio"] }
+pythonize = "0.26"
 
 # Commonly used runtime + utility crates referenced by sources; add as
 # crate-local dependencies so `indexers` can compile in isolation. These
@@ -165,6 +170,7 @@ bytes = "1"
 hyper = { version = "0.14", features = ["full"] }
 hyper-rustls = "0.23"
 hyper-util = { version = "0.1", features = ["full"] }
+rustls = { version = "0.23", features = ["aws_lc_rs"] }
 
 
 

@@ -1,5 +1,7 @@
 use std::sync::Arc;
 use anyhow::Result;
+use crate::builder::AnalyzedFlow;
+use crate::setup::FlowSetupState;
 
 /// Minimal placeholder for the library context used across the indexers crate.
 ///
@@ -35,3 +37,30 @@ pub fn get_runtime() -> tokio::runtime::Runtime {
 }
 
 pub type LibContextRef = Arc<LibContext>;
+
+/// Flow context that wraps an analyzed flow
+#[derive(Debug)]
+pub struct FlowContext {
+    pub analyzed_flow: Arc<AnalyzedFlow>,
+    // Add other fields as needed
+}
+
+impl FlowContext {
+    pub async fn new(
+        analyzed_flow: Arc<AnalyzedFlow>,
+        _existing_flow_setup: Option<&FlowSetupState<crate::setup::ExistingMode>>,
+    ) -> Result<Self> {
+        Ok(Self { analyzed_flow })
+    }
+
+    pub fn get_execution_ctx_for_setup(&self) -> Arc<tokio::sync::RwLock<crate::execution::FlowExecutionContext>> {
+        // Stub implementation
+        Arc::new(tokio::sync::RwLock::new(crate::execution::FlowExecutionContext::new()))
+    }
+}
+
+/// Library setup context
+#[derive(Debug, Default)]
+pub struct LibSetupContext {
+    // Add fields as needed
+}

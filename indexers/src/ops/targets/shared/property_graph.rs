@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use derivative::Derivative;
 
 use crate::ops::sdk::{AuthEntryReference, FieldSchema};
 

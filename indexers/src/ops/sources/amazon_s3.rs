@@ -1,5 +1,5 @@
 use crate::fields_value;
-use async_stream::try_stream;
+use async_stream::{stream, try_stream};
 use aws_config::BehaviorVersion;
 use aws_sdk_s3::Client;
 use std::sync::Arc;
@@ -8,6 +8,7 @@ use urlencoding;
 use super::shared::pattern_matcher::PatternMatcher;
 use crate::base::field_attrs;
 use crate::ops::sdk::*;
+use crate::utils;
 
 /// Decode a form-encoded URL string, treating '+' as spaces
 fn decode_form_encoded_url(input: &str) -> Result<Arc<str>> {

@@ -4,6 +4,7 @@ use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use futures::future::try_join_all;
 use sqlx::PgPool;
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
 use super::db_tracking::{self, TrackedTargetKeyInfo, read_source_tracking_info_for_processing};
@@ -19,6 +20,7 @@ use crate::{
     ops::interface::{
         self, ExportTargetMutation, ExportTargetUpsertEntry, Ordinal, SourceExecutorReadOptions,
     },
+    prelude::invariance_violation,
     utils::{db::WriteAction, fingerprint::{Fingerprint, Fingerprinter}},
 };
 

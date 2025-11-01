@@ -12,7 +12,7 @@ use crate::{
     ops::interface::*,
 };
 use futures::future::{BoxFuture, try_join3};
-use futures::{FutureExt, future::try_join_all};
+use futures::{FutureExt, future::try_join_all, Future};
 
 #[derive(Debug)]
 pub(super) enum ValueTypeBuilder {

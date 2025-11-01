@@ -406,52 +406,49 @@ impl PySourceExecutor {
         data_py: &Bound<PyAny>,
     ) -> Result<interface::PartialSourceRowData> {
         // Extract fields from the Python dict
-        let ordinal = if let Ok(ordinal_py) = data_py.get_item("ordinal")
-            && !ordinal_py.is_none()
-        {
-            if ordinal_py.is_instance_of::<PyString>()
-                && ordinal_py.extract::<&str>()? == "NO_ORDINAL"
-            {
-                Some(interface::Ordinal::unavailable())
-            } else if let Ok(ordinal) = ordinal_py.extract::<i64>() {
-                Some(interface::Ordinal(Some(ordinal)))
-            } else {
-                api_bail!("Invalid ordinal: {}", ordinal_py);
+        let ordinal = match data_py.get_item("ordinal") {
+            Ok(ordinal_py) if !ordinal_py.is_none() => {
+                if ordinal_py.is_instance_of::<PyString>()
+                    && ordinal_py.extract::<&str>()? == "NO_ORDINAL"
+                {
+                    Some(interface::Ordinal::unavailable())
+                } else if let Ok(ordinal) = ordinal_py.extract::<i64>() {
+                    Some(interface::Ordinal(Some(ordinal)))
+                } else {
+                    api_bail!("Invalid ordinal: {}", ordinal_py);
+                }
             }
-        } else {
-            None
+            _ => None,
         };
 
         // Handle content_version_fp - can be bytes or null
-        let content_version_fp = if let Ok(fp_py) = data_py.get_item("content_version_fp")
-            && !fp_py.is_none()
-        {
-            if let Ok(bytes_vec) = fp_py.extract::<Vec<u8>>() {
-                Some(bytes_vec)
-            } else {
-                api_bail!("Invalid content_version_fp: {}", fp_py);
+        let content_version_fp = match data_py.get_item("content_version_fp") {
+            Ok(fp_py) if !fp_py.is_none() => {
+                if let Ok(bytes_vec) = fp_py.extract::<Vec<u8>>() {
+                    Some(bytes_vec)
+                } else {
+                    api_bail!("Invalid content_version_fp: {}", fp_py);
+                }
             }
-        } else {
-            None
+            _ => None,
         };
 
         // Handle value - can be NON_EXISTENCE string, encoded value, or null
-        let value = if let Ok(value_py) = data_py.get_item("value")
-            && !value_py.is_none()
-        {
-            if value_py.is_instance_of::<PyString>()
-                && value_py.extract::<&str>()? == "NON_EXISTENCE"
-            {
-                Some(interface::SourceValue::NonExistence)
-            } else if let Ok(field_values) =
-                py::field_values_from_py_seq(&self.value_fields, &value_py)
-            {
-                Some(interface::SourceValue::Existence(field_values))
-            } else {
-                api_bail!("Invalid value: {}", value_py);
+        let value = match data_py.get_item("value") {
+            Ok(value_py) if !value_py.is_none() => {
+                if value_py.is_instance_of::<PyString>()
+                    && value_py.extract::<&str>()? == "NON_EXISTENCE"
+                {
+                    Some(interface::SourceValue::NonExistence)
+                } else if let Ok(field_values) =
+                    py::field_values_from_py_seq(&self.value_fields, &value_py)
+                {
+                    Some(interface::SourceValue::Existence(field_values))
+                } else {
+                    api_bail!("Invalid value: {}", value_py);
+                }
             }
-        } else {
-            None
+            _ => None,
         };
 
         Ok(interface::PartialSourceRowData {

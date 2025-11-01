@@ -3,9 +3,65 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use validator::Validate;
 
+// Re-export SourceVersionKind for public use
+pub use crate::execution::row_indexer::SourceVersionKind;
 
+// Missing types needed for compilation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChunkRecord {
+    pub content: String,
+    pub embedding: Vec<f32>,
+    pub metadata: HashMap<String, String>,
+}
 
+impl ChunkRecord {
+    pub fn new(content: String, embedding: Vec<f32>, metadata: HashMap<String, String>) -> Self {
+        Self {
+            content,
+            embedding,
+            metadata,
+        }
+    }
+}
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContentFingerprint {
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MutationSet {
+    pub operation: String,
+    pub row_key: String,
+    pub data: Option<Vec<ChunkRecord>>,
+}
+
+impl MutationSet {
+    pub fn deletion(row_key: String) -> Self {
+        Self {
+            operation: "delete".to_string(),
+            row_key,
+            data: None,
+        }
+    }
+
+    pub fn upsert(row_key: String, chunks: Vec<ChunkRecord>) -> Self {
+        Self {
+            operation: "upsert".to_string(),
+            row_key,
+            data: Some(chunks),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RowSnapshot {
+    pub row_id: String,
+    pub fingerprint: Option<ContentFingerprint>,
+    pub version_kind: SourceVersionKind,
+    pub last_mutation_at: DateTime<Utc>,
+    pub mutation: Option<MutationSet>,
+}
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct IndexRepositoryRequest {

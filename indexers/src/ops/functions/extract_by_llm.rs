@@ -3,6 +3,7 @@ use crate::llm::{
 };
 use crate::ops::sdk::*;
 use crate::prelude::*;
+use crate::utils;
 use crate::base::json_schema::build_json_schema;
 use schemars::schema::SchemaObject;
 use std::borrow::Cow;

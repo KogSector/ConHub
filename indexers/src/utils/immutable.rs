@@ -7,7 +7,10 @@ pub enum RefList<'a, T> {
 
 impl<'a, T> RefList<'a, T> {
     /// Create a new list by prepending an element to this list
-    pub fn prepend(&'a self, item: T) -> RefList<'a, T> {
+    pub fn prepend<'b>(&'b self, item: T) -> RefList<'b, T> 
+    where 
+        'a: 'b 
+    {
         RefList::Cons(item, self)
     }
 
@@ -25,13 +28,13 @@ impl<'a, T> RefList<'a, T> {
     }
 
     /// Get an iterator over the list
-    pub fn iter(&self) -> RefListIter<'a, T> {
+    pub fn iter(&'a self) -> RefListIter<'a, T> {
         RefListIter { current: self }
     }
 }
 
 impl<'a, T> IntoIterator for &RefList<'a, T> {
-    type Item = &T;
+    type Item = &'a T;
     type IntoIter = RefListIter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {

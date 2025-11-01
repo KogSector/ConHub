@@ -28,11 +28,11 @@ pub mod setup;
 pub mod builder;
 pub mod config;
 pub mod execution;
+pub mod lib_context;
 pub mod handlers;
 pub mod models;
 pub mod monitoring;
 pub mod ops;
-pub mod schema;
 pub mod services;
 pub mod utils;
 pub mod utils_functions;
@@ -42,7 +42,8 @@ pub use config::IndexerConfig;
 pub use services::code::CodeIndexingService;
 pub use services::document::DocumentIndexingService;
 pub use services::web::WebIndexingService;
-pub use services::embedding::EmbeddingProcessor;
+pub use services::embedding::EmbeddingService;
+pub use models::{ChunkRecord, ContentFingerprint, MutationSet, RowSnapshot, SourceVersionKind};
 
 // Convenience function to create all indexers
 pub fn create_indexers(config: IndexerConfig) -> (
