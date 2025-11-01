@@ -1,14 +1,225 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap, HashSet};
+use std::sync::Arc;
 use chrono::{DateTime, Utc};
+use std::hash::{Hash, Hasher};
+use std::cmp::Ordering;
 
 pub mod copilot;
-
 pub mod auth;
 pub mod billing;
 pub mod social;
 pub mod mcp;
 
+// Advanced data structures for performance optimization
+
+/// High-performance cache-friendly vector for embeddings
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OptimizedVector {
+    pub data: Arc<Vec<f32>>,
+    pub dimension: usize,
+    pub norm: Option<f32>, // Cached L2 norm for faster similarity calculations
+    pub hash: u64, // Cached hash for deduplication
+}
+
+impl OptimizedVector {
+    pub fn new(data: Vec<f32>) -> Self {
+        let dimension = data.len();
+        let norm = Self::calculate_norm(&data);
+        let hash = Self::calculate_hash(&data);
+        
+        Self {
+            data: Arc::new(data),
+            dimension,
+            norm: Some(norm),
+            hash,
+        }
+    }
+    
+    fn calculate_norm(data: &[f32]) -> f32 {
+        data.iter().map(|x| x * x).sum::<f32>().sqrt()
+    }
+    
+    fn calculate_hash(data: &[f32]) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        let mut hasher = DefaultHasher::new();
+        for &val in data {
+            val.to_bits().hash(&mut hasher);
+        }
+        hasher.finish()
+    }
+    
+    /// Fast cosine similarity using cached norms
+    pub fn cosine_similarity(&self, other: &Self) -> f32 {
+        if self.dimension != other.dimension {
+            return 0.0;
+        }
+        
+        let dot_product: f32 = self.data.iter()
+            .zip(other.data.iter())
+            .map(|(a, b)| a * b)
+            .sum();
+            
+        match (self.norm, other.norm) {
+            (Some(norm_a), Some(norm_b)) => {
+                if norm_a == 0.0 || norm_b == 0.0 {
+                    0.0
+                } else {
+                    dot_product / (norm_a * norm_b)
+                }
+            }
+            _ => 0.0,
+        }
+    }
+}
+
+/// Spatial index for fast nearest neighbor search
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpatialIndex {
+    pub vectors: Vec<OptimizedVector>,
+    pub metadata: Vec<VectorMetadata>,
+    pub dimension: usize,
+    pub index_type: IndexType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum IndexType {
+    Flat,
+    LSH, // Locality Sensitive Hashing
+    HNSW, // Hierarchical Navigable Small World
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VectorMetadata {
+    pub id: String,
+    pub source_id: String,
+    pub chunk_index: Option<usize>,
+    pub timestamp: DateTime<Utc>,
+    pub tags: HashSet<String>,
+    pub quality_score: Option<f32>,
+}
+
+/// Bloom filter for fast membership testing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BloomFilter {
+    pub bits: Vec<bool>,
+    pub hash_functions: usize,
+    pub size: usize,
+    pub items_count: usize,
+}
+
+impl BloomFilter {
+    pub fn new(expected_items: usize, false_positive_rate: f64) -> Self {
+        let size = Self::optimal_size(expected_items, false_positive_rate);
+        let hash_functions = Self::optimal_hash_functions(size, expected_items);
+        
+        Self {
+            bits: vec![false; size],
+            hash_functions,
+            size,
+            items_count: 0,
+        }
+    }
+    
+    fn optimal_size(n: usize, p: f64) -> usize {
+        (-(n as f64) * p.ln() / (2.0_f64.ln().powi(2))).ceil() as usize
+    }
+    
+    fn optimal_hash_functions(m: usize, n: usize) -> usize {
+        ((m as f64 / n as f64) * 2.0_f64.ln()).round() as usize
+    }
+    
+    pub fn insert(&mut self, item: &str) {
+        for i in 0..self.hash_functions {
+            let hash = self.hash(item, i);
+            self.bits[hash % self.size] = true;
+        }
+        self.items_count += 1;
+    }
+    
+    pub fn contains(&self, item: &str) -> bool {
+        for i in 0..self.hash_functions {
+            let hash = self.hash(item, i);
+            if !self.bits[hash % self.size] {
+                return false;
+            }
+        }
+        true
+    }
+    
+    fn hash(&self, item: &str, seed: usize) -> usize {
+        use std::collections::hash_map::DefaultHasher;
+        let mut hasher = DefaultHasher::new();
+        item.hash(&mut hasher);
+        seed.hash(&mut hasher);
+        hasher.finish() as usize
+    }
+}
+
+/// LRU Cache for frequently accessed data
+#[derive(Debug)]
+pub struct LRUCache<K, V> 
+where 
+    K: Hash + Eq + Clone,
+    V: Clone,
+{
+    capacity: usize,
+    map: HashMap<K, (V, usize)>,
+    access_order: BTreeMap<usize, K>,
+    counter: usize,
+}
+
+impl<K, V> LRUCache<K, V>
+where
+    K: Hash + Eq + Clone,
+    V: Clone,
+{
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            capacity,
+            map: HashMap::new(),
+            access_order: BTreeMap::new(),
+            counter: 0,
+        }
+    }
+    
+    pub fn get(&mut self, key: &K) -> Option<V> {
+        if let Some((value, old_counter)) = self.map.get(key) {
+            let value = value.clone();
+            let old_counter = *old_counter;
+            
+            // Update access order
+            self.access_order.remove(&old_counter);
+            self.counter += 1;
+            self.access_order.insert(self.counter, key.clone());
+            self.map.insert(key.clone(), (value.clone(), self.counter));
+            
+            Some(value)
+        } else {
+            None
+        }
+    }
+    
+    pub fn put(&mut self, key: K, value: V) {
+        if self.map.contains_key(&key) {
+            // Update existing
+            if let Some((_, old_counter)) = self.map.get(&key) {
+                self.access_order.remove(old_counter);
+            }
+        } else if self.map.len() >= self.capacity {
+            // Evict least recently used
+            if let Some((&oldest_counter, oldest_key)) = self.access_order.iter().next() {
+                let oldest_key = oldest_key.clone();
+                self.access_order.remove(&oldest_counter);
+                self.map.remove(&oldest_key);
+            }
+        }
+        
+        self.counter += 1;
+        self.access_order.insert(self.counter, key.clone());
+        self.map.insert(key, (value, self.counter));
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum VcsType {
@@ -101,7 +312,6 @@ pub struct ConnectRepositoryRequest {
     pub config: Option<RepositoryConfig>,
 }
 
-
 #[derive(Deserialize)]
 pub struct ConnectRepoRequest {
     pub repo_url: String,
@@ -188,7 +398,6 @@ pub struct UpdateSettingsRequest {
     pub notifications: Option<NotificationSettings>,
     pub security: Option<SecuritySettings>,
 }
-
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AgentRecord {
@@ -309,7 +518,6 @@ pub struct UrlContext {
     pub summary: Option<String>,
     pub tags: Vec<String>,
 }
-
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum DataSourceType {

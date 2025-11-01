@@ -57,8 +57,8 @@ pub struct CreatePaymentIntentRequest {
     pub customer_id: String,
 }
 
-
-if let Err(validation_errors) = request.validate() {
+pub async fn create_customer(request: web::Json<CreateCustomerRequest>) -> Result<HttpResponse, ServiceError> {
+    if let Err(validation_errors) = request.validate() {
         return Err(ServiceError::ValidationError(validation_errors.to_string()));
     }
 
@@ -79,8 +79,8 @@ if let Err(validation_errors) = request.validate() {
     }
 }
 
-
-if let Err(validation_errors) = request.validate() {
+pub async fn create_payment_intent(request: web::Json<CreatePaymentIntentRequest>) -> Result<HttpResponse, ServiceError> {
+    if let Err(validation_errors) = request.validate() {
         return Err(ServiceError::ValidationError(validation_errors.to_string()));
     }
 

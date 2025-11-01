@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use tracing::{error, info};
 
 use crate::sources::DataSourceFactory;
+use crate::errors::ServiceError;
 
 #[derive(Debug, Deserialize)]
 pub struct ConnectDataSourceRequest {

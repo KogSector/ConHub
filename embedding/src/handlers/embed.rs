@@ -2,14 +2,14 @@ use actix_web::{web, HttpResponse};
 use std::sync::Arc;
 
 use crate::models::{EmbedRequest, EmbedResponse, ErrorResponse, TextInput};
-use crate::services::EmbeddingService;
+use crate::services::LlmEmbeddingService;
 
 const MAX_TEXT_LENGTH: usize = 8192;
 const MAX_BATCH_SIZE: usize = 32;
 
 pub async fn embed_handler(
     req: web::Json<EmbedRequest>,
-    service: web::Data<Arc<EmbeddingService>>,
+    service: web::Data<Arc<LlmEmbeddingService>>,
 ) -> HttpResponse {
     // Extract texts
     let texts = match &req.text {
@@ -42,7 +42,7 @@ pub async fn embed_handler(
     }
 
     // Generate embeddings
-    match service.generate_embeddings(&texts, req.normalize).await {
+    match service.generate_embeddings(&texts).await {
         Ok(embeddings) => {
             let dimension = service.get_dimension().unwrap_or(0) as usize;
             HttpResponse::Ok().json(EmbedResponse {

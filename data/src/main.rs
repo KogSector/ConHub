@@ -100,6 +100,21 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
             .route("/index/url", web::post().to(handlers::indexing::index_url))
             .route("/index/file", web::post().to(handlers::indexing::index_file))
             .route("/index/status", web::get().to(handlers::indexing::get_indexing_status))
+    )
+    .service(
+        web::scope("/api/enhanced")
+            // Enhanced data routes
+            .route("/data", web::post().to(handlers::enhanced_handlers::get_enhanced_data))
+            .route("/data/batch", web::post().to(handlers::enhanced_handlers::get_batch_data))
+            
+            // Performance monitoring routes
+            .route("/metrics", web::post().to(handlers::enhanced_handlers::get_performance_metrics))
+            
+            // Cache management routes
+            .route("/cache", web::post().to(handlers::enhanced_handlers::manage_cache))
+            
+            // Enhanced health check
+            .route("/health", web::get().to(handlers::enhanced_handlers::enhanced_health_check))
     );
 }
 

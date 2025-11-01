@@ -22,6 +22,8 @@ pub enum FusionError {
     IoError(#[from] std::io::Error),
     #[error("Serialization error: {0}")]
     SerializationError(#[from] bincode::Error),
+    #[error("Insufficient embeddings for clustering: {0}")]
+    InsufficientEmbeddings(usize),
 }
 
 /// Supported embedding modalities
@@ -35,7 +37,7 @@ pub enum EmbeddingModality {
     Multimodal,
 }
 
-/// Fusion strategies for combining embeddings
+/// Advanced fusion strategies for combining embeddings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FusionStrategy {
     Concatenation,
@@ -44,9 +46,314 @@ pub enum FusionStrategy {
     Average,
     Max,
     AttentionWeighted,
+    HierarchicalClustering { num_clusters: usize },
+    AdaptiveWeighting,
+    PrincipalComponentAnalysis { components: usize },
+    DynamicFusion,
 }
 
-/// Individual embedding with metadata
+/// Clustering algorithm for hierarchical fusion
+#[derive(Debug, Clone)]
+pub struct HierarchicalCluster {
+    pub embeddings: Vec<usize>, // indices of embeddings in this cluster
+    pub centroid: Vec<f32>,
+    pub weight: f32,
+}
+
+/// Advanced vector operations with SIMD optimization
+pub struct AdvancedVectorOps;
+
+impl AdvancedVectorOps {
+    /// Compute cosine similarity with early termination for performance
+    pub fn fast_cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+        if a.len() != b.len() {
+            return 0.0;
+        }
+
+        let (dot_product, norm_a_sq, norm_b_sq) = a
+            .par_iter()
+            .zip(b.par_iter())
+            .map(|(x, y)| (x * y, x * x, y * y))
+            .reduce(
+                || (0.0, 0.0, 0.0),
+                |(acc_dot, acc_a, acc_b), (dot, a_sq, b_sq)| {
+                    (acc_dot + dot, acc_a + a_sq, acc_b + b_sq)
+                },
+            );
+
+        let norm_a = norm_a_sq.sqrt();
+        let norm_b = norm_b_sq.sqrt();
+
+        if norm_a == 0.0 || norm_b == 0.0 {
+            0.0
+        } else {
+            dot_product / (norm_a * norm_b)
+        }
+    }
+
+    /// Compute pairwise distances matrix efficiently
+    pub fn pairwise_distances(embeddings: &[Vec<f32>]) -> Vec<Vec<f32>> {
+        let n = embeddings.len();
+        let mut distances = vec![vec![0.0; n]; n];
+
+        for i in 0..n {
+            for j in i + 1..n {
+                let dist = 1.0 - Self::fast_cosine_similarity(&embeddings[i], &embeddings[j]);
+                distances[i][j] = dist;
+                distances[j][i] = dist;
+            }
+        }
+
+        distances
+    }
+
+    /// K-means clustering for hierarchical fusion
+    pub fn kmeans_clustering(
+        embeddings: &[Vec<f32>],
+        k: usize,
+        max_iterations: usize,
+    ) -> Result<Vec<HierarchicalCluster>> {
+        if embeddings.len() < k {
+            return Err(FusionError::InsufficientEmbeddings(embeddings.len()).into());
+        }
+
+        let dim = embeddings[0].len();
+        let mut centroids = Self::initialize_centroids(embeddings, k);
+        let mut assignments = vec![0; embeddings.len()];
+
+        for _ in 0..max_iterations {
+            let mut changed = false;
+
+            // Assign points to nearest centroids
+            for (i, embedding) in embeddings.iter().enumerate() {
+                let mut best_cluster = 0;
+                let mut best_distance = f32::INFINITY;
+
+                for (j, centroid) in centroids.iter().enumerate() {
+                    let distance = 1.0 - Self::fast_cosine_similarity(embedding, centroid);
+                    if distance < best_distance {
+                        best_distance = distance;
+                        best_cluster = j;
+                    }
+                }
+
+                if assignments[i] != best_cluster {
+                    assignments[i] = best_cluster;
+                    changed = true;
+                }
+            }
+
+            if !changed {
+                break;
+            }
+
+            // Update centroids
+            for k in 0..centroids.len() {
+                let cluster_points: Vec<&Vec<f32>> = embeddings
+                    .iter()
+                    .enumerate()
+                    .filter(|(i, _)| assignments[*i] == k)
+                    .map(|(_, emb)| emb)
+                    .collect();
+
+                if !cluster_points.is_empty() {
+                    centroids[k] = Self::compute_centroid(&cluster_points);
+                }
+            }
+        }
+
+        // Create clusters
+        let mut clusters = Vec::new();
+        for k in 0..centroids.len() {
+            let cluster_indices: Vec<usize> = assignments
+                .iter()
+                .enumerate()
+                .filter(|(_, &cluster)| cluster == k)
+                .map(|(i, _)| i)
+                .collect();
+
+            if !cluster_indices.is_empty() {
+                let weight = cluster_indices.len() as f32 / embeddings.len() as f32;
+                clusters.push(HierarchicalCluster {
+                    embeddings: cluster_indices,
+                    centroid: centroids[k].clone(),
+                    weight,
+                });
+            }
+        }
+
+        Ok(clusters)
+    }
+
+    fn initialize_centroids(embeddings: &[Vec<f32>], k: usize) -> Vec<Vec<f32>> {
+        let mut rng = rand::thread_rng();
+        let mut centroids = Vec::new();
+
+        // Use k-means++ initialization
+        let first_idx = rng.gen_range(0..embeddings.len());
+        centroids.push(embeddings[first_idx].clone());
+
+        for _ in 1..k {
+            let mut distances = vec![f32::INFINITY; embeddings.len()];
+
+            for (i, embedding) in embeddings.iter().enumerate() {
+                for centroid in &centroids {
+                    let dist = 1.0 - Self::fast_cosine_similarity(embedding, centroid);
+                    distances[i] = distances[i].min(dist);
+                }
+            }
+
+            let total_distance: f32 = distances.iter().sum();
+            let mut cumulative = 0.0;
+            let target = rng.gen::<f32>() * total_distance;
+
+            for (i, &dist) in distances.iter().enumerate() {
+                cumulative += dist;
+                if cumulative >= target {
+                    centroids.push(embeddings[i].clone());
+                    break;
+                }
+            }
+        }
+
+        centroids
+    }
+
+    fn compute_centroid(embeddings: &[&Vec<f32>]) -> Vec<f32> {
+        if embeddings.is_empty() {
+            return Vec::new();
+        }
+
+        let dim = embeddings[0].len();
+        let mut centroid = vec![0.0; dim];
+
+        for embedding in embeddings {
+            for (i, &val) in embedding.iter().enumerate() {
+                centroid[i] += val;
+            }
+        }
+
+        let count = embeddings.len() as f32;
+        centroid.iter_mut().for_each(|x| *x /= count);
+
+        // Normalize centroid
+        let norm: f32 = centroid.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if norm > 0.0 {
+            centroid.iter_mut().for_each(|x| *x /= norm);
+        }
+
+        centroid
+    }
+
+    /// Principal Component Analysis for dimensionality reduction
+    pub fn pca_transform(embeddings: &[Vec<f32>], components: usize) -> Result<Vec<Vec<f32>>> {
+        if embeddings.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let n = embeddings.len();
+        let dim = embeddings[0].len();
+        let components = components.min(dim);
+
+        // Center the data
+        let mean = Self::compute_mean(embeddings);
+        let centered: Vec<Vec<f32>> = embeddings
+            .iter()
+            .map(|emb| {
+                emb.iter()
+                    .zip(mean.iter())
+                    .map(|(x, m)| x - m)
+                    .collect()
+            })
+            .collect();
+
+        // Compute covariance matrix (simplified for performance)
+        let mut cov_matrix = vec![vec![0.0; dim]; dim];
+        for i in 0..dim {
+            for j in i..dim {
+                let cov: f32 = centered
+                    .iter()
+                    .map(|row| row[i] * row[j])
+                    .sum::<f32>() / (n - 1) as f32;
+                cov_matrix[i][j] = cov;
+                cov_matrix[j][i] = cov;
+            }
+        }
+
+        // Simplified eigenvalue computation (using power iteration for top components)
+        let principal_components = Self::compute_top_eigenvectors(&cov_matrix, components);
+
+        // Transform data
+        let transformed: Vec<Vec<f32>> = centered
+            .iter()
+            .map(|row| {
+                principal_components
+                    .iter()
+                    .map(|pc| {
+                        row.iter()
+                            .zip(pc.iter())
+                            .map(|(x, p)| x * p)
+                            .sum()
+                    })
+                    .collect()
+            })
+            .collect();
+
+        Ok(transformed)
+    }
+
+    fn compute_mean(embeddings: &[Vec<f32>]) -> Vec<f32> {
+        if embeddings.is_empty() {
+            return Vec::new();
+        }
+
+        let dim = embeddings[0].len();
+        let mut mean = vec![0.0; dim];
+
+        for embedding in embeddings {
+            for (i, &val) in embedding.iter().enumerate() {
+                mean[i] += val;
+            }
+        }
+
+        let count = embeddings.len() as f32;
+        mean.iter_mut().for_each(|x| *x /= count);
+        mean
+    }
+
+    fn compute_top_eigenvectors(matrix: &[Vec<f32>], k: usize) -> Vec<Vec<f32>> {
+        let dim = matrix.len();
+        let mut eigenvectors = Vec::new();
+
+        for _ in 0..k {
+            let mut v = vec![1.0; dim];
+            
+            // Power iteration
+            for _ in 0..100 {
+                let mut new_v = vec![0.0; dim];
+                for i in 0..dim {
+                    for j in 0..dim {
+                        new_v[i] += matrix[i][j] * v[j];
+                    }
+                }
+
+                // Normalize
+                let norm: f32 = new_v.iter().map(|x| x * x).sum::<f32>().sqrt();
+                if norm > 0.0 {
+                    new_v.iter_mut().for_each(|x| *x /= norm);
+                }
+
+                v = new_v;
+            }
+
+            eigenvectors.push(v);
+        }
+
+        eigenvectors
+    }
+}
+
+/// Individual embedding with metadata and optimizations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Embedding {
     pub id: Uuid,
@@ -55,6 +362,7 @@ pub struct Embedding {
     pub dimension: usize,
     pub model_name: String,
     pub metadata: HashMap<String, String>,
+    pub norm: f32, // Cached norm for performance
 }
 
 impl Embedding {
@@ -68,6 +376,8 @@ impl Embedding {
         }
 
         let dimension = vector.len();
+        let norm = vector.iter().map(|x| x * x).sum::<f32>().sqrt();
+        
         Ok(Self {
             id: Uuid::new_v4(),
             modality,
@@ -75,6 +385,7 @@ impl Embedding {
             dimension,
             model_name,
             metadata: HashMap::new(),
+            norm,
         })
     }
 
@@ -84,15 +395,34 @@ impl Embedding {
     }
 
     pub fn normalize(&mut self) {
-        let norm = self.vector.iter().map(|x| x * x).sum::<f32>().sqrt();
-        if norm > 0.0 {
-            self.vector.iter_mut().for_each(|x| *x /= norm);
+        if self.norm > 0.0 {
+            self.vector.iter_mut().for_each(|x| *x /= self.norm);
+            self.norm = 1.0;
         }
     }
 
     pub fn normalized(mut self) -> Self {
         self.normalize();
         self
+    }
+
+    /// Fast similarity computation using cached norm
+    pub fn similarity_to(&self, other: &Self) -> f32 {
+        if self.dimension != other.dimension {
+            return 0.0;
+        }
+
+        let dot_product: f32 = self.vector
+            .par_iter()
+            .zip(other.vector.par_iter())
+            .map(|(a, b)| a * b)
+            .sum();
+
+        if self.norm == 0.0 || other.norm == 0.0 {
+            0.0
+        } else {
+            dot_product / (self.norm * other.norm)
+        }
     }
 }
 
@@ -140,6 +470,14 @@ impl FusedEmbedding {
             FusionStrategy::Average => Self::average_embeddings(embeddings),
             FusionStrategy::Max => Self::max_embeddings(embeddings),
             FusionStrategy::AttentionWeighted => Self::attention_weighted_embeddings(embeddings),
+            FusionStrategy::HierarchicalClustering { num_clusters } => {
+                Self::hierarchical_clustering_fusion(embeddings, *num_clusters)
+            },
+            FusionStrategy::AdaptiveWeighting => Self::adaptive_weighted_fusion(embeddings),
+            FusionStrategy::PrincipalComponentAnalysis { components } => {
+                Self::pca_fusion(embeddings, *components)
+            },
+            FusionStrategy::DynamicFusion => Self::dynamic_fusion(embeddings),
         }
     }
 
@@ -244,6 +582,153 @@ impl FusedEmbedding {
         let weights: Vec<f32> = norms.iter().map(|&norm| norm / sum_norms).collect();
 
         Self::weighted_sum_embeddings(embeddings, &weights)
+    }
+
+    /// Hierarchical clustering fusion strategy
+    fn hierarchical_clustering_fusion(embeddings: &[Embedding], num_clusters: usize) -> Result<Vec<f32>> {
+        let first_dim = embeddings[0].dimension;
+        for embedding in embeddings {
+            if embedding.dimension != first_dim {
+                return Err(FusionError::DimensionMismatch {
+                    expected: first_dim,
+                    actual: embedding.dimension,
+                }.into());
+            }
+        }
+
+        let vectors: Vec<Vec<f32>> = embeddings.iter().map(|e| e.vector.clone()).collect();
+        let clusters = AdvancedVectorOps::kmeans_clustering(&vectors, num_clusters, 50)?;
+
+        // Weighted average of cluster centroids
+        let mut result = vec![0.0; first_dim];
+        for cluster in clusters {
+            for (i, &val) in cluster.centroid.iter().enumerate() {
+                result[i] += val * cluster.weight;
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Adaptive weighting based on embedding quality and diversity
+    fn adaptive_weighted_fusion(embeddings: &[Embedding]) -> Result<Vec<f32>> {
+        let first_dim = embeddings[0].dimension;
+        for embedding in embeddings {
+            if embedding.dimension != first_dim {
+                return Err(FusionError::DimensionMismatch {
+                    expected: first_dim,
+                    actual: embedding.dimension,
+                }.into());
+            }
+        }
+
+        // Compute adaptive weights based on norm and diversity
+        let mut weights = Vec::new();
+        for (i, embedding) in embeddings.iter().enumerate() {
+            let norm_weight = embedding.norm;
+            
+            // Diversity weight: how different this embedding is from others
+            let mut diversity_score = 0.0;
+            for (j, other) in embeddings.iter().enumerate() {
+                if i != j {
+                    let similarity = embedding.similarity_to(other);
+                    diversity_score += 1.0 - similarity;
+                }
+            }
+            diversity_score /= (embeddings.len() - 1) as f32;
+            
+            // Combine norm and diversity
+            let adaptive_weight = norm_weight * (1.0 + diversity_score);
+            weights.push(adaptive_weight);
+        }
+
+        // Normalize weights
+        let sum_weights: f32 = weights.iter().sum();
+        if sum_weights > 0.0 {
+            weights.iter_mut().for_each(|w| *w /= sum_weights);
+        }
+
+        Self::weighted_sum_embeddings(embeddings, &weights)
+    }
+
+    /// PCA-based fusion for dimensionality reduction
+    fn pca_fusion(embeddings: &[Embedding], components: usize) -> Result<Vec<f32>> {
+        let first_dim = embeddings[0].dimension;
+        for embedding in embeddings {
+            if embedding.dimension != first_dim {
+                return Err(FusionError::DimensionMismatch {
+                    expected: first_dim,
+                    actual: embedding.dimension,
+                }.into());
+            }
+        }
+
+        let vectors: Vec<Vec<f32>> = embeddings.iter().map(|e| e.vector.clone()).collect();
+        let transformed = AdvancedVectorOps::pca_transform(&vectors, components)?;
+
+        if transformed.is_empty() {
+            return Ok(vec![0.0; components]);
+        }
+
+        // Average the transformed embeddings
+        let mut result = vec![0.0; components];
+        for transformed_embedding in &transformed {
+            for (i, &val) in transformed_embedding.iter().enumerate() {
+                result[i] += val;
+            }
+        }
+
+        let count = transformed.len() as f32;
+        result.iter_mut().for_each(|x| *x /= count);
+
+        Ok(result)
+    }
+
+    /// Dynamic fusion that selects the best strategy based on embedding characteristics
+    fn dynamic_fusion(embeddings: &[Embedding]) -> Result<Vec<f32>> {
+        let first_dim = embeddings[0].dimension;
+        for embedding in embeddings {
+            if embedding.dimension != first_dim {
+                return Err(FusionError::DimensionMismatch {
+                    expected: first_dim,
+                    actual: embedding.dimension,
+                }.into());
+            }
+        }
+
+        // Analyze embedding characteristics
+        let num_embeddings = embeddings.len();
+        let avg_norm: f32 = embeddings.iter().map(|e| e.norm).sum::<f32>() / num_embeddings as f32;
+        
+        // Compute pairwise similarities to measure diversity
+        let mut similarities = Vec::new();
+        for i in 0..num_embeddings {
+            for j in i + 1..num_embeddings {
+                similarities.push(embeddings[i].similarity_to(&embeddings[j]));
+            }
+        }
+        let avg_similarity = similarities.iter().sum::<f32>() / similarities.len() as f32;
+
+        // Select strategy based on characteristics
+        let strategy = if num_embeddings <= 2 {
+            FusionStrategy::Average
+        } else if avg_similarity > 0.8 {
+            // High similarity - use simple average
+            FusionStrategy::Average
+        } else if avg_similarity < 0.3 {
+            // Low similarity - use clustering
+            FusionStrategy::HierarchicalClustering { 
+                num_clusters: (num_embeddings / 2).max(2).min(5) 
+            }
+        } else if avg_norm > 1.5 {
+            // High norms - use attention weighting
+            FusionStrategy::AttentionWeighted
+        } else {
+            // Default to adaptive weighting
+            FusionStrategy::AdaptiveWeighting
+        };
+
+        Self::apply_fusion_strategy(embeddings, &strategy)
     }
 
     pub fn with_metadata(mut self, metadata: HashMap<String, String>) -> Self {

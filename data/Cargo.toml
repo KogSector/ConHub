@@ -79,3 +79,16 @@ warp = "0.3"
 lazy_static = "1.4"
 regex = "1.10"
 validator = { version = "0.16", features = ["derive"] }
+
+# Additional dependencies for advanced features
+rand = "0.8"
+dashmap = "5.5"
+lru = "0.12"
+flate2 = "1.0"
+parking_lot = "0.12"
+arc-swap = "1.6"
+crossbeam = "0.8"
+crossbeam-channel = "0.5"
+once_cell = "1.19"
+bytes = "1.5"
+bit-vec = "0.6"

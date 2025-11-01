@@ -4,11 +4,12 @@ use std::sync::Arc;
 
 mod config;
 mod handlers;
+mod llm;
 mod models;
 mod services;
 
 use handlers::{embed_handler, health_handler, rerank_handler};
-use services::{EmbeddingService, RerankService};
+use services::{LlmEmbeddingService, RerankService};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -28,7 +29,7 @@ async fn main() -> std::io::Result<()> {
     // Initialize services
     log::info!("Initializing embedding and reranking models...");
     let embedding_service = Arc::new(
-        EmbeddingService::new()
+        LlmEmbeddingService::new("openai", "text-embedding-3-small")
             .expect("Failed to initialize embedding service")
     );
     let rerank_service = Arc::new(

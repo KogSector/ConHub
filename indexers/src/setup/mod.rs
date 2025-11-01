@@ -94,6 +94,19 @@ pub enum SetupChangeType {
     Delete,
 }
 
+#[derive(Clone, Debug)]
+pub enum FlowSetupChangeAction {
+    Setup,
+    Teardown,
+    Validate,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum StateChange<T> {
+    Upsert(T),
+    Delete,
+}
+
 pub trait ResourceSetupChange: Send + Sync {
     fn describe_changes(&self) -> Vec<ChangeDescription>;
     fn change_type(&self) -> SetupChangeType;
@@ -122,6 +135,14 @@ pub mod flow_features {
 }
 
 // Small helper used by some callers elsewhere; minimal implementation.
-pub fn apply_changes_for_flow_ctx(_arg: &str) {
-    // noop stub
+pub async fn apply_changes_for_flow_ctx(
+    _action: FlowSetupChangeAction,
+    _flow_ctx: &crate::lib_context::FlowContext,
+    _flow_exec_ctx: &mut crate::execution::FlowExecutionContext,
+    _lib_setup_ctx: &mut crate::lib_context::LibSetupContext,
+    _db_pool: &tokio_postgres::Pool<tokio_postgres::NoTls>,
+    _output_buffer: &mut Vec<u8>,
+) -> Result<()> {
+    // Stub implementation - to be implemented later
+    Ok(())
 }

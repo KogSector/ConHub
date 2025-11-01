@@ -1269,6 +1269,7 @@ dependencies = [
  "azure_identity",
  "azure_storage",
  "azure_storage_blobs",
+ "base64 0.22.1",
  "bytes",
  "chrono",
  "const_format",

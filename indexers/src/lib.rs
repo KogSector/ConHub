@@ -9,9 +9,18 @@ macro_rules! api_bail {
     };
 }
 
+// Define the api_error macro that creates anyhow::Error
+#[macro_export]
+macro_rules! api_error {
+    ($($arg:tt)*) => {
+        anyhow::anyhow!($($arg)*)
+    };
+}
+
 pub mod prelude;
 
 pub mod base;
+pub mod py;
 pub use base::value;
 pub use base::schema;
 pub use base::spec;

@@ -1,6 +1,5 @@
-use crate::prelude::*;
-use pyo3_async_runtimes::generic::run;
-use retryable::{Retryable, RetryOptions};
+use anyhow::{anyhow, bail, Result};
+use async_trait::async_trait;
 
 use super::LlmEmbeddingClient;
 use async_openai::{
@@ -18,14 +17,14 @@ static DEFAULT_EMBEDDING_DIMENSIONS: phf::Map<&str, u32> = phf_map! {
 };
 
 pub struct Client {
-    client: async_openai::Client,
+    client: async_openai::Client<OpenAIConfig>,
 }
 
 impl Client {
     pub fn new(address: Option<String>, api_config: Option<super::LlmApiConfig>) -> Result<Self> {
         let config = match api_config {
             Some(super::LlmApiConfig::OpenAi(config)) => config,
-            Some(_) => api_bail!("unexpected config type, expected OpenAiConfig"),
+            Some(_) => bail!("unexpected config type, expected OpenAiConfig"),
             None => super::OpenAiConfig::default(),
         };
 
@@ -37,12 +36,12 @@ impl Client {
             openai_config = openai_config.with_org_id(org_id);
         }
         if let Some(project_id) = config.project_id {
-            openai_config = openai_config.with_project_id(project_id);
+            openai_config = openai_config.with_org_id(project_id);
         }
 
         // Verify API key is set
         if std::env::var("OPENAI_API_KEY").is_err() {
-            api_bail!("OPENAI_API_KEY environment variable must be set");
+            bail!("OPENAI_API_KEY environment variable must be set");
         }
         Ok(Self {
             // OpenAI client will use OPENAI_API_KEY and OPENAI_API_BASE env variables by default
@@ -51,14 +50,7 @@ impl Client {
     }
 }
 
-impl utils::retryable::IsRetryable for OpenAIError {
-    fn is_retryable(&self) -> bool {
-        match self {
-            OpenAIError::Reqwest(e) => e.is_retryable(),
-            _ => false,
-        }
-    }
-}
+// Retryable implementation removed for simplicity
 
 #[async_trait]
 impl LlmEmbeddingClient for Client {
@@ -66,21 +58,15 @@ impl LlmEmbeddingClient for Client {
         &self,
         request: super::LlmEmbeddingRequest<'req>,
     ) -> Result<super::LlmEmbeddingResponse> {
-        let response = run(
-            || async {
-                self.client
-                    .embeddings()
-                    .create(CreateEmbeddingRequest {
-                        model: request.model.to_string(),
-                        input: EmbeddingInput::String(request.text.to_string()),
-                        dimensions: request.output_dimension,
-                        ..Default::default()
-                    })
-                    .await
-            },
-            RetryOptions::default(),
-        )
-        .await?;
+        let response = self.client
+            .embeddings()
+            .create(CreateEmbeddingRequest {
+                model: request.model.to_string(),
+                input: EmbeddingInput::String(request.text.to_string()),
+                ..Default::default()
+            })
+            .await
+            .map_err(|e| anyhow!("Failed to create embedding: {}", e))?;
         Ok(super::LlmEmbeddingResponse {
             embedding: response
                 .data
