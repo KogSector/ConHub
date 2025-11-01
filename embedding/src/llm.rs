@@ -5,11 +5,9 @@ use std::borrow::Cow;
 pub enum LlmApiType {
     Ollama,
     OpenAi,
-    Gemini,
     Anthropic,
     LiteLlm,
     OpenRouter,
-    Voyage,
     Vllm,
     VertexAi,
     Bedrock,

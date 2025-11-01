@@ -22,9 +22,9 @@ bincode = "1.3"
 thiserror = "1.0"
 uuid = { version = "1.6", features = ["v4", "serde"] }
 async-openai = "0.16"
-google-cloud-aiplatform-v1 = "0.1"
-pyo3-async-runtimes = "0.4"
-retryable = "0.2"
+google-cloud-aiplatform-v1 = "1.2.0"
+pyo3-async-runtimes = "0.27.0"
+retryable = "0.1.1"
 phf = { version = "0.11", features = ["macros"] }
 urlencoding = "2.1"
 async-trait = "0.1"

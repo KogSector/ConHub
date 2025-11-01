@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use crate::services::llm::{openai, gemini, voyage};
+use crate::services::llm::openai;
 use crate::llm::{LlmEmbeddingClient, LlmEmbeddingRequest};
 
 /// A service that uses a selected LLM client to generate embeddings.
@@ -13,8 +13,6 @@ impl LlmEmbeddingService {
     pub fn new(provider: &str, model: &str) -> Result<Self> {
         let client: Box<dyn LlmEmbeddingClient> = match provider {
             "openai" => Box::new(openai::Client::new(None, None)?),
-            "gemini" => Box::new(gemini::AiStudioClient::new(None)?),
-            "voyage" => Box::new(voyage::Client::new(None)?),
             _ => return Err(anyhow!("Unsupported LLM provider: {}", provider)),
         };
 
@@ -73,29 +71,4 @@ mod tests {
         assert_eq!(embeddings[0].len(), 1536);
     }
 
-    #[tokio::test]
-    #[ignore]
-    async fn test_gemini_embedding() {
-        let service = LlmEmbeddingService::new("gemini", "embedding-001").unwrap();
-        let embeddings = service
-            .generate_embeddings(vec!["test text".to_string()])
-            .await
-            .unwrap();
-
-        assert_eq!(embeddings.len(), 1);
-        assert_eq!(embeddings[0].len(), 768);
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_voyage_embedding() {
-        let service = LlmEmbeddingService::new("voyage", "voyage-2").unwrap();
-        let embeddings = service
-            .generate_embeddings(vec!["test text".to_string()])
-            .await
-            .unwrap();
-
-        assert_eq!(embeddings.len(), 1);
-        assert_eq!(embeddings[0].len(), 1024);
-    }
 }
