@@ -2,7 +2,7 @@ use actix_web::{web, HttpResponse, Result};
 use serde_json::json;
 
 use crate::models::*;
-use crate::IndexerState;
+use crate::services::state::IndexerState;
 
 pub async fn get_status(state: web::Data<IndexerState>) -> Result<HttpResponse> {
     let code_stats = state.code_indexer.get_stats().await;

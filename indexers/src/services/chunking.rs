@@ -69,7 +69,7 @@ impl ChunkingService {
 
     /// Fixed-size chunking with overlap
     fn fixed_chunking(&self, text: &str, language: Option<String>) -> Result<Vec<Chunk>, Box<dyn std::error::Error>> {
-        let mut chunks = Vec::new();
+        let mut chunks: Vec<Chunk> = Vec::new();
         let text_len = text.len();
 
         if text_len == 0 {
@@ -265,7 +265,7 @@ impl ChunkingService {
 
     /// Syntax-aware chunking for code and structured content
     fn syntax_aware_chunking(&self, text: &str, language: Option<String>) -> Result<Vec<Chunk>, Box<dyn std::error::Error>> {
-        let mut chunks = Vec::new();
+        let mut chunks: Vec<Chunk> = Vec::new();
         
         if let Some(lang) = &language {
             match lang.as_str() {

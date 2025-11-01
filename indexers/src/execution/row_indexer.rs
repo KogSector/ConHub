@@ -1,4 +1,4 @@
-use crate::services::exec_ctx;
+use crate::builder::exec_ctx;
 use anyhow::Result;
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
@@ -39,7 +39,7 @@ pub fn extract_primary_key_for_export(
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, serde::Serialize, serde::Deserialize)]
 pub enum SourceVersionKind {
     #[default]
     UnknownLogic,

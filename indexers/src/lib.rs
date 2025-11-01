@@ -30,6 +30,7 @@ pub mod config;
 pub mod execution;
 pub mod lib_context;
 pub mod handlers;
+pub mod llm;
 pub mod models;
 pub mod monitoring;
 pub mod ops;

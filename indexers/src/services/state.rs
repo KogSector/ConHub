@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::models::{ChunkRecord, ContentFingerprint, IndexingStatus, MutationSet, RowSnapshot, SourceVersionKind};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RowProcessingGuard {
     row_key: String,
     state: Arc<IndexerState>,
@@ -28,7 +28,7 @@ impl RowProcessingGuard {
 
 impl Drop for RowProcessingGuard {
     fn drop(&mut self) {
-        self.state.release_row(&self.row_key, self.snapshot_before.take());
+        self.state.as_ref().release_row(&self.row_key, self.snapshot_before.take());
     }
 }
 
@@ -188,7 +188,7 @@ impl IndexStateManager {
         self.inner.rows.remove(row_key);
     }
 
-    fn release_row(&self, row_key: &str, snapshot_before: Option<RowSnapshot>) {
+    pub fn release_row(&self, row_key: &str, snapshot_before: Option<RowSnapshot>) {
         if let Some(snapshot) = snapshot_before {
             self.indexed_store.upsert(snapshot);
         }

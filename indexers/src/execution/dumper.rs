@@ -19,7 +19,7 @@ use crate::{
     builder::plan::{AnalyzedImportOp, ExecutionPlan},
     ops::interface::SourceExecutorReadOptions,
     utils::yaml_ser::YamlSerializer,
-    services::exec_ctx,
+    builder::exec_ctx,
 };
 use std::borrow::Cow;
 use crate::services::concur_control;

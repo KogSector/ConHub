@@ -21,6 +21,7 @@ async-stream = "0.3"
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_yaml = "0.9"
 
 # Validation and derive macros
 validator = { version = "0.16", features = ["derive"] }
@@ -103,10 +104,21 @@ qdrant-client = "1.7"
 # HTTP client
 reqwest = { version = "0.11", features = ["json"] }
 
+# Web framework
+actix-web = "4.0"
+
+# Case-insensitive string handling
+unicase = "2.7"
+
+# Pattern matching
+globset = "0.4"
+
+# HTTP body utilities
+http-body-util = "0.1"
+
 # Google Cloud GAX
 google-cloud-gax = "1.1.0"
 google-cloud-aiplatform-v1 = "1.2.0"
-retryable = "0.1"
 
 # AWS SDK
 aws-config = "0.57"
@@ -152,7 +164,7 @@ neo4rs = "0.7"
 
 # Python integration
 pyo3 = { version = "0.26", features = ["auto-initialize"] }
-pyo3-async-runtimes = { version = "0.26", features = ["tokio"] }
+pyo3-async-runtimes = { version = "0.26", features = ["tokio", "tokio-runtime"] }
 pythonize = "0.26"
 
 # Commonly used runtime + utility crates referenced by sources; add as

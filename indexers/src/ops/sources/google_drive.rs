@@ -3,8 +3,9 @@ use chrono::{Duration, DateTime, Utc};
 use google_drive3::{
     DriveHub,
     api::{File, Scope},
-    yup_oauth2::{ServiceAccountAuthenticator, read_service_account_key},
 };
+// Note: yup_oauth2 is not available in this version of google_drive3
+// use google_drive3::yup_oauth2::{ServiceAccountAuthenticator, read_service_account_key};
 use http_body_util::BodyExt;
 use hyper_rustls::HttpsConnector;
 use hyper_util::client::legacy::connect::HttpConnector;

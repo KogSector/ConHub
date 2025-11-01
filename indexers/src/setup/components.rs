@@ -3,6 +3,11 @@ use crate::setup::{ResourceSetupChange, SetupChangeType, ChangeDescription, Comb
 use async_trait::async_trait;
 use std::fmt::Debug;
 
+/// Trait for component state that can provide a key
+pub trait State<K> {
+    fn key(&self) -> K;
+}
+
 /// Trait for component setup operators
 #[async_trait]
 pub trait SetupOperator: Send + Sync {
@@ -13,6 +18,7 @@ pub trait SetupOperator: Send + Sync {
 
     fn describe_key(&self, key: &Self::Key) -> String;
     fn describe_state(&self, state: &Self::State) -> String;
+    fn is_up_to_date(&self, current: &Self::State, desired: &Self::State) -> bool;
     
     async fn create(&self, state: &Self::State, context: &Self::Context) -> Result<()>;
     async fn update(&self, state: &Self::State, context: &Self::Context) -> Result<()>;

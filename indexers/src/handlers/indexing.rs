@@ -3,7 +3,7 @@ use serde_json::json;
 use validator::Validate;
 
 use crate::models::*;
-use crate::IndexerState;
+use crate::services::state::IndexerState;
 
 pub async fn index_repository(
     state: web::Data<IndexerState>,

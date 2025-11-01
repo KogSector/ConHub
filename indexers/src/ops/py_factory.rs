@@ -5,6 +5,7 @@ use pyo3::{
     types::{IntoPyDict, PyAnyMethods, PyList, PyString, PyTuple, PyTupleMethods},
 };
 use pythonize::{depythonize, pythonize};
+use futures::{FutureExt, StreamExt};
 
 use crate::{
     base::{schema, value},
@@ -92,7 +93,7 @@ impl interface::SimpleFunctionExecutor for Arc<PyFunctionExecutor> {
         let result_fut = Python::with_gil(|py| -> Result<_> {
             let result_coro = self.call_py_fn(py, input)?;
             let task_locals =
-                pyo3_async_runtimes::TaskLocals::new(self.py_exec_ctx.event_loop.bind(py).clone());
+                pyo3_async_runtimes::TaskLocals::new(self.py_exec_ctx.event_loop.as_ref().expect("Event loop is required").bind(py).clone());
             Ok(pyo3_async_runtimes::into_future_with_locals(
                 &task_locals,
                 result_coro,
@@ -190,7 +191,7 @@ impl interface::SimpleFunctionFactory for PyFunctionFactory {
                             .to_result_with_py_trace(py)?;
                         let prepare_fut = pyo3_async_runtimes::into_future_with_locals(
                             &pyo3_async_runtimes::TaskLocals::new(
-                                py_exec_ctx.event_loop.bind(py).clone(),
+                                py_exec_ctx.event_loop.as_ref().expect("Event loop is required").bind(py).clone(),
                             ),
                             prepare_coro.into_bound(py),
                         )?;
@@ -293,7 +294,7 @@ impl interface::SourceExecutor for PySourceExecutor {
                 )
                 .to_result_with_py_trace(py)?;
             let task_locals =
-                pyo3_async_runtimes::TaskLocals::new(py_exec_ctx.event_loop.bind(py).clone());
+                pyo3_async_runtimes::TaskLocals::new(py_exec_ctx.event_loop.as_ref().expect("Event loop is required").bind(py).clone());
             Ok(pyo3_async_runtimes::into_future_with_locals(
                 &task_locals,
                 result_coro.into_bound(py),
@@ -332,7 +333,7 @@ impl PySourceExecutor {
                 .call_method0(py, "__anext__")
                 .to_result_with_py_trace(py)?;
             let task_locals =
-                pyo3_async_runtimes::TaskLocals::new(py_exec_ctx.event_loop.bind(py).clone());
+                pyo3_async_runtimes::TaskLocals::new(py_exec_ctx.event_loop.as_ref().expect("Event loop is required").bind(py).clone());
             Ok(pyo3_async_runtimes::into_future_with_locals(
                 &task_locals,
                 coro.into_bound(py),
@@ -385,7 +386,11 @@ impl PySourceExecutor {
         let data = self.parse_partial_source_row_data(py, &data_py)?;
 
         // Convert key using py::field_values_from_py_seq
-        let key_field_values = py::field_values_from_py_seq(&self.key_fields, &key_py)?;
+        let key_value_types: Vec<_> = self.key_fields.iter().map(|f| &f.value_type.typ).collect();
+        let key_field_values_vec = py::field_values_from_py_seq(&key_value_types, &key_py)?;
+        let key_field_values = value::FieldValues {
+            fields: key_field_values_vec.into_boxed_slice(),
+        };
         let key_parts: Result<Vec<_>, _> = key_field_values
             .fields
             .into_iter()
@@ -440,9 +445,13 @@ impl PySourceExecutor {
                     && value_py.extract::<&str>()? == "NON_EXISTENCE"
                 {
                     Some(interface::SourceValue::NonExistence)
-                } else if let Ok(field_values) =
-                    py::field_values_from_py_seq(&self.value_fields, &value_py)
-                {
+                } else if let Ok(field_values_vec) = {
+                    let value_types: Vec<_> = self.value_fields.iter().map(|f| &f.value_type.typ).collect();
+                    py::field_values_from_py_seq(&value_types, &value_py)
+                } {
+                    let field_values = value::FieldValues {
+                        fields: field_values_vec.into_boxed_slice(),
+                    };
                     Some(interface::SourceValue::Existence(field_values))
                 } else {
                     api_bail!("Invalid value: {}", value_py);
@@ -519,7 +528,7 @@ impl interface::SourceFactory for PySourceConnectorFactory {
                     .call_method(py, "create_executor", (pythonize(py, &spec)?,), None)
                     .to_result_with_py_trace(py)?;
                 let task_locals =
-                    pyo3_async_runtimes::TaskLocals::new(py_exec_ctx.event_loop.bind(py).clone());
+                    pyo3_async_runtimes::TaskLocals::new(py_exec_ctx.event_loop.as_ref().expect("Event loop is required").bind(py).clone());
                 let create_future = pyo3_async_runtimes::into_future_with_locals(
                     &task_locals,
                     create_coro.into_bound(py),
@@ -666,7 +675,7 @@ impl interface::TargetFactory for PyExportTargetFactory {
                             .call_method(py, "prepare_async", (&py_export_ctx,), None)
                             .to_result_with_py_trace(py)?;
                         let task_locals = pyo3_async_runtimes::TaskLocals::new(
-                            py_exec_ctx.event_loop.bind(py).clone(),
+                            py_exec_ctx.event_loop.as_ref().expect("Event loop is required").bind(py).clone(),
                         );
                         anyhow::Ok(pyo3_async_runtimes::into_future_with_locals(
                             &task_locals,
@@ -803,7 +812,7 @@ impl interface::TargetFactory for PyExportTargetFactory {
                 )
                 .to_result_with_py_trace(py)?;
             let task_locals =
-                pyo3_async_runtimes::TaskLocals::new(py_exec_ctx.event_loop.bind(py).clone());
+                pyo3_async_runtimes::TaskLocals::new(py_exec_ctx.event_loop.as_ref().expect("Event loop is required").bind(py).clone());
             Ok(pyo3_async_runtimes::into_future_with_locals(
                 &task_locals,
                 result_coro.into_bound(py),
@@ -863,7 +872,7 @@ impl interface::TargetFactory for PyExportTargetFactory {
                 .call_method(py, "mutate_async", (py_args,), None)
                 .to_result_with_py_trace(py)?;
             let task_locals =
-                pyo3_async_runtimes::TaskLocals::new(py_exec_ctx.event_loop.bind(py).clone());
+                pyo3_async_runtimes::TaskLocals::new(py_exec_ctx.event_loop.as_ref().expect("Event loop is required").bind(py).clone());
             Ok(pyo3_async_runtimes::into_future_with_locals(
                 &task_locals,
                 result_coro.into_bound(py),

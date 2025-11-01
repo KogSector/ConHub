@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use crate::models::*;
 use crate::services::fusion::IntermediateResult;
-use crate::IndexerState;
+use crate::services::state::IndexerState;
 
 pub async fn search(
     state: web::Data<IndexerState>,

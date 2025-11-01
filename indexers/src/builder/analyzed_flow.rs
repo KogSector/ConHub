@@ -2,7 +2,7 @@ use crate::{ops::interface::FlowInstanceContext, prelude::*};
 use futures::future::Shared;
 
 use super::{analyzer, plan};
-use crate::service::error::{SharedError, SharedResultExt, shared_ok};
+use crate::services::error::{SharedError, SharedResultExt, shared_ok};
 
 pub struct AnalyzedFlow {
     pub flow_instance: spec::FlowInstanceSpec,

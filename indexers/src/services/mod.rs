@@ -8,6 +8,7 @@ pub mod evaluation;
 pub mod qdrant;
 pub mod fusion;
 pub mod concur_control;
+pub mod error;
 
 use crate::models::StatusResponse;
 

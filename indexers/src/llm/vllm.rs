@@ -1,5 +1,5 @@
 use async_openai::Client as OpenAIClient;
-use async_openai::config::OpenAIConfig;
+// use async_openai::config::OpenAIConfig; // Config module not available in this version
 
 pub use super::openai::Client;
 

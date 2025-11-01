@@ -17,7 +17,7 @@ pub use indexmap::IndexSet;
 pub use std::any::Any;
 
 // Re-export commonly used crate modules
-pub use crate::ops::{interface, execution};
+pub use crate::ops::interface;
 pub use crate::execution::exec_ctx;
 // concurrency control helpers live under services; expose them here for
 // convenience.
