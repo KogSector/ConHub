@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
-import { User, Settings, LogOut, CreditCard } from "lucide-react";
+import { User, LogOut, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -58,12 +58,6 @@ export function ProfileAvatar() {
           <Link href="/billing" className="cursor-pointer">
             <CreditCard className="mr-3 h-5 w-5" />
             <span>Billing</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild className="py-3 px-4 text-base">
-          <Link href="/account?tab=security" className="cursor-pointer">
-            <Settings className="mr-3 h-5 w-5" />
-            <span>Settings</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

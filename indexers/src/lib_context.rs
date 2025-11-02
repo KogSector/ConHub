@@ -2,6 +2,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use crate::builder::AnalyzedFlow;
 use crate::setup::FlowSetupState;
+use crate::ops::interface::AuthRegistry;
 
 /// Minimal placeholder for the library context used across the indexers crate.
 ///
@@ -34,6 +35,12 @@ pub async fn get_lib_context() -> Result<Arc<LibContext>> {
 pub fn get_runtime() -> tokio::runtime::Runtime {
     // Use a small runtime suitable for blocking tasks invoked from build-time
     tokio::runtime::Runtime::new().expect("failed to create tokio runtime")
+}
+
+/// Return a shared AuthRegistry instance.
+/// This is a placeholder implementation to allow compilation to proceed.
+pub fn get_auth_registry() -> Arc<AuthRegistry> {
+    Arc::new(AuthRegistry {})
 }
 
 pub type LibContextRef = Arc<LibContext>;

@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use super::{LlmEmbeddingClient, LlmEmbeddingResponse};
+use super::{LlmEmbeddingClient, LlmEmbeddingRequest, LlmEmbeddingResponse};
 use async_trait::async_trait;
 
 pub struct Client {
@@ -15,7 +15,10 @@ impl Client {
 
 #[async_trait]
 impl LlmEmbeddingClient for Client {
-    async fn embed(&self, _texts: Vec<String>, _model: &str) -> Result<LlmEmbeddingResponse> {
+    async fn embed_text<'req>(
+        &self,
+        _request: LlmEmbeddingRequest<'req>,
+    ) -> Result<LlmEmbeddingResponse> {
         // Placeholder implementation
         api_bail!("Voyage embedding client not implemented")
     }

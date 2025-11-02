@@ -20,8 +20,7 @@ import {
   ArrowLeft,
   Calendar,
   Tag,
-  Upload,
-  MoreHorizontal 
+  Upload
 } from "lucide-react";
 
 export default function UrlsPage() {

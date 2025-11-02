@@ -58,12 +58,6 @@ impl From<anyhow::Error> for SharedError {
     }
 }
 
-impl From<SharedError> for anyhow::Error {
-    fn from(err: SharedError) -> Self {
-        anyhow::anyhow!(err.to_string())
-    }
-}
-
 /// A shared result type
 pub type SharedResult<T> = Result<T, SharedError>;
 

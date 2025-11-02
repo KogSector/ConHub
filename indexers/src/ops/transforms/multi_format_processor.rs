@@ -7,7 +7,6 @@ use base64::{Engine as _, engine::general_purpose};
 use mime_guess::MimeGuess;
 
 /// Multi-format processor for handling various file types
-#[derive(Debug, Clone)]
 pub struct MultiFormatProcessor {
     /// Configuration for processing
     config: ProcessorConfig,
@@ -1498,5 +1497,16 @@ impl ProcessorCache {
         }
         
         Ok(())
+    }
+}
+
+impl std::fmt::Debug for MultiFormatProcessor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MultiFormatProcessor")
+            .field("config", &self.config)
+            .field("handlers", &self.handlers.keys())
+            .field("stats", &self.stats)
+            .field("cache", &self.cache)
+            .finish()
     }
 }

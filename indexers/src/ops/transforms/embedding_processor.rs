@@ -5,7 +5,6 @@ use std::path::Path;
 use base64::{Engine as _, engine::general_purpose};
 
 /// Advanced embedding processor with multiple model support
-#[derive(Debug, Clone)]
 pub struct EmbeddingProcessor {
     /// Configuration for embedding processing
     config: EmbeddingConfig,
@@ -894,7 +893,7 @@ pub trait EmbeddingModel: Send + Sync {
 }
 
 /// Input type for embeddings
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InputType {
     Text,
     Image,
@@ -1879,5 +1878,17 @@ impl BatchProcessor {
     /// Get batch statistics
     pub fn get_stats(&self) -> &BatchStats {
         &self.stats
+    }
+}
+
+impl std::fmt::Debug for EmbeddingProcessor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EmbeddingProcessor")
+            .field("config", &self.config)
+            .field("models", &self.models.keys())
+            .field("stats", &self.stats)
+            .field("cache", &self.cache)
+            .field("batch_processor", &self.batch_processor)
+            .finish()
     }
 }

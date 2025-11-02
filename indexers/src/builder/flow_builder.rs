@@ -18,7 +18,7 @@ use crate::{
     },
     lib_context::LibContext,
     ops::interface::FlowInstanceContext,
-    py::{AnyhowIntoPyResult, IntoPyResult},
+    py::AnyhowIntoPyResult,
 };
 use crate::{lib_context::FlowContext, py};
 

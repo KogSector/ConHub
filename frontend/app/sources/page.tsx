@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, RefreshCw, Trash2, FileText, MessageSquare, GitBranch } from 'lucide-react';
-import { ConnectDataSourceDialog } from '@/components/data/sources/ConnectDialog';
+import { ConnectDataSourceDialog } from '@/components/sources/ConnectDialog';
 import Link from 'next/link';
 
 interface DataSource {
@@ -109,7 +109,7 @@ export default function DataSourcesPage() {
 
       {/* Source Type Navigation */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Link href="/data/sources/repositories">
+        <Link href="/sources/repositories">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <CardContent className="flex items-center p-6">
               <GitBranch className="h-8 w-8 text-blue-600 mr-4" />
@@ -121,7 +121,7 @@ export default function DataSourcesPage() {
           </Card>
         </Link>
         
-        <Link href="/data/sources/documents">
+        <Link href="/sources/documents">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <CardContent className="flex items-center p-6">
               <FileText className="h-8 w-8 text-green-600 mr-4" />
@@ -133,7 +133,7 @@ export default function DataSourcesPage() {
           </Card>
         </Link>
         
-        <Link href="/data/sources/chats">
+        <Link href="/sources/chats">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <CardContent className="flex items-center p-6">
               <MessageSquare className="h-8 w-8 text-purple-600 mr-4" />

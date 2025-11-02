@@ -1,5 +1,6 @@
 use crate::ops::sdk::*;
 use crate::prelude::*;
+use futures::FutureExt;
 use crate::ops::interface::AuthRegistry;
 use crate::ops::registry::ExecutorFactoryRegistry;
 use crate::setup;
@@ -124,8 +125,9 @@ impl TargetFactoryBase for Factory {
             };
 
             outputs.push(TypedExportDataCollectionBuildOutput {
-                export_context: Arc::new(export_context),
+                export_context: async move { Ok(Arc::new(export_context)) }.boxed(),
                 setup_key: table_key.clone(),
+                desired_setup_state: setup_state.clone(),
             });
 
             setup_states.push((table_key, setup_state));
@@ -145,7 +147,7 @@ impl TargetFactoryBase for Factory {
         existing: setup::CombinedState<SetupState>,
         _flow_instance_ctx: Arc<FlowInstanceContext>,
     ) -> Result<Self::SetupChange> {
-        match (desired, existing.state) {
+        match (desired, existing.possible_versions().next()) {
             (None, None) => Ok(SetupChange {
                 delete_table: false,
                 add_table: None,
@@ -186,7 +188,10 @@ impl TargetFactoryBase for Factory {
         mutations: Vec<ExportTargetMutationWithContext<'async_trait, ExportContext>>,
     ) -> Result<()> {
         for mutation in mutations {
-            mutation.context.apply_mutation(mutation.mutation).await?;
+            mutation
+                .export_context
+                .apply_mutation(mutation.mutation)
+                .await?;
         }
         Ok(())
     }

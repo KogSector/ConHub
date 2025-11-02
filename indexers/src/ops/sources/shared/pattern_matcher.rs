@@ -1199,3 +1199,6 @@ impl EnhancedPatternMatcher {
         self.stats = PatternMatcherStats::default();
     }
 }
+
+/// Type alias for backward compatibility
+pub type PatternMatcher = EnhancedPatternMatcher;

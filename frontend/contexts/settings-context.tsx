@@ -1,26 +1,27 @@
 "use client";
 
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { SettingsAPI } from '@/lib/settings-api';
 import { UserSettings } from '@/hooks/use-settings';
 import { ApiResponse } from '@/lib/api';
+import { ApiToken, Webhook, TeamMember, CreateApiTokenData, CreateWebhookData, InviteTeamMemberData } from '@/types/settings';
 
 interface SettingsState {
   settings: UserSettings | null;
   loading: boolean;
   error: string | null;
-  apiTokens: any[];
-  webhooks: any[];
-  teamMembers: any[];
+  apiTokens: ApiToken[];
+  webhooks: Webhook[];
+  teamMembers: TeamMember[];
 }
 
 type SettingsAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_SETTINGS'; payload: UserSettings }
-  | { type: 'SET_API_TOKENS'; payload: any[] }
-  | { type: 'SET_WEBHOOKS'; payload: any[] }
-  | { type: 'SET_TEAM_MEMBERS'; payload: any[] }
+  | { type: 'SET_API_TOKENS'; payload: ApiToken[] }
+  | { type: 'SET_WEBHOOKS'; payload: Webhook[] }
+  | { type: 'SET_TEAM_MEMBERS'; payload: TeamMember[] }
   | { type: 'UPDATE_SETTINGS'; payload: Partial<UserSettings> };
 
 const initialState: SettingsState = {
@@ -57,12 +58,12 @@ function settingsReducer(state: SettingsState, action: SettingsAction): Settings
 }
 
 interface SettingsContextType extends SettingsState {
-  updateSettings: (updates: any) => Promise<boolean>;
-  createApiToken: (tokenData: any) => Promise<any>;
+  updateSettings: (updates: Record<string, unknown>) => Promise<boolean>;
+  createApiToken: (tokenData: CreateApiTokenData) => Promise<ApiToken | null>;
   deleteApiToken: (tokenId: string) => Promise<boolean>;
-  createWebhook: (webhookData: any) => Promise<any>;
+  createWebhook: (webhookData: CreateWebhookData) => Promise<Webhook | null>;
   deleteWebhook: (webhookId: string) => Promise<boolean>;
-  inviteTeamMember: (memberData: any) => Promise<any>;
+  inviteTeamMember: (memberData: InviteTeamMemberData) => Promise<TeamMember | null>;
   removeTeamMember: (memberId: string) => Promise<boolean>;
   refreshData: () => Promise<void>;
 }
@@ -72,7 +73,28 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 export function SettingsProvider({ children, userId = 'default' }: { children: React.ReactNode; userId?: string }) {
   const [state, dispatch] = useReducer(settingsReducer, initialState);
 
-  const loadAllData = async () => {
+  // Helper function to handle API result and dispatch
+  const handleApiResult = <T>(result: ApiResponse, actionType: SettingsAction['type'], fallback: T[] = []) => {
+    if (result.success && result.data) {
+      dispatch({ type: actionType, payload: (result.data as T[]) || fallback });
+    }
+  };
+
+  // Helper function to refresh specific data type
+  const refreshDataType = async <T>(
+    apiCall: () => Promise<ApiResponse>,
+    actionType: SettingsAction['type'],
+    fallback: T[] = []
+  ) => {
+    try {
+      const result = await apiCall();
+      handleApiResult<T>(result, actionType, fallback);
+    } catch (error) {
+      console.error(`Failed to refresh ${actionType}:`, error);
+    }
+  };
+
+  const loadAllData = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
     try {
@@ -83,25 +105,22 @@ export function SettingsProvider({ children, userId = 'default' }: { children: R
         SettingsAPI.getTeamMembers(userId) as Promise<ApiResponse>,
       ]);
 
+      // Handle settings result
       if (settingsResult.success && settingsResult.data) {
         dispatch({ type: 'SET_SETTINGS', payload: settingsResult.data as UserSettings });
       }
       
-      if (tokensResult.success && tokensResult.data) {
-        dispatch({ type: 'SET_API_TOKENS', payload: (tokensResult.data as unknown[]) || [] });
-      }
+      // Handle other results using helper
+      handleApiResult<ApiToken>(tokensResult, 'SET_API_TOKENS');
+      handleApiResult<Webhook>(webhooksResult, 'SET_WEBHOOKS');
+      handleApiResult<TeamMember>(teamResult, 'SET_TEAM_MEMBERS');
       
-      if (webhooksResult.success && webhooksResult.data) {
-        dispatch({ type: 'SET_WEBHOOKS', payload: (webhooksResult.data as unknown[]) || [] });
-      }
-      
-      if (teamResult.success && teamResult.data) {
-        dispatch({ type: 'SET_TEAM_MEMBERS', payload: (teamResult.data as unknown[]) || [] });
-      }
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: 'Failed to load settings data' });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, [userId]);
 
   const updateSettings = async (updates: Record<string, unknown>) => {
     const result = await SettingsAPI.updateSettings(userId, updates) as ApiResponse;
@@ -114,73 +133,55 @@ export function SettingsProvider({ children, userId = 'default' }: { children: R
     }
   };
 
-  const createApiToken = async (tokenData: { name: string; permissions: string[] }) => {
+  const createApiToken = async (tokenData: CreateApiTokenData): Promise<ApiToken | null> => {
     const result = await SettingsAPI.createApiToken(userId, tokenData) as ApiResponse;
     if (result.success) {
-      const tokensResult = await SettingsAPI.getApiTokens(userId) as ApiResponse;
-      if (tokensResult.success && tokensResult.data) {
-        dispatch({ type: 'SET_API_TOKENS', payload: (tokensResult.data as unknown[]) || [] });
-      }
-      return result.data;
+      await refreshDataType<ApiToken>(() => SettingsAPI.getApiTokens(userId) as Promise<ApiResponse>, 'SET_API_TOKENS');
+      return result.data as ApiToken;
     }
     return null;
   };
 
-  const deleteApiToken = async (tokenId: string) => {
+  const deleteApiToken = async (tokenId: string): Promise<boolean> => {
     const result = await SettingsAPI.deleteApiToken(userId, tokenId) as ApiResponse;
     if (result.success) {
-      const tokensResult = await SettingsAPI.getApiTokens(userId) as ApiResponse;
-      if (tokensResult.success && tokensResult.data) {
-        dispatch({ type: 'SET_API_TOKENS', payload: (tokensResult.data as unknown[]) || [] });
-      }
+      await refreshDataType<ApiToken>(() => SettingsAPI.getApiTokens(userId) as Promise<ApiResponse>, 'SET_API_TOKENS');
       return true;
     }
     return false;
   };
 
-  const createWebhook = async (webhookData: { name: string; url: string; events: string[] }) => {
+  const createWebhook = async (webhookData: CreateWebhookData): Promise<Webhook | null> => {
     const result = await SettingsAPI.createWebhook(userId, webhookData) as ApiResponse;
     if (result.success) {
-      const webhooksResult = await SettingsAPI.getWebhooks(userId) as ApiResponse;
-      if (webhooksResult.success && webhooksResult.data) {
-        dispatch({ type: 'SET_WEBHOOKS', payload: (webhooksResult.data as unknown[]) || [] });
-      }
-      return result.data;
+      await refreshDataType<Webhook>(() => SettingsAPI.getWebhooks(userId) as Promise<ApiResponse>, 'SET_WEBHOOKS');
+      return result.data as Webhook;
     }
     return null;
   };
 
-  const deleteWebhook = async (webhookId: string) => {
+  const deleteWebhook = async (webhookId: string): Promise<boolean> => {
     const result = await SettingsAPI.deleteWebhook(userId, webhookId) as ApiResponse;
     if (result.success) {
-      const webhooksResult = await SettingsAPI.getWebhooks(userId) as ApiResponse;
-      if (webhooksResult.success && webhooksResult.data) {
-        dispatch({ type: 'SET_WEBHOOKS', payload: (webhooksResult.data as unknown[]) || [] });
-      }
+      await refreshDataType<Webhook>(() => SettingsAPI.getWebhooks(userId) as Promise<ApiResponse>, 'SET_WEBHOOKS');
       return true;
     }
     return false;
   };
 
-  const inviteTeamMember = async (memberData: { email: string; role: string }) => {
+  const inviteTeamMember = async (memberData: InviteTeamMemberData): Promise<TeamMember | null> => {
     const result = await SettingsAPI.inviteTeamMember(userId, memberData) as ApiResponse;
     if (result.success) {
-      const teamResult = await SettingsAPI.getTeamMembers(userId) as ApiResponse;
-      if (teamResult.success && teamResult.data) {
-        dispatch({ type: 'SET_TEAM_MEMBERS', payload: (teamResult.data as unknown[]) || [] });
-      }
-      return result.data;
+      await refreshDataType<TeamMember>(() => SettingsAPI.getTeamMembers(userId) as Promise<ApiResponse>, 'SET_TEAM_MEMBERS');
+      return result.data as TeamMember;
     }
     return null;
   };
 
-  const removeTeamMember = async (memberId: string) => {
+  const removeTeamMember = async (memberId: string): Promise<boolean> => {
     const result = await SettingsAPI.removeTeamMember(userId, memberId) as ApiResponse;
     if (result.success) {
-      const teamResult = await SettingsAPI.getTeamMembers(userId) as ApiResponse;
-      if (teamResult.success && teamResult.data) {
-        dispatch({ type: 'SET_TEAM_MEMBERS', payload: (teamResult.data as unknown[]) || [] });
-      }
+      await refreshDataType<TeamMember>(() => SettingsAPI.getTeamMembers(userId) as Promise<ApiResponse>, 'SET_TEAM_MEMBERS');
       return true;
     }
     return false;
@@ -188,7 +189,7 @@ export function SettingsProvider({ children, userId = 'default' }: { children: R
 
   useEffect(() => {
     loadAllData();
-  }, [userId]);
+  }, [loadAllData]);
 
   const contextValue: SettingsContextType = {
     ...state,

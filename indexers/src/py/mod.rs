@@ -5,6 +5,9 @@ use serde::{Serialize, Deserialize};
 use crate::lib_context::FlowContext;
 use crate::builder::AnalyzedTransientFlow;
 
+// Re-export the AnyhowIntoPyResult trait for Python integration
+pub use crate::utils::errors::AnyhowIntoPyResult;
+
 /// A wrapper type for Python-compatible values
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pythonized<T>(pub T);

@@ -101,4 +101,10 @@ impl Fingerprinter {
         fingerprinter.update_json(data)?;
         Ok(fingerprinter.finalize())
     }
+
+    /// Add serializable data to the fingerprint and return self for chaining
+    pub fn with<T: Serialize>(mut self, data: &T) -> Result<Self, serde_json::Error> {
+        self.update_json(data)?;
+        Ok(self)
+    }
 }

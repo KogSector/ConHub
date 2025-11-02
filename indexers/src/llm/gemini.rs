@@ -15,13 +15,16 @@ impl AiStudioClient {
 
 #[async_trait]
 impl LlmGenerationClient for AiStudioClient {
-    async fn generate(&self, _prompt: &str, _model: &str) -> Result<LlmGenerationResponse> {
+    async fn generate<'req>(
+        &self,
+        _request: LlmGenerateRequest<'req>,
+    ) -> Result<LlmGenerateResponse> {
         // Placeholder implementation
         api_bail!("Gemini AI Studio client not implemented")
     }
 
-    fn behavior_version(&self) -> Option<u32> {
-        Some(1)
+    fn json_schema_options(&self) -> ToJsonSchemaOptions {
+        ToJsonSchemaOptions::default()
     }
 }
 
@@ -38,12 +41,15 @@ impl VertexAiClient {
 
 #[async_trait]
 impl LlmGenerationClient for VertexAiClient {
-    async fn generate(&self, _prompt: &str, _model: &str) -> Result<LlmGenerationResponse> {
+    async fn generate<'req>(
+        &self,
+        _request: LlmGenerateRequest<'req>,
+    ) -> Result<LlmGenerateResponse> {
         // Placeholder implementation
         api_bail!("Gemini Vertex AI client not implemented")
     }
 
-    fn behavior_version(&self) -> Option<u32> {
-        Some(1)
+    fn json_schema_options(&self) -> ToJsonSchemaOptions {
+        ToJsonSchemaOptions::default()
     }
 }

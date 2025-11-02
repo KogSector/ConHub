@@ -65,7 +65,7 @@ impl<O: SetupOperator> SetupChange<O> {
                 ComponentChange::Update { key: _, state } => {
                     self.operator.update(state, context).await?;
                 }
-                ComponentChange::Delete { key, state: _ } => {
+                ComponentChange::Delete { key } => {
                     self.operator.delete(key, context).await?;
                 }
             }

@@ -485,7 +485,7 @@ impl TargetFactoryBase for Factory {
     ) -> Result<Self::SetupChange> {
         let desired_exists = desired.is_some();
         let add_collection = desired.filter(|state| {
-            !existing.always_exists()
+            existing.versions.is_empty()
                 || existing
                     .possible_versions()
                     .any(|v| v.vectors != state.vectors)
@@ -582,7 +582,7 @@ impl Factory {
                     api_key: None,
                 })
             },
-            |auth_entry| auth_registry.get(auth_entry),
+            |auth_entry| auth_registry.as_ref().get_spec(auth_entry),
         )?;
         let client = Arc::new(
             Qdrant::from_url(&spec.grpc_url)
