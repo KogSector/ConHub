@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 pub mod gitlab;
+pub mod github;
+pub mod stripe;
 pub mod dropbox;
 pub mod onedrive;
 
@@ -76,10 +78,11 @@ pub async fn handle_gitlab_webhook(
     tracing::info!("GitLab event type: {}", event_type);
 
     let payload_value = payload.into_inner();
+    let event_type_owned = event_type.to_string();
 
     // Process webhook asynchronously
     tokio::spawn(async move {
-        if let Err(e) = gitlab::process_gitlab_webhook(&data_source_id, event_type, payload_value).await {
+        if let Err(e) = gitlab::process_gitlab_webhook(&data_source_id, &event_type_owned, payload_value).await {
             tracing::error!("Failed to process GitLab webhook: {}", e);
         }
     });
