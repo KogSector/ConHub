@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiClient } from '@/lib/api';
+import { apiClient, ApiResponse } from '@/lib/api';
 
 export interface UrlRecord {
   id: string;
@@ -27,7 +27,7 @@ export function useUrls() {
     try {
       setIsLoading(true);
       setError(null);
-      const result = await apiClient.getUrls();
+      const result = await apiClient.getUrls() as ApiResponse<UrlRecord[]>;
       if (result.success) {
         setUrls(result.data || []);
       } else {
@@ -42,9 +42,9 @@ export function useUrls() {
 
   const createUrl = async (data: CreateUrlData) => {
     try {
-      const result = await apiClient.createUrl(data);
+      const result = await apiClient.createUrl(data) as ApiResponse<UrlRecord>;
       if (result.success && result.data) {
-        setUrls(prev => [...prev, result.data]);
+        setUrls(prev => [...prev, result.data as UrlRecord]);
         return { success: true, data: result.data };
       } else {
         return { success: false, error: result.message || 'Failed to create URL' };

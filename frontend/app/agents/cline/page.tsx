@@ -18,7 +18,7 @@ const ClinePage = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/ai-agents/cline/query', {
+      const res = await fetch('/api/agents/cline/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, context }),

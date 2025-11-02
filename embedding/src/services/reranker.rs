@@ -323,7 +323,7 @@ mod tests {
             ("doc2".to_string(), "python for data science".to_string()),
         ];
 
-        let results = service.rerank("rust coding", docs).unwrap();
+        let results = service.rerank("rust coding", &docs).unwrap();
 
         assert_eq!(results.len(), 2);
         assert!(results[0].1 >= 0.0 && results[0].1 <= 1.0);

@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 
-export default function AIAgentsPage() {
+export default function AgentsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">AI Agents</h1>
@@ -10,22 +10,32 @@ export default function AIAgentsPage() {
         <AgentCard 
           title="General Agents"
           description="Connect and manage general purpose AI agents"
-          href="/ai-agents/general"
+          href="/agents/general"
         />
         <AgentCard 
           title="GitHub Copilot"
           description="Connect and configure GitHub Copilot integration"
-          href="/ai-agents/github-copilot"
+          href="/agents/github-copilot"
         />
         <AgentCard 
           title="Amazon Q"
           description="Connect and configure Amazon Q integration"
-          href="/ai-agents/amazon-q"
+          href="/agents/amazon-q"
+        />
+        <AgentCard 
+          title="Cline"
+          description="Connect and configure Cline AI agent integration"
+          href="/agents/cline"
+        />
+        <AgentCard 
+          title="Cursor"
+          description="Connect and configure Cursor AI agent integration"
+          href="/agents/cursor"
         />
         <AgentCard 
           title="Custom Agents"
           description="Create and manage custom AI agents with specific rules"
-          href="/ai-agents/custom"
+          href="/agents/custom"
         />
       </div>
     </div>

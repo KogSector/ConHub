@@ -1,0 +1,1 @@
+export { ChatsPageClient } from './ChatsPageClient';

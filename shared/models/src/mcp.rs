@@ -245,7 +245,7 @@ pub struct ServerSecurity {
 }
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AuthMethod {
     ApiKey,
     Bearer,

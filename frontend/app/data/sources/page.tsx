@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, FileText, MessageSquare, GitBranch } from 'lucide-react';
 import { ConnectDataSourceDialog } from '@/components/data/sources/ConnectDialog';
+import Link from 'next/link';
 
 interface DataSource {
   id: string;
@@ -104,6 +105,45 @@ export default function DataSourcesPage() {
           <Plus className="w-4 h-4 mr-2" />
           Connect Data Source
         </Button>
+      </div>
+
+      {/* Source Type Navigation */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <Link href="/data/sources/repositories">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="flex items-center p-6">
+              <GitBranch className="h-8 w-8 text-blue-600 mr-4" />
+              <div>
+                <h3 className="font-semibold">Repositories</h3>
+                <p className="text-sm text-gray-600">GitHub, GitLab, Bitbucket</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        
+        <Link href="/data/sources/documents">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="flex items-center p-6">
+              <FileText className="h-8 w-8 text-green-600 mr-4" />
+              <div>
+                <h3 className="font-semibold">Documents</h3>
+                <p className="text-sm text-gray-600">Local files, Google Drive, OneDrive</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        
+        <Link href="/data/sources/chats">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="flex items-center p-6">
+              <MessageSquare className="h-8 w-8 text-purple-600 mr-4" />
+              <div>
+                <h3 className="font-semibold">Chats</h3>
+                <p className="text-sm text-gray-600">Slack, Microsoft Teams</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

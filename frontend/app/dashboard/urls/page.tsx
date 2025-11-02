@@ -9,7 +9,8 @@ import { BulkUrlImport } from "@/components/ui/BulkUrlImport";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { Footer } from "@/components/ui/footer";
 import { useToast } from "@/hooks/use-toast";
-import { apiClient } from "@/lib/api";
+import { apiClient, ApiResponse } from "@/lib/api";
+import { UrlRecord } from "@/hooks/use-urls";
 import Link from "next/link";
 import { 
   Plus, 
@@ -19,18 +20,9 @@ import {
   ArrowLeft,
   Calendar,
   Tag,
-  Upload
+  Upload,
+  MoreHorizontal 
 } from "lucide-react";
-
-interface UrlRecord {
-  id: string;
-  url: string;
-  title: string;
-  description?: string;
-  tags: string[];
-  created_at: string;
-  status: string;
-}
 
 export default function UrlsPage() {
   const [urls, setUrls] = useState<UrlRecord[]>([]);
@@ -41,7 +33,7 @@ export default function UrlsPage() {
 
   const fetchUrls = async () => {
     try {
-      const result = await apiClient.getUrls();
+      const result = await apiClient.getUrls() as ApiResponse<UrlRecord[]>;
       if (result.success) {
         setUrls(result.data || []);
       }

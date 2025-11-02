@@ -258,8 +258,9 @@ mod tests {
     #[ignore]
     async fn test_openai_embedding() {
         let service = LlmEmbeddingService::new("openai", "text-embedding-3-small").unwrap();
+        let texts = vec!["test text".to_string()];
         let embeddings = service
-            .generate_embeddings(vec!["test text".to_string()])
+            .generate_embeddings(&texts)
             .await
             .unwrap();
 
