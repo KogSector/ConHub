@@ -10,6 +10,7 @@ use http_body_util::BodyExt;
 use hyper_rustls::HttpsConnector;
 use hyper_util::client::legacy::connect::HttpConnector;
 use phf::phf_map;
+use serde_json;
 
 use crate::base::field_attrs;
 use crate::ops::sdk::*;

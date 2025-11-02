@@ -1,8 +1,9 @@
 use crate::prelude::*;
+use std::any::Any;
 
 use pyo3::{
     Bound, IntoPyObjectExt, Py, PyAny, Python, pyclass, pymethods,
-    types::{IntoPyDict, PyAnyMethods, PyList, PyString, PyTuple, PyTupleMethods},
+    types::{IntoPyDict, PyAnyMethods, PyDict, PyList, PyString, PyTuple, PyTupleMethods},
 };
 use pythonize::{depythonize, pythonize};
 use futures::{FutureExt, StreamExt};
@@ -861,7 +862,7 @@ impl interface::TargetFactory for PyExportTargetFactory {
                 }
                 py_args.push((
                     &export_context.py_export_ctx,
-                    PyList::new(py, flattened_mutations)?.into_any(),
+                    PyList::new(py, flattened_mutations)?,
                 ));
                 py_exec_ctx = py_exec_ctx.or(Some(&export_context.py_exec_ctx));
             }

@@ -607,6 +607,10 @@ fn analyze_value_mapping(
                 EnrichedValueType::from_alternative(value_type)?,
             )
         }
+
+        ValueMapping::Collection(_) => {
+            return Err(anyhow::anyhow!("Collection mapping not yet supported in analyzer"));
+        }
     };
     Ok(result)
 }

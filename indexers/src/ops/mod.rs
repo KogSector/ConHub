@@ -7,6 +7,7 @@ mod functions;
 mod shared;
 mod sources;
 mod targets;
+mod transforms;
 
 mod registration;
 pub(crate) use registration::*;

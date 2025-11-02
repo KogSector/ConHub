@@ -147,6 +147,12 @@ impl DataSlice {
                     "field access not supported for literal",
                 ));
             }
+
+            spec::ValueMapping::Collection(_) => {
+                return Err(PyException::new_err(
+                    "field access not supported for collection",
+                ));
+            }
         };
         Ok(Some(DataSlice {
             scope: self.scope.clone(),
@@ -162,6 +168,7 @@ impl DataSlice {
                 field_path: v.field_path.clone(),
                 scope: v.scope.clone().or_else(|| Some(self.scope.name.clone())),
             }),
+            spec::ValueMapping::Collection(v) => spec::ValueMapping::Collection(v.clone()),
             v => v.clone(),
         }
     }
@@ -173,6 +180,9 @@ impl DataSlice {
                 let data_scope_builder = self.scope.data.lock().unwrap();
                 let (_, val_type) = data_scope_builder.analyze_field_path(&v.field_path)?;
                 EnrichedValueType::from_alternative(val_type)?
+            }
+            spec::ValueMapping::Collection(_) => {
+                return Err(anyhow::anyhow!("Collection value type not yet supported"));
             }
         };
         Ok(result)

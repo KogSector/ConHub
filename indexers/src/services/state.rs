@@ -11,7 +11,7 @@ use crate::models::{ChunkRecord, ContentFingerprint, IndexingStatus, MutationSet
 #[derive(Debug)]
 pub struct RowProcessingGuard {
     row_key: String,
-    state: Arc<IndexerState>,
+    state_manager: Arc<IndexStateManager>,
     processing_permit: Option<OwnedSemaphorePermit>,
     snapshot_before: Option<RowSnapshot>,
 }
@@ -28,7 +28,7 @@ impl RowProcessingGuard {
 
 impl Drop for RowProcessingGuard {
     fn drop(&mut self) {
-        self.state.as_ref().release_row(&self.row_key, self.snapshot_before.take());
+        self.state_manager.release_row(&self.row_key, self.snapshot_before.take());
     }
 }
 
@@ -148,7 +148,7 @@ impl IndexStateManager {
 
         RowProcessingGuard {
             row_key,
-            state: self.inner.clone(),
+            state_manager: Arc::new(self.clone()),
             processing_permit: Some(permit),
             snapshot_before,
         }

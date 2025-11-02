@@ -4,6 +4,7 @@ pub use anyhow::{anyhow, bail, Context, Result};
 // Re-export our custom macros
 pub use crate::{api_bail, api_error};
 pub use serde::{Deserialize, Serialize};
+pub use serde_json;
 pub use std::collections::{BTreeMap, HashMap, HashSet};
 pub use std::sync::{Arc, Mutex, OnceLock};
 pub use indexmap::IndexMap;
