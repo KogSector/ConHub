@@ -58,7 +58,7 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/webhooks")
             .route("/github", web::post().to(handlers::github::handle_github_webhook))
-            .route("/gitlab", web::post().to(handlers::gitlab::handle_gitlab_webhook))
+            .route("/gitlab", web::post().to(handlers::handle_gitlab_webhook))
             .route("/stripe", web::post().to(handlers::stripe::handle_stripe_webhook))
     );
 }
