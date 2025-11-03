@@ -1,23 +1,23 @@
 use actix_web::{
     dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
-    Error as ActixError, HttpMessage, HttpResponse, HttpRequest,
+    Error as ActixError, HttpMessage, HttpResponse,
     body::EitherBody,
 };
 use futures_util::future::LocalBoxFuture;
 use std::future::{ready, Ready};
 use std::rc::Rc;
-use std::sync::Arc;
-use conhub_models::auth::Claims;
+use conhub_models::auth::{Claims, UserRole};
 use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
-use rsa::{RsaPublicKey, pkcs8::DecodePublicKey};
 use serde_json::json;
-use chrono;
+use chrono::Utc;
 use tracing;
 
 pub struct AuthMiddleware<S> {
     service: Rc<S>,
-    public_key: Arc<RsaPublicKey>,
+    jwt_secret: String,
 }
+
+
 
 impl<S, B> Service<ServiceRequest> for AuthMiddleware<S>
 where
@@ -33,7 +33,7 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let service = Rc::clone(&self.service);
-        let public_key = Arc::clone(&self.public_key);
+        let jwt_secret = self.jwt_secret.clone();
 
         Box::pin(async move {
             // Check if this is a public endpoint that doesn't require authentication
@@ -47,7 +47,7 @@ where
                     if auth_str.starts_with("Bearer ") {
                         let token = &auth_str[7..];
                         
-                        match verify_jwt_token(token, &public_key).await {
+                        match verify_jwt_token(token, &jwt_secret).await {
                             Ok(claims) => {
                                 // Insert claims into request extensions for handlers to use
                                 req.extensions_mut().insert(claims);
@@ -82,21 +82,15 @@ where
 
 #[derive(Clone)]
 pub struct AuthMiddlewareFactory {
-    public_key: Arc<RsaPublicKey>,
+    jwt_secret: String,
 }
 
 impl AuthMiddlewareFactory {
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let public_key = load_public_key()?;
-        Ok(Self {
-            public_key: Arc::new(public_key),
-        })
-    }
-    
-    pub fn from_public_key(public_key: RsaPublicKey) -> Self {
-        Self {
-            public_key: Arc::new(public_key),
-        }
+    pub fn new() -> Self {
+        let jwt_secret = std::env::var("JWT_SECRET")
+            .unwrap_or_else(|_| "conhub_super_secret_jwt_key_2024_development_only".to_string());
+        
+        Self { jwt_secret }
     }
 }
 
@@ -115,25 +109,23 @@ where
     fn new_transform(&self, service: S) -> Self::Future {
         ready(Ok(AuthMiddleware {
             service: Rc::new(service),
-            public_key: Arc::clone(&self.public_key),
+            jwt_secret: self.jwt_secret.clone(),
         }))
     }
 }
 
-// JWT verification function using RSA public key
-async fn verify_jwt_token(token: &str, public_key: &RsaPublicKey) -> Result<Claims, Box<dyn std::error::Error>> {
-    let mut validation = Validation::new(Algorithm::RS256);
+// JWT verification function using HMAC
+async fn verify_jwt_token(token: &str, jwt_secret: &str) -> Result<Claims, Box<dyn std::error::Error>> {
+    let mut validation = Validation::new(Algorithm::HS256);
     validation.set_issuer(&["conhub"]);
-    validation.set_audience(&["conhub-users"]);
+    validation.set_audience(&["conhub-frontend"]);
     
-    // Convert RSA public key to PEM format for jsonwebtoken
-    let public_key_pem = rsa::pkcs8::EncodePublicKey::to_public_key_pem(public_key, rsa::pkcs8::LineEnding::LF)?;
-    let decoding_key = DecodingKey::from_rsa_pem(public_key_pem.as_bytes())?;
+    let decoding_key = DecodingKey::from_secret(jwt_secret.as_ref());
     
     let token_data = decode::<Claims>(token, &decoding_key, &validation)?;
     
     // Additional validation: check if token is not expired
-    let now = chrono::Utc::now().timestamp() as usize;
+    let now = Utc::now().timestamp() as usize;
     if token_data.claims.exp < now {
         return Err("Token has expired".into());
     }
@@ -141,35 +133,17 @@ async fn verify_jwt_token(token: &str, public_key: &RsaPublicKey) -> Result<Clai
     Ok(token_data.claims)
 }
 
-// Load public key from environment variable or file
-fn load_public_key() -> Result<RsaPublicKey, Box<dyn std::error::Error>> {
-    // Try to load from environment variable first
-    if let Ok(public_key_pem) = std::env::var("JWT_PUBLIC_KEY") {
-        let public_key = RsaPublicKey::from_public_key_pem(&public_key_pem)?;
-        return Ok(public_key);
-    }
-    
-    // Try to load from file
-    if let Ok(public_key_path) = std::env::var("JWT_PUBLIC_KEY_PATH") {
-        let public_key_pem = std::fs::read_to_string(public_key_path)?;
-        let public_key = RsaPublicKey::from_public_key_pem(&public_key_pem)?;
-        return Ok(public_key);
-    }
-    
-    Err("No public key found. Set JWT_PUBLIC_KEY or JWT_PUBLIC_KEY_PATH environment variable".into())
-}
-
 // Check if the endpoint is public and doesn't require authentication
 fn is_public_endpoint(path: &str) -> bool {
     let public_paths = [
         "/health",
         "/metrics",
-        "/auth/login",
-        "/auth/register",
-        "/auth/forgot-password",
-        "/auth/reset-password",
-        "/auth/verify-email",
-        "/auth/oauth",
+        "/api/auth/login",
+        "/api/auth/register",
+        "/api/auth/forgot-password",
+        "/api/auth/reset-password",
+        "/api/auth/verify-email",
+        "/api/auth/oauth",
         "/docs",
         "/swagger",
     ];
@@ -177,46 +151,23 @@ fn is_public_endpoint(path: &str) -> bool {
     public_paths.iter().any(|&public_path| path.starts_with(public_path))
 }
 
-// Helper functions for extracting information from requests
-pub fn extract_token_from_request(req: &HttpRequest) -> Option<String> {
-    req.headers()
-        .get("Authorization")?
-        .to_str()
-        .ok()?
-        .strip_prefix("Bearer ")
-        .map(|s| s.to_string())
-}
-
-pub fn extract_claims_from_request(req: &HttpRequest) -> Option<Claims> {
-    req.extensions().get::<Claims>().cloned()
-}
-
-pub fn extract_session_id_from_request(req: &HttpRequest) -> Option<uuid::Uuid> {
-    extract_claims_from_request(req)?
-        .session_id
-        .parse()
-        .ok()
-}
-
-pub fn extract_user_id_from_request(req: &HttpRequest) -> Option<uuid::Uuid> {
-    extract_claims_from_request(req)?
-        .sub
-        .parse()
-        .ok()
-}
-
-pub fn extract_user_id_from_http_request(req: &HttpRequest) -> Option<uuid::Uuid> {
-    extract_user_id_from_request(req)
-}
-
-pub fn extract_claims_from_http_request(req: &HttpRequest) -> Option<Claims> {
-    extract_claims_from_request(req)
-}
-
-// Optional middleware for role-based authorization
+// Role-based authorization middleware
 pub struct RoleAuthMiddleware<S> {
     service: Rc<S>,
     required_roles: Vec<String>,
+}
+
+impl<S> RoleAuthMiddleware<S> {
+    // This method is not needed since we use the factory pattern
+}
+
+// Helper function to create role auth middleware
+pub fn role_auth_middleware(required_roles: Vec<UserRole>) -> RoleAuthMiddlewareFactory {
+    let role_strings = required_roles.into_iter().map(|r| match r {
+        UserRole::Admin => "admin".to_string(),
+        UserRole::User => "user".to_string(),
+    }).collect();
+    RoleAuthMiddlewareFactory::new(role_strings)
 }
 
 impl<S, B> Service<ServiceRequest> for RoleAuthMiddleware<S>
@@ -236,26 +187,27 @@ where
         let required_roles = self.required_roles.clone();
 
         Box::pin(async move {
-            // Check if claims exist and validate roles before proceeding
+            // Extract claims data before using req
             let has_permission = if let Some(claims) = req.extensions().get::<Claims>() {
-                required_roles.is_empty() || 
-                required_roles.iter().any(|role| claims.roles.contains(role))
+                let user_roles = &claims.roles;
+                required_roles.iter().any(|role| user_roles.contains(role)) || 
+                user_roles.contains(&"admin".to_string())
             } else {
                 false
             };
-
+            
             if has_permission {
                 let res = service.call(req).await?;
-                Ok(res.map_into_left_body())
-            } else {
-                Ok(req.into_response(
-                    HttpResponse::Forbidden()
-                        .json(json!({
-                            "error": "Insufficient permissions",
-                            "required_roles": required_roles
-                        }))
-                ).map_into_right_body())
+                return Ok(res.map_into_left_body());
             }
+
+            Ok(req.into_response(
+                HttpResponse::Forbidden()
+                    .json(json!({
+                        "error": "Insufficient permissions",
+                        "message": format!("This endpoint requires one of the following roles: {}", required_roles.join(", "))
+                    }))
+            ).map_into_right_body())
         })
     }
 }
@@ -288,4 +240,23 @@ where
             required_roles: self.required_roles.clone(),
         }))
     }
+}
+
+// Helper functions for extracting information from requests
+pub fn extract_claims_from_request(req: &actix_web::HttpRequest) -> Option<Claims> {
+    req.extensions().get::<Claims>().cloned()
+}
+
+pub fn extract_user_id_from_request(req: &actix_web::HttpRequest) -> Option<uuid::Uuid> {
+    extract_claims_from_request(req)?
+        .sub
+        .parse()
+        .ok()
+}
+
+pub fn extract_session_id_from_request(req: &actix_web::HttpRequest) -> Option<uuid::Uuid> {
+    extract_claims_from_request(req)?
+        .session_id
+        .parse()
+        .ok()
 }

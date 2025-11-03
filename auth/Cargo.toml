@@ -22,11 +22,11 @@ conhub-config = { path = "../shared/config" }
 actix-web = "4.4"
 actix-cors = "0.7"
 actix-web-httpauth = "0.8"
-actix-session = "0.9"
 
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }
 futures = "0.3"
+futures-util = "0.3"
 async-trait = "0.1"
 
 # Serialization
@@ -49,9 +49,23 @@ bcrypt = "0.15"
 jsonwebtoken = "9.2"
 oauth2 = "4.4"
 base64 = "0.21"
+rsa = "0.9"
+rand = "0.8"
 
 # Validation
 validator = { version = "0.18", features = ["derive"] }
+
+# Security
+argon2 = "0.5"
+ring = "0.17"
+constant_time_eq = "0.3"
+
+# Rate limiting
+governor = "0.6"
+nonzero_ext = "0.3"
+
+# Session management
+actix-session = { version = "0.9", features = ["redis-rs-tls-session"] }
 
 # Redis for sessions
 redis = { version = "0.24", features = ["tokio-comp"] }
@@ -73,3 +87,14 @@ urlencoding = "2.1"
 # Concurrent data structures
 dashmap = "5.5"
 lazy_static = "1.4"
+
+[dev-dependencies]
+# Testing framework
+actix-web = { version = "4.4", features = ["macros"] }
+tokio-test = "0.4"
+env_logger = "0.10"
+
+# Test utilities
+serial_test = "3.0"
+tempfile = "3.8"
+wiremock = "0.5"

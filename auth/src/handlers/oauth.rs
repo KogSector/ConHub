@@ -5,8 +5,7 @@ use serde_json::json;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::services::oauth::{OAuthService, OAuthProvider};
-use crate::handlers::auth::generate_jwt_token;
+use crate::services::{oauth::{OAuthService, OAuthProvider}, security::SecurityService};
 use conhub_models::auth::{AuthResponse, UserProfile, User};
 
 #[derive(Debug, Deserialize)]
@@ -181,23 +180,33 @@ pub async fn oauth_callback(
         
     }
 
-    
-    let (token, expires_at) = match generate_jwt_token(&user) {
-        Ok(result) => result,
+    // Initialize SecurityService for token generation
+    let security_service = SecurityService::new(pool.get_ref().clone()).await.map_err(|e| {
+        tracing::error!("Failed to initialize SecurityService: {}", e);
+        actix_web::error::ErrorInternalServerError("Service initialization failed")
+    })?;
+
+    // Generate secure tokens using SecurityService
+    let session_id = Uuid::new_v4();
+    let remember_me = false; // Could be extracted from request if needed
+    let (token, refresh_token, expires_at, _refresh_expires) = match security_service.generate_jwt_token(&user, session_id, remember_me).await {
+        Ok(tokens) => tokens,
         Err(e) => {
-            tracing::error!("Failed to generate JWT token: {}", e);
+            tracing::error!("Failed to generate JWT tokens: {}", e);
             return Ok(HttpResponse::InternalServerError().json(json!({
-                "error": "Failed to generate authentication token",
-                "message": e
+                "error": "Failed to generate authentication tokens"
             })));
         }
     };
 
     let user_profile = UserProfile::from(user);
+    
     let auth_response = AuthResponse {
         user: user_profile,
         token,
+        refresh_token,
         expires_at,
+        session_id,
     };
 
     Ok(HttpResponse::Ok().json(auth_response))

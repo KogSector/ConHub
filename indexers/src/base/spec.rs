@@ -256,8 +256,8 @@ pub struct ExecutionOptions {
 impl ExecutionOptions {
     pub fn get_concur_control_options(&self) -> concur_control::Options {
         concur_control::Options {
-            max_inflight_rows: self.max_inflight_rows,
-            max_inflight_bytes: self.max_inflight_bytes,
+            max_concurrent_operations: self.max_inflight_rows,
+            max_memory_usage: self.max_inflight_bytes,
         }
     }
 }

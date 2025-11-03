@@ -4,6 +4,10 @@ version = "1.0.0"
 edition = "2021"
 
 [dependencies]
+# Shared workspace libraries
+conhub-middleware = { path = "../shared/middleware" }
+conhub-models = { path = "../shared/models" }
+
 # HTTP Server
 actix-web = "4.4"
 actix-cors = "0.7"

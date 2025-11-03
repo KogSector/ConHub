@@ -1,19 +1,30 @@
-use sqlx::{PgPool, Row};
+use std::collections::HashMap;
+use chrono::{DateTime, Utc, Duration};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use anyhow::{Result, anyhow};
+use sqlx::{PgPool, Row};
 use bcrypt::{hash, verify, DEFAULT_COST};
+use validator::Validate;
+use serde_json::json;
+use anyhow::{anyhow, Result};
+use log;
 
-
-use conhub_models::auth::{User, RegisterRequest, UserRole, SubscriptionTier};
+use conhub_models::auth::*;
+use super::security::SecurityService;
 
 pub struct UserService {
     pool: PgPool,
+    security_service: std::sync::Arc<SecurityService>,
 }
 
 impl UserService {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub async fn new(pool: PgPool) -> Result<Self> {
+        let security_service = SecurityService::new(pool.clone()).await
+            .map_err(|e| anyhow!("Failed to initialize security service: {}", e))?;
+        
+        Ok(Self {
+            pool,
+            security_service: std::sync::Arc::new(security_service),
+        })
     }
 
     pub async fn create_user(&self, request: &RegisterRequest) -> Result<User> {
@@ -22,8 +33,13 @@ impl UserService {
             return Err(anyhow!("User with this email already exists"));
         }
 
-        
-        let password_hash = hash(&request.password, DEFAULT_COST)
+        // Validate password strength using SecurityService
+        if let Err(e) = self.security_service.validate_password_strength(&request.password) {
+            return Err(anyhow!("Password validation failed: {}", e));
+        }
+
+        // Hash password using Argon2 via SecurityService
+        let password_hash = self.security_service.hash_password(&request.password)
             .map_err(|e| anyhow!("Failed to hash password: {}", e))?;
 
         let user_id = Uuid::new_v4();
@@ -103,9 +119,19 @@ impl UserService {
             },
             is_verified: row.get("is_verified"),
             is_active: row.get("is_active"),
+            is_locked: row.get("is_locked"),
+            failed_login_attempts: row.get("failed_login_attempts"),
+            locked_until: row.get("locked_until"),
+            password_changed_at: row.get("password_changed_at"),
+            email_verified_at: row.get("email_verified_at"),
+            two_factor_enabled: row.get("two_factor_enabled"),
+            two_factor_secret: row.get("two_factor_secret"),
+            backup_codes: row.get("backup_codes"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
             last_login_at: row.get("last_login_at"),
+            last_login_ip: row.get("last_login_ip"),
+            last_password_reset: row.get("last_password_reset"),
         })
     }
 
@@ -144,19 +170,86 @@ impl UserService {
             },
             is_verified: row.get("is_verified"),
             is_active: row.get("is_active"),
+            is_locked: row.get("is_locked"),
+            failed_login_attempts: row.get("failed_login_attempts"),
+            locked_until: row.get("locked_until"),
+            password_changed_at: row.get("password_changed_at"),
+            email_verified_at: row.get("email_verified_at"),
+            two_factor_enabled: row.get("two_factor_enabled"),
+            two_factor_secret: row.get("two_factor_secret"),
+            backup_codes: row.get("backup_codes"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
             last_login_at: row.get("last_login_at"),
+            last_login_ip: row.get("last_login_ip"),
+            last_password_reset: row.get("last_password_reset"),
         })
     }
 
     
+    pub async fn get_user_by_id(&self, user_id: Uuid) -> Result<Option<User>> {
+        let row = sqlx::query(
+            r#"
+            SELECT id, email, password_hash, name, avatar_url, organization,
+                   role::text as role, subscription_tier::text as subscription_tier,
+                   is_verified, is_active, is_locked, failed_login_attempts, locked_until,
+                   password_changed_at, email_verified_at, two_factor_enabled, two_factor_secret,
+                   backup_codes, created_at, updated_at, last_login_at, last_login_ip, last_password_reset
+            FROM users
+            WHERE id = $1 AND is_active = true
+            "#
+        )
+        .bind(user_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| anyhow!("Database error: {}", e))?;
+
+        match row {
+            Some(row) => Ok(Some(User {
+                id: row.get("id"),
+                email: row.get("email"),
+                password_hash: row.get("password_hash"),
+                name: row.get("name"),
+                avatar_url: row.get("avatar_url"),
+                organization: row.get("organization"),
+                role: match row.get::<Option<String>, _>("role").as_deref() {
+                    Some("admin") => UserRole::Admin,
+                    _ => UserRole::User,
+                },
+                subscription_tier: match row.get::<Option<String>, _>("subscription_tier").as_deref() {
+                    Some("personal") => SubscriptionTier::Personal,
+                    Some("team") => SubscriptionTier::Team,
+                    Some("enterprise") => SubscriptionTier::Enterprise,
+                    _ => SubscriptionTier::Free,
+                },
+                is_verified: row.get("is_verified"),
+                is_active: row.get("is_active"),
+                is_locked: row.get("is_locked"),
+                failed_login_attempts: row.get("failed_login_attempts"),
+                locked_until: row.get("locked_until"),
+                password_changed_at: row.get("password_changed_at"),
+                email_verified_at: row.get("email_verified_at"),
+                two_factor_enabled: row.get("two_factor_enabled"),
+                two_factor_secret: row.get("two_factor_secret"),
+                backup_codes: row.get("backup_codes"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+                last_login_at: row.get("last_login_at"),
+                last_login_ip: row.get("last_login_ip"),
+                last_password_reset: row.get("last_password_reset"),
+            })),
+            None => Ok(None),
+        }
+    }
+
     pub async fn find_by_id(&self, user_id: Uuid) -> Result<User> {
         let row = sqlx::query(
             r#"
             SELECT id, email, password_hash, name, avatar_url, organization,
                    role::text as role, subscription_tier::text as subscription_tier,
-                   is_verified, is_active, created_at, updated_at, last_login_at
+                   is_verified, is_active, is_locked, failed_login_attempts, locked_until,
+                   password_changed_at, email_verified_at, two_factor_enabled, two_factor_secret,
+                   backup_codes, created_at, updated_at, last_login_at, last_login_ip, last_password_reset
             FROM users
             WHERE id = $1 AND is_active = true
             "#
@@ -185,9 +278,19 @@ impl UserService {
             },
             is_verified: row.get("is_verified"),
             is_active: row.get("is_active"),
+            is_locked: row.get("is_locked"),
+            failed_login_attempts: row.get("failed_login_attempts"),
+            locked_until: row.get("locked_until"),
+            password_changed_at: row.get("password_changed_at"),
+            email_verified_at: row.get("email_verified_at"),
+            two_factor_enabled: row.get("two_factor_enabled"),
+            two_factor_secret: row.get("two_factor_secret"),
+            backup_codes: row.get("backup_codes"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
             last_login_at: row.get("last_login_at"),
+            last_login_ip: row.get("last_login_ip"),
+            last_password_reset: row.get("last_password_reset"),
         })
     }
 
@@ -195,7 +298,8 @@ impl UserService {
     pub async fn verify_password(&self, email: &str, password: &str) -> Result<User> {
         let user = self.find_by_email(email).await?;
         
-        if !verify(password, &user.password_hash)
+        // Use SecurityService for Argon2 password verification
+        if !self.security_service.verify_password(password, &user.password_hash)
             .map_err(|e| anyhow!("Password verification failed: {}", e))? {
             return Err(anyhow!("Invalid password"));
         }
@@ -291,9 +395,19 @@ impl UserService {
             subscription_tier,
             is_verified: row.get("is_verified"),
             is_active: row.get("is_active"),
+            is_locked: row.get("is_locked"),
+            failed_login_attempts: row.get("failed_login_attempts"),
+            locked_until: row.get("locked_until"),
+            password_changed_at: row.get("password_changed_at"),
+            email_verified_at: row.get("email_verified_at"),
+            two_factor_enabled: row.get("two_factor_enabled"),
+            two_factor_secret: row.get("two_factor_secret"),
+            backup_codes: row.get("backup_codes"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
             last_login_at: row.get("last_login_at"),
+            last_login_ip: row.get("last_login_ip"),
+            last_password_reset: row.get("last_password_reset"),
         })
     }
 
@@ -327,7 +441,9 @@ impl UserService {
             r#"
             SELECT id, email, password_hash, name, avatar_url, organization,
                    role::text as role, subscription_tier::text as subscription_tier,
-                   is_verified, is_active, created_at, updated_at, last_login_at
+                   is_verified, is_active, is_locked, failed_login_attempts, locked_until,
+                   password_changed_at, email_verified_at, two_factor_enabled, two_factor_secret,
+                   backup_codes, created_at, updated_at, last_login_at, last_login_ip, last_password_reset
             FROM users
             WHERE is_active = true
             ORDER BY created_at DESC
@@ -363,9 +479,19 @@ impl UserService {
                 },
                 is_verified: row.get("is_verified"),
                 is_active: row.get("is_active"),
+                is_locked: row.get("is_locked"),
+                failed_login_attempts: row.get("failed_login_attempts"),
+                locked_until: row.get("locked_until"),
+                password_changed_at: row.get("password_changed_at"),
+                email_verified_at: row.get("email_verified_at"),
+                two_factor_enabled: row.get("two_factor_enabled"),
+                two_factor_secret: row.get("two_factor_secret"),
+                backup_codes: row.get("backup_codes"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 last_login_at: row.get("last_login_at"),
+                last_login_ip: row.get("last_login_ip"),
+                last_password_reset: row.get("last_password_reset"),
             }
         }).collect();
 

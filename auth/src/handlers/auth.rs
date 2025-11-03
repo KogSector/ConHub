@@ -1,46 +1,24 @@
-use actix_web::{web, HttpResponse, Result};
+use actix_web::{web, HttpRequest, HttpResponse, Result};
 use serde_json::json;
 use uuid::Uuid;
-use chrono::{Utc, Duration, DateTime};
-use validator::Validate;
-use bcrypt::{hash, verify, DEFAULT_COST};
+
+use chrono::{DateTime, Utc, Duration};
 use jsonwebtoken::{encode, Header, EncodingKey};
 use sqlx::{PgPool, Row};
+use validator::Validate;
+use bcrypt;
 
 use conhub_models::auth::*;
-use crate::services::password_reset::PASSWORD_RESET_SERVICE;
-use crate::services::users::UserService;
-
-
-pub fn generate_jwt_token(user: &User) -> Result<(String, DateTime<Utc>), String> {
-    let jwt_secret = std::env::var("JWT_SECRET")
-        .unwrap_or_else(|_| "conhub_super_secret_jwt_key_2024_development_only".to_string());
-    
-    let expires_at = Utc::now() + Duration::hours(24);
-    let claims = Claims {
-        sub: user.id.to_string(),
-        email: user.email.clone(),
-        roles: vec![format!("{:?}", user.role).to_lowercase()],
-        exp: expires_at.timestamp() as usize,
-        iat: Utc::now().timestamp() as usize,
-        iss: "conhub".to_string(),
-        aud: "conhub-frontend".to_string(),
-        session_id: Uuid::new_v4().to_string(),
-    };
-
-    match encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(jwt_secret.as_ref()),
-    ) {
-        Ok(token) => Ok((token, expires_at)),
-        Err(_) => Err("Failed to generate token".to_string()),
-    }
-}
+use crate::services::{
+    users::UserService,
+    sessions::SessionService,
+    security::SecurityService,
+};
 
 pub async fn login(
     request: web::Json<LoginRequest>,
     pool: web::Data<PgPool>,
+    req: HttpRequest,
 ) -> Result<HttpResponse> {
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
@@ -49,7 +27,36 @@ pub async fn login(
         })));
     }
 
-    let user_service = UserService::new(pool.get_ref().clone());
+    // Initialize SecurityService for rate limiting
+    let security_service = match crate::services::security::SecurityService::new(pool.get_ref().clone()).await {
+        Ok(service) => service,
+        Err(e) => {
+            tracing::error!("Failed to initialize security service: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({"error": "Service initialization failed"})));
+        }
+    };
+
+    // Get client IP for rate limiting
+    let client_ip = req.connection_info().realip_remote_addr()
+        .unwrap_or("unknown")
+        .to_string();
+
+    // Check rate limit for login attempts (5 attempts per minute)
+    if !security_service.check_rate_limit(&client_ip, "login", 5, 1).await
+        .unwrap_or(false) {
+        tracing::warn!("Rate limit exceeded for login attempt from IP: {}", client_ip);
+        return Ok(HttpResponse::TooManyRequests().json(json!({
+            "error": "Too many login attempts. Please try again later."
+        })));
+    }
+
+    let user_service = match UserService::new(pool.get_ref().clone()).await {
+        Ok(service) => service,
+        Err(e) => {
+            tracing::error!("Failed to initialize user service: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({"error": "Service initialization failed"})));
+        }
+    };
     
     
     let user = match user_service.verify_password(&request.email, &request.password).await {
@@ -66,21 +73,27 @@ pub async fn login(
         tracing::warn!("Failed to update last login for user {}: {}", user.id, e);
     }
 
-    
-    let (token, expires_at) = match generate_jwt_token(&user) {
-        Ok((token, expires_at)) => (token, expires_at),
+    // Generate secure tokens using SecurityService
+    let session_id = Uuid::new_v4();
+    let remember_me = false; // Could be extracted from request if needed
+    let (token, refresh_token, expires_at, _refresh_expires) = match security_service.generate_jwt_token(&user, session_id, remember_me).await {
+        Ok(tokens) => tokens,
         Err(e) => {
+            tracing::error!("Failed to generate JWT tokens: {}", e);
             return Ok(HttpResponse::InternalServerError().json(json!({
-                "error": e
+                "error": "Failed to generate authentication tokens"
             })));
         }
     };
 
     let user_profile = UserProfile::from(user);
+    
     let auth_response = AuthResponse {
         user: user_profile,
         token,
+        refresh_token,
         expires_at,
+        session_id,
     };
 
     Ok(HttpResponse::Ok().json(auth_response))
@@ -100,20 +113,34 @@ pub async fn forgot_password(
     let email = &request.email;
     tracing::info!("Password reset requested for email: {}", email);
     
-    let user_service = UserService::new(pool.get_ref().clone());
+    let user_service = match UserService::new(pool.get_ref().clone()).await {
+        Ok(service) => service,
+        Err(e) => {
+            tracing::error!("Failed to initialize user service: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({"error": "Service initialization failed"})));
+        }
+    };
+    let password_reset_service = crate::services::password_reset::PasswordResetService::new(pool.get_ref().clone());
     
-    
+    // Check if user exists
     let user_exists = match user_service.find_by_email(email).await {
         Ok(_) => true,
         Err(_) => false,
     };
     
-    
-    match PASSWORD_RESET_SERVICE.generate_reset_token(email) {
-        Ok(_) => {},
-        Err(_) => {}
+    // Generate reset token only if user exists
+    if user_exists {
+        match password_reset_service.generate_reset_token(email).await {
+            Ok(_) => {
+                tracing::info!("Password reset token generated for email: {}", email);
+            },
+            Err(e) => {
+                tracing::error!("Failed to generate reset token for {}: {}", email, e);
+            }
+        }
     }
 
+    // Always return success to prevent email enumeration
     Ok(HttpResponse::Ok().json(json!({
         "message": "If an account with that email exists, we've sent a password reset link.",
         "success": true
@@ -136,20 +163,41 @@ pub async fn reset_password(
     
     tracing::info!("Password reset attempted for token: {}", token);
     
+    let password_reset_service = crate::services::password_reset::PasswordResetService::new(pool.get_ref().clone());
     
-    let email = match PASSWORD_RESET_SERVICE.validate_token(token) {
+    // Validate the reset token and get the email
+    let email = match password_reset_service.validate_token(token).await {
         Ok(email) => email,
         Err(e) => {
             tracing::warn!("Invalid password reset token: {}", e);
             return Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Invalid or expired reset token",
-                "details": e
+                "details": format!("{}", e)
             })));
         }
     };
     
-    
-    let new_password_hash = match hash(new_password, DEFAULT_COST) {
+    // Initialize SecurityService for password operations
+    let security_service = match crate::services::security::SecurityService::new(pool.get_ref().clone()).await {
+        Ok(service) => service,
+        Err(e) => {
+            tracing::error!("Failed to initialize security service: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Service initialization failed"
+            })));
+        }
+    };
+
+    // Validate password strength
+    if let Err(validation_error) = security_service.validate_password_strength(new_password) {
+        return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Password validation failed",
+            "details": validation_error
+        })));
+    }
+
+    // Hash the new password using Argon2
+    let new_password_hash = match security_service.hash_password(new_password) {
         Ok(hash) => hash,
         Err(e) => {
             tracing::error!("Failed to hash password: {}", e);
@@ -159,9 +207,15 @@ pub async fn reset_password(
         }
     };
 
-    let user_service = UserService::new(pool.get_ref().clone());
+    let user_service = match UserService::new(pool.get_ref().clone()).await {
+        Ok(service) => service,
+        Err(e) => {
+            tracing::error!("Failed to initialize user service: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({"error": "Service initialization failed"})));
+        }
+    };
     
-    
+    // Find the user by email
     let user = match user_service.find_by_email(&email).await {
         Ok(user) => user,
         Err(_) => {
@@ -171,7 +225,7 @@ pub async fn reset_password(
         }
     };
     
-    
+    // Update the user's password
     if let Err(e) = user_service.update_password(user.id, &new_password_hash).await {
         tracing::error!("Failed to update password for user {}: {}", user.id, e);
         return Ok(HttpResponse::InternalServerError().json(json!({
@@ -190,6 +244,7 @@ pub async fn reset_password(
 pub async fn register(
     request: web::Json<RegisterRequest>,
     pool: web::Data<PgPool>,
+    req: HttpRequest,
 ) -> Result<HttpResponse> {
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
@@ -198,7 +253,36 @@ pub async fn register(
         })));
     }
 
-    let user_service = UserService::new(pool.get_ref().clone());
+    // Initialize SecurityService for rate limiting
+    let security_service = match crate::services::security::SecurityService::new(pool.get_ref().clone()).await {
+        Ok(service) => service,
+        Err(e) => {
+            tracing::error!("Failed to initialize security service: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({"error": "Service initialization failed"})));
+        }
+    };
+
+    // Get client IP for rate limiting
+    let client_ip = req.connection_info().realip_remote_addr()
+        .unwrap_or("unknown")
+        .to_string();
+
+    // Check rate limit for registration attempts (3 attempts per minute)
+    if !security_service.check_rate_limit(&client_ip, "register", 3, 1).await
+        .unwrap_or(false) {
+        tracing::warn!("Rate limit exceeded for registration attempt from IP: {}", client_ip);
+        return Ok(HttpResponse::TooManyRequests().json(json!({
+            "error": "Too many registration attempts. Please try again later."
+        })));
+    }
+
+    let user_service = match UserService::new(pool.get_ref().clone()).await {
+        Ok(service) => service,
+        Err(e) => {
+            tracing::error!("Failed to initialize user service: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({"error": "Service initialization failed"})));
+        }
+    };
     
     
     let new_user = match user_service.create_user(&request).await {
@@ -212,22 +296,27 @@ pub async fn register(
         }
     };
 
-    
-    let (token, expires_at) = match generate_jwt_token(&new_user) {
-        Ok((token, expires_at)) => (token, expires_at),
+    // Generate secure tokens using SecurityService
+    let session_id = Uuid::new_v4();
+    let remember_me = false; // Could be extracted from request if needed
+    let (token, refresh_token, expires_at, _refresh_expires) = match security_service.generate_jwt_token(&new_user, session_id, remember_me).await {
+        Ok(tokens) => tokens,
         Err(e) => {
-            tracing::error!("Failed to generate JWT token for user {}: {}", new_user.id, e);
+            tracing::error!("Failed to generate JWT tokens for user {}: {}", new_user.id, e);
             return Ok(HttpResponse::InternalServerError().json(json!({
-                "error": e
+                "error": "Failed to generate authentication tokens"
             })));
         }
     };
 
     let user_profile = UserProfile::from(new_user);
+    
     let auth_response = AuthResponse {
         user: user_profile,
         token,
+        refresh_token,
         expires_at,
+        session_id,
     };
 
     Ok(HttpResponse::Created().json(auth_response))
@@ -239,27 +328,206 @@ pub async fn verify_token() -> Result<HttpResponse> {
     })))
 }
 
-pub async fn logout() -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok().json(json!({
-        "message": "Logged out successfully"
-    })))
+pub async fn logout(
+    req: HttpRequest,
+    request: web::Json<LogoutRequest>,
+    pool: web::Data<PgPool>,
+) -> Result<HttpResponse> {
+    use crate::services::middleware::extract_claims_from_request;
+    
+    // Get user claims from the request
+    let claims = match extract_claims_from_request(&req) {
+        Some(claims) => claims,
+        None => {
+            return Ok(HttpResponse::Unauthorized().json(json!({
+                "error": "Authentication required"
+            })));
+        }
+    };
+
+    let user_id: uuid::Uuid = match claims.sub.parse() {
+        Ok(id) => id,
+        Err(_) => {
+            return Ok(HttpResponse::BadRequest().json(json!({
+                "error": "Invalid user ID in token"
+            })));
+        }
+    };
+
+    let session_id: uuid::Uuid = match claims.session_id.parse() {
+        Ok(id) => id,
+        Err(_) => {
+            return Ok(HttpResponse::BadRequest().json(json!({
+                "error": "Invalid session ID in token"
+            })));
+        }
+    };
+
+    // Initialize session service
+    let redis_client = match req.app_data::<web::Data<redis::Client>>() {
+        Some(client) => client.get_ref().clone(),
+        None => {
+            tracing::error!("Redis client not found in app data");
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Session service unavailable"
+            })));
+        }
+    };
+
+    let security_service = match SecurityService::new(pool.get_ref().clone()).await {
+        Ok(service) => std::sync::Arc::new(service),
+        Err(e) => {
+            tracing::error!("Failed to initialize security service: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Service initialization failed"
+            })));
+        }
+    };
+
+    let session_service = SessionService::new(
+        pool.get_ref().clone(),
+        redis_client,
+        security_service,
+    );
+
+    // Invalidate session(s)
+    if request.logout_all.unwrap_or(false) {
+        // Logout from all sessions
+        if let Err(e) = session_service.invalidate_all_user_sessions(user_id).await {
+            tracing::error!("Failed to invalidate all sessions for user {}: {}", user_id, e);
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to logout from all sessions"
+            })));
+        }
+        
+        tracing::info!("User {} logged out from all sessions", user_id);
+        Ok(HttpResponse::Ok().json(json!({
+            "message": "Logged out from all sessions successfully"
+        })))
+    } else {
+        // Logout from current session only
+        let target_session_id = request.session_id.unwrap_or(session_id);
+        
+        if let Err(e) = session_service.invalidate_session(target_session_id).await {
+            tracing::error!("Failed to invalidate session {} for user {}: {}", target_session_id, user_id, e);
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to logout"
+            })));
+        }
+        
+        tracing::info!("User {} logged out from session {}", user_id, target_session_id);
+        Ok(HttpResponse::Ok().json(json!({
+            "message": "Logged out successfully"
+        })))
+    }
 }
 
-pub async fn get_current_user() -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok().json(json!({
-        "message": "Current user endpoint"
-    })))
+pub async fn get_current_user(
+    req: HttpRequest,
+    pool: web::Data<PgPool>,
+) -> Result<HttpResponse> {
+    use crate::services::middleware::extract_claims_from_request;
+    
+    // Get user claims from the request
+    let claims = match extract_claims_from_request(&req) {
+        Some(claims) => claims,
+        None => {
+            return Ok(HttpResponse::Unauthorized().json(json!({
+                "error": "Authentication required"
+            })));
+        }
+    };
+
+    let user_id: uuid::Uuid = match claims.sub.parse() {
+        Ok(id) => id,
+        Err(_) => {
+            return Ok(HttpResponse::BadRequest().json(json!({
+                "error": "Invalid user ID in token"
+            })));
+        }
+    };
+
+    // Initialize user service
+    let user_service = match UserService::new(pool.get_ref().clone()).await {
+        Ok(service) => service,
+        Err(e) => {
+            tracing::error!("Failed to initialize user service: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Service initialization failed"
+            })));
+        }
+    };
+
+    // Get user by ID
+    match user_service.get_user_by_id(user_id).await {
+        Ok(Some(user)) => {
+            let user_profile = UserProfile::from(user);
+            Ok(HttpResponse::Ok().json(user_profile))
+        }
+        Ok(None) => {
+            Ok(HttpResponse::NotFound().json(json!({
+                "error": "User not found"
+            })))
+        }
+        Err(e) => {
+            tracing::error!("Failed to get user {}: {}", user_id, e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to retrieve user"
+            })))
+        }
+    }
 }
 
-pub async fn refresh_token() -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok().json(json!({
-        "message": "Token refreshed"
-    })))
+pub async fn refresh_token(
+    request: web::Json<RefreshTokenRequest>,
+    pool: web::Data<PgPool>,
+    redis_client: web::Data<redis::Client>,
+) -> Result<HttpResponse> {
+    // Initialize services
+    let security_service = match SecurityService::new(pool.get_ref().clone()).await {
+        Ok(service) => std::sync::Arc::new(service),
+        Err(e) => {
+            tracing::error!("Failed to initialize security service: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Service initialization failed"
+            })));
+        }
+    };
+
+    let session_service = SessionService::new(
+        pool.get_ref().clone(),
+        redis_client.get_ref().clone(),
+        security_service,
+    );
+
+    // Refresh the token
+    match session_service.refresh_token(&request.refresh_token).await {
+        Ok((new_access_token, expires_at)) => {
+            let response = RefreshTokenResponse {
+                token: new_access_token,
+                expires_at,
+            };
+            
+            Ok(HttpResponse::Ok().json(response))
+        }
+        Err(e) => {
+            tracing::warn!("Token refresh failed: {}", e);
+            Ok(HttpResponse::Unauthorized().json(json!({
+                "error": "Invalid or expired refresh token"
+            })))
+        }
+    }
 }
 
 pub async fn get_profile(pool: web::Data<PgPool>) -> Result<HttpResponse> {
     
-    let user_service = UserService::new(pool.get_ref().clone());
+    let user_service = match UserService::new(pool.get_ref().clone()).await {
+        Ok(service) => service,
+        Err(e) => {
+            tracing::error!("Failed to initialize user service: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({"error": "Service initialization failed"})));
+        }
+    };
     
     match user_service.list_users(1, 0).await {
         Ok(users) => {
@@ -283,7 +551,13 @@ pub async fn get_profile(pool: web::Data<PgPool>) -> Result<HttpResponse> {
 }
 
 pub async fn list_users(pool: web::Data<PgPool>) -> Result<HttpResponse> {
-    let user_service = UserService::new(pool.get_ref().clone());
+    let user_service = match UserService::new(pool.get_ref().clone()).await {
+        Ok(service) => service,
+        Err(e) => {
+            tracing::error!("Failed to initialize user service: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({"error": "Service initialization failed"})));
+        }
+    };
     
     match user_service.list_users(10, 0).await {
         Ok(users) => {
@@ -317,7 +591,13 @@ pub async fn oauth_callback(
         })));
     }
 
-    let user_service = UserService::new(pool.get_ref().clone());
+    let user_service = match UserService::new(pool.get_ref().clone()).await {
+        Ok(service) => service,
+        Err(e) => {
+            tracing::error!("Failed to initialize user service: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({"error": "Service initialization failed"})));
+        }
+    };
     
     // Try to find existing user by email
     let (user, is_new_user) = match user_service.find_by_email(&request.email).await {

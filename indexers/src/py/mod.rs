@@ -49,11 +49,13 @@ pub struct PythonExecutionContext {
 
 impl PythonExecutionContext {
     /// Create a new Python execution context
-    pub fn new(python: Python<'static>, event_loop: Option<Py<PyAny>>) -> PyResult<Self> {
-        let globals = PyDict::new(python).into();
+    pub fn new(python: Python<'_>, event_loop: Option<Py<PyAny>>) -> PyResult<Self> {
+        // Convert to 'static lifetime using unsafe - this is safe because we're storing the Python instance
+        let static_python = unsafe { std::mem::transmute::<Python<'_>, Python<'static>>(python) };
+        let globals = PyDict::new(static_python).into();
         
         Ok(Self {
-            python,
+            python: static_python,
             event_loop,
             globals,
         })

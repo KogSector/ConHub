@@ -321,13 +321,7 @@ pub fn build_flow_setup_execution_context(
             .and_then(|flow_ss| flow_ss.seen_flow_metadata_version),
         tracking_table: db_tracking_setup::TrackingTableSetupState {
             table_name: existing_flow_ss
-                .and_then(|flow_ss| {
-                    flow_ss
-                        .tracking_table
-                        .current
-                        .as_ref()
-                        .map(|v| v.table_name.clone())
-                })
+                .map(|flow_ss| flow_ss.tracking_table.table_name.clone())
                 .unwrap_or_else(|| db_tracking_setup::default_tracking_table_name(&flow_inst.name)),
             version_id: db_tracking_setup::CURRENT_TRACKING_TABLE_VERSION,
             source_state_table_name: metadata
@@ -335,8 +329,7 @@ pub fn build_flow_setup_execution_context(
                 .contains(setup::flow_features::SOURCE_STATE_TABLE)
                 .then(|| {
                     existing_flow_ss
-                        .and_then(|flow_ss| flow_ss.tracking_table.current.as_ref())
-                        .and_then(|v| v.source_state_table_name.clone())
+                        .and_then(|flow_ss| flow_ss.tracking_table.source_state_table_name.clone())
                         .unwrap_or_else(|| {
                             db_tracking_setup::default_source_state_table_name(&flow_inst.name)
                         })

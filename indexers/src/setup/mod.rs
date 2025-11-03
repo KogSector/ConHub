@@ -124,6 +124,10 @@ impl<T> CombinedState<T> {
     pub fn possible_versions(&self) -> impl Iterator<Item = &T> {
         self.versions.iter()
     }
+
+    pub fn always_exists(&self) -> bool {
+        !self.versions.is_empty()
+    }
 }
 
 pub mod flow_features {
