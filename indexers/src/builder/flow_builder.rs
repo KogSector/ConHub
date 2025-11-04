@@ -1,5 +1,5 @@
 use crate::{
-    base::schema::EnrichedValueType, prelude::*, py::Pythonized, setup::ObjectSetupChange,
+    base::schema::EnrichedValueType, prelude::*, py::Pythonized,
 };
 
 use pyo3::{exceptions::PyException, prelude::*};

@@ -4,6 +4,7 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::env;
 use tracing::{info, error};
 use tracing_subscriber;
+use conhub_middleware::auth::AuthMiddlewareFactory;
 
 mod services;
 mod handlers;
@@ -44,6 +45,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // TODO: Initialize Qdrant client
     tracing::info!("✅ [Data Service] Qdrant connection configured");
 
+    // Initialize authentication middleware
+    let auth_middleware = AuthMiddlewareFactory::new()
+        .map_err(|e| {
+            tracing::error!("Failed to initialize auth middleware: {}", e);
+            e
+        })?;
+
+    tracing::info!("🔐 [Data Service] Authentication middleware initialized");
     tracing::info!("🚀 [Data Service] Starting on port {}", port);
 
     HttpServer::new(move || {
@@ -57,6 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .app_data(web::Data::new(pool.clone()))
             .wrap(cors)
             .wrap(Logger::default())
+            .wrap(auth_middleware.clone())
             .configure(configure_routes)
             .route("/health", web::get().to(health_check))
     })

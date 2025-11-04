@@ -9,6 +9,7 @@ use actix_web::{web, App, HttpServer};
 use actix_cors::Cors;
 use sqlx::postgres::PgPoolOptions;
 use std::io;
+use conhub_middleware::auth::AuthMiddlewareFactory;
 
 use config::AppConfig;
 use state::AppState;
@@ -49,6 +50,15 @@ async fn main() -> io::Result<()> {
 
     log::info!("Connected to Redis");
 
+    // Initialize authentication middleware
+    let auth_middleware = AuthMiddlewareFactory::new()
+        .map_err(|e| {
+            log::error!("Failed to initialize auth middleware: {}", e);
+            std::io::Error::new(std::io::ErrorKind::Other, e)
+        })?;
+
+    log::info!("🔐 [Backend Service] Authentication middleware initialized");
+
     // Initialize application state
     log::info!("Initializing application state...");
     let app_state = AppState::new(db_pool, redis_client, config.clone())
@@ -77,6 +87,8 @@ async fn main() -> io::Result<()> {
             )
             // Logging middleware
             .wrap(actix_web::middleware::Logger::default())
+            // Authentication middleware
+            .wrap(auth_middleware.clone())
             // Configure all routes
             .configure(routes::configure_routes)
     })

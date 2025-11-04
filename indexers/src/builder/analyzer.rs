@@ -681,7 +681,6 @@ impl AnalyzerContext {
             .spec
             .execution_options
             .get_concur_control_options();
-        let global_concurrency_controller = self.lib_ctx.global_concurrency_controller.clone();
         let result_fut = async move {
             trace!("Start building executor for source op `{op_name}`");
             let executor = executor
@@ -696,7 +695,6 @@ impl AnalyzerContext {
                 refresh_options: import_op.spec.refresh_options,
                 concurrency_controller: concur_control::CombinedConcurrencyController::new(
                     &concur_control_options,
-                    global_concurrency_controller,
                 ),
             })
         };

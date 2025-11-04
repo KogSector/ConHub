@@ -1044,7 +1044,7 @@ impl TargetFactoryBase for Factory {
                 .push(change);
         }
         for (conn, changes) in changes_by_conn.into_iter() {
-            let conn_spec = context.auth_registry.get::<ConnectionSpec>(&conn)?;
+            let conn_spec = context.auth_registry.get_spec::<ConnectionSpec>(&conn)?;
             let kuzu_client = KuzuThinClient::new(&conn_spec, self.reqwest_client.clone());
 
             let (node_changes, rel_changes): (Vec<_>, Vec<_>) =

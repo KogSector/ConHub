@@ -10,7 +10,7 @@ use crate::{ops::sdk::*, setup::CombinedState};
 
 use pyo3::indoc::formatdoc;
 use pyo3::Python;
-use neo4rs::{BoltFloat, BoltInteger, BoltList, BoltNull, BoltString, BoltType, ConfigBuilder, Graph};
+use neo4rs::{BoltBoolean, BoltBytes, BoltFloat, BoltInteger, BoltList, BoltNull, BoltString, BoltType, ConfigBuilder, Graph};
 use std::fmt::Write;
 use tokio::sync::OnceCell;
 use crate::ops::interface::AuthRegistry;
@@ -117,7 +117,7 @@ pub struct ExportContext {
 fn json_value_to_bolt_value(value: &serde_json::Value) -> Result<BoltType> {
     let bolt_value = match value {
         serde_json::Value::Null => BoltType::Null(BoltNull),
-        serde_json::Value::Bool(v) => BoltType::Boolean(*v),
+        serde_json::Value::Bool(v) => BoltType::Boolean(BoltBoolean { value: *v }),
         serde_json::Value::Number(v) => {
             if let Some(i) = v.as_i64() {
                 BoltType::Integer(BoltInteger { value: i })
@@ -134,11 +134,12 @@ fn json_value_to_bolt_value(value: &serde_json::Value) -> Result<BoltType> {
                 .collect::<Result<Vec<_>>>()?
                 .into(),
         ),
-        serde_json::Value::Object(v) => BoltType::Map(
-            v.into_iter()
+        serde_json::Value::Object(v) => {
+            let map: std::collections::HashMap<String, BoltType> = v.into_iter()
                 .map(|(k, v)| Ok((k.clone(), json_value_to_bolt_value(v)?)))
-                .collect::<Result<_>>()?,
-        ),
+                .collect::<Result<_>>()?;
+            BoltType::Map(map.into())
+        },
     };
     Ok(bolt_value)
 }
@@ -151,16 +152,17 @@ fn field_values_to_bolt<'a>(
     field_values: impl IntoIterator<Item = &'a value::Value>,
     schema: impl IntoIterator<Item = &'a schema::FieldSchema>,
 ) -> Result<BoltType> {
-    let bolt_value = BoltType::Map(
-        std::iter::zip(schema, field_values)
+    let bolt_value = BoltType::Map({
+        let map: std::collections::HashMap<String, BoltType> = std::iter::zip(schema, field_values)
             .map(|(schema, value)| {
                 Ok((
                     schema.name.clone(),
                     value_to_bolt(value, &schema.value_type.typ)?,
                 ))
             })
-            .collect::<Result<_>>()?,
-    );
+            .collect::<Result<_>>()?;
+        map.into()
+    });
     Ok(bolt_value)
 }
 
@@ -169,24 +171,25 @@ fn mapped_field_values_to_bolt(
     fields_input_idx: &[usize],
     field_values: &FieldValues,
 ) -> Result<BoltType> {
-    let bolt_value = BoltType::Map(
-        std::iter::zip(fields_schema.iter(), fields_input_idx.iter())
+    let bolt_value = BoltType::Map({
+        let map: std::collections::HashMap<String, BoltType> = std::iter::zip(fields_schema.iter(), fields_input_idx.iter())
             .map(|(schema, field_idx)| {
                 Ok((
                     schema.name.clone(),
                     value_to_bolt(&field_values.fields[*field_idx], &schema.value_type.typ)?,
                 ))
             })
-            .collect::<Result<_>>()?,
-    );
+            .collect::<Result<_>>()?;
+        map.into()
+    });
     Ok(bolt_value)
 }
 
 fn basic_value_to_bolt(value: &BasicValue, schema: &BasicValueType) -> Result<BoltType> {
     let bolt_value = match value {
-        BasicValue::Bytes(v) => BoltType::Bytes(Bytes::from(v.clone())),
+        BasicValue::Bytes(v) => BoltType::Bytes(BoltBytes { value: Bytes::from(v.clone()) }),
         BasicValue::Str(v) => BoltType::String(BoltString { value: v.clone() }),
-        BasicValue::Bool(v) => BoltType::Boolean(*v),
+        BasicValue::Bool(v) => BoltType::Boolean(BoltBoolean { value: *v }),
         BasicValue::Int64(v) => BoltType::Integer(BoltInteger { value: *v }),
         BasicValue::Float64(v) => BoltType::Float(BoltFloat { value: *v }),
         BasicValue::Float32(v) => BoltType::Float(BoltFloat { value: *v as f64 }),

@@ -4,6 +4,7 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::env;
 use tracing::{info, error};
 use tracing_subscriber;
+use conhub_middleware::auth::AuthMiddlewareFactory;
 
 mod handlers;
 mod services;
@@ -39,6 +40,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stripe_key = env::var("STRIPE_SECRET_KEY")
         .expect("STRIPE_SECRET_KEY must be set");
 
+    // Initialize authentication middleware
+    let auth_middleware = AuthMiddlewareFactory::new()
+        .map_err(|e| {
+            tracing::error!("Failed to initialize auth middleware: {}", e);
+            e
+        })?;
+
+    tracing::info!("🔐 [Billing Service] Authentication middleware initialized");
     tracing::info!("🚀 [Billing Service] Starting on port {}", port);
 
     HttpServer::new(move || {
@@ -53,6 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .app_data(web::Data::new(stripe_key.clone()))
             .wrap(cors)
             .wrap(Logger::default())
+            .wrap(auth_middleware.clone())
             .configure(configure_routes)
             .route("/health", web::get().to(health_check))
     })

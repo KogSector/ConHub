@@ -22,6 +22,7 @@ futures-util = "0.3"
 
 # JWT and auth
 jsonwebtoken = "9.2"
+rsa = "0.9"
 
 # Logging
 tracing = "0.1"
@@ -40,3 +41,12 @@ uuid = { version = "1.6", features = ["v4", "serde"] }
 
 # Date/time
 chrono = { version = "0.4", features = ["serde"] }
+
+# Redis for distributed rate limiting
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
+# Regex for CORS wildcard matching
+regex = "1.10"
+
+# Random number generation
+rand = "0.8"

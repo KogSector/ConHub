@@ -357,9 +357,19 @@ impl OAuthService {
                 subscription_tier,
                 is_verified: user.get("is_verified"),
                 is_active: user.get("is_active"),
+                is_locked: user.get("is_locked"),
+                failed_login_attempts: user.get("failed_login_attempts"),
+                locked_until: user.get("locked_until"),
+                password_changed_at: user.get("password_changed_at"),
+                email_verified_at: user.get("email_verified_at"),
+                two_factor_enabled: user.get("two_factor_enabled"),
+                two_factor_secret: user.get("two_factor_secret"),
+                backup_codes: user.get("backup_codes"),
                 created_at: user.get("created_at"),
                 updated_at: user.get("updated_at"),
                 last_login_at: user.get("last_login_at"),
+                last_login_ip: user.get("last_login_ip"),
+                last_password_reset: user.get("last_password_reset"),
             });
         }
 
@@ -415,7 +425,9 @@ impl OAuthService {
             r#"
             SELECT id, email, password_hash, name, avatar_url, organization,
                    role::text as role, subscription_tier::text as subscription_tier,
-                   is_verified, is_active, created_at, updated_at, last_login_at
+                   is_verified, is_active, is_locked, failed_login_attempts, locked_until,
+                   password_changed_at, email_verified_at, two_factor_enabled, two_factor_secret,
+                   backup_codes, created_at, updated_at, last_login_at, last_login_ip, last_password_reset
             FROM users
             WHERE id = $1
             "#
@@ -443,9 +455,19 @@ impl OAuthService {
             },
             is_verified: user.get("is_verified"),
             is_active: user.get("is_active"),
+            is_locked: user.get("is_locked"),
+            failed_login_attempts: user.get("failed_login_attempts"),
+            locked_until: user.get("locked_until"),
+            password_changed_at: user.get("password_changed_at"),
+            email_verified_at: user.get("email_verified_at"),
+            two_factor_enabled: user.get("two_factor_enabled"),
+            two_factor_secret: user.get("two_factor_secret"),
+            backup_codes: user.get("backup_codes"),
             created_at: user.get("created_at"),
             updated_at: user.get("updated_at"),
             last_login_at: user.get("last_login_at"),
+            last_login_ip: user.get("last_login_ip"),
+            last_password_reset: user.get("last_password_reset"),
         })
     }
 

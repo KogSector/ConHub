@@ -7,6 +7,8 @@ use tracing_subscriber;
 mod services;
 mod handlers;
 
+use services::{AuthMiddlewareFactory, role_auth_middleware};
+
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
@@ -65,14 +67,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn configure_routes(cfg: &mut web::ServiceConfig) {
+    use conhub_models::auth::UserRole;
+    
     cfg.service(
         web::scope("/api/auth")
             .route("/login", web::post().to(handlers::auth::login))
             .route("/register", web::post().to(handlers::auth::register))
-            .route("/logout", web::post().to(handlers::auth::logout))
-            .route("/me", web::get().to(handlers::auth::get_current_user))
-            .route("/refresh", web::post().to(handlers::auth::refresh_token))
-            // OAuth routes
+            .route("/forgot-password", web::post().to(handlers::auth::forgot_password))
+            .route("/reset-password", web::post().to(handlers::auth::reset_password))
+            .service(
+                web::scope("")
+                    .wrap(AuthMiddlewareFactory::new())
+                    .route("/logout", web::post().to(handlers::auth::logout))
+                    .route("/me", web::get().to(handlers::auth::get_current_user))
+                    .route("/refresh", web::post().to(handlers::auth::refresh_token))
+                    .route("/profile", web::get().to(handlers::auth::get_profile))
+                    .service(
+                        web::scope("/admin")
+                            .wrap(role_auth_middleware(vec![UserRole::Admin]))
+                            .route("/users", web::get().to(handlers::auth::list_users))
+                    )
+            )
+            // OAuth routes (public)
             .route("/oauth/{provider}", web::get().to(handlers::oauth::oauth_login))
             .route("/oauth/{provider}/callback", web::get().to(handlers::oauth::oauth_callback))
     );
