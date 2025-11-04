@@ -54,7 +54,7 @@ async fn main() -> io::Result<()> {
     let auth_middleware = AuthMiddlewareFactory::new()
         .map_err(|e| {
             log::error!("Failed to initialize auth middleware: {}", e);
-            std::io::Error::new(std::io::ErrorKind::Other, e)
+            std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
         })?;
 
     log::info!("🔐 [Backend Service] Authentication middleware initialized");
