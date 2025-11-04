@@ -9,7 +9,7 @@ param(
     [string]$ContainerAppEnvironmentName,
     
     [Parameter(Mandatory=$true)]
-    [string]$ContainerRegistryName,
+    [string]$DockerHubUsername,
     
     [Parameter(Mandatory=$false)]
     [string]$Location = "East US",
@@ -176,7 +176,7 @@ New-ContainerAppEnvironment -Name $ContainerAppEnvironmentName -ResourceGroup $R
 # Define services configuration
 $services = @{
     "conhub-backend" = @{
-        Image = "$ContainerRegistryName.azurecr.io/conhub-backend:$ImageTag"
+        Image = "$DockerHubUsername/conhub-backend:$ImageTag"
         Port = 8000
         EnvVars = @{
             "PORT" = "8000"
@@ -188,7 +188,7 @@ $services = @{
         MaxReplicas = 5
     }
     "conhub-auth" = @{
-        Image = "$ContainerRegistryName.azurecr.io/conhub-auth:$ImageTag"
+        Image = "$DockerHubUsername/conhub-auth:$ImageTag"
         Port = 8001
         EnvVars = @{
             "PORT" = "8001"
@@ -200,7 +200,7 @@ $services = @{
         MaxReplicas = 3
     }
     "conhub-billing" = @{
-        Image = "$ContainerRegistryName.azurecr.io/conhub-billing:$ImageTag"
+        Image = "$DockerHubUsername/conhub-billing:$ImageTag"
         Port = 8002
         EnvVars = @{
             "PORT" = "8002"
@@ -212,7 +212,7 @@ $services = @{
         MaxReplicas = 3
     }
     "conhub-security" = @{
-        Image = "$ContainerRegistryName.azurecr.io/conhub-security:$ImageTag"
+        Image = "$DockerHubUsername/conhub-security:$ImageTag"
         Port = 8003
         EnvVars = @{
             "PORT" = "8003"
@@ -224,7 +224,7 @@ $services = @{
         MaxReplicas = 3
     }
     "conhub-data" = @{
-        Image = "$ContainerRegistryName.azurecr.io/conhub-data:$ImageTag"
+        Image = "$DockerHubUsername/conhub-data:$ImageTag"
         Port = 8004
         EnvVars = @{
             "PORT" = "8004"
@@ -236,7 +236,7 @@ $services = @{
         MaxReplicas = 4
     }
     "conhub-ai" = @{
-        Image = "$ContainerRegistryName.azurecr.io/conhub-ai:$ImageTag"
+        Image = "$DockerHubUsername/conhub-ai:$ImageTag"
         Port = 8005
         EnvVars = @{
             "PORT" = "8005"
@@ -248,7 +248,7 @@ $services = @{
         MaxReplicas = 3
     }
     "conhub-webhook" = @{
-        Image = "$ContainerRegistryName.azurecr.io/conhub-webhook:$ImageTag"
+        Image = "$DockerHubUsername/conhub-webhook:$ImageTag"
         Port = 8006
         EnvVars = @{
             "PORT" = "8006"
@@ -260,7 +260,7 @@ $services = @{
         MaxReplicas = 3
     }
     "conhub-plugins" = @{
-        Image = "$ContainerRegistryName.azurecr.io/conhub-plugins:$ImageTag"
+        Image = "$DockerHubUsername/conhub-plugins:$ImageTag"
         Port = 8007
         EnvVars = @{
             "PORT" = "8007"

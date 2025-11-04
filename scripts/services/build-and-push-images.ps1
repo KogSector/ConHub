@@ -1,8 +1,8 @@
-# Build and Push Docker Images to Azure Container Registry
+# Build and Push Docker Images to Docker Hub
 
 param(
     [Parameter(Mandatory=$true)]
-    [string]$ContainerRegistryName,
+    [string]$DockerHubUsername,
 
     [Parameter(Mandatory=$false)]
     [string]$ImageTag = "latest"
@@ -17,18 +17,17 @@ function Write-ColorOutput {
     Write-Host $Message -ForegroundColor $Color
 }
 
-# Function to login to Azure Container Registry
-function Connect-ACR {
-    param([string]$RegistryName)
-    
-    Write-ColorOutput "🔐 Logging in to Azure Container Registry '$RegistryName'..." "Yellow"
-    az acr login --name $RegistryName
+# Function to login to Docker Hub
+function Connect-DockerHub {
+    Write-ColorOutput "🔐 Logging in to Docker Hub..." "Yellow"
+    # This will prompt for your username and password
+    docker login
     if ($LASTEXITCODE -eq 0) {
-        Write-ColorOutput "✓ Successfully logged in to ACR" "Green"
+        Write-ColorOutput "✓ Successfully logged in to Docker Hub" "Green"
         return $true
     }
     else {
-        Write-ColorOutput "✗ Failed to login to ACR" "Red"
+        Write-ColorOutput "✗ Failed to login to Docker Hub" "Red"
         return $false
     }
 }
@@ -40,18 +39,16 @@ $services = @(
 )
 
 # Main script
-Write-ColorOutput "🚀 Starting Docker image build and push process" "Cyan"
-Write-ColorOutput "===============================================" "Cyan"
+Write-ColorOutput "🚀 Starting Docker image build and push process to Docker Hub" "Cyan"
+Write-ColorOutput "============================================================" "Cyan"
 
-if (-not (Connect-ACR -RegistryName $ContainerRegistryName)) {
+if (-not (Connect-DockerHub)) {
     exit 1
 }
 
-$registryUrl = "$ContainerRegistryName.azurecr.io"
-
 foreach ($service in $services) {
     $imageName = "conhub-$service"
-    $imageFullName = "$registryUrl/$imageName`:$ImageTag"
+    $imageFullName = "$DockerHubUsername/$imageName`:$ImageTag"
     $dockerfilePath = "$PSScriptRoot/../../$service/Dockerfile"
     $buildContext = "$PSScriptRoot/../../"
 
@@ -78,4 +75,4 @@ foreach ($service in $services) {
     Write-ColorOutput "" "White"
 }
 
-Write-ColorOutput "🎉 All images have been built and pushed successfully!" "Green"
+Write-ColorOutput "🎉 All images have been built and pushed successfully to Docker Hub!" "Green"
