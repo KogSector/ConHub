@@ -20,7 +20,7 @@ export function ApiStatus({ showDetails = false, className = '' }: ApiStatusProp
       setStatus(isHealthy ? 'connected' : 'disconnected');
       setLastCheck(new Date());
     } catch (error) {
-      console.error('API status check failed:', error);
+      console.error('API status checking failed:', error);
       setStatus('disconnected');
       setLastCheck(new Date());
     }
