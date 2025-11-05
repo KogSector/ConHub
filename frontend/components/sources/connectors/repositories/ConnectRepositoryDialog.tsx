@@ -1,17 +1,17 @@
 'use client';
 
-import { useToast } from "@/hooks/use-toast";
 import { useMemo, useState } from "react";
+import type { ChangeEvent } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { apiClient, ApiResponse } from '@/lib/api';
+import { dataApiClient, ApiResponse } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { GitBranch, Github, GitlabIcon, GitlabIcon as Bitbucket, AlertCircle } from 'lucide-react';
+import { GitBranch, Github, GitlabIcon, AlertCircle } from 'lucide-react';
+import { BitbucketIcon } from '@/components/icons/BitbucketIcon';
 
 interface ConnectRepositoryDialogProps {
   open: boolean;
@@ -20,11 +20,18 @@ interface ConnectRepositoryDialogProps {
 }
 
 export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: ConnectRepositoryDialogProps) {
-  const [provider, setProvider] = useState('');
+  const [provider, setProvider] = useState('__placeholder');
   const [name, setName] = useState('');
   const [repositoryUrl, setRepositoryUrl] = useState('');
   const [credentials, setCredentials] = useState<Record<string, string>>({});
-  const [config, setConfig] = useState<Record<string, any>>({
+  interface RepositoryConfigUI {
+    includeReadme: boolean;
+    includeCode: boolean;
+    defaultBranch: string;
+    enableWebhooks: boolean;
+    fileExtensions: string[];
+  }
+  const [config, setConfig] = useState<RepositoryConfigUI>({
     includeReadme: true,
     includeCode: true,
     defaultBranch: 'main',
@@ -33,11 +40,10 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [branches, setBranches] = useState<string[]>([]);
-  const [selectedBranch, setSelectedBranch] = useState('');
   const [isFetchingBranches, setIsFetchingBranches] = useState(false);
   const [fetchBranchesError, setFetchBranchesError] = useState<string | null>(null);
+  const isProviderSelected = provider === 'github' || provider === 'gitlab' || provider === 'bitbucket';
 
   const isUrlValid = useMemo(() => {
     if (!repositoryUrl) return false;
@@ -72,7 +78,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
 
   const handleFetchBranches = async () => {
     
-    if (!repositoryUrl || !provider) {
+    if (!repositoryUrl || !isProviderSelected) {
       setFetchBranchesError("Please enter a repository URL and select a provider first.");
       return;
     }
@@ -115,36 +121,19 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
 
     try {
       
-      let credentialsPayload;
+      let credentialsPayload: Record<string, string> | undefined;
       if (provider === 'github' || provider === 'gitlab') {
         credentialsPayload = {
-          credential_type: {
-            PersonalAccessToken: {
-              token: credentials.accessToken.trim()
-            }
-          },
-          expires_at: null
+          token: credentials.accessToken.trim()
         };
       } else if (provider === 'bitbucket') {
         credentialsPayload = {
-          credential_type: {
-            AppPassword: {
-              username: credentials.username.trim(),
-              app_password: credentials.appPassword.trim()
-            }
-          },
-          expires_at: null
+          username: credentials.username.trim(),
+          app_password: credentials.appPassword.trim()
         };
       }
 
-      
-      const urlResp = await apiClient.post<ApiResponse>('/api/repositories/validate-url', { repo_url: repositoryUrl.trim() });
-      if (!urlResp.success) {
-        throw new Error(urlResp.error || 'Invalid repository URL format.');
-      }
-
-      
-      const resp = await apiClient.post<ApiResponse<{ branches: string[]; default_branch?: string }>>('/api/repositories/fetch-branches', { repo_url: repositoryUrl.trim(), credentials: credentialsPayload });
+      const resp = await dataApiClient.post<ApiResponse<{ branches: string[]; default_branch?: string }>>('/api/data/sources/branches', { repoUrl: repositoryUrl.trim(), credentials: credentialsPayload });
       if (!resp.success) {
         throw new Error(resp.error || 'Failed to fetch branches.');
       }
@@ -202,8 +191,8 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
           name: name || extractRepoName(repositoryUrl) || `${provider}-${Date.now()}`
         } 
       };
-      
-      const resp = await apiClient.post<ApiResponse>('/api/data-sources/connect', payload);
+
+      const resp = await dataApiClient.post<ApiResponse>('/api/data/sources', payload);
       if (resp.success) {
         onSuccess();
         onOpenChange(false);
@@ -274,7 +263,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   : "glpat-xxxxxxxxxxxxxxxxxxxx"
                 }
                 value={credentials.accessToken || ''}
-                onChange={(e) => setCredentials({ ...credentials, accessToken: e.target.value })}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setCredentials({ ...credentials, accessToken: e.target.value })}
                 className="mt-2"
               />
               <div className="space-y-2 text-xs text-muted-foreground">
@@ -330,14 +319,14 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   <ol className="mt-1 space-y-1 ml-4">
                     {isGitHub ? (
                       <>
-                        <li>1. Click "Manage Classic Tokens" above</li>
+                        <li>1. Click &quot;Manage Classic Tokens&quot; above</li>
                         <li>2. Generate new token (classic)</li>
                         <li>3. Select <code>public_repo</code> or <code>repo</code> scope</li>
                         <li>4. Copy the token and paste it above</li>
                       </>
                     ) : (
                       <>
-                        <li>1. Click "Create GitLab Token" above</li>
+                        <li>1. Click &quot;Create GitLab Token&quot; above</li>
                         <li>2. Enter token name and expiration</li>
                         <li>3. Select <code>read_repository</code> and <code>read_api</code> scopes</li>
                         <li>4. Copy the token and paste it above</li>
@@ -374,7 +363,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
               <Input
                 id="username"
                 value={credentials.username || ''}
-                onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setCredentials({ ...credentials, username: e.target.value })}
                 className="mt-2"
               />
             </div>
@@ -384,7 +373,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                 id="appPassword"
                 type="password"
                 value={credentials.appPassword || ''}
-                onChange={(e) => setCredentials({ ...credentials, appPassword: e.target.value })}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setCredentials({ ...credentials, appPassword: e.target.value })}
                 className="mt-2"
               />
               <p className="text-xs text-muted-foreground mt-2">
@@ -427,7 +416,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
             <Input
               id="name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
               placeholder={repositoryUrl ? extractRepoName(repositoryUrl) : "Auto-generated from repository URL"}
               className="mt-2"
             />
@@ -443,6 +432,12 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                 <SelectValue placeholder="Select a repository provider" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="__placeholder">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 inline-block" />
+                    Select a repository provider
+                  </div>
+                </SelectItem>
                 <SelectItem value="github">
                   <div className="flex items-center gap-2">
                     <Github className="w-4 h-4" />
@@ -457,7 +452,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                 </SelectItem>
                 <SelectItem value="bitbucket">
                   <div className="flex items-center gap-2">
-                    <Bitbucket className="w-4 h-4" />
+                    <BitbucketIcon className="w-4 h-4" />
                     BitBucket
                   </div>
                 </SelectItem>
@@ -465,7 +460,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
             </Select>
           </div>
 
-          {provider && (
+          {isProviderSelected && (
             <div className="space-y-3">
               <Label htmlFor="repositoryUrl" className="text-sm font-medium">Repository URL</Label>
               <div className="flex items-center gap-2">
@@ -473,12 +468,12 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   id="repositoryUrl"
                   placeholder="https://github.com/user/repo.git"
                   value={repositoryUrl}
-                  onChange={(e) => setRepositoryUrl(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setRepositoryUrl(e.target.value)}
                 />
                 <Button
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                   onClick={handleFetchBranches}
-                  disabled={isFetchingBranches || !isUrlValid || !provider}
+                  disabled={isFetchingBranches || !isUrlValid || !isProviderSelected}
                 >
                   {isFetchingBranches ? 'Validating...' : 'Check'}
                 </Button>
@@ -496,9 +491,9 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
             </div>
           )}
 
-          {provider && renderCredentialFields()}
+          {isProviderSelected && renderCredentialFields()}
 
-          {provider && (
+          {isProviderSelected && (
             <div className="space-y-6 border-t pt-6">
               <h4 className="font-medium text-base">Configuration Options</h4>
               
@@ -564,7 +559,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                         onClick={() => {
                           const extensions = config.fileExtensions || [];
                           const newExtensions = extensions.includes(ext) 
-                            ? extensions.filter(e => e !== ext)
+                            ? extensions.filter((x) => x !== ext)
                             : [...extensions, ext];
                           setConfig({ ...config, fileExtensions: newExtensions });
                         }}
@@ -584,7 +579,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
             </Button>
             <Button 
               onClick={handleConnect} 
-              disabled={!provider || !repositoryUrl || loading || (!credentials.accessToken && !credentials.username)}
+              disabled={!isProviderSelected || !repositoryUrl || loading || (!credentials.accessToken && !credentials.username)}
             >
               {loading ? 'Connecting...' : 'Connect Repository'}
             </Button>

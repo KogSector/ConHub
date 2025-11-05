@@ -267,6 +267,12 @@ export class ApiClient {
 
 export const apiClient = new ApiClient();
 
+// Dedicated client for the Data service (repositories, data-sources)
+// Uses NEXT_PUBLIC_DATA_SERVICE_URL or defaults to local dev port 3013
+export const dataApiClient = new ApiClient(
+  process.env.NEXT_PUBLIC_DATA_SERVICE_URL || 'http://localhost:3013'
+);
+
 /**
  * Safely extract the `data` field from an API response or return the value itself.
  * Avoids use of `any` in callers by operating on unknown.
