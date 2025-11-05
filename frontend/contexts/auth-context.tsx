@@ -188,7 +188,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // If login is disabled, provide a mock authenticated session immediately
     if (!loginEnabled) {
-      setUser(devUser)
+      // Bypass auth but do not auto-login; keep unauthenticated
+      setUser(null)
       setToken(null)
       setIsLoading(false)
       return
@@ -210,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearSession()
       setIsLoading(false)
     }
-  }, [loginEnabled, devUser, updateLastActivity, verifyToken, clearSession])
+  }, [loginEnabled, updateLastActivity, verifyToken, clearSession])
 
   
   useEffect(() => {
@@ -232,6 +233,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     setIsLoading(true)
     try {
+      // Bypass login when auth is disabled
+      if (!loginEnabled) {
+        setUser(devUser)
+        setToken(null)
+        router.push('/dashboard')
+        return
+      }
       const result = await apiClient.post<ApiResponse<AuthResponse>>('/api/auth/login', { email, password })
 
       if (result?.success && result.data) {
@@ -254,6 +262,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterData) => {
     setIsLoading(true)
     try {
+      // Bypass registration when auth is disabled
+      if (!loginEnabled) {
+        setUser(devUser)
+        setToken(null)
+        router.push('/dashboard')
+        return
+      }
       const result = await apiClient.post<ApiResponse<AuthResponse>>('/api/auth/register', data)
 
       if (result?.success && result.data) {
