@@ -1,9 +1,10 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { apiClient } from '@/lib/api';
+import { apiClient, ApiResponse } from '@/lib/api';
 import { API_CONFIG } from '@/lib/config';
+import { isLoginEnabled } from '@/lib/feature-toggles';
 
 export interface User {
   id: string
@@ -61,6 +62,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
+  const loginEnabled = isLoginEnabled()
+
+  // Default dev user when auth is disabled
+  const devUser: User = useMemo(() => ({
+    id: 'dev-user',
+    email: 'dev@conhub.local',
+    name: 'Development User',
+    avatar_url: undefined,
+    organization: 'ConHub Dev',
+    role: 'admin',
+    subscription_tier: 'enterprise',
+    is_verified: true,
+    created_at: new Date().toISOString(),
+    last_login_at: new Date().toISOString()
+  }), [])
 
   
   const saveSession = (token: string, expiresAt: string) => {
@@ -83,13 +99,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const updateLastActivity = () => {
+  const updateLastActivity = useCallback(() => {
     const session = getSession()
     if (session) {
       session.last_activity = new Date().toISOString()
       localStorage.setItem('auth_session', JSON.stringify(session))
     }
-  }
+  }, [])
 
   const isSessionValid = (session: SessionData): boolean => {
     const now = new Date().getTime()
@@ -99,51 +115,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return now < expiresAt && (now - lastActivity) < SESSION_TIMEOUT
   }
 
-  const clearSession = () => {
+  const clearSession = useCallback(() => {
     localStorage.removeItem('auth_session')
     localStorage.removeItem('auth_token')
     setToken(null)
     setUser(null)
-  }
+  }, [])
 
-  useEffect(() => {
-    
-    const session = getSession()
-    if (session && isSessionValid(session)) {
-      setToken(session.token)
-      updateLastActivity()
-      
-      const timeoutId = setTimeout(() => {
-        setIsLoading(false)
-      }, 3000) 
-      
-      verifyToken(session.token).finally(() => {
-        clearTimeout(timeoutId)
-      })
-    } else {
-      clearSession()
-      setIsLoading(false)
+  // Fetch the user profile using the current token
+  const fetchUserProfile = useCallback(async (authToken: string) => {
+    try {
+      const result = await apiClient.get<ApiResponse<User>>('/api/auth/profile', { Authorization: `Bearer ${authToken}` })
+      if (result?.success && result.data) {
+        setUser(result.data)
+      } else {
+        throw new Error('Failed to fetch user profile')
+      }
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error)
+      localStorage.removeItem('auth_token')
+      setToken(null)
+      setUser(null)
     }
   }, [])
 
-  
-  useEffect(() => {
-    if (token) {
-      const handleActivity = () => updateLastActivity()
-      
-      window.addEventListener('mousedown', handleActivity)
-      window.addEventListener('keydown', handleActivity)
-      window.addEventListener('scroll', handleActivity)
-      
-      return () => {
-        window.removeEventListener('mousedown', handleActivity)
-        window.removeEventListener('keydown', handleActivity)
-        window.removeEventListener('scroll', handleActivity)
-      }
+  // Verify the token with the backend and update session/user state accordingly
+  const verifyToken = useCallback(async (tokenToVerify: string) => {
+    // Skip verification entirely when login is disabled
+    if (!loginEnabled) {
+      setIsLoading(false)
+      return
     }
-  }, [token])
-
-  const verifyToken = async (tokenToVerify: string) => {
     try {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 2000)
@@ -169,13 +171,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         clearSession()
       }
-    } catch (error) {
-      console.error('Token verification failed:', error)
-      
-      
-      if (error.name === 'AbortError') {
+    } catch (err: unknown) {
+      console.error('Token verification failed:', err)
+      const isAbort = err instanceof Error && err.name === 'AbortError'
+      if (isAbort) {
         console.log('Token verification timed out, keeping session for offline use')
-        
         setUser(null)
       } else {
         clearSession()
@@ -183,30 +183,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [loginEnabled, fetchUserProfile, clearSession])
 
-  const fetchUserProfile = async (authToken: string) => {
-    try {
-      const result = await apiClient.get('/api/auth/profile', { Authorization: `Bearer ${authToken}` }) as any;
-      if (result?.success) {
-        setUser(result.data)
-      } else {
-        throw new Error('Failed to fetch user profile')
-      }
-    } catch (error) {
-      console.error('Failed to fetch user profile:', error)
-      localStorage.removeItem('auth_token')
+  useEffect(() => {
+    // If login is disabled, provide a mock authenticated session immediately
+    if (!loginEnabled) {
+      setUser(devUser)
       setToken(null)
-      setUser(null)
+      setIsLoading(false)
+      return
     }
-  }
+
+    const session = getSession()
+    if (session && isSessionValid(session)) {
+      setToken(session.token)
+      updateLastActivity()
+      
+      const timeoutId = setTimeout(() => {
+        setIsLoading(false)
+      }, 3000) 
+      
+      verifyToken(session.token).finally(() => {
+        clearTimeout(timeoutId)
+      })
+    } else {
+      clearSession()
+      setIsLoading(false)
+    }
+  }, [loginEnabled, devUser, updateLastActivity, verifyToken, clearSession])
+
+  
+  useEffect(() => {
+    if (token) {
+      const handleActivity = () => updateLastActivity()
+      
+      window.addEventListener('mousedown', handleActivity)
+      window.addEventListener('keydown', handleActivity)
+      window.addEventListener('scroll', handleActivity)
+      
+      return () => {
+        window.removeEventListener('mousedown', handleActivity)
+        window.removeEventListener('keydown', handleActivity)
+        window.removeEventListener('scroll', handleActivity)
+      }
+    }
+  }, [token, updateLastActivity])
 
   const login = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      const result = await apiClient.post('/api/auth/login', { email, password }) as any;
+      const result = await apiClient.post<ApiResponse<AuthResponse>>('/api/auth/login', { email, password })
 
-      if (result?.success) {
+      if (result?.success && result.data) {
         const data: AuthResponse = result.data
         setUser(data.user)
         setToken(data.token)
@@ -226,9 +254,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterData) => {
     setIsLoading(true)
     try {
-      const result = await apiClient.post('/api/auth/register', data) as any;
+      const result = await apiClient.post<ApiResponse<AuthResponse>>('/api/auth/register', data)
 
-      if (result?.success) {
+      if (result?.success && result.data) {
         const authData: AuthResponse = result.data
         setUser(authData.user)
         setToken(authData.token)
@@ -254,9 +282,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) throw new Error('No authentication token')
 
     try {
-      const result = await apiClient.put('/api/auth/profile', data, { Authorization: `Bearer ${token}` }) as any;
+      const result = await apiClient.put<ApiResponse<User>>('/api/auth/profile', data, { Authorization: `Bearer ${token}` })
 
-      if (result?.success) {
+      if (result?.success && result.data) {
         setUser(result.data)
       } else {
         throw new Error(result?.error || 'Profile update failed')
@@ -271,10 +299,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) throw new Error('No authentication token')
 
     try {
-      const result = await apiClient.post('/api/auth/change-password', {
+      const result = await apiClient.post<ApiResponse>('/api/auth/change-password', {
         current_password: currentPassword,
         new_password: newPassword,
-      }, { Authorization: `Bearer ${token}` }) as any;
+      }, { Authorization: `Bearer ${token}` })
 
       if (!result?.success) {
         throw new Error(result?.error || 'Password change failed')

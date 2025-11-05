@@ -2,7 +2,8 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
+import { isLoginEnabled } from '@/lib/feature-toggles'
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -10,21 +11,24 @@ interface AuthGuardProps {
   redirectTo?: string
 }
 
-export function AuthGuard({ 
-  children, 
-  requireAuth = true, 
-  redirectTo = '/auth/login' 
+export function AuthGuard({
+  children,
+  requireAuth = true,
+  redirectTo = '/auth/login'
 }: AuthGuardProps) {
   const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
 
+  // If login is disabled, bypass auth requirements entirely
+  const authRequired = requireAuth && isLoginEnabled()
+
   useEffect(() => {
-    if (!isLoading && requireAuth && !isAuthenticated) {
+    if (!isLoading && authRequired && !isAuthenticated) {
       router.push(redirectTo)
     }
-  }, [isAuthenticated, isLoading, requireAuth, redirectTo, router])
+  }, [isAuthenticated, isLoading, authRequired, redirectTo, router])
 
-  if (isLoading) {
+  if (authRequired && isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -32,7 +36,7 @@ export function AuthGuard({
     )
   }
 
-  if (requireAuth && !isAuthenticated) {
+  if (authRequired && !isAuthenticated) {
     return null
   }
 
