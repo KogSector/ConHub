@@ -116,7 +116,7 @@ export function HeroSection() {
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
               <Button 
-                className="h-11 px-8 border bg-background hover:bg-accent hover:text-accent-foreground border-primary/20 hover:border-primary/40 transition-all duration-300 group" 
+                className="h-11 px-8 border bg-background text-foreground hover:bg-accent hover:text-accent-foreground border-primary/20 hover:border-primary/40 transition-all duration-300 group" 
                 onClick={handleViewDocs}
               >
                 <Play className="w-4 h-4 mr-2" />

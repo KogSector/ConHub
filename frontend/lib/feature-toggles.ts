@@ -5,7 +5,12 @@ export const isFeatureEnabled = (feature: string): boolean => {
 }
 
 export const isLoginEnabled = (): boolean => {
-  return true 
+  const env = process.env.NEXT_PUBLIC_AUTH_ENABLED
+  if (typeof env !== 'undefined') {
+    return env === 'true' || env === '1'
+  }
+  // Fallback to feature toggles JSON (Auth flag)
+  return isFeatureEnabled('Auth')
 }
 
 export const isHeavyModeEnabled = (): boolean => {

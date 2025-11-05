@@ -60,17 +60,25 @@ async fn main() -> io::Result<()> {
         None
     };
 
-    // Redis setup
-    log::info!("Connecting to Redis...");
-    let redis_client = redis::Client::open(config.redis_url.clone())
-        .expect("Failed to create Redis client");
+    // Redis setup (skip when Auth is disabled to allow degraded startup)
+    let redis_client = if auth_enabled {
+        log::info!("Connecting to Redis...");
+        let client = redis::Client::open(config.redis_url.clone())
+            .expect("Failed to create Redis client");
 
-    // Test Redis connection
-    let mut redis_conn = redis_client
-        .get_connection()
-        .expect("Failed to connect to Redis");
+        // Test Redis connection
+        let _ = client
+            .get_connection()
+            .expect("Failed to connect to Redis");
 
-    log::info!("Connected to Redis");
+        log::info!("Connected to Redis");
+        client
+    } else {
+        log::warn!("Auth disabled; skipping Redis connection.");
+        // Create a client instance without testing connectivity; used only if auth routes are invoked
+        redis::Client::open(config.redis_url.clone())
+            .expect("Failed to create Redis client")
+    };
 
     // Initialize application state
     log::info!("Initializing application state...");

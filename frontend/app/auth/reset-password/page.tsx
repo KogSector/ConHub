@@ -1,7 +1,18 @@
-import { Suspense } from 'react'
+"use client"
+import { Suspense, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm'
+import { isLoginEnabled } from '@/lib/feature-toggles'
 
 export default function ResetPasswordPage() {
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!isLoginEnabled()) {
+      router.replace('/dashboard')
+    }
+  }, [router])
+
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900">
