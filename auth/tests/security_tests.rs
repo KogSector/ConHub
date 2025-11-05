@@ -51,16 +51,26 @@ async fn create_test_user(pool: &PgPool, email: &str) -> User {
         id: user_id,
         email: email.to_string(),
         password_hash,
-        name: Some("Test User".to_string()),
+        name: "Test User".to_string(),
         avatar_url: None,
         organization: None,
         role: UserRole::User,
         subscription_tier: SubscriptionTier::Free,
         is_verified: true,
         is_active: true,
+        is_locked: false,
+        failed_login_attempts: 0,
+        locked_until: None,
+        password_changed_at: now,
+        email_verified_at: Some(now),
+        two_factor_enabled: false,
+        two_factor_secret: None,
+        backup_codes: None,
         created_at: now,
         updated_at: now,
         last_login_at: None,
+        last_login_ip: None,
+        last_password_reset: None,
     }
 }
 
@@ -92,6 +102,9 @@ async fn test_sql_injection_protection() {
     let malicious_login = LoginRequest {
         email: "admin@example.com'; DROP TABLE users; --".to_string(),
         password: "password".to_string(),
+        two_factor_code: None,
+        remember_me: None,
+        device_info: None,
     };
 
     let req = test::TestRequest::post()
@@ -133,6 +146,9 @@ async fn test_password_brute_force_protection() {
         let login_request = LoginRequest {
             email: test_email.to_string(),
             password: format!("wrong_password_{}", i),
+            two_factor_code: None,
+            remember_me: None,
+            device_info: None,
         };
 
         let req = test::TestRequest::post()
@@ -160,9 +176,13 @@ async fn test_jwt_token_validation() {
     let claims = Claims {
         sub: test_user.id.to_string(),
         email: test_user.email.clone(),
-        role: "user".to_string(),
+        roles: vec!["user".to_string()],
         exp: (Utc::now() + Duration::hours(24)).timestamp() as usize,
         iat: Utc::now().timestamp() as usize,
+        iss: "conhub".to_string(),
+        aud: "conhub-users".to_string(),
+        session_id: Uuid::new_v4().to_string(),
+        jti: Uuid::new_v4().to_string(),
     };
 
     let invalid_token = encode(
@@ -198,9 +218,13 @@ async fn test_expired_jwt_token() {
     let expired_claims = Claims {
         sub: test_user.id.to_string(),
         email: test_user.email.clone(),
-        role: "user".to_string(),
+        roles: vec!["user".to_string()],
         exp: (Utc::now() - Duration::hours(1)).timestamp() as usize, // Expired 1 hour ago
         iat: (Utc::now() - Duration::hours(2)).timestamp() as usize,
+        iss: "conhub".to_string(),
+        aud: "conhub-users".to_string(),
+        session_id: Uuid::new_v4().to_string(),
+        jti: Uuid::new_v4().to_string(),
     };
 
     let expired_token = encode(
@@ -337,7 +361,7 @@ async fn test_xss_protection_in_responses() {
     let xss_register = RegisterRequest {
         email: "security_test_xss@example.com".to_string(),
         password: "SecurePassword123!".to_string(),
-        name: Some("<script>alert('xss')</script>".to_string()),
+        name: "<script>alert('xss')</script>".to_string(),
         avatar_url: None,
         organization: None,
     };
@@ -353,7 +377,7 @@ async fn test_xss_protection_in_responses() {
     if resp.status() == StatusCode::CREATED {
         let body: AuthResponse = test::read_body_json(resp).await;
         // Verify the response doesn't contain unescaped script tags
-        let name = body.user.name.unwrap_or_default();
+        let name = body.user.name;
         assert!(!name.contains("<script>"), "Script tags should be handled safely");
     }
 
@@ -384,7 +408,7 @@ async fn test_password_strength_validation() {
         let register_request = RegisterRequest {
             email: format!("test_weak_{}@example.com", weak_password.len()),
             password: weak_password.to_string(),
-            name: Some("Test User".to_string()),
+            name: "Test User".to_string(),
             avatar_url: None,
             organization: None,
         };

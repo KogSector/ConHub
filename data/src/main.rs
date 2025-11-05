@@ -78,6 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         App::new()
             .app_data(web::Data::new(db_pool_opt.clone()))
+            .app_data(web::Data::new(toggles.clone()))
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(auth_middleware.clone())

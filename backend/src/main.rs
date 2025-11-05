@@ -88,6 +88,7 @@ async fn main() -> io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(state_data.clone())
+            .app_data(web::Data::new(toggles.clone()))
             // CORS middleware
             .wrap(
                 Cors::default()

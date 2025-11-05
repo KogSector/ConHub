@@ -2,11 +2,4 @@
     Blocking waiting for file lock on package cache
     Blocking waiting for file lock on package cache
     Blocking waiting for file lock on package cache
-  16.634898100s  INFO prepare_target{force=false package_id=auth-service v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\auth) target="mod"}: cargo::core::compiler::fingerprint: fingerprint dirty for auth-service v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\auth)/Check { test: true }/TargetInner { kind: "test", name: "mod", benched: false, ..: with_path("C:\\Users\\risha\\Desktop\\Work\\ConHub\\auth\\tests\\mod.rs", Edition2021) }
-  16.634997200s  INFO prepare_target{force=false package_id=auth-service v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\auth) target="mod"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
-  16.666868600s  INFO prepare_target{force=false package_id=auth-service v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\auth) target="security_tests"}: cargo::core::compiler::fingerprint: fingerprint dirty for auth-service v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\auth)/Check { test: true }/TargetInner { kind: "test", name: "security_tests", benched: false, ..: with_path("C:\\Users\\risha\\Desktop\\Work\\ConHub\\auth\\tests\\security_tests.rs", Edition2021) }
-  16.666951800s  INFO prepare_target{force=false package_id=auth-service v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\auth) target="security_tests"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
-    Checking auth-service v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\auth)
-error: could not compile `auth-service` (test "security_tests") due to 9 previous errors
-warning: build failed, waiting for other jobs to finish...
-error: could not compile `auth-service` (test "mod") due to 9 previous errors
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.66s

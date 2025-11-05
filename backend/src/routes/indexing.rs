@@ -2,11 +2,20 @@ use actix_web::{web, HttpResponse, Result};
 use crate::state::AppState;
 use crate::models::indexing_dto::{IndexRepositoryRequest, IndexDocumentationRequest, SearchRequest, IndexingResponse, SearchResponse};
 use validator::Validate;
+use conhub_config::feature_toggles::FeatureToggles;
 
 pub async fn index_repository(
     state: web::Data<AppState>,
+    toggles: web::Data<FeatureToggles>,
     body: web::Json<IndexRepositoryRequest>,
 ) -> Result<HttpResponse> {
+    // Gate heavy indexing by feature toggle
+    if !toggles.is_enabled("Heavy") {
+        return Ok(HttpResponse::ServiceUnavailable().json(serde_json::json!({
+            "error": "Indexing disabled by feature toggle",
+            "feature": "Heavy",
+        })));
+    }
     // Validate request
     body.validate()
         .map_err(|e| actix_web::error::ErrorBadRequest(e))?;
@@ -37,8 +46,16 @@ pub async fn index_repository(
 
 pub async fn index_documentation(
     state: web::Data<AppState>,
+    toggles: web::Data<FeatureToggles>,
     body: web::Json<IndexDocumentationRequest>,
 ) -> Result<HttpResponse> {
+    // Gate heavy indexing by feature toggle
+    if !toggles.is_enabled("Heavy") {
+        return Ok(HttpResponse::ServiceUnavailable().json(serde_json::json!({
+            "error": "Indexing disabled by feature toggle",
+            "feature": "Heavy",
+        })));
+    }
     // Validate request
     body.validate()
         .map_err(|e| actix_web::error::ErrorBadRequest(e))?;
@@ -64,8 +81,16 @@ pub async fn index_documentation(
 
 pub async fn search(
     state: web::Data<AppState>,
+    toggles: web::Data<FeatureToggles>,
     body: web::Json<SearchRequest>,
 ) -> Result<HttpResponse> {
+    // Gate heavy search by feature toggle (if considered heavy)
+    if !toggles.is_enabled("Heavy") {
+        return Ok(HttpResponse::ServiceUnavailable().json(serde_json::json!({
+            "error": "Search disabled by feature toggle",
+            "feature": "Heavy",
+        })));
+    }
     // Validate request
     body.validate()
         .map_err(|e| actix_web::error::ErrorBadRequest(e))?;

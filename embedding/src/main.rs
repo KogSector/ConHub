@@ -8,8 +8,9 @@ mod llm;
 mod models;
 mod services;
 
-use handlers::{embed_handler, health_handler, rerank_handler};
+use handlers::{embed_handler, health_handler, rerank_handler, disabled_handler};
 use services::{LlmEmbeddingService, RerankService};
+use conhub_config::feature_toggles::FeatureToggles;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -26,29 +27,50 @@ async fn main() -> std::io::Result<()> {
 
     log::info!("Starting embedding service on {}:{}", host, port);
 
+    // Load feature toggles
+    let toggles = FeatureToggles::from_env_path();
+    let heavy_enabled = toggles.is_enabled("Heavy");
+
     // Initialize services
-    log::info!("Initializing embedding and reranking models...");
-    let embedding_service = Arc::new(
-        LlmEmbeddingService::new("openai", "text-embedding-3-small")
-            .expect("Failed to initialize embedding service")
-    );
-    let rerank_service = Arc::new(
-        RerankService::new()
-            .expect("Failed to initialize reranking service")
-    );
-    log::info!("Models initialized successfully");
+    let (embedding_service, rerank_service) = if heavy_enabled {
+        log::info!("Initializing embedding and reranking models...");
+        let embedding_service = Arc::new(
+            LlmEmbeddingService::new("openai", "text-embedding-3-small")
+                .expect("Failed to initialize embedding service")
+        );
+        let rerank_service = Arc::new(
+            RerankService::new()
+                .expect("Failed to initialize reranking service")
+        );
+        log::info!("Models initialized successfully");
+        (Some(embedding_service), Some(rerank_service))
+    } else {
+        log::warn!("Heavy mode disabled; skipping embedding/reranking model initialization.");
+        (None, None)
+    };
 
     // Service ready for production use
 
     // Start HTTP server
     log::info!("Starting HTTP server...");
     HttpServer::new(move || {
-        App::new()
-            .app_data(web::Data::new(embedding_service.clone()))
-            .app_data(web::Data::new(rerank_service.clone()))
-            .route("/health", web::get().to(health_handler))
-            .route("/embed", web::post().to(embed_handler))
-            .route("/rerank", web::post().to(rerank_handler))
+        let mut app = App::new()
+            .app_data(web::Data::new(toggles.clone()))
+            .route("/health", web::get().to(health_handler));
+
+        if heavy_enabled {
+            app = app
+                .app_data(web::Data::new(embedding_service.clone().unwrap()))
+                .app_data(web::Data::new(rerank_service.clone().unwrap()))
+                .route("/embed", web::post().to(embed_handler))
+                .route("/rerank", web::post().to(rerank_handler));
+        } else {
+            app = app
+                .route("/embed", web::post().to(disabled_handler))
+                .route("/rerank", web::post().to(disabled_handler));
+        }
+
+        app
     })
     .bind((host.as_str(), port))?
     .run()

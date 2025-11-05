@@ -2,7 +2,4 @@
     Blocking waiting for file lock on package cache
     Blocking waiting for file lock on package cache
     Blocking waiting for file lock on package cache
-  15.579421700s  INFO prepare_target{force=false package_id=security-service v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\security) target="security-service"}: cargo::core::compiler::fingerprint: fingerprint dirty for security-service v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\security)/Check { test: true }/TargetInner { name: "security-service", doc: true, ..: with_path("C:\\Users\\risha\\Desktop\\Work\\ConHub\\security\\src\\main.rs", Edition2021) }
-  15.579557900s  INFO prepare_target{force=false package_id=security-service v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\security) target="security-service"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
-    Checking security-service v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\security)
-error: could not compile `security-service` (bin "security-service" test) due to 1 previous error
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.34s

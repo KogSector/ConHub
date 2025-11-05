@@ -224,6 +224,54 @@ All colors use HSL for better performance and consistency.
       linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
     background-size: 20px 20px;
   }
+
+  /* Animation delay utilities for hero section (avoid inline styles) */
+  .anim-delay-200 { animation-delay: 0.2s; }
+  .anim-delay-400 { animation-delay: 0.4s; }
+  .anim-delay-500 { animation-delay: 0.5s; }
+  .anim-delay-600 { animation-delay: 0.6s; }
+  .anim-delay-800 { animation-delay: 0.8s; }
+  .anim-delay-1000 { animation-delay: 1s; }
+  .anim-delay-1200 { animation-delay: 1.2s; }
+  .anim-delay-1500 { animation-delay: 1.5s; }
+  .anim-delay-1700 { animation-delay: 1.7s; }
+  .anim-delay-1900 { animation-delay: 1.9s; }
+  .anim-delay-2100 { animation-delay: 2.1s; }
+  .anim-duration-3s { animation-duration: 3s; }
+  .anim-delay-0 { animation-delay: 0s; }
+  .anim-delay-2500 { animation-delay: 2.5s; }
+  .anim-delay-3000 { animation-delay: 3s; }
+  .anim-delay-3500 { animation-delay: 3.5s; }
+  .anim-delay-4000 { animation-delay: 4s; }
+  .anim-delay-4500 { animation-delay: 4.5s; }
+  .anim-delay-5000 { animation-delay: 5s; }
+  .anim-duration-4s { animation-duration: 4s; }
+  .anim-duration-5s { animation-duration: 5s; }
+  .anim-duration-6s { animation-duration: 6s; }
+  .anim-duration-7s { animation-duration: 7s; }
+
+  /* HeroSection floating dot positions (avoid inline left/top) */
+  .hero-floating .dot { position: absolute; }
+  .dot-pos-0 { left: 10%; top: 15%; }
+  .dot-pos-1 { left: 22%; top: 8%; }
+  .dot-pos-2 { left: 35%; top: 12%; }
+  .dot-pos-3 { left: 48%; top: 7%; }
+  .dot-pos-4 { left: 60%; top: 14%; }
+  .dot-pos-5 { left: 72%; top: 10%; }
+  .dot-pos-6 { left: 80%; top: 18%; }
+  .dot-pos-7 { left: 15%; top: 35%; }
+  .dot-pos-8 { left: 28%; top: 40%; }
+  .dot-pos-9 { left: 42%; top: 32%; }
+  .dot-pos-10 { left: 55%; top: 38%; }
+  .dot-pos-11 { left: 68%; top: 42%; }
+  .dot-pos-12 { left: 83%; top: 36%; }
+  .dot-pos-13 { left: 12%; top: 62%; }
+  .dot-pos-14 { left: 30%; top: 70%; }
+  .dot-pos-15 { left: 47%; top: 65%; }
+  .dot-pos-16 { left: 63%; top: 58%; }
+  .dot-pos-17 { left: 78%; top: 68%; }
+  .dot-pos-18 { left: 22%; top: 85%; }
+  .dot-pos-19 { left: 50%; top: 82%; }
 }
 
 @keyframes blob {
