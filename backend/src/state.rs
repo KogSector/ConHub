@@ -10,7 +10,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 
 pub struct AppState {
-    pub db_pool: PgPool,
+    pub db_pool: Option<PgPool>,
     pub redis_client: redis::Client,
     pub config: AppConfig,
 
@@ -24,7 +24,7 @@ pub struct AppState {
 
 impl AppState {
     pub async fn new(
-        db_pool: PgPool,
+        db_pool: Option<PgPool>,
         redis_client: redis::Client,
         config: AppConfig,
     ) -> Result<Self, Box<dyn std::error::Error>> {

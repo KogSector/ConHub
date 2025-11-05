@@ -29,12 +29,12 @@ impl std::fmt::Display for BillingError {
 impl std::error::Error for BillingError {}
 
 pub struct BillingService {
-    db_pool: PgPool,
+    db_pool: Option<PgPool>,
     stripe_secret_key: Option<String>,
 }
 
 impl BillingService {
-    pub fn new(db_pool: PgPool, stripe_secret_key: Option<String>) -> Self {
+    pub fn new(db_pool: Option<PgPool>, stripe_secret_key: Option<String>) -> Self {
         Self {
             db_pool,
             stripe_secret_key,
