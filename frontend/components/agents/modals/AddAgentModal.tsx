@@ -10,9 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient, CreateAgentRequest, AgentConfig } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Bot, Brain, Zap, FileText, Shield, Users, Database, Link } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Brain, Zap, FileText } from "lucide-react";
 
 interface AddAgentModalProps {
   open: boolean;

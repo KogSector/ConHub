@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useToast } from "@/hooks/use-toast";
-import { apiClient, AgentRecord, AgentInvokeRequest, AgentInvokeResponse } from "@/lib/api";
+import { apiClient, AgentRecord, AgentInvokeRequest } from "@/lib/api";
 import { Bot, User, Send, Loader2, RefreshCw, Clock, Zap } from "lucide-react";
 
 interface AgentChatModalProps {
