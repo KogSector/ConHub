@@ -17,6 +17,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .configure(indexing::configure_indexing_routes)
             .configure(security::configure_security_routes)
             .configure(webhooks::configure_webhook_routes)
+            .configure(crate::graphql::configure_graphql_routes)
     )
     .route("/health", web::get().to(health::health_check))
     .route("/ready", web::get().to(health::readiness_check));

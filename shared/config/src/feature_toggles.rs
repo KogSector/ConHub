@@ -31,4 +31,11 @@ impl FeatureToggles {
     pub fn is_enabled_or(&self, name: &str, default: bool) -> bool {
         self.flags.get(name).copied().unwrap_or(default)
     }
+
+    // Convenience: read Auth enablement strictly from feature-toggles.json
+    // Env vars are intentionally ignored to ensure the toggles file controls behavior.
+    pub fn auth_enabled(&self) -> bool {
+        // Default to false when missing to avoid unexpected auth requirements.
+        self.is_enabled_or("Auth", false)
+    }
 }

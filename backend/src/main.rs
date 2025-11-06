@@ -4,6 +4,7 @@ mod routes;
 mod services;
 mod middleware;
 mod models;
+mod graphql;
 
 use actix_web::{web, App, HttpServer};
 use actix_cors::Cors;
@@ -14,6 +15,7 @@ use conhub_config::feature_toggles::FeatureToggles;
 
 use config::AppConfig;
 use state::AppState;
+use crate::graphql::schema::build_schema;
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
@@ -31,7 +33,7 @@ async fn main() -> io::Result<()> {
 
     // Initialize authentication middleware with feature toggle
     let toggles = FeatureToggles::from_env_path();
-    let auth_enabled = toggles.is_enabled_or("Auth", true);
+    let auth_enabled = toggles.auth_enabled();
     let auth_middleware = if auth_enabled {
         AuthMiddlewareFactory::new()
             .map_err(|e| {
@@ -50,7 +52,7 @@ async fn main() -> io::Result<()> {
         log::info!("Connecting to PostgreSQL database...");
         let db_pool = PgPoolOptions::new()
             .max_connections(10)
-            .connect(&config.database_url)
+            .connect(&config.database_url.clone().expect("DATABASE_URL must be set when Auth is enabled"))
             .await
             .expect("Failed to connect to Postgres");
         log::info!("Connected to PostgreSQL");
@@ -63,7 +65,12 @@ async fn main() -> io::Result<()> {
     // Redis setup (skip when Auth is disabled to allow degraded startup)
     let redis_client = if auth_enabled {
         log::info!("Connecting to Redis...");
-        let client = redis::Client::open(config.redis_url.clone())
+        let client = redis::Client::open(
+            config
+                .redis_url
+                .clone()
+                .expect("REDIS_URL must be set when Auth is enabled")
+        )
             .expect("Failed to create Redis client");
 
         // Test Redis connection
@@ -72,12 +79,10 @@ async fn main() -> io::Result<()> {
             .expect("Failed to connect to Redis");
 
         log::info!("Connected to Redis");
-        client
+        Some(client)
     } else {
-        log::warn!("Auth disabled; skipping Redis connection.");
-        // Create a client instance without testing connectivity; used only if auth routes are invoked
-        redis::Client::open(config.redis_url.clone())
-            .expect("Failed to create Redis client")
+        log::warn!("Auth disabled; skipping Redis client creation entirely.");
+        None
     };
 
     // Initialize application state
@@ -94,9 +99,12 @@ async fn main() -> io::Result<()> {
     log::info!("Starting HTTP server on 0.0.0.0:{}", port);
 
     HttpServer::new(move || {
+        let schema = build_schema();
+
         App::new()
             .app_data(state_data.clone())
             .app_data(web::Data::new(toggles.clone()))
+            .app_data(web::Data::new(schema))
             // CORS middleware
             .wrap(
                 Cors::default()

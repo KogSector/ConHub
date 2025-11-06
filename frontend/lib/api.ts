@@ -95,6 +95,24 @@ export class ApiClient {
     }
   }
 
+  private async handleGraphQLResponse<T>(response: Response): Promise<T> {
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch (error) {
+      throw new Error(`Failed to parse GraphQL response: ${response.statusText}`);
+    }
+    const obj = payload as { data?: T; errors?: { message?: string }[] };
+    if (!response.ok || obj.errors?.length) {
+      const msg = obj.errors?.map(e => e.message || 'GraphQL error').join('\n') || `HTTP error! status: ${response.status}`;
+      throw new Error(msg);
+    }
+    if (!obj.data) {
+      throw new Error('GraphQL response missing data');
+    }
+    return obj.data;
+  }
+
   private async handleResponse<T>(response: Response): Promise<T> {
     let data: unknown;
     try {
@@ -124,6 +142,24 @@ export class ApiClient {
       return this.handleResponse<T>(response);
     } catch (error) {
       console.error(`API GET ${endpoint} failed:`, error);
+      throw error;
+    }
+  }
+
+  async graphql<T = unknown>(query: string, variables: Record<string, unknown> = {}, headers: Record<string, string> = {}): Promise<T> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/graphql`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify({ query, variables }),
+        credentials: 'include',
+      });
+      return this.handleGraphQLResponse<T>(response);
+    } catch (error) {
+      console.error('GraphQL request failed:', error);
       throw error;
     }
   }
@@ -272,6 +308,22 @@ export const apiClient = new ApiClient();
 export const dataApiClient = new ApiClient(
   process.env.NEXT_PUBLIC_DATA_SERVICE_URL || 'http://localhost:3013'
 );
+
+// Convenience helper: fetch current user via GraphQL when auth is enabled
+export async function fetchCurrentUserViaGraphQL() {
+  const query = `
+    query Me { me { user_id roles } }
+  `;
+  try {
+    const data = await apiClient.graphql<{ me: { user_id: string | null; roles: string[] } }>(query);
+    return data.me;
+  } catch (err) {
+    // In environments where auth is disabled, backend may return default claims.
+    // Gracefully return undefined to keep UI stable.
+    console.warn('GraphQL me query failed:', err);
+    return undefined;
+  }
+}
 
 /**
  * Safely extract the `data` field from an API response or return the value itself.

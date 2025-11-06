@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 pub struct AppState {
     pub db_pool: Option<PgPool>,
-    pub redis_client: redis::Client,
+    pub redis_client: Option<redis::Client>,
     pub config: AppConfig,
 
     // Service instances
@@ -25,7 +25,7 @@ pub struct AppState {
 impl AppState {
     pub async fn new(
         db_pool: Option<PgPool>,
-        redis_client: redis::Client,
+        redis_client: Option<redis::Client>,
         config: AppConfig,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         // Initialize services

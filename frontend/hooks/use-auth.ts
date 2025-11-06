@@ -1,14 +1,15 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useAuth as useAuthContext } from '@/contexts/auth-context'
 import { isLoginEnabled } from '@/lib/feature-toggles'
+import { fetchCurrentUserViaGraphQL } from '@/lib/api'
 
 export const useAuth = () => {
   const loginEnabled = isLoginEnabled()
   const authContext = useAuthContext()
   
-  
-  const mockUser = {
+  const [mockUser, setMockUser] = useState({
     id: 'dev-user',
     name: 'Development User',
     email: 'dev@conhub.local',
@@ -19,7 +20,28 @@ export const useAuth = () => {
     is_verified: true,
     created_at: new Date().toISOString(),
     last_login_at: new Date().toISOString(),
-  }
+  })
+
+  useEffect(() => {
+    if (!loginEnabled) {
+      // Attempt to hydrate mock user from backend GraphQL claims
+      fetchCurrentUserViaGraphQL()
+        .then((me) => {
+          if (me) {
+            const roles = Array.isArray(me.roles) ? me.roles.map(r => r.toLowerCase()) : []
+            const mappedRole = roles.includes('admin') ? 'admin' : roles.includes('moderator') ? 'moderator' : 'user'
+            setMockUser(prev => ({
+              ...prev,
+              id: me.user_id ?? prev.id,
+              role: mappedRole as typeof prev.role,
+            }))
+          }
+        })
+        .catch(() => {
+          // Keep default dev user if GraphQL isn't reachable
+        })
+    }
+  }, [loginEnabled])
 
   const login = (email?: string, password?: string) => {
     if (loginEnabled && email && password) {

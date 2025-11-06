@@ -37,12 +37,12 @@ impl std::error::Error for AuthError {}
 
 pub struct AuthService {
     db_pool: Option<PgPool>,
-    redis_client: redis::Client,
+    redis_client: Option<redis::Client>,
     jwt_secret: String,
 }
 
 impl AuthService {
-    pub fn new(db_pool: Option<PgPool>, redis_client: redis::Client, jwt_secret: String) -> Self {
+    pub fn new(db_pool: Option<PgPool>, redis_client: Option<redis::Client>, jwt_secret: String) -> Self {
         Self {
             db_pool,
             redis_client,
