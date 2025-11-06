@@ -1,8 +1,8 @@
 # Use the official lightweight nginx image
 FROM nginx:alpine
 
-# Copy custom nginx configuration from the nginx directory
-COPY nginx/nginx.conf /etc/nginx/nginx.conf
+# Copy custom nginx configuration from the build context (./nginx)
+COPY nginx.conf /etc/nginx/nginx.conf
 
 # Expose port 80
 EXPOSE 80

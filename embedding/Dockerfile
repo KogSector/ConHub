@@ -3,6 +3,9 @@ FROM rust:latest as builder
 
 WORKDIR /build
 
+# Copy shared dependencies first
+COPY shared/ /build/shared/
+
 # Copy embedding service
 COPY embedding/ /build/embedding/
 

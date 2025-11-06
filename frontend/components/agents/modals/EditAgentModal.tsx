@@ -10,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient, AgentRecord, UpdateAgentRequest, AgentConfig } from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
 
 interface EditAgentModalProps {
   agent: AgentRecord;
