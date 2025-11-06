@@ -185,7 +185,10 @@ class ConHubLogger {
           
           const fidObserver = new PerformanceObserver((list) => {
             for (const entry of list.getEntries()) {
-              const processingStart = (entry as any).processingStart as number | undefined;
+              // 'first-input' entries are PerformanceEventTiming which include processingStart
+              const processingStart = 'processingStart' in entry
+                ? (entry as PerformanceEventTiming).processingStart
+                : undefined;
               if (typeof processingStart === 'number') {
                 this.trackPerformance('first_input_delay', processingStart - entry.startTime);
               }
@@ -257,17 +260,33 @@ class ConHubLogger {
 
   private getElementInfo(element: HTMLElement): { selector: string; text: string } {
     let selector = element.tagName.toLowerCase();
-    
+
     if (element.id) {
       selector += `#${element.id}`;
     }
-    
-    if (element.className) {
-      selector += `.${element.className.split(' ').join('.')}`;
+
+    // className can be a string (HTML) or SVGAnimatedString (SVG). Prefer classList when available.
+    try {
+      if (element.classList && element.classList.length > 0) {
+        selector += `.${Array.from(element.classList).join('.')}`;
+      } else if (typeof element.className === 'string' && element.className.trim()) {
+        selector += `.${element.className.trim().split(/\s+/).join('.')}`;
+      } else if (
+        typeof (element as unknown as { className?: unknown }).className === 'object' &&
+        (element as unknown as { className: { baseVal?: unknown } }).className &&
+        typeof (element as unknown as { className: { baseVal?: unknown } }).className.baseVal === 'string'
+      ) {
+        const baseVal = (element as unknown as { className: { baseVal: string } }).className.baseVal.trim();
+        if (baseVal) {
+          selector += `.${baseVal.split(/\s+/).join('.')}`;
+        }
+      }
+    } catch {
+      // If any unexpected type occurs, skip class aggregation safely.
     }
 
     const text = element.textContent?.trim().substring(0, 50) || '';
-    
+
     return { selector, text };
   }
 

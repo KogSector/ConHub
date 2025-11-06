@@ -10,6 +10,7 @@ use actix_cors::Cors;
 use sqlx::postgres::PgPoolOptions;
 use std::io;
 use conhub_middleware::auth::AuthMiddlewareFactory;
+use conhub_config::feature_toggles::FeatureToggles;
 
 use config::AppConfig;
 use state::AppState;
@@ -28,40 +29,60 @@ async fn main() -> io::Result<()> {
     log::info!("Environment mode: {}", config.env_mode);
     log::info!("Binding to port: {}", port);
 
-    // Database setup
-    log::info!("Connecting to PostgreSQL database...");
-    let db_pool = PgPoolOptions::new()
-        .max_connections(10)
-        .connect(&config.database_url)
-        .await
-        .expect("Failed to connect to Postgres");
-
-    log::info!("Connected to PostgreSQL");
-
-    // Redis setup
-    log::info!("Connecting to Redis...");
-    let redis_client = redis::Client::open(config.redis_url.clone())
-        .expect("Failed to create Redis client");
-
-    // Test Redis connection
-    let mut redis_conn = redis_client
-        .get_connection()
-        .expect("Failed to connect to Redis");
-
-    log::info!("Connected to Redis");
-
-    // Initialize authentication middleware
-    let auth_middleware = AuthMiddlewareFactory::new()
-        .map_err(|e| {
-            log::error!("Failed to initialize auth middleware: {}", e);
-            std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
-        })?;
+    // Initialize authentication middleware with feature toggle
+    let toggles = FeatureToggles::from_env_path();
+    let auth_enabled = toggles.is_enabled_or("Auth", true);
+    let auth_middleware = if auth_enabled {
+        AuthMiddlewareFactory::new()
+            .map_err(|e| {
+                log::error!("Failed to initialize auth middleware: {}", e);
+                std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
+            })?
+    } else {
+        log::warn!("Auth feature disabled via feature toggles; injecting default claims.");
+        AuthMiddlewareFactory::disabled()
+    };
 
     log::info!("🔐 [Backend Service] Authentication middleware initialized");
 
+    // Database setup (gated by Auth toggle)
+    let db_pool_opt = if auth_enabled {
+        log::info!("Connecting to PostgreSQL database...");
+        let db_pool = PgPoolOptions::new()
+            .max_connections(10)
+            .connect(&config.database_url)
+            .await
+            .expect("Failed to connect to Postgres");
+        log::info!("Connected to PostgreSQL");
+        Some(db_pool)
+    } else {
+        log::warn!("Auth disabled; skipping PostgreSQL connection.");
+        None
+    };
+
+    // Redis setup (skip when Auth is disabled to allow degraded startup)
+    let redis_client = if auth_enabled {
+        log::info!("Connecting to Redis...");
+        let client = redis::Client::open(config.redis_url.clone())
+            .expect("Failed to create Redis client");
+
+        // Test Redis connection
+        let _ = client
+            .get_connection()
+            .expect("Failed to connect to Redis");
+
+        log::info!("Connected to Redis");
+        client
+    } else {
+        log::warn!("Auth disabled; skipping Redis connection.");
+        // Create a client instance without testing connectivity; used only if auth routes are invoked
+        redis::Client::open(config.redis_url.clone())
+            .expect("Failed to create Redis client")
+    };
+
     // Initialize application state
     log::info!("Initializing application state...");
-    let app_state = AppState::new(db_pool, redis_client, config.clone())
+    let app_state = AppState::new(db_pool_opt, redis_client, config.clone())
         .await
         .expect("Failed to initialize application state");
 
@@ -75,6 +96,7 @@ async fn main() -> io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(state_data.clone())
+            .app_data(web::Data::new(toggles.clone()))
             // CORS middleware
             .wrap(
                 Cors::default()

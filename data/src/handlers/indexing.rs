@@ -3,6 +3,7 @@ use serde_json::json;
 use validator::Validate;
 use reqwest::Client;
 use std::env;
+use conhub_config::feature_toggles::FeatureToggles;
 
 #[derive(serde::Serialize, serde::Deserialize, Validate)]
 pub struct IndexRepositoryRequest {
@@ -40,7 +41,13 @@ pub struct IndexFileRequest {
 }
 
 
-pub async fn index_repository(request: web::Json<IndexRepositoryRequest>) -> Result<HttpResponse> {
+pub async fn index_repository(toggles: web::Data<FeatureToggles>, request: web::Json<IndexRepositoryRequest>) -> Result<HttpResponse> {
+    if !toggles.is_enabled("Heavy") {
+        return Ok(HttpResponse::ServiceUnavailable().json(json!({
+            "error": "Indexing disabled by feature toggle",
+            "feature": "Heavy",
+        })));
+    }
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
             "error": "Validation failed",
@@ -84,7 +91,13 @@ pub async fn index_repository(request: web::Json<IndexRepositoryRequest>) -> Res
 }
 
 
-pub async fn index_documentation(request: web::Json<IndexDocumentationRequest>) -> Result<HttpResponse> {
+pub async fn index_documentation(toggles: web::Data<FeatureToggles>, request: web::Json<IndexDocumentationRequest>) -> Result<HttpResponse> {
+    if !toggles.is_enabled("Heavy") {
+        return Ok(HttpResponse::ServiceUnavailable().json(json!({
+            "error": "Indexing disabled by feature toggle",
+            "feature": "Heavy",
+        })));
+    }
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
             "error": "Validation failed",
@@ -124,7 +137,13 @@ pub async fn index_documentation(request: web::Json<IndexDocumentationRequest>) 
 }
 
 
-pub async fn index_url(request: web::Json<IndexUrlRequest>) -> Result<HttpResponse> {
+pub async fn index_url(toggles: web::Data<FeatureToggles>, request: web::Json<IndexUrlRequest>) -> Result<HttpResponse> {
+    if !toggles.is_enabled("Heavy") {
+        return Ok(HttpResponse::ServiceUnavailable().json(json!({
+            "error": "Indexing disabled by feature toggle",
+            "feature": "Heavy",
+        })));
+    }
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
             "error": "Validation failed",
@@ -164,7 +183,13 @@ pub async fn index_url(request: web::Json<IndexUrlRequest>) -> Result<HttpRespon
 }
 
 
-pub async fn index_file(request: web::Json<IndexFileRequest>) -> Result<HttpResponse> {
+pub async fn index_file(toggles: web::Data<FeatureToggles>, request: web::Json<IndexFileRequest>) -> Result<HttpResponse> {
+    if !toggles.is_enabled("Heavy") {
+        return Ok(HttpResponse::ServiceUnavailable().json(json!({
+            "error": "Indexing disabled by feature toggle",
+            "feature": "Heavy",
+        })));
+    }
     if let Err(validation_errors) = request.validate() {
         return Ok(HttpResponse::BadRequest().json(json!({
             "error": "Validation failed",

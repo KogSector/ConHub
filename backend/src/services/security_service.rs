@@ -34,11 +34,11 @@ impl std::fmt::Display for SecurityError {
 impl std::error::Error for SecurityError {}
 
 pub struct SecurityService {
-    db_pool: PgPool,
+    db_pool: Option<PgPool>,
 }
 
 impl SecurityService {
-    pub fn new(db_pool: PgPool) -> Self {
+    pub fn new(db_pool: Option<PgPool>) -> Self {
         Self { db_pool }
     }
 

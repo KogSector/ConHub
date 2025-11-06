@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
-import { apiClient } from '@/lib/api'
+import { dataApiClient } from '@/lib/api'
 
 type ApiResp = { success?: boolean; error?: string; data?: unknown }
 
@@ -30,26 +30,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Repository URL is required.' }, { status: 400 })
     }
 
-    const validateData = await apiClient.post('/api/repositories/validate-url', { repo_url: repoUrl })
-    if (!succeeded(validateData)) {
-      const err = isApiResp(validateData) ? validateData.error : undefined
-      return NextResponse.json({ error: err || 'Invalid repository URL' }, { status: 400 })
-    }
-
-    const branchesData = await apiClient.post('/api/repositories/fetch-branches', { repo_url: repoUrl, credentials: null })
+    const branchesData = await dataApiClient.post('/api/data/sources/branches', { repoUrl: repoUrl, credentials: null })
     if (!succeeded(branchesData)) {
       const err = isApiResp(branchesData) ? branchesData.error : undefined
       return NextResponse.json({ error: err || 'Failed to fetch branches' }, { status: 502 })
     }
 
     const branches = getData<{ branches?: unknown[]; default_branch?: string }>(branchesData)
-    const validate = getData<Record<string, unknown>>(validateData)
 
     return NextResponse.json({
       branches: branches?.branches,
       defaultBranch: branches?.default_branch,
-      provider: validate?.provider,
-      repoInfo: validate,
+      provider: undefined,
+      repoInfo: undefined,
     })
   } catch (error) {
     console.error('Failed to fetch remote branches:', error)

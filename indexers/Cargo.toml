@@ -185,6 +185,7 @@ hyper = { version = "0.14", features = ["full"] }
 hyper-rustls = "0.23"
 hyper-util = { version = "0.1", features = ["full"] }
 rustls = { version = "0.23", features = ["aws_lc_rs"] }
+conhub-config = { path = "../shared/config" }
 
 [dev-dependencies]
 expect-test = "1.4"

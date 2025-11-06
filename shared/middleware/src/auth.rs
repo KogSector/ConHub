@@ -14,9 +14,15 @@ use serde_json::json;
 use chrono;
 use tracing;
 
+#[derive(Clone)]
+enum AuthMode {
+    Enabled(Arc<RsaPublicKey>),
+    Disabled(Claims),
+}
+
 pub struct AuthMiddleware<S> {
     service: Rc<S>,
-    public_key: Arc<RsaPublicKey>,
+    mode: AuthMode,
 }
 
 impl<S, B> Service<ServiceRequest> for AuthMiddleware<S>
@@ -33,7 +39,7 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let service = Rc::clone(&self.service);
-        let public_key = Arc::clone(&self.public_key);
+        let mode = self.mode.clone();
 
         Box::pin(async move {
             // Check if this is a public endpoint that doesn't require authentication
@@ -42,60 +48,76 @@ where
                 return Ok(res.map_into_left_body());
             }
 
-            if let Some(auth_header) = req.headers().get("Authorization") {
-                if let Ok(auth_str) = auth_header.to_str() {
-                    if auth_str.starts_with("Bearer ") {
-                        let token = &auth_str[7..];
-                        
-                        match verify_jwt_token(token, &public_key).await {
-                            Ok(claims) => {
-                                // Insert claims into request extensions for handlers to use
-                                req.extensions_mut().insert(claims);
-                                let res = service.call(req).await?;
-                                return Ok(res.map_into_left_body());
-                            }
-                            Err(e) => {
-                                tracing::warn!("JWT verification failed: {}", e);
-                                return Ok(req.into_response(
-                                    HttpResponse::Unauthorized()
-                                        .json(json!({
-                                            "error": "Invalid or expired token",
-                                            "details": e.to_string()
-                                        }))
-                                ).map_into_right_body());
+            match mode {
+                AuthMode::Enabled(public_key) => {
+                    if let Some(auth_header) = req.headers().get("Authorization") {
+                        if let Ok(auth_str) = auth_header.to_str() {
+                            if auth_str.starts_with("Bearer ") {
+                                let token = &auth_str[7..];
+                                match verify_jwt_token(token, &public_key).await {
+                                    Ok(claims) => {
+                                        req.extensions_mut().insert(claims);
+                                        let res = service.call(req).await?;
+                                        return Ok(res.map_into_left_body());
+                                    }
+                                    Err(e) => {
+                                        tracing::warn!("JWT verification failed: {}", e);
+                                        return Ok(req.into_response(
+                                            HttpResponse::Unauthorized()
+                                                .json(json!({
+                                                    "error": "Invalid or expired token",
+                                                    "details": e.to_string()
+                                                }))
+                                        ).map_into_right_body());
+                                    }
+                                }
                             }
                         }
                     }
+                    Ok(req.into_response(
+                        HttpResponse::Unauthorized()
+                            .json(json!({
+                                "error": "Authentication required",
+                                "message": "Please provide a valid Bearer token in the Authorization header"
+                            }))
+                    ).map_into_right_body())
+                }
+                AuthMode::Disabled(default_claims) => {
+                    // Inject default claims and proceed
+                    req.extensions_mut().insert(default_claims.clone());
+                    let res = service.call(req).await?;
+                    Ok(res.map_into_left_body())
                 }
             }
-
-            Ok(req.into_response(
-                HttpResponse::Unauthorized()
-                    .json(json!({
-                        "error": "Authentication required",
-                        "message": "Please provide a valid Bearer token in the Authorization header"
-                    }))
-            ).map_into_right_body())
         })
     }
 }
 
 #[derive(Clone)]
 pub struct AuthMiddlewareFactory {
-    public_key: Arc<RsaPublicKey>,
+    mode: AuthMode,
 }
 
 impl AuthMiddlewareFactory {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let public_key = load_public_key()?;
-        Ok(Self {
-            public_key: Arc::new(public_key),
-        })
+        Ok(Self { mode: AuthMode::Enabled(Arc::new(public_key)) })
     }
-    
+
     pub fn from_public_key(public_key: RsaPublicKey) -> Self {
-        Self {
-            public_key: Arc::new(public_key),
+        Self { mode: AuthMode::Enabled(Arc::new(public_key)) }
+    }
+
+    pub fn disabled() -> Self {
+        let claims = default_dev_claims();
+        Self { mode: AuthMode::Disabled(claims) }
+    }
+
+    pub fn new_with_enabled(enabled: bool) -> Result<Self, Box<dyn std::error::Error>> {
+        if enabled {
+            Self::new()
+        } else {
+            Ok(Self::disabled())
         }
     }
 }
@@ -115,7 +137,7 @@ where
     fn new_transform(&self, service: S) -> Self::Future {
         ready(Ok(AuthMiddleware {
             service: Rc::new(service),
-            public_key: Arc::clone(&self.public_key),
+            mode: self.mode.clone(),
         }))
     }
 }
@@ -287,5 +309,25 @@ where
             service: Rc::new(service),
             required_roles: self.required_roles.clone(),
         }))
+    }
+}
+
+fn default_dev_claims() -> Claims {
+    let now = chrono::Utc::now().timestamp() as usize;
+    let exp = now + 60 * 60 * 24 * 365; // 1 year
+    let sub = uuid::Uuid::new_v4().to_string();
+    let session_id = uuid::Uuid::new_v4().to_string();
+    let jti = uuid::Uuid::new_v4().to_string();
+
+    Claims {
+        sub,
+        email: "dev@conhub.local".to_string(),
+        roles: vec!["user".to_string(), "dev".to_string()],
+        exp,
+        iat: now,
+        iss: "conhub".to_string(),
+        aud: "conhub-users".to_string(),
+        session_id,
+        jti,
     }
 }

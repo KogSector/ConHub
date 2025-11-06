@@ -1,0 +1,187 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   6.832747200s  INFO prepare_target{force=false package_id=embedding v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\embedding) target="embedding"}: cargo::core::compiler::fingerprint: fingerprint error for embedding v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\embedding)/Check { test: false }/TargetInner { name: "embedding", doc: true, ..: with_path("C:\\Users\\risha\\Desktop\\Work\\ConHub\\embedding\\src\\main.rs", Edition2021) }
+   6.834359500s  INFO prepare_target{force=false package_id=embedding v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\embedding) target="embedding"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\risha\Desktop\Work\ConHub\embedding\target\debug\.fingerprint\embedding-0887993199d04519\bin-embedding`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_path
+   6: git_filter_source_path
+   7: git_filter_source_path
+   8: git_filter_source_path
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   7.102828900s  INFO prepare_target{force=false package_id=pyo3-async-runtimes v0.27.0 target="pyo3_async_runtimes"}: cargo::core::compiler::fingerprint: fingerprint error for pyo3-async-runtimes v0.27.0/Check { test: false }/TargetInner { ..: lib_target("pyo3_async_runtimes", ["lib"], "C:\\Users\\risha\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pyo3-async-runtimes-0.27.0\\src\\lib.rs", Edition2021) }
+   7.103102100s  INFO prepare_target{force=false package_id=pyo3-async-runtimes v0.27.0 target="pyo3_async_runtimes"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\risha\Desktop\Work\ConHub\embedding\target\debug\.fingerprint\pyo3-async-runtimes-e4a35b972b4dbfc7\lib-pyo3_async_runtimes`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_path
+   6: git_filter_source_path
+   7: git_filter_source_path
+   8: git_filter_source_path
+   9: git_filter_source_path
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_filter_source_repo
+  15: <unknown>
+  16: <unknown>
+  17: git_midx_writer_dump
+  18: git_filter_source_repo
+  19: git_midx_writer_dump
+  20: BaseThreadInitThunk
+  21: RtlUserThreadStart
+   7.104354500s  INFO prepare_target{force=false package_id=pyo3 v0.27.1 target="pyo3"}: cargo::core::compiler::fingerprint: fingerprint error for pyo3 v0.27.1/Check { test: false }/TargetInner { ..: lib_target("pyo3", ["lib"], "C:\\Users\\risha\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pyo3-0.27.1\\src\\lib.rs", Edition2021) }
+   7.104428700s  INFO prepare_target{force=false package_id=pyo3 v0.27.1 target="pyo3"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\risha\Desktop\Work\ConHub\embedding\target\debug\.fingerprint\pyo3-fe42dd5e67bf29c2\lib-pyo3`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_path
+   6: git_filter_source_path
+   7: git_filter_source_path
+   8: git_filter_source_path
+   9: git_filter_source_path
+  10: git_filter_source_path
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_filter_source_repo
+  15: git_filter_source_repo
+  16: <unknown>
+  17: <unknown>
+  18: git_midx_writer_dump
+  19: git_filter_source_repo
+  20: git_midx_writer_dump
+  21: BaseThreadInitThunk
+  22: RtlUserThreadStart
+   7.110703500s  INFO prepare_target{force=false package_id=pyo3 v0.27.1 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint dirty for pyo3 v0.27.1/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\risha\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pyo3-0.27.1\\build.rs", Edition2021) }
+   7.110744400s  INFO prepare_target{force=false package_id=pyo3 v0.27.1 target="build-script-build"}: cargo::core::compiler::fingerprint:     dirty: UnitDependencyInfoChanged { old_name: "build_script_build", old_fingerprint: 11218406960595112943, new_name: "build_script_build", new_fingerprint: 17084576721838648385 }
+   7.112608700s  INFO prepare_target{force=false package_id=pyo3 v0.27.1 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint dirty for pyo3 v0.27.1/Build/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\risha\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pyo3-0.27.1\\build.rs", Edition2021) }
+   7.112638400s  INFO prepare_target{force=false package_id=pyo3 v0.27.1 target="build-script-build"}: cargo::core::compiler::fingerprint:     dirty: UnitDependencyInfoChanged { old_name: "pyo3_build_config", old_fingerprint: 17255674776266632298, new_name: "pyo3_build_config", new_fingerprint: 6931785796537359412 }
+   7.114313100s  INFO prepare_target{force=false package_id=pyo3-build-config v0.27.1 target="pyo3_build_config"}: cargo::core::compiler::fingerprint: fingerprint dirty for pyo3-build-config v0.27.1/Build/TargetInner { ..: lib_target("pyo3_build_config", ["lib"], "C:\\Users\\risha\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pyo3-build-config-0.27.1\\src\\lib.rs", Edition2021) }
+   7.114353200s  INFO prepare_target{force=false package_id=pyo3-build-config v0.27.1 target="pyo3_build_config"}: cargo::core::compiler::fingerprint:     dirty: UnitDependencyInfoChanged { old_name: "build_script_build", old_fingerprint: 11624112712241225855, new_name: "build_script_build", new_fingerprint: 16989295403831195681 }
+   7.118248300s  INFO prepare_target{force=false package_id=pyo3-build-config v0.27.1 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint dirty for pyo3-build-config v0.27.1/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\risha\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pyo3-build-config-0.27.1\\build.rs", Edition2021) }
+   7.118298100s  INFO prepare_target{force=false package_id=pyo3-build-config v0.27.1 target="build-script-build"}: cargo::core::compiler::fingerprint:     dirty: EnvVarChanged { name: "PYO3_PYTHON", old_value: Some("py"), new_value: None }
+   7.125078600s  INFO prepare_target{force=false package_id=pyo3-ffi v0.27.1 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint dirty for pyo3-ffi v0.27.1/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\risha\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pyo3-ffi-0.27.1\\build.rs", Edition2021) }
+   7.125127700s  INFO prepare_target{force=false package_id=pyo3-ffi v0.27.1 target="build-script-build"}: cargo::core::compiler::fingerprint:     dirty: UnitDependencyInfoChanged { old_name: "build_script_build", old_fingerprint: 9078826014902674977, new_name: "build_script_build", new_fingerprint: 10035718111838943999 }
+   7.126583100s  INFO prepare_target{force=false package_id=pyo3-ffi v0.27.1 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint dirty for pyo3-ffi v0.27.1/Build/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\risha\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pyo3-ffi-0.27.1\\build.rs", Edition2021) }
+   7.126621200s  INFO prepare_target{force=false package_id=pyo3-ffi v0.27.1 target="build-script-build"}: cargo::core::compiler::fingerprint:     dirty: UnitDependencyInfoChanged { old_name: "pyo3_build_config", old_fingerprint: 17255674776266632298, new_name: "pyo3_build_config", new_fingerprint: 6931785796537359412 }
+   7.127896800s  INFO prepare_target{force=false package_id=pyo3-ffi v0.27.1 target="pyo3_ffi"}: cargo::core::compiler::fingerprint: fingerprint error for pyo3-ffi v0.27.1/Check { test: false }/TargetInner { ..: lib_target("pyo3_ffi", ["lib"], "C:\\Users\\risha\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pyo3-ffi-0.27.1\\src\\lib.rs", Edition2021) }
+   7.127938400s  INFO prepare_target{force=false package_id=pyo3-ffi v0.27.1 target="pyo3_ffi"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\risha\Desktop\Work\ConHub\embedding\target\debug\.fingerprint\pyo3-ffi-7e6826bb72bcf697\lib-pyo3_ffi`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_path
+   6: git_filter_source_path
+   7: git_filter_source_path
+   8: git_filter_source_path
+   9: git_filter_source_path
+  10: git_filter_source_path
+  11: git_filter_source_path
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: git_filter_source_repo
+  15: git_filter_source_repo
+  16: git_filter_source_repo
+  17: <unknown>
+  18: <unknown>
+  19: git_midx_writer_dump
+  20: git_filter_source_repo
+  21: git_midx_writer_dump
+  22: BaseThreadInitThunk
+  23: RtlUserThreadStart
+   7.129541900s  INFO prepare_target{force=false package_id=pyo3-macros v0.27.1 target="pyo3_macros"}: cargo::core::compiler::fingerprint: fingerprint dirty for pyo3-macros v0.27.1/Build/TargetInner { for_host: true, proc_macro: true, ..: lib_target("pyo3_macros", ["proc-macro"], "C:\\Users\\risha\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pyo3-macros-0.27.1\\src\\lib.rs", Edition2021) }
+   7.129579900s  INFO prepare_target{force=false package_id=pyo3-macros v0.27.1 target="pyo3_macros"}: cargo::core::compiler::fingerprint:     dirty: UnitDependencyInfoChanged { old_name: "pyo3_macros_backend", old_fingerprint: 16836944484585013490, new_name: "pyo3_macros_backend", new_fingerprint: 5382912430344210970 }
+   7.131539100s  INFO prepare_target{force=false package_id=pyo3-macros-backend v0.27.1 target="pyo3_macros_backend"}: cargo::core::compiler::fingerprint: fingerprint dirty for pyo3-macros-backend v0.27.1/Build/TargetInner { ..: lib_target("pyo3_macros_backend", ["lib"], "C:\\Users\\risha\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pyo3-macros-backend-0.27.1\\src\\lib.rs", Edition2021) }
+   7.131573100s  INFO prepare_target{force=false package_id=pyo3-macros-backend v0.27.1 target="pyo3_macros_backend"}: cargo::core::compiler::fingerprint:     dirty: UnitDependencyInfoChanged { old_name: "build_script_build", old_fingerprint: 7989210663194458104, new_name: "build_script_build", new_fingerprint: 2215594252969162382 }
+   7.135212900s  INFO prepare_target{force=false package_id=pyo3-macros-backend v0.27.1 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint dirty for pyo3-macros-backend v0.27.1/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\risha\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pyo3-macros-backend-0.27.1\\build.rs", Edition2021) }
+   7.135254700s  INFO prepare_target{force=false package_id=pyo3-macros-backend v0.27.1 target="build-script-build"}: cargo::core::compiler::fingerprint:     dirty: UnitDependencyInfoChanged { old_name: "build_script_build", old_fingerprint: 13325285363845591040, new_name: "build_script_build", new_fingerprint: 1633046407253298846 }
+   7.136604200s  INFO prepare_target{force=false package_id=pyo3-macros-backend v0.27.1 target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint dirty for pyo3-macros-backend v0.27.1/Build/TargetInner { ..: custom_build_target("build-script-build", "C:\\Users\\risha\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\pyo3-macros-backend-0.27.1\\build.rs", Edition2021) }
+   7.136648100s  INFO prepare_target{force=false package_id=pyo3-macros-backend v0.27.1 target="build-script-build"}: cargo::core::compiler::fingerprint:     dirty: UnitDependencyInfoChanged { old_name: "pyo3_build_config", old_fingerprint: 17255674776266632298, new_name: "pyo3_build_config", new_fingerprint: 6931785796537359412 }
+   7.158580700s  INFO prepare_target{force=false package_id=embedding v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\embedding) target="embedding"}: cargo::core::compiler::fingerprint: fingerprint error for embedding v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\embedding)/Check { test: true }/TargetInner { name: "embedding", doc: true, ..: with_path("C:\\Users\\risha\\Desktop\\Work\\ConHub\\embedding\\src\\main.rs", Edition2021) }
+   7.158628900s  INFO prepare_target{force=false package_id=embedding v0.1.0 (C:\Users\risha\Desktop\Work\ConHub\embedding) target="embedding"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\risha\Desktop\Work\ConHub\embedding\target\debug\.fingerprint\embedding-8cde0ff2db4a8208\test-bin-embedding`
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Stack backtrace:
+   0: git_midx_writer_dump
+   1: git_midx_writer_dump
+   2: git_midx_writer_dump
+   3: git_midx_writer_dump
+   4: git_filter_source_repo
+   5: git_filter_source_path
+   6: git_filter_source_path
+   7: git_filter_source_path
+   8: git_filter_source_path
+   9: git_filter_source_repo
+  10: git_filter_source_repo
+  11: git_filter_source_repo
+  12: git_filter_source_repo
+  13: git_filter_source_repo
+  14: <unknown>
+  15: <unknown>
+  16: git_midx_writer_dump
+  17: git_filter_source_repo
+  18: git_midx_writer_dump
+  19: BaseThreadInitThunk
+  20: RtlUserThreadStart
+   Compiling pyo3-build-config v0.27.1
+error: failed to run custom build command for `pyo3-build-config v0.27.1`
+note: To improve backtraces for build dependencies, set the CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG=true environment variable to enable debug information generation.
+
+Caused by:
+  process didn't exit successfully: `C:\Users\risha\Desktop\Work\ConHub\embedding\target\debug\build\pyo3-build-config-d9c549c01ff71fee\build-script-build` (exit code: 1)
+  --- stdout
+  cargo:rerun-if-env-changed=PYO3_CONFIG_FILE
+  cargo:rerun-if-env-changed=PYO3_NO_PYTHON
+  cargo:rerun-if-env-changed=PYO3_ENVIRONMENT_SIGNATURE
+  cargo:rerun-if-env-changed=PYO3_PYTHON
+  cargo:rerun-if-env-changed=VIRTUAL_ENV
+  cargo:rerun-if-env-changed=CONDA_PREFIX
+  cargo:rerun-if-env-changed=PATH
+
+  --- stderr
+  error: no Python 3.x interpreter found

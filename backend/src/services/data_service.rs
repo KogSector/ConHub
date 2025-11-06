@@ -30,12 +30,12 @@ impl std::fmt::Display for DataError {
 impl std::error::Error for DataError {}
 
 pub struct DataService {
-    db_pool: PgPool,
+    db_pool: Option<PgPool>,
     config: AppConfig,
 }
 
 impl DataService {
-    pub fn new(db_pool: PgPool, config: AppConfig) -> Self {
+    pub fn new(db_pool: Option<PgPool>, config: AppConfig) -> Self {
         Self { db_pool, config }
     }
 

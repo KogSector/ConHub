@@ -5,6 +5,7 @@ use std::env;
 use tracing::{info, error};
 use tracing_subscriber;
 use conhub_middleware::auth::AuthMiddlewareFactory;
+use conhub_config::feature_toggles::FeatureToggles;
 
 mod services;
 mod handlers;
@@ -25,17 +26,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse::<u16>()
         .unwrap_or(3013);
 
-    // Database connection
-    let database_url = env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://conhub:conhub_password@postgres:5432/conhub".to_string());
+    // Initialize authentication middleware with feature toggle
+    let toggles = FeatureToggles::from_env_path();
+    let auth_enabled = toggles.is_enabled_or("Auth", true);
+    let auth_middleware = if auth_enabled {
+        AuthMiddlewareFactory::new()
+            .map_err(|e| {
+                tracing::error!("Failed to initialize auth middleware: {}", e);
+                e
+            })?
+    } else {
+        tracing::warn!("Auth feature disabled via feature toggles; injecting default claims.");
+        AuthMiddlewareFactory::disabled()
+    };
 
-    tracing::info!("📊 [Data Service] Connecting to database...");
-    let pool = PgPoolOptions::new()
-        .max_connections(10)
-        .connect(&database_url)
-        .await?;
+    tracing::info!("🔐 [Data Service] Authentication middleware initialized");
 
-    tracing::info!("✅ [Data Service] Database connection established");
+    // Database connection (gated by Auth toggle)
+    let db_pool_opt: Option<PgPool> = if auth_enabled {
+        let database_url = env::var("DATABASE_URL")
+            .unwrap_or_else(|_| "postgresql://conhub:conhub_password@postgres:5432/conhub".to_string());
+
+        tracing::info!("📊 [Data Service] Connecting to database...");
+        let pool = PgPoolOptions::new()
+            .max_connections(10)
+            .connect(&database_url)
+            .await?;
+        tracing::info!("✅ [Data Service] Database connection established");
+        Some(pool)
+    } else {
+        tracing::warn!("[Data Service] Auth disabled; skipping database connection.");
+        None
+    };
 
     // Qdrant connection (vector database)
     let qdrant_url = env::var("QDRANT_URL")
@@ -45,14 +67,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // TODO: Initialize Qdrant client
     tracing::info!("✅ [Data Service] Qdrant connection configured");
 
-    // Initialize authentication middleware
-    let auth_middleware = AuthMiddlewareFactory::new()
-        .map_err(|e| {
-            tracing::error!("Failed to initialize auth middleware: {}", e);
-            e
-        })?;
-
-    tracing::info!("🔐 [Data Service] Authentication middleware initialized");
     tracing::info!("🚀 [Data Service] Starting on port {}", port);
 
     HttpServer::new(move || {
@@ -63,7 +77,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .supports_credentials();
 
         App::new()
-            .app_data(web::Data::new(pool.clone()))
+            .app_data(web::Data::new(db_pool_opt.clone()))
+            .app_data(web::Data::new(toggles.clone()))
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(auth_middleware.clone())
@@ -128,13 +143,16 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
     );
 }
 
-async fn health_check(pool: web::Data<PgPool>) -> actix_web::Result<web::Json<serde_json::Value>> {
-    let db_status = match sqlx::query("SELECT 1 as test").fetch_one(pool.get_ref()).await {
-        Ok(_) => "connected",
-        Err(e) => {
-            tracing::error!("[Data Service] Database health check failed: {}", e);
-            "disconnected"
-        }
+async fn health_check(pool_opt: web::Data<Option<PgPool>>) -> actix_web::Result<web::Json<serde_json::Value>> {
+    let db_status = match pool_opt.get_ref() {
+        Some(pool) => match sqlx::query("SELECT 1 as test").fetch_one(pool).await {
+            Ok(_) => "connected",
+            Err(e) => {
+                tracing::error!("[Data Service] Database health check failed: {}", e);
+                "disconnected"
+            }
+        },
+        None => "disabled",
     };
 
     Ok(web::Json(serde_json::json!({

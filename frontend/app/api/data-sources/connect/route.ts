@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { apiClient } from '@/lib/api'
+import { dataApiClient } from '@/lib/api'
 
 
 function extractRepositoryName(url: string): string | null {
@@ -87,13 +87,13 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = {
-      source_type: type,
+      type,
       url,
       credentials,
       config: processedConfig,
     }
 
-    const resp = await apiClient.post('/api/data-sources/connect', payload)
+    const resp = await dataApiClient.post('/api/data/sources', payload)
     if (!succeeded(resp)) {
       const err = isApiResp(resp) ? resp.error : undefined
       return NextResponse.json({ success: false, error: err || 'Failed to connect data source' }, { status: 502 })

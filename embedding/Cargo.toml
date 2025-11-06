@@ -29,6 +29,7 @@ phf = { version = "0.11", features = ["macros"] }
 urlencoding = "2.1"
 async-trait = "0.1"
 sha2 = "0.10"
+conhub-config = { path = "../shared/config" }
 
 
 [dev-dependencies]
