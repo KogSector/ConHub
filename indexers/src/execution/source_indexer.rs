@@ -1,5 +1,5 @@
 use crate::{
-    builder, execution::row_indexer::ContentHashBasedCollapsingBaseline, services::error::{SharedError, SharedResult, SharedResultExt}, builder::exec_ctx, base::value, services::concur_control,
+    builder, execution::row_indexer::ContentHashBasedCollapsingBaseline, services::error::{SharedError, SharedResult, SharedResultExt, SharedResultExtAnyhow}, builder::exec_ctx, base::value, services::concur_control,
 };
 use futures::{future::{Ready, Shared}, FutureExt, StreamExt};
 use std::sync::{Arc, Mutex};

@@ -53,7 +53,7 @@ function runScript(command, args = []) {
   
   const child = spawn(command, args, {
     stdio: 'inherit',
-    shell: true,
+    shell: false,
     cwd: __dirname
   });
 

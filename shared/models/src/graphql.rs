@@ -146,15 +146,15 @@ impl<T: async_graphql::OutputType> PaginatedResponse<T> {
     }
 }
 
-// Batch operations
+// Batch operations (non-generic GraphQL-friendly definitions)
 #[derive(Debug, Clone, Serialize, Deserialize, InputObject)]
-pub struct BatchRequest<T: async_graphql::InputType> {
-    pub items: Vec<T>,
+pub struct BatchRequest {
+    pub items: Vec<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
-pub struct BatchResult<T: async_graphql::OutputType> {
-    pub results: Vec<T>,
+pub struct BatchResult {
+    pub results: Vec<serde_json::Value>,
     pub success_count: i32,
     pub failure_count: i32,
     pub errors: Vec<String>,

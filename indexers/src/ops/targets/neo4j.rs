@@ -188,7 +188,7 @@ fn mapped_field_values_to_bolt(
 fn basic_value_to_bolt(value: &BasicValue, schema: &BasicValueType) -> Result<BoltType> {
     let bolt_value = match value {
         BasicValue::Bytes(v) => BoltType::Bytes(BoltBytes { value: Bytes::from(v.clone()) }),
-        BasicValue::Str(v) => BoltType::String(BoltString { value: v.clone() }),
+            BasicValue::Str(v) => BoltType::String(BoltString { value: v.to_string() }),
         BasicValue::Bool(v) => BoltType::Boolean(BoltBoolean { value: *v }),
         BasicValue::Int64(v) => BoltType::Integer(BoltInteger { value: *v }),
         BasicValue::Float64(v) => BoltType::Float(BoltFloat { value: *v }),

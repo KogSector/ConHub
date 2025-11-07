@@ -52,6 +52,16 @@ impl CombinedConcurrencyController {
         let permit = self.inner.acquire(_size_estimator).await?;
         Ok(CombinedConcurrencyControllerPermit { _permit: permit })
     }
+
+    /// Acquire a permit while reserving memory based on a size estimator.
+    /// This minimal implementation ignores the estimator and just acquires a permit.
+    pub async fn acquire_bytes_with_reservation<F>(&self, _size_estimator: F) -> Result<CombinedConcurrencyControllerPermit>
+    where
+        F: Fn() -> usize,
+    {
+        let permit = self.inner.acquire(BYTES_UNKNOWN_YET).await?;
+        Ok(CombinedConcurrencyControllerPermit { _permit: permit })
+    }
 }
 
 pub struct CombinedConcurrencyControllerPermit {

@@ -52,9 +52,35 @@ console.log('');
 
 process.env.ENV_MODE = 'local';
 
-const concurrently = spawn('npm run dev:concurrently', {
+// Resolve concurrently binary explicitly to avoid PATH issues on Windows
+const projectRoot = path.join(__dirname, '..');
+const isWin = process.platform === 'win32';
+const concurrentlyBin = path.join(projectRoot, 'node_modules', '.bin', isWin ? 'concurrently.cmd' : 'concurrently');
+
+let concurrentlyArgs = [
+  '--names', 'Frontend,Auth,Billing,Client,Data,Security,Webhook,Indexer,MCP-Svc,MCP-GDrive,MCP-FS,MCP-Dropbox',
+  '--prefix-colors', 'cyan,blue,magenta,green,yellow,red,gray,white,bgBlue,bgGreen,bgYellow,bgMagenta',
+  '--restart-tries', '2',
+  '--kill-others-on-fail',
+  'npm --prefix .. run dev:frontend',
+  'npm --prefix .. run dev:auth',
+  'npm --prefix .. run dev:billing',
+  'npm --prefix .. run dev:client',
+  'npm --prefix .. run dev:data',
+  'npm --prefix .. run dev:security',
+  'npm --prefix .. run dev:webhook',
+  'npm --prefix .. run dev:indexer',
+  'npm --prefix .. run dev:mcp-service',
+  "echo 'MCP GDrive not implemented'",
+  "echo 'MCP FS not implemented'",
+  "echo 'MCP Dropbox not implemented'"
+];
+
+// Prefer invoking via npm which sets PATH for node_modules/.bin reliably
+const npmCmd = isWin ? 'npm.cmd' : 'npm';
+const child = spawn(npmCmd, ['run', 'dev:concurrently'], {
   stdio: 'inherit',
-  cwd: path.join(__dirname, '..'),
+  cwd: projectRoot,
   shell: true
 });
 
@@ -68,8 +94,7 @@ const concurrently = spawn('npm run dev:concurrently', {
 const handleExit = (signal) => {
   console.log(`\n${colors.yellow}[STOP] Received ${signal}, stopping all services...${colors.reset}`);
   try {
-    // try to gracefully kill the concurrently process group
-    concurrently.kill();
+    child.kill();
   } catch (e) {
     // ignore
   }
@@ -84,7 +109,7 @@ const handleExit = (signal) => {
 process.on('SIGINT', () => handleExit('SIGINT'));
 process.on('SIGTERM', () => handleExit('SIGTERM'));
 
-concurrently.on('close', (code) => {
+child.on('close', (code) => {
   // Local mode - no Docker cleanup needed
   process.exit(code);
 });

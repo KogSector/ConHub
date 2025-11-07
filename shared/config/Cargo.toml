@@ -9,20 +9,20 @@ path = "src/lib.rs"
 
 [dependencies]
 # Configuration
-dotenv = { workspace = true }
+dotenv = "0.15"
 
 # Serialization
-serde = { workspace = true }
-serde_json = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 # Error handling
-thiserror = { workspace = true }
-anyhow = { workspace = true }
+thiserror = "1.0"
+anyhow = "1.0"
 
 # Logging
-tracing = { workspace = true }
-reqwest = { workspace = true }
+tracing = "0.1"
+reqwest = { version = "0.11", features = ["json"] }
 
 # Concurrency and caching
-parking_lot = { workspace = true }
-lazy_static = { workspace = true }
+parking_lot = "0.12"
+lazy_static = "1.4"
