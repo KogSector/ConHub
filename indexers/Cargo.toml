@@ -165,9 +165,9 @@ tokio-postgres = "0.7"
 neo4rs = "0.7"
 
 # Python integration
-pyo3 = { version = "0.26", features = ["auto-initialize"] }
-pyo3-async-runtimes = { version = "0.26", features = ["tokio", "tokio-runtime"] }
-pythonize = "0.26"
+pyo3 = { version = "0.27", features = ["auto-initialize"] }
+pyo3-async-runtimes = { version = "0.27", features = ["tokio", "tokio-runtime"] }
+serde-pyobject = "0.8"
 
 # Commonly used runtime + utility crates referenced by sources; add as
 # crate-local dependencies so `indexers` can compile in isolation. These

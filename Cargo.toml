@@ -145,7 +145,7 @@ md5 = "0.7"
 tree-sitter = "0.22"
 
 # Python integration
-pyo3 = { version = "0.26", features = ["auto-initialize"] }
+pyo3 = { version = "0.27", features = ["auto-initialize"] }
 
 # Test utilities
 [workspace.dev-dependencies]
