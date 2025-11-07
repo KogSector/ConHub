@@ -12,3 +12,7 @@ export const isLoginEnabled = (): boolean => {
 export const isHeavyModeEnabled = (): boolean => {
   return isFeatureEnabled('Heavy');
 }
+
+export const isDockerEnabled = (): boolean => {
+  return isFeatureEnabled('Docker');
+}

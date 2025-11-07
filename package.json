@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "ConHub - Unified development environment orchestration",
   "scripts": {
-    "start": "cd scripts && npm run docker:start",
+    "start": "node scripts/smart-start.js",
     "stop": "cd scripts && npm run docker:stop",
     "status": "cd scripts && npm run docker:status",
     "logs": "cd scripts && npm run docker:logs",
@@ -11,7 +11,7 @@
     "rebuild": "cd scripts && npm run docker:rebuild",
     "clean": "cd scripts && npm run docker:clean",
     "setup": "cd scripts && npm run docker:setup",
-    "dev": "cd scripts && npm run dev:concurrently",
+    "dev": "node scripts/smart-start.js",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:auth": "cd auth && cargo run",
     "dev:billing": "cd billing && cargo run",

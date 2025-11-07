@@ -63,6 +63,18 @@ impl FeatureToggles {
         self.heavy_enabled()
     }
 
+    // Convenience: read Docker enablement
+    // Controls whether builds happen via Docker or locally
+    pub fn docker_enabled(&self) -> bool {
+        // Default to false for local development
+        self.is_enabled_or("Docker", false)
+    }
+
+    // Check if Docker builds should be used
+    pub fn should_use_docker(&self) -> bool {
+        self.docker_enabled()
+    }
+
     // Get all enabled features
     pub fn enabled_features(&self) -> Vec<String> {
         self.flags

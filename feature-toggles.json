@@ -1,4 +1,5 @@
 {
   "Auth": false,
-  "Heavy": false
+  "Heavy": false,
+  "Docker": false
 }

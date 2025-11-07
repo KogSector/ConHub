@@ -134,14 +134,32 @@ cargo fmt --workspace
 ```
 
 ### Feature Toggles
-Control development complexity with feature toggles:
+Control development complexity with feature toggles (`feature-toggles.json`):
 
 ```json
 {
-  "Auth": false,    // Disable auth for UI development
-  "Heavy": false    // Disable embedding/indexing for fast iteration
+  "Auth": false,    // Disable auth & databases for UI development
+  "Heavy": false,   // Disable embedding/indexing for fast iteration
+  "Docker": false   // Use local development (true = Docker containers)
 }
 ```
+
+**Toggle Modes:**
+- `Docker: false` - **Local Development** (fastest, default)
+  - Services run directly on your machine
+  - No Docker build needed
+  - Hot reload enabled
+  - ~30-60 second startup
+
+- `Docker: true` - **Production-like Environment**
+  - All services in containers
+  - Full infrastructure (PostgreSQL, Redis, Qdrant)
+  - Isolated networking
+  - ~2-4 minute startup
+
+**Usage:** Simply run `npm start` - it intelligently detects the mode from feature-toggles.json
+
+See [Docker Toggle Documentation](docs/DOCKER_TOGGLE_FEATURE.md) for details.
 
 ### GraphQL API
 Unified GraphQL endpoint at `http://localhost:8000/api/graphql`:
