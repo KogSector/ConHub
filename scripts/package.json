@@ -7,7 +7,7 @@
     "start": "node smart-start.js",
     "stop": "node services/stop.js",
     "status": "node services/status.js",
-    "dev:concurrently": "concurrently --names Frontend,Auth,Billing,Client,Data,Security,Webhook,Indexer,MCP-Svc,MCP-GDrive,MCP-FS,MCP-Dropbox --prefix-colors cyan,blue,magenta,green,yellow,red,gray,white,bgBlue,bgGreen,bgYellow,bgMagenta --restart-tries 2 --kill-others-on-fail \"npm --prefix .. run dev:frontend\" \"npm --prefix .. run dev:auth\" \"npm --prefix .. run dev:billing\" \"npm --prefix .. run dev:client\" \"npm --prefix .. run dev:data\" \"npm --prefix .. run dev:security\" \"npm --prefix .. run dev:webhook\" \"npm --prefix .. run dev:indexer\" \"npm --prefix .. run dev:mcp-service\" \"echo 'MCP GDrive not implemented'\" \"echo 'MCP FS not implemented'\" \"echo 'MCP Dropbox not implemented'\"",
+    "dev:concurrently": "concurrently --names Frontend,Auth,Billing,Client,Data,Security,Webhook,MCP-Svc,MCP-GDrive,MCP-FS,MCP-Dropbox --prefix-colors cyan,blue,magenta,green,yellow,red,gray,bgBlue,bgGreen,bgYellow,bgMagenta --restart-tries 2 --kill-others-on-fail \"npm --prefix .. run dev:frontend\" \"npm --prefix .. run dev:auth\" \"npm --prefix .. run dev:billing\" \"npm --prefix .. run dev:client\" \"npm --prefix .. run dev:data\" \"npm --prefix .. run dev:security\" \"npm --prefix .. run dev:webhook\" \"npm --prefix .. run dev:mcp-service\" \"echo 'MCP GDrive not implemented'\" \"echo 'MCP FS not implemented'\" \"echo 'MCP Dropbox not implemented'\"",
     "docker:setup": "node docker/setup-and-run.js",
     "docker:start": "node docker/setup-and-run.js --start-only",
     "docker:stop": "node docker/stop.js",

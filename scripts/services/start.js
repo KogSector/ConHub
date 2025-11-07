@@ -43,7 +43,6 @@ console.log('   AI Service:       http://localhost:3012');
 console.log('   Data Service:     http://localhost:3013');
 console.log('   Security Service: http://localhost:3014');
 console.log('   Webhook Service:  http://localhost:3015');
-console.log('   Unified Indexer:  http://localhost:8080');
 console.log('   MCP Service:      http://localhost:3004');
 console.log('   MCP Google Drive: http://localhost:3005');
 console.log('   MCP Filesystem:   http://localhost:3006');
@@ -58,8 +57,8 @@ const isWin = process.platform === 'win32';
 const concurrentlyBin = path.join(projectRoot, 'node_modules', '.bin', isWin ? 'concurrently.cmd' : 'concurrently');
 
 let concurrentlyArgs = [
-  '--names', 'Frontend,Auth,Billing,Client,Data,Security,Webhook,Indexer,MCP-Svc,MCP-GDrive,MCP-FS,MCP-Dropbox',
-  '--prefix-colors', 'cyan,blue,magenta,green,yellow,red,gray,white,bgBlue,bgGreen,bgYellow,bgMagenta',
+  '--names', 'Frontend,Auth,Billing,Client,Data,Security,Webhook,MCP-Svc,MCP-GDrive,MCP-FS,MCP-Dropbox',
+  '--prefix-colors', 'cyan,blue,magenta,green,yellow,red,gray,bgBlue,bgGreen,bgYellow,bgMagenta',
   '--restart-tries', '2',
   '--kill-others-on-fail',
   'npm --prefix .. run dev:frontend',
@@ -69,7 +68,6 @@ let concurrentlyArgs = [
   'npm --prefix .. run dev:data',
   'npm --prefix .. run dev:security',
   'npm --prefix .. run dev:webhook',
-  'npm --prefix .. run dev:indexer',
   'npm --prefix .. run dev:mcp-service',
   "echo 'MCP GDrive not implemented'",
   "echo 'MCP FS not implemented'",
