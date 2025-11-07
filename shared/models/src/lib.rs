@@ -10,6 +10,7 @@ pub mod auth;
 pub mod billing;
 pub mod social;
 pub mod mcp;
+pub mod graphql;
 
 // Advanced data structures for performance optimization
 

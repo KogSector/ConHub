@@ -11,6 +11,12 @@ pub struct AppConfig {
     pub database_url: Option<String>,
     pub redis_url: Option<String>,
     pub qdrant_url: String,
+    // Microservices
+    pub embedding_service_url: String,
+    // Microservice call settings
+    pub embedding_request_timeout_ms: u64,
+    pub embedding_request_retries: usize,
+    pub embedding_max_inflight: usize,
 
     // Authentication
     pub jwt_secret: String,
@@ -73,6 +79,20 @@ impl AppConfig {
             redis_url: env::var("REDIS_URL").ok(),
             qdrant_url: env::var("QDRANT_URL")
                 .unwrap_or_else(|_| "http://localhost:6333".to_string()),
+            embedding_service_url: env::var("EMBEDDING_SERVICE_URL")
+                .unwrap_or_else(|_| "http://localhost:8082".to_string()),
+            embedding_request_timeout_ms: env::var("EMBEDDING_REQUEST_TIMEOUT_MS")
+                .unwrap_or_else(|_| "5000".to_string())
+                .parse()
+                .unwrap_or(5000),
+            embedding_request_retries: env::var("EMBEDDING_REQUEST_RETRIES")
+                .unwrap_or_else(|_| "2".to_string())
+                .parse()
+                .unwrap_or(2),
+            embedding_max_inflight: env::var("EMBEDDING_MAX_INFLIGHT")
+                .unwrap_or_else(|_| "64".to_string())
+                .parse()
+                .unwrap_or(64),
 
             // Authentication
             // Require JWT_SECRET only when Auth is enabled; otherwise use a stub to allow startup.

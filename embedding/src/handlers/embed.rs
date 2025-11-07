@@ -48,7 +48,7 @@ pub async fn embed_handler(
             HttpResponse::Ok().json(EmbedResponse {
                 embeddings,
                 dimension,
-                model: "proprietary".to_string(),
+                model: service.get_model_name().to_string(),
                 count: texts.len(),
             })
         }

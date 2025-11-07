@@ -38,6 +38,7 @@ metadata:
   labels:
     app: conhub-backend
     tier: api
+    version: v1
 spec:
   replicas: 3
   selector:
@@ -47,17 +48,36 @@ spec:
     metadata:
       labels:
         app: conhub-backend
+        tier: api
     spec:
       containers:
       - name: backend
         image: ${CONTAINER_REGISTRY}/conhub-backend:${IMAGE_TAG}
         ports:
         - containerPort: 8000
+          name: http
+          protocol: TCP
         env:
-        - name: PORT
+        - name: BACKEND_PORT
           value: "8000"
         - name: RUST_LOG
           value: "info"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: conhub-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: conhub-secrets
+              key: redis-url
+        - name: QDRANT_URL
+          value: "https://conhub-qdrant.search.windows.net"
+        - name: EMBEDDING_SERVICE_URL
+          value: "http://conhub-embedding:8082"
+        - name: FEATURE_TOGGLES_PATH
+          value: "/etc/conhub/feature-toggles.json"
         resources:
           requests:
             memory: "1Gi"
@@ -71,12 +91,16 @@ spec:
             port: 8000
           initialDelaySeconds: 30
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /ready
+            path: /health
             port: 8000
-          initialDelaySeconds: 5
+          initialDelaySeconds: 10
           periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
 
 ---
 # Auth Service

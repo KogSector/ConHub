@@ -898,6 +898,7 @@ dependencies = [
  "log",
  "ndarray",
  "phf",
+ "pyo3",
  "pyo3-async-runtimes",
  "rand 0.8.5",
  "rayon",

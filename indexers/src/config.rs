@@ -5,6 +5,7 @@ pub struct IndexerConfig {
     pub host: String,
     pub port: u16,
     pub backend_url: String,
+    pub backend_graphql_url: String,
     pub qdrant_url: Option<String>,
     pub qdrant_api_key: Option<String>,
     pub embedding_service_url: String,
@@ -30,6 +31,8 @@ impl IndexerConfig {
                 .unwrap_or(8080),
             backend_url: std::env::var("BACKEND_URL")
                 .unwrap_or_else(|_| "http://localhost:3001".to_string()),
+            backend_graphql_url: std::env::var("BACKEND_GRAPHQL_URL")
+                .unwrap_or_else(|_| "http://localhost:8000/api/graphql".to_string()),
             qdrant_url: std::env::var("QDRANT_URL").ok(),
             qdrant_api_key: std::env::var("QDRANT_API_KEY").ok(),
             embedding_service_url: std::env::var("EMBEDDING_SERVICE_URL")

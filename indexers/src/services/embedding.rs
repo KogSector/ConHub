@@ -29,6 +29,7 @@ pub struct EmbeddingService {
     config: IndexerConfig,
     http_client: reqwest::Client,
     embedding_service_url: String,
+    backend_graphql_url: String,
 }
 
 impl EmbeddingService {
@@ -39,11 +40,13 @@ impl EmbeddingService {
             .unwrap_or_default();
 
         let embedding_service_url = config.embedding_service_url.clone();
+        let backend_graphql_url = config.backend_graphql_url.clone();
 
         Self {
             config,
             http_client,
             embedding_service_url,
+            backend_graphql_url,
         }
     }
 
@@ -54,6 +57,98 @@ impl EmbeddingService {
             .into_iter()
             .next()
             .ok_or_else(|| anyhow!("No embedding returned"))
+    }
+
+    /// Generate embeddings via backend GraphQL gateway
+    pub async fn generate_batch_embeddings_via_backend(&self, texts: &[String], normalize: bool) -> Result<Vec<Vec<f32>>> {
+        if texts.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        #[derive(Deserialize)]
+        struct EmbedGqlData {
+            embed: EmbedResponse,
+        }
+
+        #[derive(Deserialize)]
+        struct EmbedGqlResponse {
+            data: EmbedGqlData,
+        }
+
+        let query = r#"query($texts: [String!]!, $normalize: Boolean) {
+            embed(texts: $texts, normalize: $normalize) { embeddings dimension model count }
+        }"#;
+
+        let variables = serde_json::json!({
+            "texts": texts,
+            "normalize": normalize,
+        });
+
+        let resp = self.http_client
+            .post(&self.backend_graphql_url)
+            .json(&serde_json::json!({ "query": query, "variables": variables }))
+            .send()
+            .await
+            .map_err(|e| anyhow!("Failed to connect to backend GraphQL: {}", e))?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_default();
+            return Err(anyhow!("Backend GraphQL error {}: {}", status, text));
+        }
+
+        let parsed: EmbedGqlResponse = resp
+            .json()
+            .await
+            .map_err(|e| anyhow!("Failed to parse backend GraphQL response: {}", e))?;
+
+        Ok(parsed.data.embed.embeddings)
+    }
+
+    /// Rerank via backend GraphQL gateway
+    pub async fn rerank_via_backend(&self, query: &str, documents: &[(String, String)], top_k: Option<i32>) -> Result<Vec<(String, f32)>> {
+        #[derive(Serialize)]
+        struct RerankDocVar { id: String, text: String }
+
+        #[derive(Deserialize)]
+        struct Rr { id: String, score: f32 }
+
+        #[derive(Deserialize)]
+        struct RerankData { rerank: Vec<Rr> }
+
+        #[derive(Deserialize)]
+        struct RerankResponse { data: RerankData }
+
+        let query_str = r#"query($query: String!, $documents: [RerankDocumentInput!]!, $topK: Int) {
+            rerank(query: $query, documents: $documents, topK: $topK) { id score }
+        }"#;
+
+        let docs_vars: Vec<RerankDocVar> = documents.iter().map(|(id, text)| RerankDocVar { id: id.clone(), text: text.clone() }).collect();
+        let variables = serde_json::json!({
+            "query": query,
+            "documents": docs_vars,
+            "topK": top_k,
+        });
+
+        let resp = self.http_client
+            .post(&self.backend_graphql_url)
+            .json(&serde_json::json!({ "query": query_str, "variables": variables }))
+            .send()
+            .await
+            .map_err(|e| anyhow!("Failed to connect to backend GraphQL: {}", e))?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_default();
+            return Err(anyhow!("Backend GraphQL error {}: {}", status, text));
+        }
+
+        let parsed: RerankResponse = resp
+            .json()
+            .await
+            .map_err(|e| anyhow!("Failed to parse backend GraphQL response: {}", e))?;
+
+        Ok(parsed.data.rerank.into_iter().map(|r| (r.id, r.score)).collect())
     }
 
     /// Generate embeddings for multiple texts with retry logic
@@ -184,10 +279,7 @@ mod tests {
     #[ignore] // Requires running embedding service
     async fn test_generate_embedding() {
         let config = crate::config::IndexerConfig::from_env();
-        let service = EmbeddingService::new(
-            config,
-            "http://localhost:8082".to_string()
-        );
+        let service = EmbeddingService::new(config);
 
         let text = "This is a test text";
         let embedding = service.generate_embedding(text).await.unwrap();
@@ -203,10 +295,7 @@ mod tests {
     #[ignore] // Requires running embedding service
     async fn test_batch_embeddings() {
         let config = crate::config::IndexerConfig::from_env();
-        let service = EmbeddingService::new(
-            config,
-            "http://localhost:8082".to_string()
-        );
+        let service = EmbeddingService::new(config);
 
         let texts = vec![
             "First text".to_string(),

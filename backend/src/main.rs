@@ -99,7 +99,7 @@ async fn main() -> io::Result<()> {
     log::info!("Starting HTTP server on 0.0.0.0:{}", port);
 
     HttpServer::new(move || {
-        let schema = build_schema();
+        let schema = build_schema(config.clone(), toggles.clone());
 
         App::new()
             .app_data(state_data.clone())
