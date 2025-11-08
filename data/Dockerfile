@@ -20,6 +20,10 @@ COPY data/Cargo.toml data/Cargo.toml
 COPY embedding/Cargo.toml embedding/Cargo.toml
 COPY indexers/Cargo.toml indexers/Cargo.toml
 COPY plugins/Cargo.toml plugins/Cargo.toml
+COPY plugins/plugins/amazon-q/Cargo.toml plugins/plugins/amazon-q/Cargo.toml
+COPY plugins/plugins/cline/Cargo.toml plugins/plugins/cline/Cargo.toml
+COPY plugins/plugins/dropbox/Cargo.toml plugins/plugins/dropbox/Cargo.toml
+COPY plugins/plugins/google-drive/Cargo.toml plugins/plugins/google-drive/Cargo.toml
 COPY security/Cargo.toml security/Cargo.toml
 COPY webhook/Cargo.toml webhook/Cargo.toml
 COPY shared/config/Cargo.toml shared/config/Cargo.toml
@@ -48,7 +52,13 @@ RUN mkdir -p data/src && \
     echo "fn main() {}" > indexers/src/main.rs && \
     echo "fn main() {}" > plugins/src/main.rs && \
     echo "fn main() {}" > security/src/main.rs && \
-    echo "fn main() {}" > webhook/src/main.rs
+    echo "fn main() {}" > webhook/src/main.rs && \
+    # Ensure optional plugin subcrates are resolvable during workspace parsing
+    mkdir -p plugins/plugins/amazon-q/src plugins/plugins/cline/src plugins/plugins/dropbox/src plugins/plugins/google-drive/src && \
+    echo "pub fn dummy() {}" > plugins/plugins/amazon-q/src/lib.rs && \
+    echo "pub fn dummy() {}" > plugins/plugins/cline/src/lib.rs && \
+    echo "pub fn dummy() {}" > plugins/plugins/dropbox/src/lib.rs && \
+    echo "pub fn dummy() {}" > plugins/plugins/google-drive/src/lib.rs
 
 # Build dependencies only (this layer will be cached)
 RUN cargo build --release -p data-service || true
