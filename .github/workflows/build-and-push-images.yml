@@ -21,6 +21,10 @@ on:
     branches:
       - main
     paths:
+      # Trigger builds when workflow or feature toggles change
+      - '.github/workflows/**'
+      - 'scripts/feature-toggles.json'
+      # Trigger builds when microservice directories change
       - 'auth/**'
       - 'backend/**'
       - 'billing/**'
