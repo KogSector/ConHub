@@ -35,5 +35,5 @@ dashmap = "5.5"
 parking_lot = "0.12"
 lazy_static = "1.4"
 
-# System info (pin to edition-2021 compatible version)
-sysinfo = "0.29"
+# System info
+sysinfo = "0.37.2"
