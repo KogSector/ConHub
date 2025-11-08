@@ -19,17 +19,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse::<u16>()
         .unwrap_or(3015);
 
-    // Database connection
+    // Database connection with graceful degradation
     let database_url = env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://conhub:conhub_password@postgres:5432/conhub".to_string());
+        .unwrap_or_else(|_| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
 
     println!("📊 [Webhook Service] Connecting to database...");
-    let pool = PgPoolOptions::new()
+    let pool_result = PgPoolOptions::new()
         .max_connections(10)
         .connect(&database_url)
-        .await?;
+        .await;
 
-    println!("✅ [Webhook Service] Database connection established");
+    let pool = match pool_result {
+        Ok(p) => {
+            println!("✅ [Webhook Service] Database connection established");
+            Some(p)
+        }
+        Err(e) => {
+            eprintln!("⚠️  [Webhook Service] Failed to connect to database: {}", e);
+            eprintln!("⚠️  [Webhook Service] Service will start but database operations will fail");
+            eprintln!("⚠️  [Webhook Service] Please ensure PostgreSQL is running and DATABASE_URL is correct");
+            None
+        }
+    };
 
     println!("🚀 [Webhook Service] Starting on port {}", port);
 
@@ -40,11 +51,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .allow_any_header()
             .supports_credentials();
 
-        App::new()
-            .app_data(web::Data::new(pool.clone()))
+        let mut app = App::new()
             .wrap(cors)
-            .wrap(Logger::default())
-            .configure(configure_routes)
+            .wrap(Logger::default());
+
+        if let Some(p) = pool.clone() {
+            app = app.app_data(web::Data::new(p));
+        }
+
+        app.configure(configure_routes)
             .route("/health", web::get().to(health_check))
     })
     .bind(("0.0.0.0", port))?
@@ -63,13 +78,18 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
     );
 }
 
-async fn health_check(pool: web::Data<PgPool>) -> actix_web::Result<web::Json<serde_json::Value>> {
-    let db_status = match sqlx::query("SELECT 1 as test").fetch_one(pool.get_ref()).await {
-        Ok(_) => "connected",
-        Err(e) => {
-            log::error!("[Webhook Service] Database health check failed: {}", e);
-            "disconnected"
+async fn health_check(pool: Option<web::Data<PgPool>>) -> actix_web::Result<web::Json<serde_json::Value>> {
+    let db_status = match pool {
+        Some(p) => {
+            match sqlx::query("SELECT 1 as test").fetch_one(p.get_ref()).await {
+                Ok(_) => "connected",
+                Err(e) => {
+                    log::error!("[Webhook Service] Database health check failed: {}", e);
+                    "disconnected"
+                }
+            }
         }
+        None => "not_configured"
     };
 
     Ok(web::Json(serde_json::json!({

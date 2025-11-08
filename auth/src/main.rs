@@ -31,11 +31,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize authentication middleware (enabled/disabled)
     let auth_middleware = if auth_enabled {
-        AuthMiddlewareFactory::new()
-            .map_err(|e| {
-                tracing::error!("Failed to initialize auth middleware: {}", e);
-                e
-            })?
+        match AuthMiddlewareFactory::new() {
+            Ok(middleware) => middleware,
+            Err(e) => {
+                eprintln!("⚠️  [Auth Service] Failed to initialize auth middleware: {}", e);
+                eprintln!("⚠️  [Auth Service] Common causes:");
+                eprintln!("    1. JWT_PUBLIC_KEY or JWT_PRIVATE_KEY not set in .env");
+                eprintln!("    2. Keys not properly formatted (must include BEGIN/END markers)");
+                eprintln!("    3. Run 'generate-jwt-keys.ps1' and 'setup-env.ps1' to create keys");
+                eprintln!("⚠️  [Auth Service] Falling back to disabled mode");
+                tracing::warn!("Auth middleware initialization failed, using disabled mode");
+                AuthMiddlewareFactory::disabled()
+            }
+        }
     } else {
         tracing::warn!("Auth feature disabled via feature toggles; injecting default claims.");
         AuthMiddlewareFactory::disabled()
@@ -44,15 +52,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Database connection (gated by Auth toggle)
     let db_pool_opt: Option<PgPool> = if auth_enabled {
         let database_url = env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://conhub:conhub_password@postgres:5432/conhub".to_string());
+            .unwrap_or_else(|_| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
 
         println!("📊 [Auth Service] Connecting to database...");
-        let pool = PgPoolOptions::new()
+        match PgPoolOptions::new()
             .max_connections(10)
             .connect(&database_url)
-            .await?;
-        println!("✅ [Auth Service] Database connection established");
-        Some(pool)
+            .await
+        {
+            Ok(pool) => {
+                println!("✅ [Auth Service] Database connection established");
+                Some(pool)
+            }
+            Err(e) => {
+                eprintln!("⚠️  [Auth Service] Failed to connect to database: {}", e);
+                eprintln!("⚠️  [Auth Service] Service will start but database operations will fail");
+                eprintln!("⚠️  [Auth Service] Please ensure PostgreSQL is running and DATABASE_URL is correct");
+                None
+            }
+        }
     } else {
         tracing::warn!("[Auth Service] Auth disabled; skipping database connection.");
         None
@@ -61,10 +79,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Redis connection for sessions (gated by Auth toggle)
     let redis_client_opt: Option<redis::Client> = if auth_enabled {
         let redis_url = env::var("REDIS_URL")
-            .unwrap_or_else(|_| "redis://redis:6379".to_string());
-        let redis_client = redis::Client::open(redis_url.clone())?;
-        println!("✅ [Auth Service] Redis connection established");
-        Some(redis_client)
+            .unwrap_or_else(|_| "redis://localhost:6379".to_string());
+        
+        match redis::Client::open(redis_url.clone()) {
+            Ok(client) => {
+                println!("✅ [Auth Service] Redis connection established");
+                Some(client)
+            }
+            Err(e) => {
+                eprintln!("⚠️  [Auth Service] Failed to connect to Redis: {}", e);
+                eprintln!("⚠️  [Auth Service] Session management will not work");
+                eprintln!("⚠️  [Auth Service] Please ensure Redis is running and REDIS_URL is correct");
+                None
+            }
+        }
     } else {
         tracing::warn!("[Auth Service] Auth disabled; skipping Redis connection.");
         None
