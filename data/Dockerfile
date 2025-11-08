@@ -37,7 +37,18 @@ RUN mkdir -p data/src && \
     echo "pub fn dummy() {}" > shared/middleware/src/lib.rs && \
     echo "pub fn dummy() {}" > shared/models/src/lib.rs && \
     echo "pub fn dummy() {}" > shared/plugins/src/lib.rs && \
-    echo "pub fn dummy() {}" > shared/utils/src/lib.rs
+    echo "pub fn dummy() {}" > shared/utils/src/lib.rs && \
+    # Create dummy binaries for all workspace services so Cargo can parse manifests
+    mkdir -p auth/src backend/src billing/src client/src embedding/src indexers/src plugins/src security/src webhook/src && \
+    echo "fn main() {}" > auth/src/main.rs && \
+    echo "fn main() {}" > backend/src/main.rs && \
+    echo "fn main() {}" > billing/src/main.rs && \
+    echo "fn main() {}" > client/src/main.rs && \
+    echo "fn main() {}" > embedding/src/main.rs && \
+    echo "fn main() {}" > indexers/src/main.rs && \
+    echo "fn main() {}" > plugins/src/main.rs && \
+    echo "fn main() {}" > security/src/main.rs && \
+    echo "fn main() {}" > webhook/src/main.rs
 
 # Build dependencies only (this layer will be cached)
 RUN cargo build --release -p data-service || true
