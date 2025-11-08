@@ -93,6 +93,15 @@ jobs:
         echo "auth_enabled=$AUTH" >> "$GITHUB_OUTPUT"
         echo "heavy_enabled=$HEAVY" >> "$GITHUB_OUTPUT"
 
+    - name: Prepare feature toggles file at repository root
+      run: |
+        # Create repo-root feature-toggles.json expected by Dockerfiles
+        jq -n \
+          --arg heavy "${{ steps.toggles.outputs.heavy_enabled }}" \
+          --arg auth "${{ steps.toggles.outputs.auth_enabled }}" \
+          '{Heavy: ($heavy=="true"), Auth: ($auth=="true")}' > feature-toggles.json
+        echo "Prepared feature-toggles.json:" && cat feature-toggles.json
+
     - name: Log in to Azure
       uses: azure/login@v1
       with:
@@ -113,7 +122,8 @@ jobs:
       if: ((matrix.service != 'auth') || (steps.toggles.outputs.auth_enabled == 'true')) && ((steps.toggles.outputs.heavy_enabled == 'true') || (matrix.service == 'frontend'))
       uses: docker/build-push-action@v5
       with:
-        context: ./${{ matrix.service }}
+        # Use repo root so Dockerfiles can COPY cross-crate files and toggles
+        context: .
         file: ./${{ matrix.service }}/Dockerfile
         push: true
         tags: ${{ secrets.ACR_NAME }}.azurecr.io/${{ matrix.service }}:${{ github.sha }}
