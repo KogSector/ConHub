@@ -2,7 +2,7 @@
 FROM nginx:alpine
 
 # Copy custom nginx configuration from the build context (./nginx)
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
 
 # Expose port 80
 EXPOSE 80

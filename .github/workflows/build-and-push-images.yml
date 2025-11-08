@@ -102,6 +102,32 @@ jobs:
           '{Heavy: ($heavy=="true"), Auth: ($auth=="true")}' > feature-toggles.json
         echo "Prepared feature-toggles.json:" && cat feature-toggles.json
 
+        # Create a temporary Cargo workspace so Dockerfiles can copy Cargo.toml/Cargo.lock
+        cat > Cargo.toml << 'EOF'
+        [workspace]
+        members = [
+          "auth",
+          "backend",
+          "billing",
+          "client",
+          "data",
+          "embedding",
+          "indexers",
+          "plugins",
+          "security",
+          "webhook",
+          "shared/config",
+          "shared/middleware",
+          "shared/models",
+          "shared/plugins",
+          "shared/utils"
+        ]
+        resolver = "2"
+        EOF
+
+        # Ensure Cargo.lock exists so COPY doesn't fail; cargo will regenerate it during build
+        touch Cargo.lock
+
     - name: Log in to Azure
       uses: azure/login@v1
       with:
