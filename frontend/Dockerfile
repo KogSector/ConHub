@@ -1,5 +1,6 @@
 # Multi-stage build for Next.js frontend
-FROM node:18-alpine AS base
+# Use Node 20 to satisfy engine requirements for some dependencies (e.g., Octokit)
+FROM node:20-alpine AS base
 
 # Development stage
 FROM base AS development
@@ -17,7 +18,9 @@ WORKDIR /app
 
 # Copy package files only
 COPY frontend/package*.json ./
-RUN npm install --omit=dev
+# Install both production and dev dependencies for build time (PostCSS/autoprefixer)
+# Use npm ci for reproducible installs based on the lockfile
+RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder
