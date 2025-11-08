@@ -31,7 +31,8 @@ COPY shared/utils/Cargo.toml shared/utils/Cargo.toml
 # Create dummy source files to cache dependencies
 RUN mkdir -p auth/src && \
     echo "fn main() {}" > auth/src/main.rs && \
-    mkdir -p shared/{config,middleware,models,plugins,utils}/src && \
+    # POSIX sh lacks brace expansion; explicitly create each directory
+    mkdir -p shared/config/src shared/middleware/src shared/models/src shared/plugins/src shared/utils/src && \
     echo "pub fn dummy() {}" > shared/config/src/lib.rs && \
     echo "pub fn dummy() {}" > shared/middleware/src/lib.rs && \
     echo "pub fn dummy() {}" > shared/models/src/lib.rs && \
