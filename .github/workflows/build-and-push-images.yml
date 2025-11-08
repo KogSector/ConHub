@@ -36,10 +36,25 @@ on:
 
   # Allows you to run this workflow manually from the Actions tab in GitHub.
   workflow_dispatch:
+    inputs:
+      Heavy:
+        description: "Enable heavy services (embedding, indexing, full stack)"
+        type: boolean
+        default: true
+        required: false
+      Auth:
+        description: "Enable auth service and databases"
+        type: boolean
+        default: false
+        required: false
 
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
+    env:
+      # CI defaults for cloud builds: full stack heavy, auth disabled
+      CI_HEAVY: ${{ github.event_name == 'workflow_dispatch' && inputs.Heavy || 'true' }}
+      CI_AUTH: ${{ github.event_name == 'workflow_dispatch' && inputs.Auth || 'false' }}
     strategy:
       fail-fast: false # Ensures that if one build fails, the others will continue.
       # Defines a matrix of services to build. Add or remove services as needed.
@@ -55,15 +70,21 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y jq
 
-    - name: Read feature toggles
+    - name: Read feature toggles (CI overrides preferred)
       id: toggles
       run: |
-        if [ -f scripts/feature-toggles.json ]; then
-          AUTH=$(jq -r '.Auth // false' scripts/feature-toggles.json)
-          HEAVY=$(jq -r '.Heavy // false' scripts/feature-toggles.json)
-        else
-          AUTH=false
-          HEAVY=false
+        # Prefer CI overrides, fallback to repo file
+        if [ -n "$CI_AUTH" ]; then AUTH="$CI_AUTH"; fi
+        if [ -n "$CI_HEAVY" ]; then HEAVY="$CI_HEAVY"; fi
+
+        if [ -z "$AUTH" ] || [ -z "$HEAVY" ]; then
+          if [ -f scripts/feature-toggles.json ]; then
+            [ -z "$AUTH" ] && AUTH=$(jq -r '.Auth // false' scripts/feature-toggles.json)
+            [ -z "$HEAVY" ] && HEAVY=$(jq -r '.Heavy // false' scripts/feature-toggles.json)
+          else
+            [ -z "$AUTH" ] && AUTH=false
+            [ -z "$HEAVY" ] && HEAVY=false
+          fi
         fi
         echo "auth_enabled=$AUTH" >> "$GITHUB_OUTPUT"
         echo "heavy_enabled=$HEAVY" >> "$GITHUB_OUTPUT"
@@ -74,10 +95,12 @@ jobs:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
     - name: Log in to Azure Container Registry
-      uses: azure/docker-login@v1
-      with:
-        login-server: ${{ secrets.ACR_NAME }}.azurecr.io
-        # The azure/login action authenticates with Azure, so we don't need to provide username/password here.
+      run: |
+        if [ -z "${{ secrets.ACR_NAME }}" ]; then
+          echo "ACR_NAME secret is missing. Please set it in repository secrets." >&2
+          exit 1
+        fi
+        az acr login --name ${{ secrets.ACR_NAME }}
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
