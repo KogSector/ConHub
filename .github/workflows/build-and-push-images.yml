@@ -24,6 +24,8 @@ on:
       # Trigger builds when workflow or feature toggles change
       - '.github/workflows/**'
       - 'scripts/feature-toggles.json'
+      # Trigger builds when shared libraries change (used by backend/data and others)
+      - 'shared/**'
       # Trigger builds when microservice directories change
       - 'auth/**'
       - 'backend/**'
