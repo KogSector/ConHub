@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     base::{schema, value},
-    services::error::{SharedError, SharedResultExtRef},
+    services::error::{SharedError, SharedResultExtRef, SharedResultExtAnyhow},
     utils::fingerprint::{Fingerprint, Fingerprinter},
 };
 
@@ -220,7 +220,16 @@ impl EvaluationMemory {
                 .with(&key)?
                 .with(&entry.num_current)?
                 .into_fingerprint();
-            uuid::Uuid::new_v8(fp.0)
+            // Derive a deterministic UUID from the first 16 bytes of the fingerprint's ASCII hex
+            let bytes = fp.as_slice();
+            let mut b16 = [0u8; 16];
+            if bytes.len() >= 16 {
+                b16.copy_from_slice(&bytes[..16]);
+            } else {
+                // In the unlikely case the hex string is shorter, pad with zeros
+                b16[..bytes.len()].copy_from_slice(bytes);
+            }
+            uuid::Uuid::from_bytes(b16)
         } else if entry.num_current < entry.uuids.len() {
             entry.uuids[entry.num_current]
         } else {

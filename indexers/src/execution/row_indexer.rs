@@ -862,7 +862,7 @@ impl<'a> RowIndexer<'a> {
                 cleaned_staging_target_keys,
                 source_version.ordinal.into(),
                 source_fp,
-                &self.src_eval_ctx.plan.logic_fingerprint.current.0,
+                self.src_eval_ctx.plan.logic_fingerprint.current.as_slice(),
                 precommit_metadata.process_ordinal,
                 self.process_time.timestamp_micros(),
                 precommit_metadata.new_target_keys,

@@ -40,6 +40,30 @@ function logInfo(message) {
     log(`${colors.blue}ℹ ${message}${colors.reset}`);
 }
 
+function readFeatureToggles() {
+    const togglesPath = path.resolve(__dirname, '..', 'feature-toggles.json');
+    try {
+        if (!fs.existsSync(togglesPath)) {
+            return { Auth: false, Heavy: false, Docker: false };
+        }
+        const content = fs.readFileSync(togglesPath, 'utf8');
+        return JSON.parse(content);
+    } catch (_) {
+        return { Auth: false, Heavy: false, Docker: false };
+    }
+}
+
+function getAllowedServices(toggles) {
+    const all = ['frontend','backend','auth','billing','security','data','client','webhook','plugins','nginx','postgres','redis','qdrant'];
+    if (toggles && toggles.Heavy === false) {
+        // Minimal stack for Heavy=false: only frontend (no nginx since it proxies API routes)
+        return ['frontend'];
+    }
+    if (toggles && toggles.Auth === false) {
+        return all.filter(s => !['auth','postgres','redis','qdrant'].includes(s));
+    }
+    return all;
+}
 async function runCommand(command, cwd = process.cwd(), silent = false) {
     return new Promise((resolve, reject) => {
         if (!silent) {
@@ -227,7 +251,7 @@ async function stopRunningContainers() {
     }
 }
 
-async function buildContainers(forceBuild = false) {
+async function buildContainers(forceBuild = false, toggles = { Auth: false }) {
     // Inspect docker-compose.yml to know which images are declared and which services have build contexts
     const { images: declaredImages, servicesWithBuild } = parseComposeDeclaredImages();
 
@@ -259,7 +283,9 @@ async function buildContainers(forceBuild = false) {
         }
 
         const projectRoot = path.resolve(__dirname, '..', '..');
-        await runCommand('docker-compose build --parallel', projectRoot);
+        const allowed = getAllowedServices(toggles);
+        const buildCmd = allowed.length > 0 ? `docker-compose build --parallel ${allowed.join(' ')}` : 'docker-compose build --parallel';
+        await runCommand(buildCmd, projectRoot);
         logSuccess('All containers built successfully');
     } catch (error) {
         logError('Failed to build containers');
@@ -267,13 +293,20 @@ async function buildContainers(forceBuild = false) {
     }
 }
 
-async function startContainers() {
+async function startContainers(toggles = { Auth: false }) {
     try {
-        logStep('START', 'Starting all ConHub services...');
+        logStep('START', 'Starting ConHub services...');
         // Run docker-compose from project root directory
         const projectRoot = path.resolve(__dirname, '..', '..');
-        await runCommand('docker-compose up -d', projectRoot);
-        logSuccess('All services started successfully');
+        const allowed = getAllowedServices(toggles);
+        const upCmd = allowed.length > 0 ? `docker-compose up -d --no-deps ${allowed.join(' ')}` : 'docker-compose up -d';
+        await runCommand(upCmd, projectRoot);
+        if (toggles && toggles.Heavy === false) {
+            logInfo('Heavy=false — starting only the Frontend service');
+        } else if (toggles && toggles.Auth === false) {
+            logInfo('Auth=false — auth and database services are disabled');
+        }
+        logSuccess('Services start command executed');
     } catch (error) {
         logError('Failed to start containers');
         throw error;
@@ -294,7 +327,7 @@ async function waitForServices() {
     }
 }
 
-async function showStatus() {
+async function showStatus(toggles = { Auth: false }) {
     try {
         logStep('STATUS', 'Checking service status...');
         await runCommand('docker-compose ps');
@@ -302,20 +335,41 @@ async function showStatus() {
         log(`\n${colors.bright}🚀 ConHub is now running!${colors.reset}`);
         log(`\n${colors.cyan}Available services:${colors.reset}`);
         log(`  • Frontend: ${colors.green}http://localhost:3000${colors.reset}`);
-        log(`  • API Gateway: ${colors.green}http://localhost:80${colors.reset}`);
-        log(`  • Backend: ${colors.green}http://localhost:8000${colors.reset}`);
-        log(`  • Auth Service: ${colors.green}http://localhost:3010${colors.reset}`);
-        log(`  • Billing Service: ${colors.green}http://localhost:3011${colors.reset}`);
-        log(`  • Security Service: ${colors.green}http://localhost:3012${colors.reset}`);
-        log(`  • Data Service: ${colors.green}http://localhost:3013${colors.reset}`);
-        log(`  • AI Service: ${colors.green}http://localhost:3014${colors.reset}`);
-        log(`  • Webhook Service: ${colors.green}http://localhost:3015${colors.reset}`);
-        log(`  • MCP Service: ${colors.green}http://localhost:3004${colors.reset}`);
+        if (toggles && toggles.Heavy === false) {
+            log(`  • Backend: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
+            log(`  • Auth Service: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
+            log(`  • Billing Service: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
+            log(`  • Security Service: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
+            log(`  • Data Service: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
+            log(`  • AI Service: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
+            log(`  • Webhook Service: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
+            log(`  • MCP Service: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
+        } else {
+            log(`  • API Gateway: ${colors.green}http://localhost:80${colors.reset}`);
+            log(`  • Backend: ${colors.green}http://localhost:8000${colors.reset}`);
+            if (!(toggles && toggles.Auth === false)) {
+                log(`  • Auth Service: ${colors.green}http://localhost:3010${colors.reset}`);
+            } else {
+                log(`  • Auth Service: ${colors.yellow}disabled via feature toggles${colors.reset}`);
+            }
+            log(`  • Billing Service: ${colors.green}http://localhost:3011${colors.reset}`);
+            log(`  • Security Service: ${colors.green}http://localhost:3012${colors.reset}`);
+            log(`  • Data Service: ${colors.green}http://localhost:3013${colors.reset}`);
+            log(`  • AI Service: ${colors.green}http://localhost:3014${colors.reset}`);
+            log(`  • Webhook Service: ${colors.green}http://localhost:3015${colors.reset}`);
+            log(`  • MCP Service: ${colors.green}http://localhost:3004${colors.reset}`);
+        }
         
         log(`\n${colors.cyan}Infrastructure:${colors.reset}`);
-        log(`  • PostgreSQL: ${colors.green}localhost:5432${colors.reset}`);
-        log(`  • Redis: ${colors.green}localhost:6379${colors.reset}`);
-        log(`  • Qdrant: ${colors.green}localhost:6333${colors.reset}`);
+        if (toggles && toggles.Heavy === false) {
+            log(`  • Databases: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
+        } else if (!(toggles && toggles.Auth === false)) {
+            log(`  • PostgreSQL: ${colors.green}localhost:5432${colors.reset}`);
+            log(`  • Redis: ${colors.green}localhost:6379${colors.reset}`);
+            log(`  • Qdrant: ${colors.green}localhost:6333${colors.reset}`);
+        } else {
+            log(`  • Databases: ${colors.yellow}disabled via feature toggles (Postgres/Redis/Qdrant)${colors.reset}`);
+        }
         
         log(`\n${colors.yellow}Useful commands:${colors.reset}`);
         log(`  • Stop all services: ${colors.bright}npm run docker:stop${colors.reset}`);
@@ -358,6 +412,12 @@ async function main() {
     
     try {
         log(`${colors.bright}${colors.magenta}🐳 ConHub Docker Setup & Run Script${colors.reset}\n`);
+        const toggles = readFeatureToggles();
+        if (toggles.Heavy === false) {
+            logInfo('Feature toggles: Heavy=false — will build/start only the Frontend');
+        } else if (toggles.Auth === false) {
+            logInfo('Feature toggles: Auth=false — will skip building/starting auth and databases');
+        }
         
         // Check if Docker is running (with diagnostics)
         logStep('DOCKER', 'Verifying Docker is running...');
@@ -399,16 +459,16 @@ async function main() {
             await stopRunningContainers();
         }
 
-        await buildContainers(forceBuild);
+        await buildContainers(forceBuild, toggles);
 
         // Start containers
-        await startContainers();
+        await startContainers(toggles);
 
         // Wait for services to be ready
         await waitForServices();
 
         // Show status
-        await showStatus();
+        await showStatus(toggles);
 
     } catch (error) {
         logError(`Setup failed: ${error.message}`);

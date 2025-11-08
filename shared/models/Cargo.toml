@@ -20,5 +20,8 @@ chrono = { version = "0.4", features = ["serde"] }
 # Validation
 validator = { version = "0.18", features = ["derive"] }
 
+# GraphQL
+async-graphql = "6"
+
 # Decimal types for billing
 rust_decimal = { version = "1.33", features = ["serde"] }

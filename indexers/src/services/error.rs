@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::fmt;
 
 /// A shared error type that can be used across different services
@@ -59,7 +58,7 @@ impl From<anyhow::Error> for SharedError {
 }
 
 /// A shared result type
-pub type SharedResult<T> = Result<T, SharedError>;
+pub type SharedResult<T> = std::result::Result<T, SharedError>;
 
 /// Helper function to create a successful SharedResult
 pub fn shared_ok<T>(value: T) -> SharedResult<T> {
@@ -77,7 +76,7 @@ pub trait SharedResultExt<T> {
         F: FnOnce() -> String;
 }
 
-impl<T, E> SharedResultExt<T> for Result<T, E>
+impl<T, E> SharedResultExt<T> for std::result::Result<T, E>
 where
     E: Into<SharedError>,
 {
@@ -107,5 +106,22 @@ impl<T> SharedResultExtRef<T> for SharedResult<T> {
         F: FnOnce() -> String,
     {
         self.map_err(|e| SharedError::with_source(f(), e))
+    }
+}
+
+/// Extension trait to convert `SharedResult<T>` into `anyhow::Result<T>` conveniently.
+pub trait SharedResultExtAnyhow<T> {
+    fn anyhow_result(self) -> anyhow::Result<T>;
+}
+
+impl<T> SharedResultExtAnyhow<T> for SharedResult<T> {
+    fn anyhow_result(self) -> anyhow::Result<T> {
+        self.map_err(|e| anyhow::anyhow!(e.to_string()))
+    }
+}
+
+impl<'a, T> SharedResultExtAnyhow<&'a T> for &'a SharedResult<T> {
+    fn anyhow_result(self) -> anyhow::Result<&'a T> {
+        self.as_ref().map_err(|e| anyhow::anyhow!(e.to_string()))
     }
 }

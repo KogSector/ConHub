@@ -1,29 +1,81 @@
-FROM rustlang/rust:nightly AS builder
-WORKDIR /app
+# Build stage with optimized caching
+FROM rust:1.75-slim AS builder
 
-# Copy shared dependencies first (to parent directory structure)
-COPY shared/ ../shared/
+# Install build dependencies
+RUN apt-get update && \
+    apt-get install -y pkg-config libssl-dev libpq-dev cmake git && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy service Cargo files
-COPY data/Cargo.toml ./Cargo.toml
+WORKDIR /workspace
 
-# Copy service source code
-COPY data/src ./src
+# Copy workspace configuration first for better layer caching
+COPY Cargo.toml Cargo.lock ./
 
-# Build
-RUN cargo build --release
+# Copy all workspace members' Cargo.toml files to cache dependencies
+COPY auth/Cargo.toml auth/Cargo.toml
+COPY backend/Cargo.toml backend/Cargo.toml
+COPY billing/Cargo.toml billing/Cargo.toml
+COPY client/Cargo.toml client/Cargo.toml
+COPY data/Cargo.toml data/Cargo.toml
+COPY embedding/Cargo.toml embedding/Cargo.toml
+COPY indexers/Cargo.toml indexers/Cargo.toml
+COPY plugins/Cargo.toml plugins/Cargo.toml
+COPY security/Cargo.toml security/Cargo.toml
+COPY webhook/Cargo.toml webhook/Cargo.toml
+COPY shared/config/Cargo.toml shared/config/Cargo.toml
+COPY shared/middleware/Cargo.toml shared/middleware/Cargo.toml
+COPY shared/models/Cargo.toml shared/models/Cargo.toml
+COPY shared/plugins/Cargo.toml shared/plugins/Cargo.toml
+COPY shared/utils/Cargo.toml shared/utils/Cargo.toml
 
-# Development stage
-FROM builder AS development
-RUN cargo install cargo-watch
-CMD ["cargo", "watch", "-q", "-x", "run"]
+# Create dummy source files to cache dependencies
+RUN mkdir -p data/src && \
+    echo "fn main() {}" > data/src/main.rs && \
+    mkdir -p shared/{config,middleware,models,plugins,utils}/src && \
+    echo "pub fn dummy() {}" > shared/config/src/lib.rs && \
+    echo "pub fn dummy() {}" > shared/middleware/src/lib.rs && \
+    echo "pub fn dummy() {}" > shared/models/src/lib.rs && \
+    echo "pub fn dummy() {}" > shared/plugins/src/lib.rs && \
+    echo "pub fn dummy() {}" > shared/utils/src/lib.rs
 
-# Runtime stage
+# Build dependencies only (this layer will be cached)
+RUN cargo build --release -p data-service || true
+
+# Copy actual source code
+COPY shared/ shared/
+COPY data/src data/src
+
+# Build actual application with release optimizations
+RUN cargo build --release -p data-service
+
+# Runtime stage - minimal image
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y ca-certificates libssl3 && rm -rf /var/lib/apt/lists/*
-# Copy feature toggles into runtime image and set path
-COPY feature-toggles.json /usr/local/etc/conhub/feature-toggles.json
-ENV FEATURE_TOGGLES_PATH=/usr/local/etc/conhub/feature-toggles.json
-COPY --from=builder /app/target/release/data-service /usr/local/bin/
+
+# Install runtime dependencies only
+RUN apt-get update && \
+    apt-get install -y ca-certificates libssl3 libpq5 git curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create app user for security
+RUN useradd -m -u 1001 appuser
+
+# Copy feature toggles
+COPY feature-toggles.json /etc/conhub/feature-toggles.json
+ENV FEATURE_TOGGLES_PATH=/etc/conhub/feature-toggles.json
+
+# Copy binary from builder
+COPY --from=builder /workspace/target/release/data-service /usr/local/bin/data-service
+
+# Set ownership
+RUN chown -R appuser:appuser /etc/conhub
+
+# Switch to non-root user
+USER appuser
+
 EXPOSE 3013
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3013/health || exit 1
+
 CMD ["data-service"]

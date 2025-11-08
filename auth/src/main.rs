@@ -7,7 +7,9 @@ use tracing_subscriber;
 mod services;
 mod handlers;
 
-use services::{AuthMiddlewareFactory, role_auth_middleware};
+use services::role_auth_middleware;
+use conhub_middleware::auth::AuthMiddlewareFactory;
+use conhub_config::feature_toggles::FeatureToggles;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -23,24 +25,78 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse::<u16>()
         .unwrap_or(3010);
 
-    // Database connection
-    let database_url = env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://conhub:conhub_password@postgres:5432/conhub".to_string());
+    // Feature toggles
+    let toggles = FeatureToggles::from_env_path();
+    let auth_enabled = toggles.is_enabled_or("Auth", true);
 
-    println!("📊 [Auth Service] Connecting to database...");
-    let pool = PgPoolOptions::new()
-        .max_connections(10)
-        .connect(&database_url)
-        .await?;
+    // Initialize authentication middleware (enabled/disabled)
+    let auth_middleware = if auth_enabled {
+        match AuthMiddlewareFactory::new() {
+            Ok(middleware) => middleware,
+            Err(e) => {
+                eprintln!("⚠️  [Auth Service] Failed to initialize auth middleware: {}", e);
+                eprintln!("⚠️  [Auth Service] Common causes:");
+                eprintln!("    1. JWT_PUBLIC_KEY or JWT_PRIVATE_KEY not set in .env");
+                eprintln!("    2. Keys not properly formatted (must include BEGIN/END markers)");
+                eprintln!("    3. Run 'generate-jwt-keys.ps1' and 'setup-env.ps1' to create keys");
+                eprintln!("⚠️  [Auth Service] Falling back to disabled mode");
+                tracing::warn!("Auth middleware initialization failed, using disabled mode");
+                AuthMiddlewareFactory::disabled()
+            }
+        }
+    } else {
+        tracing::warn!("Auth feature disabled via feature toggles; injecting default claims.");
+        AuthMiddlewareFactory::disabled()
+    };
 
-    println!("✅ [Auth Service] Database connection established");
+    // Database connection (gated by Auth toggle)
+    let db_pool_opt: Option<PgPool> = if auth_enabled {
+        let database_url = env::var("DATABASE_URL")
+            .unwrap_or_else(|_| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
 
-    // Redis connection for sessions
-    let redis_url = env::var("REDIS_URL")
-        .unwrap_or_else(|_| "redis://redis:6379".to_string());
+        println!("📊 [Auth Service] Connecting to database...");
+        match PgPoolOptions::new()
+            .max_connections(10)
+            .connect(&database_url)
+            .await
+        {
+            Ok(pool) => {
+                println!("✅ [Auth Service] Database connection established");
+                Some(pool)
+            }
+            Err(e) => {
+                eprintln!("⚠️  [Auth Service] Failed to connect to database: {}", e);
+                eprintln!("⚠️  [Auth Service] Service will start but database operations will fail");
+                eprintln!("⚠️  [Auth Service] Please ensure PostgreSQL is running and DATABASE_URL is correct");
+                None
+            }
+        }
+    } else {
+        tracing::warn!("[Auth Service] Auth disabled; skipping database connection.");
+        None
+    };
 
-    let redis_client = redis::Client::open(redis_url.clone())?;
-    println!("✅ [Auth Service] Redis connection established");
+    // Redis connection for sessions (gated by Auth toggle)
+    let redis_client_opt: Option<redis::Client> = if auth_enabled {
+        let redis_url = env::var("REDIS_URL")
+            .unwrap_or_else(|_| "redis://localhost:6379".to_string());
+        
+        match redis::Client::open(redis_url.clone()) {
+            Ok(client) => {
+                println!("✅ [Auth Service] Redis connection established");
+                Some(client)
+            }
+            Err(e) => {
+                eprintln!("⚠️  [Auth Service] Failed to connect to Redis: {}", e);
+                eprintln!("⚠️  [Auth Service] Session management will not work");
+                eprintln!("⚠️  [Auth Service] Please ensure Redis is running and REDIS_URL is correct");
+                None
+            }
+        }
+    } else {
+        tracing::warn!("[Auth Service] Auth disabled; skipping Redis connection.");
+        None
+    };
 
     println!("🚀 [Auth Service] Starting on port {}", port);
 
@@ -51,13 +107,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .allow_any_header()
             .supports_credentials();
 
-        App::new()
-            .app_data(web::Data::new(pool.clone()))
-            .app_data(web::Data::new(redis_client.clone()))
+        let mut app = App::new()
+            .app_data(web::Data::new(toggles.clone()))
             .wrap(cors)
-            .wrap(Logger::default())
-            .configure(configure_routes)
+            .wrap(Logger::default());
+
+        if let Some(pool) = db_pool_opt.clone() {
+            app = app.app_data(web::Data::new(pool));
+        }
+
+        if let Some(redis_client) = redis_client_opt.clone() {
+            app = app.app_data(web::Data::new(redis_client));
+        }
+
+        app
             .route("/health", web::get().to(health_check))
+            .configure(|cfg| configure_routes(cfg, auth_middleware.clone(), auth_enabled))
     })
     .bind(("0.0.0.0", port))?
     .run()
@@ -66,18 +131,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn configure_routes(cfg: &mut web::ServiceConfig) {
+fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewareFactory, auth_enabled: bool) {
     use conhub_models::auth::UserRole;
     
-    cfg.service(
-        web::scope("/api/auth")
+    let mut scope = web::scope("/api/auth")
+        .route("/forgot-password", web::post().to(handlers::auth::forgot_password))
+        .route("/reset-password", web::post().to(handlers::auth::reset_password))
+        // OAuth routes (public)
+        .route("/oauth/{provider}", web::get().to(handlers::oauth::oauth_login))
+        .route("/oauth/{provider}/callback", web::get().to(handlers::oauth::oauth_callback));
+
+    if auth_enabled {
+        scope = scope
             .route("/login", web::post().to(handlers::auth::login))
             .route("/register", web::post().to(handlers::auth::register))
-            .route("/forgot-password", web::post().to(handlers::auth::forgot_password))
-            .route("/reset-password", web::post().to(handlers::auth::reset_password))
             .service(
                 web::scope("")
-                    .wrap(AuthMiddlewareFactory::new())
+                    .wrap(auth_middleware)
                     .route("/logout", web::post().to(handlers::auth::logout))
                     .route("/me", web::get().to(handlers::auth::get_current_user))
                     .route("/refresh", web::post().to(handlers::auth::refresh_token))
@@ -87,21 +157,36 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
                             .wrap(role_auth_middleware(vec![UserRole::Admin]))
                             .route("/users", web::get().to(handlers::auth::list_users))
                     )
-            )
-            // OAuth routes (public)
-            .route("/oauth/{provider}", web::get().to(handlers::oauth::oauth_login))
-            .route("/oauth/{provider}/callback", web::get().to(handlers::oauth::oauth_callback))
-    );
+            );
+    } else {
+        // In disabled mode, respond with a clear message for auth endpoints
+        scope = scope
+            .route("/login", web::post().to(handlers::auth::disabled))
+            .route("/register", web::post().to(handlers::auth::disabled))
+            .route("/logout", web::post().to(handlers::auth::disabled))
+            .route("/me", web::get().to(handlers::auth::disabled))
+            .route("/refresh", web::post().to(handlers::auth::disabled))
+            .route("/profile", web::get().to(handlers::auth::disabled))
+            .service(
+                web::scope("/admin")
+                    .route("/users", web::get().to(handlers::auth::disabled))
+            );
+    }
+
+    cfg.service(scope);
 }
 
-async fn health_check(pool: web::Data<PgPool>) -> actix_web::Result<web::Json<serde_json::Value>> {
+async fn health_check(pool_opt: web::Data<Option<PgPool>>) -> actix_web::Result<web::Json<serde_json::Value>> {
     // Check database connection
-    let db_status = match sqlx::query("SELECT 1 as test").fetch_one(pool.get_ref()).await {
-        Ok(_) => "connected",
-        Err(e) => {
-            tracing::error!("[Auth Service] Database health check failed: {}", e);
-            "disconnected"
-        }
+    let db_status = match pool_opt.get_ref() {
+        Some(pool) => match sqlx::query("SELECT 1 as test").fetch_one(pool).await {
+            Ok(_) => "connected",
+            Err(e) => {
+                tracing::error!("[Auth Service] Database health check failed: {}", e);
+                "disconnected"
+            }
+        },
+        None => "disabled",
     };
 
     Ok(web::Json(serde_json::json!({

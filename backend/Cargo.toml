@@ -47,3 +47,7 @@ uuid = { version = "1.6", features = ["v4", "serde"] }
 conhub-models = { path = "../shared/models" }
 conhub-utils = { path = "../shared/utils" }
 conhub-config = { path = "../shared/config" }
+
+# GraphQL
+async-graphql = "6"
+async-graphql-actix-web = "6"

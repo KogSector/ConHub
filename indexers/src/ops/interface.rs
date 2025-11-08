@@ -5,9 +5,46 @@ use crate::prelude::*;
 use crate::setup;
 use chrono::TimeZone;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 #[derive(Debug, Clone, Default)]
 pub struct AuthRegistry {}
+
+impl AuthRegistry {
+    /// Resolve a typed auth spec by reference key.
+    ///
+    /// This minimal implementation looks for an environment variable
+    /// `AUTH_SPEC_<key>` and attempts to parse it as JSON (falling back to YAML).
+    /// Projects can replace this logic with their real registry.
+    pub fn get_spec<T>(&self, auth_ref: &crate::base::spec::AuthEntryReference<T>) -> Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        let env_key = format!("AUTH_SPEC_{}", auth_ref.key);
+        if let Ok(val) = std::env::var(&env_key) {
+            // Try JSON first, then YAML for convenience
+            let parsed_json = serde_json::from_str::<T>(&val);
+            match parsed_json {
+                Ok(spec) => Ok(spec),
+                Err(json_err) => {
+                    let parsed_yaml = serde_yaml::from_str::<T>(&val);
+                    match parsed_yaml {
+                        Ok(spec) => Ok(spec),
+                        Err(yaml_err) => Err(anyhow::anyhow!(
+                            "Failed to parse auth spec '{}': JSON error: {}; YAML error: {}",
+                            env_key, json_err, yaml_err
+                        )),
+                    }
+                }
+            }
+        } else {
+            Err(anyhow::anyhow!(
+                "Auth spec '{}' not found in registry or env (expected var {})",
+                auth_ref.key, env_key
+            ))
+        }
+    }
+}
 
 pub struct FlowInstanceContext {
     pub flow_instance_name: String,

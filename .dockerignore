@@ -1,38 +1,53 @@
-# Dependencies and build artifacts
-node_modules
-target
-.next
-dist
-build
-
-# Version control
+# Ignore development files and caches to speed up builds
 .git
-.gitignore
-
-# Environment and config
+.github
+*.md
+!README.md
+!OPTIMIZATIONS.md
 .env
 .env.*
 !.env.example
 
-# Logs and temporary files
-*.log
-logs
+# Node modules and build artifacts
+**/node_modules
+**/dist
+**/.next
+**/out
+**/build
+**/coverage
+
+# Rust build artifacts (keep Cargo.lock for reproducible builds)
+**/target
+**/.cargo/registry
+**/.cargo/git
+**/*.rs.bk
+
+# Test and development files
+**/tests
+**/__tests__
+**/*.test.*
+**/*.spec.*
+**/__mocks__
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.editorconfig
+
+# OS files
+.DS_Store
+Thumbs.db
 *.tmp
 *.temp
 
-# OS generated files
-.DS_Store
-Thumbs.db
-.vscode
-.idea
-
-# Documentation and non-essential files
-README.md
-docs
-*.md
-!docker-compose.yml
-
-# Test files
+# Logs and monitoring
+*.log
+logs/
+**/.npm
+**/.pnpm-store
 *.test.*
 __tests__
 coverage

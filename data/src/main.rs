@@ -59,13 +59,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         None
     };
 
-    // Qdrant connection (vector database)
+    // Qdrant connection (vector database) — gated by Auth toggle
     let qdrant_url = env::var("QDRANT_URL")
         .unwrap_or_else(|_| "http://qdrant:6333".to_string());
 
-    tracing::info!("📊 [Data Service] Connecting to Qdrant at {}...", qdrant_url);
-    // TODO: Initialize Qdrant client
-    tracing::info!("✅ [Data Service] Qdrant connection configured");
+    if auth_enabled {
+        tracing::info!("📊 [Data Service] Connecting to Qdrant at {}...", qdrant_url);
+        // TODO: Initialize Qdrant client
+        tracing::info!("✅ [Data Service] Qdrant connection configured");
+    } else {
+        tracing::warn!("[Data Service] Auth disabled; skipping Qdrant connection.");
+    }
 
     tracing::info!("🚀 [Data Service] Starting on port {}", port);
 

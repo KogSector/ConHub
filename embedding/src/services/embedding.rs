@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use crate::services::llm::openai;
+use crate::services::llm::{openai, huggingface};
 use crate::llm::{LlmEmbeddingClient, LlmEmbeddingRequest};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -112,6 +112,7 @@ impl LlmEmbeddingService {
     pub fn new(provider: &str, model: &str) -> Result<Self> {
         let client: Box<dyn LlmEmbeddingClient> = match provider {
             "openai" => Box::new(openai::Client::new(None, None)?),
+            "huggingface" => Box::new(huggingface::Client::new(model)?),
             _ => return Err(anyhow!("Unsupported LLM provider: {}", provider)),
         };
 
@@ -230,6 +231,11 @@ impl LlmEmbeddingService {
     /// Returns the default embedding dimension for the current model.
     pub fn get_dimension(&self) -> Option<u32> {
         self.client.get_default_embedding_dimension(&self.model)
+    }
+
+    /// Returns the current model name
+    pub fn get_model_name(&self) -> &str {
+        &self.model
     }
 
     /// Get cache statistics for monitoring

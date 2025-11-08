@@ -14,14 +14,14 @@ impl<W: Write> YamlSerializer<W> {
     }
 
     /// Serialize a value to YAML and write it to the underlying writer
-    pub fn serialize<T: Serialize>(&mut self, value: &T) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn serialize<T: Serialize>(&mut self, value: &T) -> anyhow::Result<()> {
         let yaml_string = serde_yaml::to_string(value)?;
         self.writer.write_all(yaml_string.as_bytes())?;
         Ok(())
     }
 
     /// Serialize a value to YAML with a document separator
-    pub fn serialize_document<T: Serialize>(&mut self, value: &T) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn serialize_document<T: Serialize>(&mut self, value: &T) -> anyhow::Result<()> {
         self.writer.write_all(b"---\n")?;
         self.serialize(value)?;
         Ok(())
@@ -60,7 +60,7 @@ impl YamlSerializer<Vec<u8>> {
     }
 
     /// Serialize a value to a YAML string
-    pub fn to_string<T: Serialize>(value: &T) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn to_string<T: Serialize>(value: &T) -> anyhow::Result<String> {
         let mut serializer = Self::new_vec();
         serializer.serialize(value)?;
         Ok(String::from_utf8(serializer.into_inner())?)

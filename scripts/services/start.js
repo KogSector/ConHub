@@ -15,6 +15,19 @@ const colors = {
 
 console.log(`${colors.green}[START] Starting ConHub...${colors.reset}`);
 
+function readFeatureToggles() {
+  const togglesPath = path.resolve(__dirname, '..', 'feature-toggles.json');
+  try {
+    if (!fs.existsSync(togglesPath)) {
+      return { Auth: false, Heavy: false, Docker: false };
+    }
+    const content = fs.readFileSync(togglesPath, 'utf8');
+    return JSON.parse(content);
+  } catch (_) {
+    return { Auth: false, Heavy: false, Docker: false };
+  }
+}
+
 // Check if we're in the scripts directory or project root
 const scriptsPackageJson = path.join(__dirname, '../package.json');
 const rootPackageJson = path.join(__dirname, '../../package.json');
@@ -35,126 +48,111 @@ if (fs.existsSync(cleanupScript)) {
   }
 }
 
-console.log(`${colors.cyan}[SERVICES] Starting all services...${colors.reset}`);
+const toggles = readFeatureToggles();
+const authEnabled = toggles.Auth === true;
+
+console.log(`${colors.cyan}[SERVICES] Starting services (Auth: ${authEnabled ? 'enabled' : 'disabled'})...${colors.reset}`);
 console.log('   Frontend:         http://localhost:3000');
-console.log('   Auth Service:     http://localhost:3010');
-console.log('   Billing Service:  http://localhost:3011');
-console.log('   AI Service:       http://localhost:3012');
-console.log('   Data Service:     http://localhost:3013');
-console.log('   Security Service: http://localhost:3014');
-console.log('   Webhook Service:  http://localhost:3015');
-console.log('   Unified Indexer:  http://localhost:8080');
-console.log('   MCP Service:      http://localhost:3004');
-console.log('   MCP Google Drive: http://localhost:3005');
-console.log('   MCP Filesystem:   http://localhost:3006');
-console.log('   MCP Dropbox:      http://localhost:3007');
+if (authEnabled) console.log('   Auth Service:     http://localhost:3010');
+if (toggles.Heavy === false) {
+  console.log('   Billing Service:  disabled (Heavy=false)');
+  console.log('   AI Service:       disabled (Heavy=false)');
+  console.log('   Data Service:     disabled (Heavy=false)');
+  console.log('   Security Service: disabled (Heavy=false)');
+  console.log('   Webhook Service:  disabled (Heavy=false)');
+  console.log('   MCP Service:      disabled (Heavy=false)');
+  console.log('   MCP Google Drive: disabled (Heavy=false)');
+  console.log('   MCP Filesystem:   disabled (Heavy=false)');
+  console.log('   MCP Dropbox:      disabled (Heavy=false)');
+} else {
+  console.log('   Billing Service:  http://localhost:3011');
+  console.log('   AI Service:       http://localhost:3012');
+  console.log('   Data Service:     http://localhost:3013');
+  console.log('   Security Service: http://localhost:3014');
+  console.log('   Webhook Service:  http://localhost:3015');
+  console.log('   MCP Service:      http://localhost:3004');
+  console.log('   MCP Google Drive: http://localhost:3005');
+  console.log('   MCP Filesystem:   http://localhost:3006');
+  console.log('   MCP Dropbox:      http://localhost:3007');
+}
 console.log('');
 
 process.env.ENV_MODE = 'local';
 
-const concurrently = spawn('npm run dev:concurrently', {
-  stdio: 'inherit',
-  cwd: path.join(__dirname, '..'),
-  shell: true
-});
+// Resolve concurrently binary explicitly to avoid PATH issues on Windows
+const projectRoot = path.join(__dirname, '..');
+const isWin = process.platform === 'win32';
 
-// Start docker build in parallel to speed up local dev setup.
-// Use the package script which delegates to docker-compose build. We pass -- --parallel
-// so the underlying docker-compose receives the --parallel flag.
-let dockerBuilder = null;
-try {
-  dockerBuilder = spawn('npm --prefix .. run docker:build -- --parallel', {
+const heavyEnabled = toggles.Heavy === true;
+
+const names = ['Frontend'];
+const prefixColors = ['cyan'];
+const commands = ['npm --prefix .. run dev:frontend'];
+
+if (authEnabled && heavyEnabled) {
+  names.push('Auth');
+  prefixColors.push('blue');
+  commands.push('npm --prefix .. run dev:auth');
+}
+
+if (heavyEnabled) {
+  names.push('Billing','Client','Data','Security','Webhook');
+  prefixColors.push('magenta','green','yellow','red','gray');
+  commands.push(
+    'npm --prefix .. run dev:billing',
+    'npm --prefix .. run dev:client',
+    'npm --prefix .. run dev:data',
+    'npm --prefix .. run dev:security',
+    'npm --prefix .. run dev:webhook'
+  );
+}
+
+const concurrentlyArgs = [
+  '--names', names.join(','),
+  '--prefix-colors', prefixColors.join(','),
+  '--restart-tries', '2',
+  '--kill-others-on-fail',
+  ...commands
+];
+
+// Prefer invoking via npm which sets PATH for node_modules/.bin reliably
+let child;
+const useShell = isWin;
+if (commands.length === 1) {
+  // Only frontend requested; spawn directly without concurrently
+  const npmCmd = isWin ? 'npm.cmd' : 'npm';
+  child = spawn(npmCmd, ['--prefix', '..', 'run', 'dev:frontend'], {
     stdio: 'inherit',
-    cwd: path.join(__dirname, '..'),
-    shell: true
+    cwd: projectRoot,
+    shell: useShell
   });
-  dockerBuilder.on('close', (code) => {
-    if (code === 0) {
-      console.log(`${colors.green}[DOCKER] Parallel build finished successfully${colors.reset}`);
-    } else {
-      console.log(`${colors.red}[DOCKER] Parallel build exited with code ${code}${colors.reset}`);
-    }
+} else {
+  // Use npx to invoke concurrently with filtered commands
+  const npxCmd = isWin ? 'npx.cmd' : 'npx';
+  child = spawn(npxCmd, ['concurrently', ...concurrentlyArgs], {
+    stdio: 'inherit',
+    cwd: projectRoot,
+    shell: useShell
   });
-  dockerBuilder.on('error', (err) => {
-    console.log(`${colors.red}[DOCKER] Failed to start parallel build: ${err.message}${colors.reset}`);
-  });
-} catch (e) {
-  console.log(`${colors.yellow}[DOCKER] Could not start parallel build: ${e.message}${colors.reset}`);
 }
 
-let exiting = false;
+// Note: Docker builds are now controlled by feature-toggles.json (Docker key)
+// Use "npm start" with Docker: true to enable Docker builds
+// Use "npm start" with Docker: false for local development only
 
-const projectRoot = path.join(__dirname, '..', '..');
-
-function runCommandSync(cmd, options = {}) {
-  try {
-    execSync(cmd, { stdio: 'inherit', cwd: options.cwd || projectRoot, timeout: 10 * 60 * 1000 });
-    return true;
-  } catch (err) {
-    console.log(`${colors.red}[ERROR] Command failed: ${cmd}${colors.reset}`);
-    return false;
-  }
-}
-
-const cleanupContainersAndImages = () => {
-  if (exiting) return;
-  exiting = true;
-
-  console.log(`\n${colors.yellow}[STOP] Cleaning up Docker containers and images...${colors.reset}`);
-
-  // Check for docker availability
-  try {
-    execSync('docker --version', { stdio: 'ignore' });
-  } catch (e) {
-    console.log(`${colors.red}[WARNING] Docker not found on PATH; skipping docker cleanup.${colors.reset}`);
-    return;
-  }
-
-  // Run docker compose down in project root
-  const rootCompose = path.join(projectRoot, 'docker-compose.yml');
-  if (fs.existsSync(rootCompose)) {
-    console.log(`${colors.cyan}[DOCKER] Bringing down root docker-compose...${colors.reset}`);
-    runCommandSync('docker compose down --rmi all -v --remove-orphans');
-  }
-
-  // If there's a database docker-compose, bring it down too
-  const dbCompose = path.join(projectRoot, 'database', 'docker-compose.yml');
-  if (fs.existsSync(dbCompose)) {
-    console.log(`${colors.cyan}[DOCKER] Bringing down database/docker-compose...${colors.reset}`);
-    runCommandSync('docker compose -f database/docker-compose.yml down --rmi all -v --remove-orphans');
-  }
-
-  // Optionally run a full prune if explicitly requested (safer opt-in)
-  if (process.env.FORCE_DOCKER_PRUNE === 'true') {
-    console.log(`${colors.yellow}[DOCKER] FORCE_DOCKER_PRUNE=true — running docker system prune -a -f${colors.reset}`);
-    runCommandSync('docker system prune -a -f');
-  }
-
-  console.log(`${colors.green}[STOP] Docker cleanup complete.${colors.reset}`);
-};
+// Note: Docker-related functions removed as Docker mode is now handled separately
+// via the Docker toggle feature. Use "npm run docker:stop" to stop Docker containers.
 
 const handleExit = (signal) => {
   console.log(`\n${colors.yellow}[STOP] Received ${signal}, stopping all services...${colors.reset}`);
   try {
-    // try to gracefully kill the concurrently process group
-    concurrently.kill();
-  } catch (e) {
-    // ignore
-  }
-  try {
-    if (dockerBuilder && !dockerBuilder.killed) {
-      dockerBuilder.kill();
-    }
+    child.kill();
   } catch (e) {
     // ignore
   }
 
-  // Perform docker cleanup synchronously
-  try {
-    cleanupContainersAndImages();
-  } catch (e) {
-    console.log(`${colors.red}[ERROR] Cleanup failed: ${e.message}${colors.reset}`);
-  }
+  // Note: Docker cleanup removed - only needed when Docker mode is enabled
+  // Docker containers are managed separately via docker:stop command
 
   // exit after cleanup
   process.exit(0);
@@ -163,8 +161,7 @@ const handleExit = (signal) => {
 process.on('SIGINT', () => handleExit('SIGINT'));
 process.on('SIGTERM', () => handleExit('SIGTERM'));
 
-concurrently.on('close', (code) => {
-  // When concurrently exits, ensure we still perform cleanup so containers/images are removed
-  cleanupContainersAndImages();
+child.on('close', (code) => {
+  // Local mode - no Docker cleanup needed
   process.exit(code);
 });

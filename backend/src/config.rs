@@ -1,4 +1,5 @@
 use std::env;
+use conhub_config::feature_toggles::FeatureToggles;
 
 #[derive(Clone, Debug)]
 pub struct AppConfig {
@@ -7,9 +8,15 @@ pub struct AppConfig {
     pub env_mode: String,
 
     // Database
-    pub database_url: String,
-    pub redis_url: String,
+    pub database_url: Option<String>,
+    pub redis_url: Option<String>,
     pub qdrant_url: String,
+    // Microservices
+    pub embedding_service_url: String,
+    // Microservice call settings
+    pub embedding_request_timeout_ms: u64,
+    pub embedding_request_retries: usize,
+    pub embedding_max_inflight: usize,
 
     // Authentication
     pub jwt_secret: String,
@@ -54,6 +61,10 @@ impl AppConfig {
     pub fn from_env() -> Self {
         dotenv::dotenv().ok();
 
+        // Read feature toggles to determine whether Auth is enabled
+        let toggles = FeatureToggles::from_env_path();
+        let auth_enabled = toggles.auth_enabled();
+
         Self {
             // Server
             backend_port: env::var("BACKEND_PORT")
@@ -63,16 +74,33 @@ impl AppConfig {
             env_mode: env::var("ENV_MODE").unwrap_or_else(|_| "development".to_string()),
 
             // Database
-            database_url: env::var("DATABASE_URL")
-                .expect("DATABASE_URL must be set"),
-            redis_url: env::var("REDIS_URL")
-                .expect("REDIS_URL must be set"),
+            // Make DB URLs optional to allow full startup when Auth is disabled
+            database_url: env::var("DATABASE_URL").ok(),
+            redis_url: env::var("REDIS_URL").ok(),
             qdrant_url: env::var("QDRANT_URL")
                 .unwrap_or_else(|_| "http://localhost:6333".to_string()),
+            embedding_service_url: env::var("EMBEDDING_SERVICE_URL")
+                .unwrap_or_else(|_| "http://localhost:8082".to_string()),
+            embedding_request_timeout_ms: env::var("EMBEDDING_REQUEST_TIMEOUT_MS")
+                .unwrap_or_else(|_| "5000".to_string())
+                .parse()
+                .unwrap_or(5000),
+            embedding_request_retries: env::var("EMBEDDING_REQUEST_RETRIES")
+                .unwrap_or_else(|_| "2".to_string())
+                .parse()
+                .unwrap_or(2),
+            embedding_max_inflight: env::var("EMBEDDING_MAX_INFLIGHT")
+                .unwrap_or_else(|_| "64".to_string())
+                .parse()
+                .unwrap_or(64),
 
             // Authentication
-            jwt_secret: env::var("JWT_SECRET")
-                .expect("JWT_SECRET must be set"),
+            // Require JWT_SECRET only when Auth is enabled; otherwise use a stub to allow startup.
+            jwt_secret: if auth_enabled {
+                env::var("JWT_SECRET").expect("JWT_SECRET must be set when Auth is enabled")
+            } else {
+                env::var("JWT_SECRET").unwrap_or_else(|_| "dev-no-auth".to_string())
+            },
             google_client_id: env::var("GOOGLE_CLIENT_ID").ok(),
             google_client_secret: env::var("GOOGLE_CLIENT_SECRET").ok(),
             github_client_id: env::var("GITHUB_CLIENT_ID").ok(),

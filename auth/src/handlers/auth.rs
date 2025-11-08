@@ -15,6 +15,15 @@ use crate::services::{
     security::SecurityService,
 };
 
+// Disabled-mode handler: responds consistently when auth is turned off
+pub async fn disabled() -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok().json(json!({
+        "success": true,
+        "disabled": true,
+        "message": "Authentication is disabled via feature toggles."
+    })))
+}
+
 pub async fn login(
     request: web::Json<LoginRequest>,
     pool: web::Data<PgPool>,

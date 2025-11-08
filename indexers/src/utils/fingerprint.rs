@@ -17,6 +17,11 @@ impl Fingerprint {
         &self.0
     }
 
+    /// Get the fingerprint value as raw bytes (ASCII hex)
+    pub fn as_slice(&self) -> &[u8] {
+        self.0.as_bytes()
+    }
+
     /// Create a fingerprint from bytes
     pub fn from_bytes(bytes: &[u8]) -> Self {
         let mut hasher = Sha256::new();
@@ -45,7 +50,7 @@ impl From<&str> for Fingerprint {
 }
 
 /// A utility for generating fingerprints from various data types
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Fingerprinter {
     hasher: Sha256,
 }
@@ -79,6 +84,11 @@ impl Fingerprinter {
     pub fn finalize(self) -> Fingerprint {
         let result = self.hasher.finalize();
         Fingerprint(hex::encode(result))
+    }
+
+    /// Convert the fingerprinter into a finalized fingerprint
+    pub fn into_fingerprint(self) -> Fingerprint {
+        self.finalize()
     }
 
     /// Create a fingerprint from a single piece of data

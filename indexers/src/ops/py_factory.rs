@@ -5,7 +5,7 @@ use pyo3::{
     Bound, IntoPyObjectExt, Py, PyAny, Python, pyclass, pymethods,
     types::{IntoPyDict, PyAnyMethods, PyDict, PyList, PyString, PyTuple, PyTupleMethods},
 };
-use pythonize::{depythonize, pythonize};
+use serde_pyobject::{from_pyobject, to_pyobject};
 use futures::{FutureExt, StreamExt};
 
 use crate::{
@@ -136,7 +136,7 @@ impl interface::SimpleFunctionFactory for PyFunctionFactory {
     )> {
         let (result_type, executor, kw_args_names, num_positional_args) =
             Python::with_gil(|py| -> anyhow::Result<_> {
-                let mut args = vec![pythonize(py, &spec)?];
+                let mut args = vec![to_pyobject(py, &spec)?];
                 let mut kwargs = vec![];
                 let mut num_positional_args = 0;
                 for arg in input_schema.into_iter() {
@@ -252,7 +252,7 @@ impl interface::SourceExecutor for PySourceExecutor {
         // Get the Python async iterator
         let py_async_iter = Python::with_gil(|py| {
             py_source_executor
-                .call_method(py, "list_async", (pythonize(py, options)?,), None)
+                .call_method(py, "list_async", (to_pyobject(py, options)?,), None)
                 .to_result_with_py_trace(py)
         })?;
 
@@ -289,7 +289,7 @@ impl interface::SourceExecutor for PySourceExecutor {
                     "get_value_async",
                     (
                         py::key_to_py_object(py, &key_clone)?,
-                        pythonize(py, options)?,
+                        to_pyobject(py, options)?,
                     ),
                     None,
                 )
@@ -493,7 +493,7 @@ impl interface::SourceFactory for PySourceConnectorFactory {
                 .call_method(py, "get_table_type", (), None)
                 .to_result_with_py_trace(py)?;
             let table_type: schema::EnrichedValueType =
-                depythonize(&value_type_result.into_bound(py))?;
+                from_pyobject(value_type_result.into_bound(py))?;
             Ok(table_type)
         })?;
 
@@ -526,8 +526,8 @@ impl interface::SourceFactory for PySourceConnectorFactory {
             let create_future = Python::with_gil(|py| -> Result<_> {
                 let create_coro = self
                     .py_source_connector
-                    .call_method(py, "create_executor", (pythonize(py, &spec)?,), None)
-                    .to_result_with_py_trace(py)?;
+                    .call_method(py, "create_executor", (to_pyobject(py, &spec)?,), None)
+                .to_result_with_py_trace(py)?;
                 let task_locals =
                     pyo3_async_runtimes::TaskLocals::new(py_exec_ctx.event_loop.as_ref().expect("Event loop is required").bind(py).clone());
                 let create_future = pyo3_async_runtimes::into_future_with_locals(
@@ -640,10 +640,10 @@ impl interface::TargetFactory for PyExportTargetFactory {
                         "create_export_context",
                         (
                             &data_collection.name,
-                            pythonize(py, &data_collection.spec)?,
-                            pythonize(py, &data_collection.key_fields_schema)?,
-                            pythonize(py, &data_collection.value_fields_schema)?,
-                            pythonize(py, &data_collection.index_options)?,
+                            to_pyobject(py, &data_collection.spec)?,
+                            to_pyobject(py, &data_collection.key_fields_schema)?,
+                            to_pyobject(py, &data_collection.value_fields_schema)?,
+                            to_pyobject(py, &data_collection.index_options)?,
                         ),
                         None,
                     )
@@ -655,13 +655,13 @@ impl interface::TargetFactory for PyExportTargetFactory {
                     .call_method(py, "get_persistent_key", (&py_export_ctx,), None)
                     .to_result_with_py_trace(py)?;
                 let persistent_key: serde_json::Value =
-                    depythonize(&persistent_key.into_bound(py))?;
+                    from_pyobject(persistent_key.into_bound(py))?;
 
                 let setup_state = self
                     .py_target_connector
                     .call_method(py, "get_setup_state", (&py_export_ctx,), None)
                     .to_result_with_py_trace(py)?;
-                let setup_state: serde_json::Value = depythonize(&setup_state.into_bound(py))?;
+                let setup_state: serde_json::Value = from_pyobject(setup_state.into_bound(py))?;
 
                 anyhow::Ok((py_export_ctx, persistent_key, setup_state))
             })?;
@@ -737,13 +737,13 @@ impl interface::TargetFactory for PyExportTargetFactory {
                     py,
                     "check_state_compatibility",
                     (
-                        pythonize(py, desired_state)?,
-                        pythonize(py, existing_state)?,
+                        to_pyobject(py, desired_state)?,
+                        to_pyobject(py, existing_state)?,
                     ),
                     None,
                 )
                 .to_result_with_py_trace(py)?;
-            let compatibility: SetupStateCompatibility = depythonize(&result.into_bound(py))?;
+            let compatibility: SetupStateCompatibility = from_pyobject(result.into_bound(py))?;
             Ok(compatibility)
         })?;
         Ok(compatibility)
@@ -753,7 +753,7 @@ impl interface::TargetFactory for PyExportTargetFactory {
         Python::with_gil(|py| -> Result<String> {
             let result = self
                 .py_target_connector
-                .call_method(py, "describe_resource", (pythonize(py, key)?,), None)
+                .call_method(py, "describe_resource", (to_pyobject(py, key)?,), None)
                 .to_result_with_py_trace(py)?;
             let description = result.extract::<String>(py)?;
             Ok(description)
@@ -808,7 +808,7 @@ impl interface::TargetFactory for PyExportTargetFactory {
                 .call_method(
                     py,
                     "apply_setup_changes_async",
-                    (pythonize(py, &setup_changes)?,),
+                    (to_pyobject(py, &setup_changes)?,),
                     None,
                 )
                 .to_result_with_py_trace(py)?;

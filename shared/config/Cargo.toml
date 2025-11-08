@@ -21,4 +21,8 @@ anyhow = "1.0"
 
 # Logging
 tracing = "0.1"
-reqwest = "0.12.24"
+reqwest = { version = "0.11", features = ["json"] }
+
+# Concurrency and caching
+parking_lot = "0.12"
+lazy_static = "1.4"

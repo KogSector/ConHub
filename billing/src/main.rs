@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize authentication middleware with feature toggle
     let toggles = FeatureToggles::from_env_path();
-    let auth_enabled = toggles.is_enabled_or("Auth", true);
+    let auth_enabled = toggles.auth_enabled();
     let auth_middleware = if auth_enabled {
         AuthMiddlewareFactory::new()
             .map_err(|e| {
@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Database connection (gated by Auth toggle)
     let db_pool_opt: Option<PgPool> = if auth_enabled {
         let database_url = env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://conhub:conhub_password@postgres:5432/conhub".to_string());
+            .expect("DATABASE_URL must be set when Auth is enabled");
 
         tracing::info!("📊 [Billing Service] Connecting to database...");
         let pool = PgPoolOptions::new()

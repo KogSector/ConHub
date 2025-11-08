@@ -176,15 +176,7 @@ impl<'a> Dumper<'a> {
             error,
         };
 
-        let yaml_output = {
-            let mut yaml_output = String::new();
-            let yaml_data = YamlSerializer::serialize(&file_data)?;
-            let mut yaml_emitter = YamlEmitter::new(&mut yaml_output);
-            yaml_emitter.multiline_strings(true);
-            yaml_emitter.compact(true);
-            yaml_emitter.dump(&yaml_data)?;
-            yaml_output
-        };
+        let yaml_output = YamlSerializer::to_string(&file_data)?;
         tokio::fs::write(file_path, yaml_output).await?;
 
         Ok(())

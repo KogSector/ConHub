@@ -3,3 +3,4 @@ rustflags = ["-A", "warnings"]
 
 [env]
 RUST_LOG = "error"
+PYO3_PYTHON = 'C:\Users\risha\AppData\Local\Programs\Python\Python311\python.exe'

@@ -31,6 +31,24 @@ impl<'a, T> RefList<'a, T> {
     pub fn iter(&'a self) -> RefListIter<'a, T> {
         RefListIter { current: self }
     }
+
+    /// Get the nth head element (0-based) from the list
+    pub fn headn(&self, n: usize) -> Option<&T> {
+        let mut idx = 0;
+        let mut current = self;
+        loop {
+            match current {
+                RefList::Nil => return None,
+                RefList::Cons(item, tail) => {
+                    if idx == n {
+                        return Some(item);
+                    }
+                    idx += 1;
+                    current = tail;
+                }
+            }
+        }
+    }
 }
 
 impl<'a, T> IntoIterator for &RefList<'a, T> {

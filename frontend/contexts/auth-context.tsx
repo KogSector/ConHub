@@ -119,8 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('auth_session')
     localStorage.removeItem('auth_token')
     setToken(null)
-    setUser(null)
-  }, [])
+    // Preserve default dev user when auth is disabled
+    setUser(loginEnabled ? null : devUser)
+  }, [loginEnabled, devUser])
 
   // Fetch the user profile using the current token
   const fetchUserProfile = useCallback(async (authToken: string) => {
@@ -186,10 +187,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loginEnabled, fetchUserProfile, clearSession])
 
   useEffect(() => {
-    // If login is disabled, provide a mock authenticated session immediately
+    // If login is disabled, provide a default dev user immediately
     if (!loginEnabled) {
-      // Bypass auth but do not auto-login; keep unauthenticated
-      setUser(null)
+      setUser(devUser)
       setToken(null)
       setIsLoading(false)
       return
@@ -211,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearSession()
       setIsLoading(false)
     }
-  }, [loginEnabled, updateLastActivity, verifyToken, clearSession])
+  }, [loginEnabled, updateLastActivity, verifyToken, clearSession, devUser])
 
   
   useEffect(() => {

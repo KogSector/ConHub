@@ -34,8 +34,18 @@ async fn main() -> std::io::Result<()> {
     // Initialize services
     let (embedding_service, rerank_service) = if heavy_enabled {
         log::info!("Initializing embedding and reranking models...");
+        let provider = env::var("EMBEDDING_PROVIDER").unwrap_or_else(|_| "huggingface".to_string());
+        let default_model = match provider.as_str() {
+            "openai" => "text-embedding-3-small",
+            "huggingface" => "Qwen/Qwen3-Embedding-0.6B",
+            _ => "text-embedding-3-small",
+        };
+        let model = env::var("EMBEDDING_MODEL").unwrap_or_else(|_| default_model.to_string());
+
+        log::info!("Embedding provider: {} | model: {}", provider, model);
+
         let embedding_service = Arc::new(
-            LlmEmbeddingService::new("openai", "text-embedding-3-small")
+            LlmEmbeddingService::new(&provider, &model)
                 .expect("Failed to initialize embedding service")
         );
         let rerank_service = Arc::new(
