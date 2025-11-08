@@ -50,6 +50,24 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Install jq
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq
+
+    - name: Read feature toggles
+      id: toggles
+      run: |
+        if [ -f scripts/feature-toggles.json ]; then
+          AUTH=$(jq -r '.Auth // false' scripts/feature-toggles.json)
+          HEAVY=$(jq -r '.Heavy // false' scripts/feature-toggles.json)
+        else
+          AUTH=false
+          HEAVY=false
+        fi
+        echo "auth_enabled=$AUTH" >> "$GITHUB_OUTPUT"
+        echo "heavy_enabled=$HEAVY" >> "$GITHUB_OUTPUT"
+
     - name: Log in to Azure
       uses: azure/login@v1
       with:
@@ -65,6 +83,7 @@ jobs:
       uses: docker/setup-buildx-action@v3
 
     - name: Build and push Docker image
+      if: ((matrix.service != 'auth') || (steps.toggles.outputs.auth_enabled == 'true')) && ((steps.toggles.outputs.heavy_enabled == 'true') || (matrix.service == 'frontend'))
       uses: docker/build-push-action@v5
       with:
         context: ./${{ matrix.service }}

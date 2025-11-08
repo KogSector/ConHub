@@ -54,7 +54,7 @@ function runScript(command, args = []) {
   const child = spawn(command, args, {
     stdio: 'inherit',
     shell: false,
-    cwd: __dirname
+    cwd: path.resolve(__dirname, '..')
   });
 
   child.on('close', (code) => {
