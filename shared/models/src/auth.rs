@@ -262,6 +262,58 @@ pub struct Claims {
     pub jti: String,      // JWT ID for token revocation
 }
 
+// Default development user helpers used when Auth is disabled
+// These values are not stored in any database; they are generated at runtime
+// and can be used to populate user-related fields in a dev environment.
+pub const DEFAULT_DEV_EMAIL: &str = "dev@conhub.local";
+pub const DEFAULT_DEV_NAME: &str = "Development User";
+pub const DEFAULT_DEV_ORG: &str = "ConHub Dev";
+
+// Deterministic dev user ID to keep consistency across services and restarts
+pub fn default_dev_user_id() -> uuid::Uuid {
+    uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_DNS, b"dev.conhub.local.user")
+}
+
+// Build a default development user profile for UI and service use
+pub fn default_dev_user_profile() -> UserProfile {
+    let now = chrono::Utc::now();
+    UserProfile {
+        id: default_dev_user_id(),
+        email: DEFAULT_DEV_EMAIL.to_string(),
+        name: DEFAULT_DEV_NAME.to_string(),
+        avatar_url: None,
+        organization: Some(DEFAULT_DEV_ORG.to_string()),
+        role: UserRole::User,
+        subscription_tier: SubscriptionTier::Free,
+        is_verified: true,
+        is_active: true,
+        two_factor_enabled: false,
+        created_at: now,
+        last_login_at: Some(now),
+    }
+}
+
+// Build default JWT-like claims for development mode when Auth is disabled
+pub fn default_dev_claims() -> Claims {
+    let now = chrono::Utc::now().timestamp() as usize;
+    let exp = now + 60 * 60 * 24 * 365; // 1 year
+    let sub = default_dev_user_id().to_string();
+    let session_id = uuid::Uuid::new_v4().to_string();
+    let jti = uuid::Uuid::new_v4().to_string();
+
+    Claims {
+        sub,
+        email: DEFAULT_DEV_EMAIL.to_string(),
+        roles: vec!["user".to_string(), "dev".to_string()],
+        exp,
+        iat: now,
+        iss: "conhub".to_string(),
+        aud: "conhub-users".to_string(),
+        session_id,
+        jti,
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct SessionInfo {
     pub id: Uuid,

@@ -54,26 +54,19 @@ const authEnabled = toggles.Auth === true;
 console.log(`${colors.cyan}[SERVICES] Starting services (Auth: ${authEnabled ? 'enabled' : 'disabled'})...${colors.reset}`);
 console.log('   Frontend:         http://localhost:3000');
 if (authEnabled) console.log('   Auth Service:     http://localhost:3010');
-if (toggles.Heavy === false) {
-  console.log('   Billing Service:  disabled (Heavy=false)');
-  console.log('   AI Service:       disabled (Heavy=false)');
-  console.log('   Data Service:     disabled (Heavy=false)');
-  console.log('   Security Service: disabled (Heavy=false)');
-  console.log('   Webhook Service:  disabled (Heavy=false)');
-  console.log('   MCP Service:      disabled (Heavy=false)');
-  console.log('   MCP Google Drive: disabled (Heavy=false)');
-  console.log('   MCP Filesystem:   disabled (Heavy=false)');
-  console.log('   MCP Dropbox:      disabled (Heavy=false)');
+// Core services always available regardless of Heavy toggle
+console.log('   Billing Service:  http://localhost:3011');
+console.log('   AI Service:       http://localhost:3012');
+console.log('   Data Service:     http://localhost:3013');
+console.log('   Security Service: http://localhost:3014');
+console.log('   Webhook Service:  http://localhost:3015');
+// Heavy-only services: embeddings and indexers
+if (toggles.Heavy === true) {
+  console.log('   Indexer Service:  http://localhost:8080');
+  console.log('   Embedding Service:http://localhost:8082');
 } else {
-  console.log('   Billing Service:  http://localhost:3011');
-  console.log('   AI Service:       http://localhost:3012');
-  console.log('   Data Service:     http://localhost:3013');
-  console.log('   Security Service: http://localhost:3014');
-  console.log('   Webhook Service:  http://localhost:3015');
-  console.log('   MCP Service:      http://localhost:3004');
-  console.log('   MCP Google Drive: http://localhost:3005');
-  console.log('   MCP Filesystem:   http://localhost:3006');
-  console.log('   MCP Dropbox:      http://localhost:3007');
+  console.log('   Indexer Service:  disabled (Heavy=false)');
+  console.log('   Embedding Service:disabled (Heavy=false)');
 }
 console.log('');
 
@@ -89,21 +82,31 @@ const names = ['Frontend'];
 const prefixColors = ['cyan'];
 const commands = ['npm --prefix .. run dev:frontend'];
 
-if (authEnabled && heavyEnabled) {
+// Auth follows its own toggle, independent of Heavy
+if (authEnabled) {
   names.push('Auth');
   prefixColors.push('blue');
   commands.push('npm --prefix .. run dev:auth');
 }
 
+// Core services should run regardless of Heavy
+names.push('Billing','Client','Data','Security','Webhook');
+prefixColors.push('magenta','green','yellow','red','gray');
+commands.push(
+  'npm --prefix .. run dev:billing',
+  'npm --prefix .. run dev:client',
+  'npm --prefix .. run dev:data',
+  'npm --prefix .. run dev:security',
+  'npm --prefix .. run dev:webhook'
+);
+
+// Heavy-only services: start when Heavy=true
 if (heavyEnabled) {
-  names.push('Billing','Client','Data','Security','Webhook');
-  prefixColors.push('magenta','green','yellow','red','gray');
+  names.push('Indexer','Embedding');
+  prefixColors.push('white','white');
   commands.push(
-    'npm --prefix .. run dev:billing',
-    'npm --prefix .. run dev:client',
-    'npm --prefix .. run dev:data',
-    'npm --prefix .. run dev:security',
-    'npm --prefix .. run dev:webhook'
+    'npm --prefix .. run dev:indexer',
+    'npm --prefix .. run dev:embedding'
   );
 }
 
