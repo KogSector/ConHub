@@ -172,7 +172,7 @@ export const FeaturesSection = () => {
         </div>
         
         {}
-        <div className="text-center mt-20 animate-fade-in-up" style={{ animationDelay: '1.5s' }}>
+        <div className="text-center mt-20 animate-fade-in-up anim-delay-1500">
           <div className="inline-flex items-center gap-2 text-sm text-muted-foreground bg-card/30 backdrop-blur-sm border border-border/50 rounded-full px-6 py-3">
             <Zap className="w-4 h-4 text-primary" />
             <span>And many more features coming soon...</span>
