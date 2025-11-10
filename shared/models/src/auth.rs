@@ -271,7 +271,8 @@ pub const DEFAULT_DEV_ORG: &str = "ConHub Dev";
 
 // Deterministic dev user ID to keep consistency across services and restarts
 pub fn default_dev_user_id() -> uuid::Uuid {
-    uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_DNS, b"dev.conhub.local.user")
+    // Fixed UUID chosen for dev-only identity to remain stable across runs
+    uuid::Uuid::parse_str("8f565516-5c3e-4d63-bc6f-1e049d4152ac").expect("valid dev user uuid")
 }
 
 // Build a default development user profile for UI and service use

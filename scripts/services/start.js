@@ -72,9 +72,10 @@ console.log('');
 
 process.env.ENV_MODE = 'local';
 
-// Resolve concurrently binary explicitly to avoid PATH issues on Windows
+// Use concurrently programmatic API to avoid CLI arg parsing quirks
 const projectRoot = path.join(__dirname, '..');
 const isWin = process.platform === 'win32';
+const concurrentlyDefault = require('concurrently').default || require('concurrently');
 
 const heavyEnabled = toggles.Heavy === true;
 
@@ -110,34 +111,22 @@ if (heavyEnabled) {
   );
 }
 
-const concurrentlyArgs = [
-  '--names', names.join(','),
-  '--prefix-colors', prefixColors.join(','),
-  '--restart-tries', '2',
-  '--kill-others-on-fail',
-  ...commands
-];
+const commandObjs = commands.map((cmd, idx) => ({ command: cmd, name: names[idx] }));
+const concurrentlyOpts = {
+  prefix: 'name',
+  prefixColors,
+  restartTries: 2,
+  killOthersOn: ['failure'],
+  raw: false,
+  cwd: projectRoot,
+};
 
 // Prefer invoking via npm which sets PATH for node_modules/.bin reliably
-let child;
-const useShell = isWin;
-if (commands.length === 1) {
-  // Only frontend requested; spawn directly without concurrently
-  const npmCmd = isWin ? 'npm.cmd' : 'npm';
-  child = spawn(npmCmd, ['--prefix', '..', 'run', 'dev:frontend'], {
-    stdio: 'inherit',
-    cwd: projectRoot,
-    shell: useShell
-  });
-} else {
-  // Use npx to invoke concurrently with filtered commands
-  const npxCmd = isWin ? 'npx.cmd' : 'npx';
-  child = spawn(npxCmd, ['concurrently', ...concurrentlyArgs], {
-    stdio: 'inherit',
-    cwd: projectRoot,
-    shell: useShell
-  });
-}
+// Run via library to avoid yargs converting --prefix to boolean
+concurrentlyDefault(commandObjs, concurrentlyOpts).result.then(
+  () => process.exit(0),
+  () => process.exit(1)
+);
 
 // Note: Docker builds are now controlled by feature-toggles.json (Docker key)
 // Use "npm start" with Docker: true to enable Docker builds
@@ -146,25 +135,11 @@ if (commands.length === 1) {
 // Note: Docker-related functions removed as Docker mode is now handled separately
 // via the Docker toggle feature. Use "npm run docker:stop" to stop Docker containers.
 
-const handleExit = (signal) => {
-  console.log(`\n${colors.yellow}[STOP] Received ${signal}, stopping all services...${colors.reset}`);
-  try {
-    child.kill();
-  } catch (e) {
-    // ignore
-  }
-
-  // Note: Docker cleanup removed - only needed when Docker mode is enabled
-  // Docker containers are managed separately via docker:stop command
-
-  // exit after cleanup
+process.on('SIGINT', () => {
+  console.log(`\n${colors.yellow}[STOP] Received SIGINT, stopping all services...${colors.reset}`);
   process.exit(0);
-};
-
-process.on('SIGINT', () => handleExit('SIGINT'));
-process.on('SIGTERM', () => handleExit('SIGTERM'));
-
-child.on('close', (code) => {
-  // Local mode - no Docker cleanup needed
-  process.exit(code);
+});
+process.on('SIGTERM', () => {
+  console.log(`\n${colors.yellow}[STOP] Received SIGTERM, stopping all services...${colors.reset}`);
+  process.exit(0);
 });
