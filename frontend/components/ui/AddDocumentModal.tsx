@@ -142,11 +142,7 @@ export function AddDocumentModal({ open, onOpenChange, onDocumentAdded }: AddDoc
 
   const handleFileUpload = async (files: File[]) => {
     try {
-      
-      for (const file of files) {
-        console.log(`Uploading ${file.name} (${file.size} bytes)`);
-      }
-      
+      // Files are now handled by FileUploadZone and stored in localStorage
       toast({
         title: "Success",
         description: `${files.length} file(s) uploaded successfully!`,
@@ -225,6 +221,7 @@ export function AddDocumentModal({ open, onOpenChange, onDocumentAdded }: AddDoc
         open={showFileUpload}
         onOpenChange={setShowFileUpload}
         onUploadComplete={() => {
+          setShowFileUpload(false);
           onDocumentAdded?.();
           onOpenChange(false);
         }}

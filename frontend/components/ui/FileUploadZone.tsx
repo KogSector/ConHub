@@ -106,23 +106,27 @@ export function FileUploadZone({ open, onOpenChange, onUploadComplete }: FileUpl
       ));
 
       try {
-        
         const fileExtension = uploadFile.file.name.split('.').pop()?.toLowerCase() || '';
         const docType = getDocumentType(fileExtension);
         const fileSize = formatFileSize(uploadFile.file.size);
         
-        // Use shared ApiClient so base URL / env is respected and avoid hardcoded ports
-        const apiResp = await apiClient.createDocument({
+        // Store in localStorage temporarily
+        const document = {
+          id: uploadFile.id,
           name: uploadFile.file.name,
           source: 'Local Upload',
           doc_type: docType,
           size: fileSize,
           tags: [fileExtension, 'uploaded'],
-        });
-
-        if (!apiResp || !apiResp.success) throw new Error(apiResp?.error || 'Upload failed');
-
+          created_at: new Date().toISOString(),
+          status: 'uploaded'
+        };
         
+        const existingDocs = JSON.parse(localStorage.getItem('uploadedDocuments') || '[]');
+        existingDocs.push(document);
+        localStorage.setItem('uploadedDocuments', JSON.stringify(existingDocs));
+
+        // Simulate upload progress
         for (let progress = 0; progress <= 100; progress += 20) {
           await new Promise(resolve => setTimeout(resolve, 50));
           setFiles(prev => prev.map(f => 

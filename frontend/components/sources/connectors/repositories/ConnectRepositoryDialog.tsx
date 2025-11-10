@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { dataApiClient, ApiResponse } from '@/lib/api';
@@ -46,6 +46,13 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const isProviderSelected = provider === 'github' || provider === 'gitlab' || provider === 'bitbucket';
   const hasBranches = branches.length > 0;
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!open) {
+      resetForm();
+    }
+  }, [open]);
 
   const isUrlValid = useMemo(() => {
     if (!repositoryUrl) return false;

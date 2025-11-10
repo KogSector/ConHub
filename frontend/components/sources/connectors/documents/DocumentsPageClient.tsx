@@ -24,6 +24,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
+import { AddDocumentModal } from "@/components/ui/AddDocumentModal";
+import { DocumentDetailModal } from "@/components/ui/DocumentDetailModal";
 import { apiClient, ApiResponse } from '@/lib/api';
 
 interface DocumentSource {
@@ -54,6 +56,8 @@ export function DocumentsPageClient() {
   const [showConnectDialog, setShowConnectDialog] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sourceToDelete, setSourceToDelete] = useState<DocumentSource | null>(null);
+  const [showDocumentDetail, setShowDocumentDetail] = useState(false);
+  const [uploadedDocuments, setUploadedDocuments] = useState<any[]>([]);
 
   useEffect(() => {
     fetchDocumentSources();
@@ -62,30 +66,47 @@ export function DocumentsPageClient() {
 
   const fetchDocumentSources = async () => {
     try {
-      // Mock data for now - replace with actual API call
-      const mockSources: DocumentSource[] = [
-        {
-          id: '1',
-          name: 'Project Documents',
+      // Get uploaded documents from localStorage
+      const uploadedDocs = JSON.parse(localStorage.getItem('uploadedDocuments') || '[]');
+      
+      const sources: DocumentSource[] = [];
+      
+      // Add uploaded documents as a source if any exist
+      if (uploadedDocs.length > 0) {
+        const totalSize = uploadedDocs.reduce((sum: number, doc: any) => {
+          const sizeMatch = doc.size?.match(/([\d.]+)\s*(\w+)/);
+          if (sizeMatch) {
+            const value = parseFloat(sizeMatch[1]);
+            const unit = sizeMatch[2].toLowerCase();
+            const bytes = unit === 'kb' ? value * 1024 : unit === 'mb' ? value * 1024 * 1024 : value;
+            return sum + bytes;
+          }
+          return sum;
+        }, 0);
+        
+        const formatBytes = (bytes: number) => {
+          if (bytes === 0) return '0 Bytes';
+          const k = 1024;
+          const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+          const i = Math.floor(Math.log(bytes) / Math.log(k));
+          return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        };
+        
+        sources.push({
+          id: 'uploaded-docs',
+          name: 'Uploaded Documents',
           type: 'local',
-          path: '/home/user/documents/project',
-          fileCount: 45,
-          lastSynced: '2024-01-15T10:30:00Z',
+          path: 'Local Storage',
+          fileCount: uploadedDocs.length,
+          lastSynced: new Date().toISOString(),
           status: 'active',
-          size: '2.3 MB'
-        },
-        {
-          id: '2',
-          name: 'Google Drive - Work',
-          type: 'google_drive',
-          path: '/Work/Documents',
-          fileCount: 128,
-          lastSynced: '2024-01-15T09:15:00Z',
-          status: 'syncing',
-          size: '15.7 MB'
-        }
-      ];
-      setDocumentSources(mockSources);
+          size: formatBytes(totalSize)
+        });
+        
+        setUploadedDocuments(uploadedDocs);
+      }
+      
+      setDocumentSources(sources);
     } catch (error) {
       console.error('Error fetching document sources:', error);
     } finally {
@@ -146,8 +167,11 @@ export function DocumentsPageClient() {
     if (!sourceToDelete) return;
     
     try {
-      // API call to delete the source
-      // await apiClient.delete(`/api/document-sources/${sourceToDelete.id}`);
+      if (sourceToDelete.id === 'uploaded-docs') {
+        // Clear uploaded documents from localStorage
+        localStorage.removeItem('uploadedDocuments');
+        fetchDocumentSources();
+      }
       setDocumentSources(prev => prev.filter(s => s.id !== sourceToDelete.id));
       setDeleteDialogOpen(false);
       setSourceToDelete(null);
@@ -192,9 +216,17 @@ export function DocumentsPageClient() {
               <p className="text-gray-600 mt-1">Connect and manage your document-based data sources</p>
             </div>
           </div>
+          <AddDocumentModal
+            open={showConnectDialog}
+            onOpenChange={setShowConnectDialog}
+            onDocumentAdded={() => {
+              fetchDocumentSources();
+              fetchDataSources();
+            }}
+          />
           <Button onClick={() => setShowConnectDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Connect Document Source
+            Add Documents
           </Button>
         </div>
 
@@ -257,6 +289,19 @@ export function DocumentsPageClient() {
                     </p>
                   </div>
                 </div>
+                {source.id === 'uploaded-docs' && source.fileCount > 0 && (
+                  <div className="mt-4 pt-4 border-t">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setShowDocumentDetail(true)}
+                      className="w-full"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      View Documents ({source.fileCount})
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -271,7 +316,7 @@ export function DocumentsPageClient() {
                 </p>
                 <Button onClick={() => setShowConnectDialog(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Connect Document Source
+                  Add Documents
                 </Button>
               </CardContent>
             </Card>
@@ -295,6 +340,17 @@ export function DocumentsPageClient() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <DocumentDetailModal
+        open={showDocumentDetail}
+        onOpenChange={setShowDocumentDetail}
+        documents={uploadedDocuments}
+        onDocumentDeleted={() => {
+          fetchDocumentSources();
+          const updatedDocs = JSON.parse(localStorage.getItem('uploadedDocuments') || '[]');
+          setUploadedDocuments(updatedDocs);
+        }}
+      />
 
       <Footer />
     </div>
