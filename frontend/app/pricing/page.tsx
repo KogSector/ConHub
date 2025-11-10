@@ -39,18 +39,35 @@ export default function Pricing() {
       popular: true
     },
     {
+      name: "Team",
+      price: "$99",
+      period: "per month",
+      description: "Perfect for established teams with advanced collaboration needs",
+      features: [
+        "Everything in Pro",
+        "Up to 25 team members",
+        "Advanced team permissions",
+        "Team analytics & insights",
+        "Priority phone support",
+        "API access",
+        "Custom workflows",
+        "Advanced integrations"
+      ],
+      popular: false
+    },
+    {
       name: "Enterprise",
       price: "Custom",
       period: "contact us",
       description: "For large organizations with specific requirements",
       features: [
-        "Everything in Pro",
-        "SSO integration", 
+        "Everything in Team",
+        "Unlimited team members",
+        "SSO integration",
         "Advanced compliance",
         "Dedicated support",
         "Custom deployment",
         "SLA guarantees",
-        "Advanced analytics",
         "White-label options"
       ],
       popular: false
@@ -69,8 +86,8 @@ export default function Pricing() {
               Simple Pricing
             </Badge>
             <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Choose Your 
-              <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"> Plan</span>
+              Choose Your
+              <span className="text-primary"> Plan</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Connect your repositories, docs, and URLs. Start free, scale as you grow. No hidden fees, no surprises.
@@ -81,7 +98,7 @@ export default function Pricing() {
         {}
         <section className="py-16 -mt-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
               {plans.map((plan, index) => (
                 <Card 
                   key={index} 

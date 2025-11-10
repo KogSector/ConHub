@@ -2,12 +2,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  GitBranch, 
-  Brain, 
-  Shield, 
-  Zap, 
-  Network, 
+import {
+  GitBranch,
+  Brain,
+  Shield,
+  Zap,
+  Network,
   Code2,
   Lock,
   Workflow,
@@ -15,7 +15,10 @@ import {
   Star,
   FileText,
   Globe,
-  Database
+  Database,
+  Download,
+  Eye,
+  Monitor
 } from "lucide-react";
 
 const features = [
@@ -81,7 +84,7 @@ const features = [
     badge: "Easy"
   },
   {
-    icon: Code2,
+    icon: Monitor,
     title: "Developer Experience",
     description: "Beautiful, intuitive interface designed by developers, for developers.",
     badge: "UX"
@@ -99,13 +102,13 @@ const features = [
     badge: "Community"
   },
   {
-    icon: FileText,
+    icon: Download,
     title: "Exportable Context",
     description: "Easily export and share context snapshots for debugging, collaboration, or analysis.",
     badge: "Utility"
   },
   {
-    icon: Shield,
+    icon: Eye,
     title: "Audit Trails",
     description: "Keep track of all activities and data access with comprehensive and immutable audit logs.",
     badge: "Security"
