@@ -50,10 +50,10 @@ const features = [
     badge: "AI Powered"
   },
   {
-    icon: Database,
-    title: "RAG Architecture",
-    description: "Retrieval-Augmented Generation provides AI agents with real-time access to your latest code and docs.",
-    badge: "Smart Retrieval"
+    icon: Code2,
+    title: "Unified Team Context",
+    description: "Bridge the gap between technical and non-technical teams with shared understanding of codebase architecture and implementation details.",
+    badge: "Team Sync"
   },
   {
     icon: Brain,
