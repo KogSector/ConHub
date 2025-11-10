@@ -60,6 +60,7 @@ console.log('   AI Service:       http://localhost:3012');
 console.log('   Data Service:     http://localhost:3013');
 console.log('   Security Service: http://localhost:3014');
 console.log('   Webhook Service:  http://localhost:3015');
+console.log('   Plugins Service:  http://localhost:3020');
 // Heavy-only services: embeddings and indexers
 if (toggles.Heavy === true) {
   console.log('   Indexer Service:  http://localhost:8080');
@@ -70,7 +71,9 @@ if (toggles.Heavy === true) {
 }
 console.log('');
 
+// Ensure services can locate feature toggles regardless of their working directory
 process.env.ENV_MODE = 'local';
+process.env.FEATURE_TOGGLES_PATH = path.resolve(__dirname, '..', 'feature-toggles.json');
 
 // Use concurrently programmatic API to avoid CLI arg parsing quirks
 const projectRoot = path.join(__dirname, '..');

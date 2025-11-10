@@ -58,9 +58,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         None
     };
 
-    // Stripe API key
-    let stripe_key = env::var("STRIPE_SECRET_KEY")
-        .expect("STRIPE_SECRET_KEY must be set");
+    // Stripe API key (optional in local dev when Auth is disabled)
+    let stripe_key_opt: Option<String> = if auth_enabled {
+        match env::var("STRIPE_SECRET_KEY") {
+            Ok(key) => Some(key),
+            Err(_) => {
+                tracing::error!("[Billing Service] STRIPE_SECRET_KEY must be set when Auth is enabled");
+                return Err("Missing STRIPE_SECRET_KEY".into());
+            }
+        }
+    } else {
+        tracing::warn!("[Billing Service] Auth disabled; skipping Stripe configuration.");
+        None
+    };
 
     tracing::info!("🚀 [Billing Service] Starting on port {}", port);
 
@@ -73,7 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         App::new()
             .app_data(web::Data::new(db_pool_opt.clone()))
-            .app_data(web::Data::new(stripe_key.clone()))
+            .app_data(web::Data::new(stripe_key_opt.clone()))
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(auth_middleware.clone())

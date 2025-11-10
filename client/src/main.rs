@@ -4,6 +4,7 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::env;
 use tracing::{info, error};
 use tracing_subscriber;
+use conhub_config::feature_toggles::FeatureToggles;
 
 mod services;
 mod handlers;
@@ -27,17 +28,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse::<u16>()
         .unwrap_or(3012);
 
-    // Database connection
-    let database_url = env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://conhub:conhub_password@postgres:5432/conhub".to_string());
+    // Feature toggles: gate database connection when Auth is disabled
+    let toggles = FeatureToggles::from_env_path();
+    let auth_enabled = toggles.auth_enabled();
 
-    tracing::info!("📊 [AI Service] Connecting to database...");
-    let pool = PgPoolOptions::new()
-        .max_connections(10)
-        .connect(&database_url)
-        .await?;
+    let db_pool_opt: Option<PgPool> = if auth_enabled {
+        let database_url = env::var("DATABASE_URL")
+            .unwrap_or_else(|_| "postgresql://conhub:conhub_password@postgres:5432/conhub".to_string());
 
-    tracing::info!("✅ [AI Service] Database connection established");
+        tracing::info!("📊 [AI Service] Connecting to database...");
+        let pool = PgPoolOptions::new()
+            .max_connections(10)
+            .connect(&database_url)
+            .await?;
+        tracing::info!("✅ [AI Service] Database connection established");
+        Some(pool)
+    } else {
+        tracing::warn!("[AI Service] Auth disabled; skipping database connection.");
+        None
+    };
 
     tracing::info!("🚀 [AI Service] Starting on port {}", port);
 
@@ -49,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .supports_credentials();
 
         App::new()
-            .app_data(web::Data::new(pool.clone()))
+            .app_data(web::Data::new(db_pool_opt.clone()))
             .wrap(cors)
             .wrap(Logger::default())
             .configure(configure_routes)
@@ -70,13 +79,16 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
     );
 }
 
-async fn health_check(pool: web::Data<PgPool>) -> actix_web::Result<web::Json<serde_json::Value>> {
-    let db_status = match sqlx::query("SELECT 1 as test").fetch_one(pool.get_ref()).await {
-        Ok(_) => "connected",
-        Err(e) => {
-            tracing::error!("[AI Service] Database health check failed: {}", e);
-            "disconnected"
-        }
+async fn health_check(pool_opt: web::Data<Option<PgPool>>) -> actix_web::Result<web::Json<serde_json::Value>> {
+    let db_status = match pool_opt.get_ref() {
+        Some(pool) => match sqlx::query("SELECT 1 as test").fetch_one(pool).await {
+            Ok(_) => "connected",
+            Err(e) => {
+                tracing::error!("[AI Service] Database health check failed: {}", e);
+                "disconnected"
+            }
+        },
+        None => "disabled",
     };
 
     Ok(web::Json(serde_json::json!({

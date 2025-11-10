@@ -23,9 +23,8 @@ pub struct AppState {
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging
+    // Initialize logging (use tracing; avoid double logger init)
     tracing_subscriber::fmt::init();
-    env_logger::init();
 
     // Load environment variables
     dotenv::dotenv().ok();
