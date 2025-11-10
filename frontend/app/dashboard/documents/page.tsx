@@ -108,7 +108,7 @@ export default function DocumentsPage() {
                 </Button>
               </Link>
               <div className="h-6 w-px bg-border" />
-              <h1 className="text-2xl font-bold text-foreground">Document Management</h1>
+              <h1 className="text-2xl font-bold text-foreground">Documents</h1>
             </div>
             <div className="flex items-center gap-4">
               <ProfileAvatar />
