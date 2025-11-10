@@ -421,6 +421,7 @@ docker-compose build --no-cache
 - **Quick Start**: `docs/QUICK_START.md`
 - **Migration Guide**: `docs/MIGRATION_GUIDE.md`
 - **API Documentation**: `docs/api-documentation.md`
+- **Security Guide**: `docs/security-guide.md`
 
 ## 🤝 Contributing
 

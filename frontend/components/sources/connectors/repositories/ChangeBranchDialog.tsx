@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { apiClient, ApiResponse } from '@/lib/api';
 
 interface ChangeBranchDialogProps {
   open: boolean;
@@ -40,12 +41,23 @@ export function ChangeBranchDialog({
   const fetchBranches = async (repoId: string) => {
     setLoading(true);
     try {
+      const resp = await apiClient.get<ApiResponse<{ branches: string[]; defaultBranch: string }>>(
+        `/api/repositories/${repoId}/branches`
+      );
       
-      const sampleBranches = ['main', 'develop', 'feature/new-ui', 'fix/bug-123'];
-      setBranches(sampleBranches);
-      setSelectedBranch(currentBranch);
+      if (resp.success && resp.data) {
+        setBranches(resp.data.branches || ['main', 'master', 'develop']);
+        setSelectedBranch(currentBranch || resp.data.defaultBranch || 'main');
+      } else {
+        // Fallback to common branch names if API fails
+        setBranches(['main', 'master', 'develop']);
+        setSelectedBranch(currentBranch || 'main');
+      }
     } catch (error) {
       console.error('Error fetching branches:', error);
+      // Fallback to common branch names if API fails
+      setBranches(['main', 'master', 'develop']);
+      setSelectedBranch(currentBranch || 'main');
     } finally {
       setLoading(false);
     }

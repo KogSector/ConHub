@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState, useEffect } from "react";
+import { apiClient, ApiResponse } from '@/lib/api';
 import { 
   GitBranch, 
   Plus, 
@@ -14,11 +16,13 @@ import {
   Eye,
   EyeOff,
   Webhook,
-  RefreshCw
+  RefreshCw,
+  ChevronRight,
+  ChevronDown
 } from "lucide-react";
 
 export function RepositorySettings() {
-  const repositories = [
+  const [repositories, setRepositories] = useState([
     { 
       id: 1, 
       name: "frontend-app", 
@@ -26,7 +30,8 @@ export function RepositorySettings() {
       private: false, 
       lastSync: "2 minutes ago",
       branch: "main",
-      webhookEnabled: true 
+      webhookEnabled: true,
+      branches: [] as string[]
     },
     { 
       id: 2, 
@@ -35,7 +40,8 @@ export function RepositorySettings() {
       private: true, 
       lastSync: "1 hour ago",
       branch: "main",
-      webhookEnabled: true 
+      webhookEnabled: true,
+      branches: [] as string[]
     },
     { 
       id: 3, 
@@ -44,7 +50,8 @@ export function RepositorySettings() {
       private: true, 
       lastSync: "Syncing...",
       branch: "develop",
-      webhookEnabled: false 
+      webhookEnabled: false,
+      branches: [] as string[]
     },
     { 
       id: 4, 
@@ -53,9 +60,48 @@ export function RepositorySettings() {
       private: true, 
       lastSync: "Failed 5 minutes ago",
       branch: "main",
-      webhookEnabled: true 
+      webhookEnabled: true,
+      branches: [] as string[]
     },
-  ];
+  ]);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [loadingBranches, setLoadingBranches] = useState<Record<number, boolean>>({});
+
+  const fetchBranches = async (repoId: number) => {
+    setLoadingBranches(prev => ({ ...prev, [repoId]: true }));
+    try {
+      const resp = await apiClient.get<ApiResponse<{ branches: string[]; defaultBranch: string }>>(
+        `/api/repositories/${repoId}/branches`
+      );
+      
+      if (resp.success && resp.data) {
+        setRepositories(prev => prev.map(repo => 
+          repo.id === repoId 
+            ? { ...repo, branches: resp.data!.branches || ['main', 'master', 'develop'] }
+            : repo
+        ));
+      }
+    } catch (error) {
+      console.error('Error fetching branches:', error);
+      // Set fallback branches
+      setRepositories(prev => prev.map(repo => 
+        repo.id === repoId 
+          ? { ...repo, branches: ['main', 'master', 'develop'] }
+          : repo
+      ));
+    } finally {
+      setLoadingBranches(prev => ({ ...prev, [repoId]: false }));
+    }
+  };
+
+  useEffect(() => {
+    // Fetch branches for all connected repositories on component mount
+    repositories.forEach(repo => {
+      if (repo.status === 'active') {
+        fetchBranches(repo.id);
+      }
+    });
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -78,26 +124,68 @@ export function RepositorySettings() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="branch">Default Branch</Label>
-              <Select defaultValue="main">
-                <SelectTrigger>
-                  <SelectValue />
+              <Select defaultValue="main" disabled>
+                <SelectTrigger className="opacity-50 cursor-not-allowed">
+                  <SelectValue placeholder="Connect repository first" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="main">main</SelectItem>
-                  <SelectItem value="master">master</SelectItem>
-                  <SelectItem value="develop">develop</SelectItem>
+                  <SelectItem value="" disabled>
+                    No repository connected
+                  </SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Branch selection will be enabled after connecting a repository
+              </p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
             <Switch id="webhook" />
             <Label htmlFor="webhook">Enable webhook for real-time sync</Label>
           </div>
-          <Button className="w-full md:w-auto">
-            <Plus className="w-4 h-4 mr-2" />
-            Connect Repository
-          </Button>
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+              className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
+            >
+              {showAdvancedSettings ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
+              Advanced Settings
+            </button>
+            
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
+              showAdvancedSettings ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+            }`}>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">File Extensions to Index</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {['.js', '.ts', '.jsx', '.tsx', '.py', '.rs', '.go', '.java', '.md', '.txt', '.json', '.yml', '.yaml'].map((ext) => (
+                      <Badge
+                        key={ext}
+                        variant="outline"
+                        className="cursor-pointer text-xs"
+                      >
+                        {ext}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Configure file types to include in repository indexing
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <Button className="w-full md:w-auto">
+              <Plus className="w-4 h-4 mr-2" />
+              Connect Repository
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -162,14 +250,30 @@ export function RepositorySettings() {
               <div className="grid gap-4 md:grid-cols-3 pt-3 border-t border-border">
                 <div className="space-y-2">
                   <Label className="text-sm">Sync Branch</Label>
-                  <Select defaultValue={repo.branch}>
-                    <SelectTrigger className="h-8">
-                      <SelectValue />
+                  <Select 
+                    defaultValue={repo.branch}
+                    disabled={repo.status !== 'active' || repo.branches.length === 0}
+                    onOpenChange={(open) => {
+                      if (open && repo.branches.length === 0 && repo.status === 'active') {
+                        fetchBranches(repo.id);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className={`h-8 ${repo.status !== 'active' || repo.branches.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <SelectValue placeholder={loadingBranches[repo.id] ? 'Loading...' : repo.status !== 'active' ? 'Repository inactive' : 'Select branch'} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="main">main</SelectItem>
-                      <SelectItem value="master">master</SelectItem>
-                      <SelectItem value="develop">develop</SelectItem>
+                      {repo.branches.length > 0 ? (
+                        repo.branches.map((branch) => (
+                          <SelectItem key={branch} value={branch}>
+                            {branch}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>
+                          {repo.status !== 'active' ? 'Repository not connected' : 'No branches available'}
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

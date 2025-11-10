@@ -43,7 +43,9 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   const [branches, setBranches] = useState<string[]>([]);
   const [isFetchingBranches, setIsFetchingBranches] = useState(false);
   const [fetchBranchesError, setFetchBranchesError] = useState<string | null>(null);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const isProviderSelected = provider === 'github' || provider === 'gitlab' || provider === 'bitbucket';
+  const hasBranches = branches.length > 0;
 
   const isUrlValid = useMemo(() => {
     if (!repositoryUrl) return false;
@@ -230,6 +232,8 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       enableWebhooks: false,
       fileExtensions: ['.js', '.ts', '.jsx', '.tsx', '.py', '.rs', '.go', '.java', '.md']
     });
+    setBranches([]);
+    setShowAdvancedSettings(false);
     setError(null);
   };
 
@@ -536,37 +540,73 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   <Select 
                     value={config.defaultBranch} 
                     onValueChange={(value) => setConfig({ ...config, defaultBranch: value })}
+                    disabled={!hasBranches}
                   >
-                    <SelectTrigger className="mt-2">
-                      <SelectValue />
+                    <SelectTrigger className={`mt-2 ${!hasBranches ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <SelectValue placeholder={hasBranches ? "Select branch" : "Fetch branches first"} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="main">main</SelectItem>
-                      <SelectItem value="master">master</SelectItem>
-                      <SelectItem value="develop">develop</SelectItem>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch} value={branch}>
+                          {branch}
+                        </SelectItem>
+                      ))}
+                      {!hasBranches && (
+                        <SelectItem value="" disabled>
+                          No branches available
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
+                  {!hasBranches && (
+                    <p className="text-xs text-muted-foreground">
+                      Click "Check" button above to fetch available branches
+                    </p>
+                  )}
                 </div>
 
+                {/* Advanced Settings */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium">File Extensions to Index</Label>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {['.js', '.ts', '.jsx', '.tsx', '.py', '.rs', '.go', '.java', '.md', '.txt', '.json', '.yml', '.yaml'].map((ext) => (
-                      <Badge
-                        key={ext}
-                        variant={config.fileExtensions?.includes(ext) ? "default" : "outline"}
-                        className="cursor-pointer text-xs"
-                        onClick={() => {
-                          const extensions = config.fileExtensions || [];
-                          const newExtensions = extensions.includes(ext) 
-                            ? extensions.filter((x) => x !== ext)
-                            : [...extensions, ext];
-                          setConfig({ ...config, fileExtensions: newExtensions });
-                        }}
-                      >
-                        {ext}
-                      </Badge>
-                    ))}
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                    className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
+                  >
+                    <span className={`transform transition-transform duration-200 ${showAdvancedSettings ? 'rotate-90' : ''}`}>
+                      ▶
+                    </span>
+                    Advanced Settings
+                  </button>
+                  
+                  <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                    showAdvancedSettings ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                  }`}>
+                    <div className="space-y-4 pt-2">
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium">File Extensions to Index</Label>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {['.js', '.ts', '.jsx', '.tsx', '.py', '.rs', '.go', '.java', '.md', '.txt', '.json', '.yml', '.yaml'].map((ext) => (
+                            <Badge
+                              key={ext}
+                              variant={config.fileExtensions?.includes(ext) ? "default" : "outline"}
+                              className="cursor-pointer text-xs"
+                              onClick={() => {
+                                const extensions = config.fileExtensions || [];
+                                const newExtensions = extensions.includes(ext) 
+                                  ? extensions.filter((x) => x !== ext)
+                                  : [...extensions, ext];
+                                setConfig({ ...config, fileExtensions: newExtensions });
+                              }}
+                            >
+                              {ext}
+                            </Badge>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Select file types to include in indexing. Click badges to toggle.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
