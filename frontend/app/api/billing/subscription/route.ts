@@ -1,28 +1,14 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { apiClient } from '@/lib/api'
-
-type ApiResp = { success?: boolean; error?: string; data?: unknown }
-
-function isApiResp(obj: unknown): obj is ApiResp {
-  return typeof obj === 'object' && obj !== null
-}
-
-function succeeded(resp: unknown): boolean {
-  return isApiResp(resp) && resp.success === true
-}
+import { billingApiClient } from '@/lib/api'
 
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
     if (!authHeader) return NextResponse.json({ error: 'Authorization required' }, { status: 401 })
 
-    const resp = await apiClient.get('/api/billing/subscription', { Authorization: authHeader })
-    if (!succeeded(resp)) {
-      const err = isApiResp(resp) ? resp.error : undefined
-      return NextResponse.json({ error: err || 'Failed to fetch subscription' }, { status: 502 })
-    }
+    const resp = await billingApiClient.get('/api/billing/subscription', { Authorization: authHeader })
     return NextResponse.json(resp)
   } catch (error) {
     console.error('Error fetching subscription:', error)
@@ -36,10 +22,7 @@ export async function POST(request: NextRequest) {
     if (!authHeader) return NextResponse.json({ error: 'Authorization required' }, { status: 401 })
 
     const body = await request.json()
-    const resp = await apiClient.post('/api/billing/subscription', body, { Authorization: authHeader })
-    if (!succeeded(resp)) {
-      return NextResponse.json(isApiResp(resp) ? resp : { error: 'Failed' }, { status: 502 })
-    }
+    const resp = await billingApiClient.post('/api/billing/subscription', body, { Authorization: authHeader })
     return NextResponse.json(resp)
   } catch (error) {
     console.error('Error creating subscription:', error)
@@ -53,10 +36,7 @@ export async function PUT(request: NextRequest) {
     if (!authHeader) return NextResponse.json({ error: 'Authorization required' }, { status: 401 })
 
     const body = await request.json()
-    const resp = await apiClient.put('/api/billing/subscription', body, { Authorization: authHeader })
-    if (!succeeded(resp)) {
-      return NextResponse.json(isApiResp(resp) ? resp : { error: 'Failed' }, { status: 502 })
-    }
+    const resp = await billingApiClient.put('/api/billing/subscription', body, { Authorization: authHeader })
     return NextResponse.json(resp)
   } catch (error) {
     console.error('Error updating subscription:', error)
