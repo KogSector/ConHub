@@ -92,8 +92,22 @@ export default function DocumentsPage() {
   };
 
   useEffect(() => {
-    fetchDocuments();
-  }, [fetchDocuments]);
+    const init = async () => {
+      // Check backend health first to avoid JSON parse errors when API returns HTML or is down
+      const healthy = await apiClient.checkBackendHealth();
+      if (healthy) {
+        await fetchDocuments();
+      } else {
+        toast({
+          title: "Backend Unavailable",
+          description: "Could not reach the API. Please start backend services or try again later.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+      }
+    };
+    init();
+  }, [fetchDocuments, toast]);
 
   return (
     <div className="min-h-screen bg-background">
