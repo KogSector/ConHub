@@ -309,6 +309,14 @@ export const dataApiClient = new ApiClient(
   process.env.NEXT_PUBLIC_DATA_SERVICE_URL || 'http://localhost:3013'
 );
 
+// Dedicated client for the Billing service
+// Uses NEXT_PUBLIC_BILLING_SERVICE_URL, falls back to BILLING_SERVICE_URL, then local dev port 3011
+export const billingApiClient = new ApiClient(
+  process.env.NEXT_PUBLIC_BILLING_SERVICE_URL ||
+  process.env.BILLING_SERVICE_URL ||
+  'http://localhost:3011'
+);
+
 // Convenience helper: fetch current user via GraphQL when auth is enabled
 export async function fetchCurrentUserViaGraphQL() {
   const query = `

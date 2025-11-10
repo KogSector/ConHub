@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(auth_middleware.clone())
-            .configure(configure_routes)
+            .configure(handlers::billing::configure_billing_routes)
             .route("/health", web::get().to(health_check))
     })
     .bind(("0.0.0.0", port))?
@@ -87,16 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn configure_routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        web::scope("/api/billing")
-            .route("/subscription", web::post().to(handlers::billing::create_subscription))
-            .route("/subscription/{id}", web::get().to(handlers::billing::get_subscription))
-            .route("/subscription/{id}", web::delete().to(handlers::billing::cancel_subscription))
-            .route("/payment-method", web::post().to(handlers::billing::add_payment_method))
-            .route("/invoices", web::get().to(handlers::billing::get_invoices))
-    );
-}
+// Routes are configured in handlers::billing::configure_billing_routes
 
 async fn health_check(pool_opt: web::Data<Option<PgPool>>) -> actix_web::Result<web::Json<serde_json::Value>> {
     let db_status = match pool_opt.get_ref() {

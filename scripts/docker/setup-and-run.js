@@ -56,8 +56,9 @@ function readFeatureToggles() {
 function getAllowedServices(toggles) {
     const all = ['frontend','backend','auth','billing','security','data','client','webhook','plugins','nginx','postgres','redis','qdrant'];
     if (toggles && toggles.Heavy === false) {
-        // Minimal stack for Heavy=false: only frontend (no nginx since it proxies API routes)
-        return ['frontend'];
+        // Heavy=false should only skip compute-heavy services (embeddings/indexers).
+        // Compose doesn't include embedding/indexers, so start the full stack.
+        return all;
     }
     if (toggles && toggles.Auth === false) {
         return all.filter(s => !['auth','postgres','redis','qdrant'].includes(s));
@@ -302,7 +303,7 @@ async function startContainers(toggles = { Auth: false }) {
         const upCmd = allowed.length > 0 ? `docker-compose up -d --no-deps ${allowed.join(' ')}` : 'docker-compose up -d';
         await runCommand(upCmd, projectRoot);
         if (toggles && toggles.Heavy === false) {
-            logInfo('Heavy=false — starting only the Frontend service');
+            logInfo('Heavy=false — skipping embeddings and indexers (not in compose)');
         } else if (toggles && toggles.Auth === false) {
             logInfo('Auth=false — auth and database services are disabled');
         }
@@ -336,14 +337,22 @@ async function showStatus(toggles = { Auth: false }) {
         log(`\n${colors.cyan}Available services:${colors.reset}`);
         log(`  • Frontend: ${colors.green}http://localhost:3000${colors.reset}`);
         if (toggles && toggles.Heavy === false) {
-            log(`  • Backend: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
-            log(`  • Auth Service: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
-            log(`  • Billing Service: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
-            log(`  • Security Service: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
-            log(`  • Data Service: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
-            log(`  • AI Service: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
-            log(`  • Webhook Service: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
-            log(`  • MCP Service: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
+            // Heavy=false: core services remain running; embeddings/indexers are skipped
+            log(`  • API Gateway: ${colors.green}http://localhost:80${colors.reset}`);
+            log(`  • Backend: ${colors.green}http://localhost:8000${colors.reset}`);
+            if (!(toggles && toggles.Auth === false)) {
+                log(`  • Auth Service: ${colors.green}http://localhost:3010${colors.reset}`);
+            } else {
+                log(`  • Auth Service: ${colors.yellow}disabled via feature toggles${colors.reset}`);
+            }
+            log(`  • Billing Service: ${colors.green}http://localhost:3011${colors.reset}`);
+            log(`  • Security Service: ${colors.green}http://localhost:3012${colors.reset}`);
+            log(`  • Data Service: ${colors.green}http://localhost:3013${colors.reset}`);
+            log(`  • AI Service: ${colors.green}http://localhost:3014${colors.reset}`);
+            log(`  • Webhook Service: ${colors.green}http://localhost:3015${colors.reset}`);
+            log(`  • MCP Service: ${colors.green}http://localhost:3004${colors.reset}`);
+            log(`  • Embeddings: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
+            log(`  • Indexers: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
         } else {
             log(`  • API Gateway: ${colors.green}http://localhost:80${colors.reset}`);
             log(`  • Backend: ${colors.green}http://localhost:8000${colors.reset}`);
@@ -361,9 +370,7 @@ async function showStatus(toggles = { Auth: false }) {
         }
         
         log(`\n${colors.cyan}Infrastructure:${colors.reset}`);
-        if (toggles && toggles.Heavy === false) {
-            log(`  • Databases: ${colors.yellow}disabled (Heavy=false)${colors.reset}`);
-        } else if (!(toggles && toggles.Auth === false)) {
+        if (!(toggles && toggles.Auth === false)) {
             log(`  • PostgreSQL: ${colors.green}localhost:5432${colors.reset}`);
             log(`  • Redis: ${colors.green}localhost:6379${colors.reset}`);
             log(`  • Qdrant: ${colors.green}localhost:6333${colors.reset}`);
@@ -414,7 +421,7 @@ async function main() {
         log(`${colors.bright}${colors.magenta}🐳 ConHub Docker Setup & Run Script${colors.reset}\n`);
         const toggles = readFeatureToggles();
         if (toggles.Heavy === false) {
-            logInfo('Feature toggles: Heavy=false — will build/start only the Frontend');
+            logInfo('Feature toggles: Heavy=false — will skip embeddings and indexers');
         } else if (toggles.Auth === false) {
             logInfo('Feature toggles: Auth=false — will skip building/starting auth and databases');
         }

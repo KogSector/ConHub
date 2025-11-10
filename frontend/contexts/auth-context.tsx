@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { apiClient, ApiResponse } from '@/lib/api';
 import { API_CONFIG } from '@/lib/config';
 import { isLoginEnabled } from '@/lib/feature-toggles';
+// Use a fixed dev user ID to avoid bundling issues with uuid in client
 
 export interface User {
   id: string
@@ -66,13 +67,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Default dev user when auth is disabled
   const devUser: User = useMemo(() => ({
-    id: 'dev-user',
+    id: 'dev-user-00000000',
     email: 'dev@conhub.local',
     name: 'Development User',
     avatar_url: undefined,
     organization: 'ConHub Dev',
-    role: 'admin',
-    subscription_tier: 'enterprise',
+    role: 'user',
+    subscription_tier: 'free',
     is_verified: true,
     created_at: new Date().toISOString(),
     last_login_at: new Date().toISOString()

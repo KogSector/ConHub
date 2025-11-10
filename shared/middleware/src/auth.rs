@@ -109,7 +109,7 @@ impl AuthMiddlewareFactory {
     }
 
     pub fn disabled() -> Self {
-        let claims = default_dev_claims();
+        let claims = conhub_models::auth::default_dev_claims();
         Self { mode: AuthMode::Disabled(claims) }
     }
 
@@ -312,22 +312,4 @@ where
     }
 }
 
-fn default_dev_claims() -> Claims {
-    let now = chrono::Utc::now().timestamp() as usize;
-    let exp = now + 60 * 60 * 24 * 365; // 1 year
-    let sub = uuid::Uuid::new_v4().to_string();
-    let session_id = uuid::Uuid::new_v4().to_string();
-    let jti = uuid::Uuid::new_v4().to_string();
-
-    Claims {
-        sub,
-        email: "dev@conhub.local".to_string(),
-        roles: vec!["user".to_string(), "dev".to_string()],
-        exp,
-        iat: now,
-        iss: "conhub".to_string(),
-        aud: "conhub-users".to_string(),
-        session_id,
-        jti,
-    }
-}
+// default_dev_claims is provided by conhub_models::auth

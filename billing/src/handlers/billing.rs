@@ -278,6 +278,50 @@ pub async fn add_payment_method(request: web::Json<CreatePaymentMethodRequest>) 
     }
 }
 
+// Convenience: Get current user's subscription when auth is disabled (uses DEMO_USER_ID)
+pub async fn get_subscription_current() -> Result<HttpResponse, ServiceError> {
+    let user_id = match Uuid::parse_str(DEMO_USER_ID) {
+        Ok(id) => id,
+        Err(_) => return Err(ServiceError::InternalError("Invalid demo user ID".to_string()))
+    };
+
+    let billing_service = BillingService::new();
+    match billing_service.get_subscription(user_id).await {
+        Ok(Some(subscription)) => Ok(HttpResponse::Ok().json(subscription)),
+        Ok(None) => Ok(HttpResponse::NotFound().json(json!({
+            "error": "No subscription found for user"
+        }))),
+        Err(e) => {
+            tracing::error!("Failed to get subscription: {}", e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to get subscription"
+            })))
+        }
+    }
+}
+
+// Convenience: Get invoices for current user when auth is disabled (uses DEMO_USER_ID)
+pub async fn get_invoices_current() -> Result<HttpResponse, ServiceError> {
+    let customer_id = match Uuid::parse_str(DEMO_USER_ID) {
+        Ok(id) => id,
+        Err(_) => return Err(ServiceError::InternalError("Invalid demo user ID".to_string()))
+    };
+
+    let billing_service = BillingService::new();
+    match billing_service.get_invoices(customer_id).await {
+        Ok(invoices) => Ok(HttpResponse::Ok().json(json!({
+            "success": true,
+            "invoices": invoices
+        }))),
+        Err(e) => {
+            tracing::error!("Failed to get invoices: {}", e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to get invoices"
+            })))
+        }
+    }
+}
+
 pub fn configure_billing_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/billing")
@@ -286,9 +330,12 @@ pub fn configure_billing_routes(cfg: &mut web::ServiceConfig) {
             .route("/customers", web::post().to(create_customer))
             .route("/payment-intents", web::post().to(create_payment_intent))
             .route("/setup-intents", web::post().to(create_setup_intent))
-            .route("/subscriptions", web::post().to(create_subscription))
+            .route("/subscription", web::get().to(get_subscription_current))
+            .route("/subscription", web::post().to(create_subscription))
             .route("/subscriptions/{subscription_id}", web::delete().to(cancel_subscription))
+            .route("/payment-methods", web::post().to(add_payment_method))
             .route("/customers/{customer_id}/payment-methods", web::get().to(get_payment_methods))
+            .route("/invoices", web::get().to(get_invoices_current))
             .route("/customers/{customer_id}/invoices", web::get().to(get_invoices))
             .route("/webhooks/stripe", web::post().to(handle_stripe_webhook))
     );
