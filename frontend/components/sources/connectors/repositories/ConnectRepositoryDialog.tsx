@@ -20,7 +20,7 @@ interface ConnectRepositoryDialogProps {
 }
 
 export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: ConnectRepositoryDialogProps) {
-  const [provider, setProvider] = useState('__placeholder');
+  const [provider, setProvider] = useState('');
   const [name, setName] = useState('');
   const [repositoryUrl, setRepositoryUrl] = useState('');
   const [credentials, setCredentials] = useState<Record<string, string>>({});
@@ -436,12 +436,6 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                 <SelectValue placeholder="Select a repository provider" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__placeholder">
-                  <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 inline-block" />
-                    Select a repository provider
-                  </div>
-                </SelectItem>
                 <SelectItem value="github">
                   <div className="flex items-center gap-2">
                     <Github className="w-4 h-4" />
@@ -551,11 +545,6 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                           {branch}
                         </SelectItem>
                       ))}
-                      {!hasBranches && (
-                        <SelectItem value="" disabled>
-                          No branches available
-                        </SelectItem>
-                      )}
                     </SelectContent>
                   </Select>
                   {!hasBranches && (
