@@ -91,14 +91,15 @@ if (authEnabled) {
 }
 
 // Core services should run regardless of Heavy
-names.push('Billing','Client','Data','Security','Webhook');
-prefixColors.push('magenta','green','yellow','red','gray');
+names.push('Billing','Client','Data','Security','Webhook', 'Plugins');
+prefixColors.push('magenta','green','yellow','red','gray', 'blue');
 commands.push(
   'npm --prefix .. run dev:billing',
   'npm --prefix .. run dev:client',
   'npm --prefix .. run dev:data',
   'npm --prefix .. run dev:security',
-  'npm --prefix .. run dev:webhook'
+  'npm --prefix .. run dev:webhook',
+  'npm --prefix .. run dev:plugins'
 );
 
 // Heavy-only services: start when Heavy=true
