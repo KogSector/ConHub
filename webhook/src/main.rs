@@ -1,6 +1,7 @@
 use actix_web::{web, App, HttpServer, middleware::Logger};
 use actix_cors::Cors;
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
+use std::str::FromStr;
 use std::env;
 
 mod handlers;
@@ -19,14 +20,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse::<u16>()
         .unwrap_or(3015);
 
-    // Database connection with graceful degradation
-    let database_url = env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
+    // Database connection with graceful degradation (prefer Neon)
+    let database_url = env::var("DATABASE_URL_NEON")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| env::var("DATABASE_URL").ok())
+        .unwrap_or_else(|| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
 
-    println!("📊 [Webhook Service] Connecting to database...");
+    if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
+        println!("📊 [Webhook Service] Connecting to Neon DB...");
+    } else {
+        println!("📊 [Webhook Service] Connecting to database...");
+    }
+
+    // Disable server-side prepared statements for pgbouncer/Neon
+    let connect_options = PgConnectOptions::from_str(&database_url)?
+        .statement_cache_capacity(0);
+
     let pool_result = PgPoolOptions::new()
         .max_connections(10)
-        .connect(&database_url)
+        .connect_with(connect_options)
         .await;
 
     let pool = match pool_result {

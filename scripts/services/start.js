@@ -14,6 +14,10 @@ const colors = {
   reset: '\x1b[0m'
 };
 
+// Suppress noisy Node deprecation warnings from transitive dependencies
+// (e.g., spawn-command used by concurrently) to keep startup logs clean
+process.env.NODE_OPTIONS = [process.env.NODE_OPTIONS, '--no-deprecation'].filter(Boolean).join(' ');
+
 console.log(`${colors.green}[START] Starting ConHub...${colors.reset}`);
 
 // Load root .env to access shared configuration (including Neon DB URL)

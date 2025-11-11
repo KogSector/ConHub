@@ -210,16 +210,22 @@ fn parse_public_key_from_str(input: &str) -> Result<RsaPublicKey, Box<dyn std::e
     // Replace literal \n with newline and normalize Windows CRLF
     let s = s.replace("\\n", "\n").replace("\\r", "\r");
 
-    // If it looks like PEM, try PEM first
+    // If it looks like PEM, try PEM variants only and do not fall back to Base64 decoding
     if s.contains("-----BEGIN") {
-        // Some environments may inadvertently include carriage returns; allow them
+        // PKCS#8 / SPKI
         if let Ok(key) = RsaPublicKey::from_public_key_pem(&s) {
+            return Ok(key);
+        }
+        // PKCS#1
+        if let Ok(key) = RsaPublicKey::from_pkcs1_pem(&s) {
             return Ok(key);
         }
         // If we only received the header line, this is likely a multiline .env issue
         if s.trim().lines().count() == 1 {
             return Err("PEM appears truncated (only header). Use JWT_PUBLIC_KEY_PATH or escape newlines (\\n).".into());
         }
+        // Explicitly return an error for invalid PEM to avoid confusing Base64 errors
+        return Err("Invalid PEM public key format".into());
     }
 
     // Otherwise, try raw Base64 DER (strip whitespace)

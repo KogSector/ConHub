@@ -1,6 +1,7 @@
 use actix_web::{web, App, HttpServer, middleware::Logger};
 use actix_cors::Cors;
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
+use std::str::FromStr;
 use std::env;
 use tracing_subscriber;
 
@@ -51,13 +52,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Database connection (gated by Auth toggle)
     let db_pool_opt: Option<PgPool> = if auth_enabled {
-        let database_url = env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
+        // Prefer Neon if provided; fall back to DATABASE_URL or local default
+        let database_url = env::var("DATABASE_URL_NEON")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .or_else(|| env::var("DATABASE_URL").ok())
+            .unwrap_or_else(|| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
 
-        println!("📊 [Auth Service] Connecting to database...");
+        if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
+            println!("📊 [Auth Service] Connecting to Neon DB...");
+        } else {
+            println!("📊 [Auth Service] Connecting to database...");
+        }
+
+        // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
+        let connect_options = PgConnectOptions::from_str(&database_url)?
+            .statement_cache_capacity(0);
+
         match PgPoolOptions::new()
             .max_connections(10)
-            .connect(&database_url)
+            .connect_with(connect_options)
             .await
         {
             Ok(pool) => {
