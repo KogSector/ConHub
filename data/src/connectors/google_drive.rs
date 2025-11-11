@@ -195,61 +195,63 @@ impl GoogleDriveConnector {
         Ok(content)
     }
     
-    async fn recursively_list_files(
-        &self,
-        access_token: &str,
-        folder_id: Option<&str>,
-        documents: &mut Vec<DocumentMetadata>,
-    ) -> Result<(), ConnectorError> {
-        let query = match folder_id {
-            Some(id) => format!("'{}' in parents and trashed=false", id),
-            None => "trashed=false".to_string(),
-        };
-        
-        let mut page_token: Option<String> = None;
-        
-        loop {
-            let file_list = self.list_files(
-                access_token,
-                Some(&query),
-                page_token.as_deref(),
-            ).await?;
+    fn recursively_list_files<'a>(
+        &'a self,
+        access_token: &'a str,
+        folder_id: Option<&'a str>,
+        documents: &'a mut Vec<DocumentMetadata>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), ConnectorError>> + Send + 'a>> {
+        Box::pin(async move {
+            let query = match folder_id {
+                Some(id) => format!("'{}' in parents and trashed=false", id),
+                None => "trashed=false".to_string(),
+            };
             
-            for file in file_list.files {
-                let is_folder = file.mime_type == "application/vnd.google-apps.folder";
+            let mut page_token: Option<String> = None;
+            
+            loop {
+                let file_list = self.list_files(
+                    access_token,
+                    Some(&query),
+                    page_token.as_deref(),
+                ).await?;
                 
-                documents.push(DocumentMetadata {
-                    external_id: file.id.clone(),
-                    name: file.name.clone(),
-                    path: None,
-                    mime_type: Some(file.mime_type.clone()),
-                    size: file.size.as_ref().and_then(|s| s.parse().ok()),
-                    created_at: file.created_time.as_ref()
-                        .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
-                        .map(|dt| dt.with_timezone(&chrono::Utc)),
-                    modified_at: file.modified_time.as_ref()
-                        .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
-                        .map(|dt| dt.with_timezone(&chrono::Utc)),
-                    permissions: None,
-                    url: file.web_view_link,
-                    parent_id: file.parents.as_ref().and_then(|p| p.first().cloned()),
-                    is_folder,
-                    metadata: None,
-                });
+                for file in file_list.files {
+                    let is_folder = file.mime_type == "application/vnd.google-apps.folder";
+                    
+                    documents.push(DocumentMetadata {
+                        external_id: file.id.clone(),
+                        name: file.name.clone(),
+                        path: None,
+                        mime_type: Some(file.mime_type.clone()),
+                        size: file.size.as_ref().and_then(|s| s.parse().ok()),
+                        created_at: file.created_time.as_ref()
+                            .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
+                            .map(|dt| dt.with_timezone(&chrono::Utc)),
+                        modified_at: file.modified_time.as_ref()
+                            .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
+                            .map(|dt| dt.with_timezone(&chrono::Utc)),
+                        permissions: None,
+                        url: file.web_view_link,
+                        parent_id: file.parents.as_ref().and_then(|p| p.first().cloned()),
+                        is_folder,
+                        metadata: None,
+                    });
+                    
+                    // Recursively list folder contents
+                    if is_folder {
+                        self.recursively_list_files(access_token, Some(&file.id), documents).await?;
+                    }
+                }
                 
-                // Recursively list folder contents
-                if is_folder {
-                    self.recursively_list_files(access_token, Some(&file.id), documents).await?;
+                page_token = file_list.next_page_token;
+                if page_token.is_none() {
+                    break;
                 }
             }
             
-            page_token = file_list.next_page_token;
-            if page_token.is_none() {
-                break;
-            }
-        }
-        
-        Ok(())
+            Ok(())
+        })
     }
     
     fn determine_content_type(&self, mime_type: &str) -> ContentType {
@@ -381,7 +383,7 @@ impl Connector for GoogleDriveConnector {
     
     async fn check_connection(&self, account: &ConnectedAccount) -> Result<bool, ConnectorError> {
         let access_token = self.get_access_token(account).await?;
-        self.list_files(&access_token, None, None).await.is_ok().into()
+        Ok(self.list_files(&access_token, None, None).await.is_ok())
     }
     
     async fn list_documents(

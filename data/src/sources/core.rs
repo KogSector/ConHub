@@ -74,6 +74,7 @@ impl DataSourceFactory {
             "dropbox" => Ok(Box::new(crate::sources::documents::dropbox::DropboxConnector::new())),
             "onedrive" => Ok(Box::new(crate::sources::documents::onedrive::OneDriveConnector::new())),
             "notion" => Ok(Box::new(crate::sources::documents::notion::NotionConnector::new())),
+            "slack" => Ok(Box::new(crate::sources::chats::slack::SlackConnector::new())),
             "url" => Ok(Box::new(crate::sources::urls::UrlConnector::new())),
             _ => Err(format!("Unsupported data source type: {}", source_type).into()),
         }

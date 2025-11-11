@@ -106,6 +106,7 @@ impl GitHubConnector {
         if !response.status().is_success() {
             let status = response.status().as_u16();
             let error_text = response.text().await.unwrap_or_default();
+            tracing::error!("GitHub API error - Status: {}, Response: {}", status, error_text);
             return Err(self.get_error_message(status, &error_text).into());
         }
 
@@ -134,6 +135,7 @@ impl DataSourceConnector for GitHubConnector {
         } else {
             let status = response.status().as_u16();
             let error_text = response.text().await.unwrap_or_default();
+            tracing::error!("GitHub validation failed - Status: {}, Response: {}", status, error_text);
             Err(self.get_error_message(status, &error_text).into())
         }
     }

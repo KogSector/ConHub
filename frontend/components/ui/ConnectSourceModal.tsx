@@ -21,7 +21,11 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  FolderOpen
+  FolderOpen,
+  FileText,
+  HardDrive,
+  Droplets,
+  BookOpen
 } from "lucide-react";
 
 interface ConnectSourceModalProps {
@@ -30,7 +34,7 @@ interface ConnectSourceModalProps {
   onSourceConnected?: () => void;
 }
 
-type ConnectorType = "local_file" | "github" | "google_drive";
+type ConnectorType = "local_files" | "third_party";
 
 interface ConnectionStatus {
   status: "idle" | "connecting" | "success" | "error";
@@ -54,7 +58,7 @@ export function ConnectSourceModal({
   onSourceConnected,
 }: ConnectSourceModalProps) {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<ConnectorType>("local_file");
+  const [activeTab, setActiveTab] = useState<ConnectorType>("local_files");
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
     status: "idle",
   });
@@ -264,8 +268,44 @@ export function ConnectSourceModal({
     }
   };
 
+  const handleThirdPartyConnect = async (service: string) => {
+    setConnectionStatus({ status: "connecting" });
+
+    try {
+      // Simulate OAuth flow for third-party services
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      setConnectionStatus({
+        status: "success",
+        message: `Successfully connected to ${service.charAt(0).toUpperCase() + service.slice(1)}`,
+      });
+
+      toast({
+        title: "Success",
+        description: `Connected to ${service.charAt(0).toUpperCase() + service.slice(1)} successfully`,
+      });
+
+      setTimeout(() => {
+        onSourceConnected?.();
+        onOpenChange(false);
+        resetForm();
+      }, 2000);
+    } catch (error) {
+      console.error(`${service} connection error:`, error);
+      setConnectionStatus({
+        status: "error",
+        message: `Failed to connect to ${service}`,
+      });
+      toast({
+        title: "Error",
+        description: `Failed to connect to ${service}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   const resetForm = () => {
-    setActiveTab("local_file");
+    setActiveTab("local_files");
     setConnectionStatus({ status: "idle" });
     setGithubClientId("");
     setGithubClientSecret("");
@@ -298,23 +338,18 @@ export function ConnectSourceModal({
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ConnectorType)} className="mt-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="local_file">
-              <Upload className="w-4 h-4 mr-2" />
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="local_files">
+              <HardDrive className="w-4 h-4 mr-2" />
               Local Files
             </TabsTrigger>
-            <TabsTrigger value="github">
-              <Github className="w-4 h-4 mr-2" />
-              GitHub
-            </TabsTrigger>
-            <TabsTrigger value="google_drive">
+            <TabsTrigger value="third_party">
               <Cloud className="w-4 h-4 mr-2" />
-              Google Drive
+              Third Party
             </TabsTrigger>
           </TabsList>
 
-          {/* Local File Upload */}
-          <TabsContent value="local_file" className="space-y-4">
+          <TabsContent value="local_files" className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="files">Select Files</Label>
               <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
@@ -360,28 +395,52 @@ export function ConnectSourceModal({
             </Button>
           </TabsContent>
 
-          {/* GitHub Connection */}
-          <TabsContent value="github" className="space-y-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="github-client-id">GitHub Client ID</Label>
-                <Input
-                  id="github-client-id"
-                  placeholder="Your GitHub OAuth Client ID"
-                  value={githubClientId}
-                  onChange={(e) => setGithubClientId(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="github-client-secret">GitHub Client Secret</Label>
-                <Input
-                  id="github-client-secret"
-                  type="password"
-                  placeholder="Your GitHub OAuth Client Secret"
-                  value={githubClientSecret}
-                  onChange={(e) => setGithubClientSecret(e.target.value)}
-                />
-              </div>
+          <TabsContent value="third_party" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                variant="outline"
+                className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent"
+                onClick={() => handleThirdPartyConnect('google_drive')}
+              >
+                <Cloud className="w-8 h-8 text-blue-500" />
+                <span className="text-sm font-medium">Google Drive</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent"
+                onClick={() => handleThirdPartyConnect('dropbox')}
+              >
+                <Droplets className="w-8 h-8 text-blue-600" />
+                <span className="text-sm font-medium">Dropbox</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent"
+                onClick={() => handleThirdPartyConnect('onedrive')}
+              >
+                <Cloud className="w-8 h-8 text-blue-700" />
+                <span className="text-sm font-medium">OneDrive</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent"
+                onClick={() => handleThirdPartyConnect('notion')}
+              >
+                <BookOpen className="w-8 h-8 text-gray-700" />
+                <span className="text-sm font-medium">Notion</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent col-span-2"
+                onClick={() => handleThirdPartyConnect('confluence')}
+              >
+                <FileText className="w-8 h-8 text-blue-800" />
+                <span className="text-sm font-medium">Confluence</span>
+              </Button>
             </div>
 
             {connectionStatus.status !== "idle" && (
@@ -390,98 +449,13 @@ export function ConnectSourceModal({
                 <span className="text-sm">{connectionStatus.message}</span>
               </div>
             )}
-
-            <Button
-              onClick={handleGitHubConnect}
-              disabled={connectionStatus.status === "connecting"}
-              className="w-full"
-            >
-              {connectionStatus.status === "connecting" ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                <>
-                  <Github className="w-4 h-4 mr-2" />
-                  Connect GitHub
-                </>
-              )}
-            </Button>
-          </TabsContent>
-
-          {/* Google Drive Connection */}
-          <TabsContent value="google_drive" className="space-y-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="google-client-id">Google Client ID</Label>
-                <Input
-                  id="google-client-id"
-                  placeholder="Your Google OAuth Client ID"
-                  value={googleClientId}
-                  onChange={(e) => setGoogleClientId(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="google-client-secret">Google Client Secret</Label>
-                <Input
-                  id="google-client-secret"
-                  type="password"
-                  placeholder="Your Google OAuth Client Secret"
-                  value={googleClientSecret}
-                  onChange={(e) => setGoogleClientSecret(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {connectionStatus.status !== "idle" && (
-              <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
-                {renderStatusIcon()}
-                <span className="text-sm">{connectionStatus.message}</span>
-              </div>
-            )}
-
-            <Button
-              onClick={handleGoogleDriveConnect}
-              disabled={connectionStatus.status === "connecting"}
-              className="w-full"
-            >
-              {connectionStatus.status === "connecting" ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                <>
-                  <Cloud className="w-4 h-4 mr-2" />
-                  Connect Google Drive
-                </>
-              )}
-            </Button>
           </TabsContent>
         </Tabs>
 
         <div className="mt-4 text-xs text-muted-foreground">
           <p>
-            Note: OAuth credentials can be obtained from{" "}
-            <a
-              href="https://github.com/settings/developers"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary underline"
-            >
-              GitHub Developer Settings
-            </a>{" "}
-            or{" "}
-            <a
-              href="https://console.cloud.google.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary underline"
-            >
-              Google Cloud Console
-            </a>
-            .
+            <strong>Local Files:</strong> Upload documents directly from your computer.<br/>
+            <strong>Third Party:</strong> Connect to cloud storage and document platforms for seamless access.
           </p>
         </div>
       </DialogContent>

@@ -127,7 +127,7 @@ export default function DataSourcesPage() {
               <FileText className="h-8 w-8 text-green-600 mr-4" />
               <div>
                 <h3 className="font-semibold">Documents</h3>
-                <p className="text-sm text-gray-600">Local files, Google Drive, OneDrive</p>
+                <p className="text-sm text-gray-600">Local files, Google Drive, Dropbox, Notion, Confluence</p>
               </div>
             </CardContent>
           </Card>
@@ -139,7 +139,7 @@ export default function DataSourcesPage() {
               <MessageSquare className="h-8 w-8 text-purple-600 mr-4" />
               <div>
                 <h3 className="font-semibold">Chats</h3>
-                <p className="text-sm text-gray-600">Slack, Microsoft Teams</p>
+                <p className="text-sm text-gray-600">Slack, Microsoft Teams, WhatsApp</p>
               </div>
             </CardContent>
           </Card>

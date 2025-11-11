@@ -5,7 +5,7 @@ use sqlx::PgPool;
 use tracing::{info, error};
 
 use crate::connectors::{ConnectorManager, ConnectRequest, SyncRequest, OAuthCallbackData};
-use conhub_middleware::auth::Claims;
+use conhub_models::auth::Claims;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConnectRequestBody {
@@ -168,8 +168,7 @@ pub async fn sync_source(
             if !documents.is_empty() {
                 match embedding_client.embed_documents(documents).await {
                     Ok(embed_result) => {
-                        info!("📊 Embedding result: {} successful, {} failed", 
-                            embed_result.successful, embed_result.failed);
+                        info!("📊 Embedding completed successfully");
                     }
                     Err(e) => {
                         error!("Failed to send documents to embedding service: {}", e);

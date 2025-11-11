@@ -8,6 +8,7 @@ name = "data-service"
 path = "src/main.rs"
 
 [dependencies]
+lazy_static = "1.4"
 # Shared workspace libraries
 conhub-models = { path = "../shared/models" }
 conhub-utils = { path = "../shared/utils" }

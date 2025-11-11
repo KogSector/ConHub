@@ -133,12 +133,12 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       let credentialsPayload: Record<string, string> | undefined;
       if (provider === 'github' || provider === 'gitlab') {
         credentialsPayload = {
-          token: credentials.accessToken.trim()
+          accessToken: credentials.accessToken.trim()
         };
       } else if (provider === 'bitbucket') {
         credentialsPayload = {
           username: credentials.username.trim(),
-          app_password: credentials.appPassword.trim()
+          appPassword: credentials.appPassword.trim()
         };
       }
 

@@ -12,6 +12,7 @@ mod handlers;
 mod sources;
 mod errors;
 mod connectors;
+mod temp_data;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -62,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Qdrant connection (vector database) — gated by Auth toggle
     let qdrant_url = env::var("QDRANT_URL")
-        .unwrap_or_else(|_| "http://qdrant:6333".to_string());
+        .unwrap_or_else(|_| "http://localhost:6333".to_string());
 
     if auth_enabled {
         tracing::info!("📊 [Data Service] Connecting to Qdrant at {}...", qdrant_url);
@@ -74,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize Embedding Client
     let embedding_url = env::var("EMBEDDING_SERVICE_URL")
-        .unwrap_or_else(|_| "http://embedding:8082".to_string());
+        .unwrap_or_else(|_| "http://localhost:8082".to_string());
     let heavy_enabled = toggles.is_enabled("Heavy");
     let embedding_client = services::EmbeddingClient::new(embedding_url.clone(), heavy_enabled);
     tracing::info!("📊 [Data Service] Embedding client initialized: {}", embedding_url);

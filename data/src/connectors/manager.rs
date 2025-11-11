@@ -13,6 +13,7 @@ use super::github::GitHubConnector;
 use super::google_drive::GoogleDriveConnector;
 
 /// Manages all connectors and their instances
+#[derive(Clone)]
 pub struct ConnectorManager {
     factories: HashMap<ConnectorType, Arc<dyn ConnectorFactory>>,
     active_connectors: Arc<RwLock<HashMap<Uuid, Arc<RwLock<Box<dyn Connector>>>>>>,

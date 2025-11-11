@@ -195,48 +195,50 @@ impl GitHubConnector {
         Ok(decoded)
     }
     
-    async fn recursively_list_files(
-        &self,
-        access_token: &str,
-        owner: &str,
-        repo: &str,
-        path: &str,
-        documents: &mut Vec<DocumentMetadata>,
-    ) -> Result<(), ConnectorError> {
-        let files = self.list_repo_files(access_token, owner, repo, path).await?;
-        
-        for file in files {
-            if file.file_type == "dir" {
-                // Recursively list directory
-                self.recursively_list_files(
-                    access_token,
-                    owner,
-                    repo,
-                    &file.path,
-                    documents,
-                ).await?;
-            } else if file.file_type == "file" {
-                documents.push(DocumentMetadata {
-                    external_id: file.sha.clone(),
-                    name: file.name.clone(),
-                    path: Some(file.path.clone()),
-                    mime_type: mime_guess::from_path(&file.name).first().map(|m| m.to_string()),
-                    size: Some(file.size),
-                    created_at: None,
-                    modified_at: None,
-                    permissions: None,
-                    url: Some(file.html_url.clone()),
-                    parent_id: Some(path.to_string()),
-                    is_folder: false,
-                    metadata: Some(serde_json::json!({
-                        "download_url": file.download_url,
-                        "git_url": file.git_url,
-                    })),
-                });
+    fn recursively_list_files<'a>(
+        &'a self,
+        access_token: &'a str,
+        owner: &'a str,
+        repo: &'a str,
+        path: &'a str,
+        documents: &'a mut Vec<DocumentMetadata>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), ConnectorError>> + Send + 'a>> {
+        Box::pin(async move {
+            let files = self.list_repo_files(access_token, owner, repo, path).await?;
+            
+            for file in files {
+                if file.file_type == "dir" {
+                    // Recursively list directory
+                    self.recursively_list_files(
+                        access_token,
+                        owner,
+                        repo,
+                        &file.path,
+                        documents,
+                    ).await?;
+                } else if file.file_type == "file" {
+                    documents.push(DocumentMetadata {
+                        external_id: file.sha.clone(),
+                        name: file.name.clone(),
+                        path: Some(file.path.clone()),
+                        mime_type: mime_guess::from_path(&file.name).first().map(|m| m.to_string()),
+                        size: Some(file.size),
+                        created_at: None,
+                        modified_at: None,
+                        permissions: None,
+                        url: Some(file.html_url.clone()),
+                        parent_id: Some(path.to_string()),
+                        is_folder: false,
+                        metadata: Some(serde_json::json!({
+                            "download_url": file.download_url,
+                            "git_url": file.git_url,
+                        })),
+                    });
+                }
             }
-        }
-        
-        Ok(())
+            
+            Ok(())
+        })
     }
     
     fn chunk_content(&self, content: &str, file_path: &str) -> Vec<DocumentChunk> {
@@ -352,7 +354,7 @@ impl Connector for GitHubConnector {
     
     async fn check_connection(&self, account: &ConnectedAccount) -> Result<bool, ConnectorError> {
         let access_token = self.get_access_token(account).await?;
-        self.list_repositories(&access_token).await.is_ok().into()
+        Ok(self.list_repositories(&access_token).await.is_ok())
     }
     
     async fn list_documents(
