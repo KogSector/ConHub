@@ -33,6 +33,7 @@ function readFeatureToggles() {
       log(`⚠ feature-toggles.json not found. Creating default configuration...`, colors.yellow);
       const defaultToggles = {
         Auth: false,
+        Redis: false,
         Heavy: false,
         Docker: false
       };
@@ -45,7 +46,7 @@ function readFeatureToggles() {
   } catch (error) {
     log(`✗ Error reading feature-toggles.json: ${error.message}`, colors.red);
     log(`  Using default configuration (Docker: false)`, colors.yellow);
-    return { Auth: false, Heavy: false, Docker: false };
+    return { Auth: false, Redis: false, Heavy: false, Docker: false };
   }
 }
 
@@ -82,6 +83,7 @@ function main() {
   
   log(`${colors.cyan}Feature Toggle Status:${colors.reset}`);
   log(`  • Auth:   ${toggles.Auth ? colors.green + 'Enabled' : colors.yellow + 'Disabled'}${colors.reset}`);
+  log(`  • Redis:  ${toggles.Redis ? colors.green + 'Enabled' : colors.yellow + 'Disabled'}${colors.reset}`);
   log(`  • Heavy:  ${toggles.Heavy ? colors.green + 'Enabled' : colors.yellow + 'Disabled'}${colors.reset}`);
   log(`  • Docker: ${toggles.Docker ? colors.green + 'Enabled' : colors.yellow + 'Disabled'}${colors.reset}`);
   log('');

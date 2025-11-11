@@ -75,6 +75,18 @@ impl FeatureToggles {
         self.docker_enabled()
     }
 
+    // Convenience: read Redis enablement
+    // Controls whether Redis connections should be established for sessions/caching
+    pub fn redis_enabled(&self) -> bool {
+        // Default to true when Auth is enabled, false otherwise
+        self.is_enabled_or("Redis", self.auth_enabled())
+    }
+
+    // Check if Redis connections should be established
+    pub fn should_connect_redis(&self) -> bool {
+        self.auth_enabled() && self.redis_enabled()
+    }
+
     // Get all enabled features
     pub fn enabled_features(&self) -> Vec<String> {
         self.flags

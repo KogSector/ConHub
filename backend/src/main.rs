@@ -62,14 +62,15 @@ async fn main() -> io::Result<()> {
         None
     };
 
-    // Redis setup (skip when Auth is disabled to allow degraded startup)
-    let redis_client = if auth_enabled {
-        log::info!("Connecting to Redis...");
+    // Redis setup (gated by Auth and Redis toggles)
+    let redis_enabled = toggles.should_connect_redis();
+    let redis_client = if redis_enabled {
+        log::info!("📊 [Backend Service] Connecting to Redis...");
         let client = redis::Client::open(
             config
                 .redis_url
                 .clone()
-                .expect("REDIS_URL must be set when Auth is enabled")
+                .expect("REDIS_URL must be set when Redis is enabled")
         )
             .expect("Failed to create Redis client");
 
@@ -78,10 +79,14 @@ async fn main() -> io::Result<()> {
             .get_connection()
             .expect("Failed to connect to Redis");
 
-        log::info!("Connected to Redis");
+        log::info!("✅ [Backend Service] Connected to Redis");
         Some(client)
     } else {
-        log::warn!("Auth disabled; skipping Redis client creation entirely.");
+        if !auth_enabled {
+            log::warn!("[Backend Service] Auth disabled; skipping Redis connection.");
+        } else {
+            log::warn!("[Backend Service] Redis feature disabled; skipping Redis connection.");
+        }
         None
     };
 

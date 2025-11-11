@@ -90,11 +90,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         None
     };
 
-    // Redis connection for sessions (gated by Auth toggle)
-    let redis_client_opt: Option<redis::Client> = if auth_enabled {
+    // Redis connection for sessions (gated by Auth and Redis toggles)
+    let redis_enabled = toggles.should_connect_redis();
+    let redis_client_opt: Option<redis::Client> = if redis_enabled {
         let redis_url = env::var("REDIS_URL")
             .unwrap_or_else(|_| "redis://localhost:6379".to_string());
         
+        println!("📊 [Auth Service] Connecting to Redis...");
         match redis::Client::open(redis_url.clone()) {
             Ok(client) => {
                 println!("✅ [Auth Service] Redis connection established");
@@ -108,7 +110,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     } else {
-        tracing::warn!("[Auth Service] Auth disabled; skipping Redis connection.");
+        if !auth_enabled {
+            tracing::warn!("[Auth Service] Auth disabled; skipping Redis connection.");
+        } else {
+            tracing::warn!("[Auth Service] Redis feature disabled; skipping Redis connection.");
+        }
         None
     };
 

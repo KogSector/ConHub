@@ -30,7 +30,7 @@ ConHub uses a modern **decoupled microservices architecture** with:
  - **Indexers Service** (8080) - Code/document indexing & search
 
 ### Infrastructure
-- **PostgreSQL** (5432) - Primary database
+- **PostgreSQL** (5432) - Primary database (Local/Docker or **NeonDB** cloud)
 - **Redis** (6379) - Cache & sessions
 - **Qdrant** (6333) - Vector database for semantic search
 - **Nginx** (80) - API Gateway & load balancer
@@ -75,6 +75,33 @@ npm run dev:frontend    # Frontend only
 npm run dev:auth       # Auth service
 npm run dev:backend    # Backend service
 ```
+
+### 4. NeonDB Setup (Recommended for Production)
+
+ConHub fully supports **NeonDB** (serverless PostgreSQL) for all microservices. For complete setup:
+
+```bash
+# Automated setup (generates JWT keys + configures NeonDB)
+node scripts/setup/setup-neondb.js
+
+# Verify configuration
+node scripts/setup/verify-config.js
+
+# Start services
+npm start
+```
+
+**📚 Documentation:**
+- [🚀 Quick Start Guide](QUICK_START.md) - Get started in 2 minutes
+- [📖 Complete NeonDB Setup](docs/NEONDB_SETUP.md) - Detailed configuration guide
+- [📋 Setup Summary](SETUP_SUMMARY.md) - Migration details & troubleshooting
+
+**Key Features:**
+- ✅ All 6 microservices support NeonDB
+- ✅ Automatic connection pooling optimization
+- ✅ JWT RS256 authentication with file-based keys
+- ✅ SSL/TLS secure connections
+- ✅ No multiline .env issues (Windows-compatible)
 
 ## 🚀 Service Architecture
 
@@ -122,12 +149,18 @@ Control development complexity with feature toggles (`feature-toggles.json`):
 
 ```json
 {
-  "Auth": true,     // Enable authentication & database connections (default)
-  "Heavy": false,   // Disable embedding/indexing for fast iteration
-  "Docker": false   // Use local development (true = Docker containers)
+  "Auth": true,    // Enable authentication & database connections
+  "Redis": true,   // Enable Redis for sessions/caching (requires Auth)
+  "Heavy": false,  // Enable indexing/embedding services
+  "Docker": false  // Use Docker builds
 }
 ```
-Note: Set `Auth: false` only for UI-only development without databases.
+
+**Toggle Details:**
+- **Auth**: Controls PostgreSQL, authentication middleware, and enables other features
+- **Redis**: Controls Redis connections for session management (only when Auth is enabled)
+- **Heavy**: Controls resource-intensive services (indexers, embeddings)
+- **Docker**: Switches between Docker and local development mode
 
 **Toggle Modes:**
 - `Docker: false` - **Local Development** (fastest, default)
@@ -144,7 +177,9 @@ Note: Set `Auth: false` only for UI-only development without databases.
 
 **Usage:** Simply run `npm start` - it intelligently detects the mode from feature-toggles.json
 
-See [Docker Toggle Documentation](docs/DOCKER_TOGGLE_FEATURE.md) for details.
+**Documentation:**
+- 📖 [Redis Toggle Guide](docs/REDIS_TOGGLE.md) - Control Redis connections
+- 📖 [Docker Toggle Guide](docs/DOCKER_TOGGLE_FEATURE.md) - Docker vs local mode
 
 ### GraphQL API
 Unified GraphQL endpoint at `http://localhost:8000/api/graphql`:

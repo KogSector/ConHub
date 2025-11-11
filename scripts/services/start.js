@@ -35,12 +35,12 @@ function readFeatureToggles() {
   const togglesPath = path.join(projectRoot, 'feature-toggles.json');
   try {
     if (!fs.existsSync(togglesPath)) {
-      return { Auth: false, Heavy: false, Docker: false };
+      return { Auth: false, Redis: false, Heavy: false, Docker: false };
     }
     const content = fs.readFileSync(togglesPath, 'utf8');
     return JSON.parse(content);
   } catch (_) {
-    return { Auth: false, Heavy: false, Docker: false };
+    return { Auth: false, Redis: false, Heavy: false, Docker: false };
   }
 }
 
@@ -66,8 +66,9 @@ if (fs.existsSync(cleanupScript)) {
 
 const toggles = readFeatureToggles();
 const authEnabled = toggles.Auth === true;
+const redisEnabled = toggles.Redis === true;
 
-console.log(`${colors.cyan}[SERVICES] Starting services (Auth: ${authEnabled ? 'enabled' : 'disabled'})...${colors.reset}`);
+console.log(`${colors.cyan}[SERVICES] Starting services (Auth: ${authEnabled ? 'enabled' : 'disabled'}, Redis: ${redisEnabled ? 'enabled' : 'disabled'})...${colors.reset}`);
 console.log('   Frontend:         http://localhost:3000');
 if (authEnabled) console.log('   Auth Service:     http://localhost:3010');
 // Core services always available regardless of Heavy toggle
