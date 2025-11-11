@@ -13,6 +13,7 @@ use oauth2::{
 
 use super::traits::{Connector, ConnectorFactory, WebhookConnector};
 use super::types::*;
+use std::env;
 use super::error::ConnectorError;
 
 /// GitHub API connector
@@ -67,7 +68,7 @@ impl GitHubConnector {
         GitHubConnectorFactory
     }
     
-    fn init_oauth_client(&mut self, config: &ConnectorConfig) -> Result<(), ConnectorError> {
+    fn init_oauth_client(&mut self, config: &ConnectorConfigAuth) -> Result<(), ConnectorError> {
         let client_id = config.credentials.get("client_id")
             .ok_or_else(|| ConnectorError::InvalidConfiguration(
                 "GitHub client_id is required".to_string()
@@ -287,7 +288,7 @@ impl Connector for GitHubConnector {
         ConnectorType::GitHub
     }
     
-    fn validate_config(&self, config: &ConnectorConfig) -> Result<(), ConnectorError> {
+    fn validate_config(&self, config: &ConnectorConfigAuth) -> Result<(), ConnectorError> {
         // Check for required credentials
         if config.credentials.get("client_id").is_none() {
             return Err(ConnectorError::InvalidConfiguration(
@@ -304,12 +305,36 @@ impl Connector for GitHubConnector {
         Ok(())
     }
     
-    async fn authenticate(&self, config: &ConnectorConfig) -> Result<Option<String>, ConnectorError> {
-        let mut connector = Self::new();
-        connector.init_oauth_client(config)?;
+    async fn authenticate(&self, config: &ConnectorConfigAuth) -> Result<Option<String>, ConnectorError> {
+        // Build a temporary OAuth client without mutating self
+        let client_id = config.credentials.get("client_id")
+            .map(|s| s.clone())
+            .or_else(|| env::var("GITHUB_CLIENT_ID").ok())
+            .ok_or_else(|| ConnectorError::InvalidConfiguration("GitHub client_id is required".to_string()))?;
         
-        let client = connector.oauth_client.as_ref()
-            .ok_or_else(|| ConnectorError::AuthenticationFailed("OAuth client not initialized".to_string()))?;
+        let client_secret = config.credentials.get("client_secret")
+            .map(|s| s.clone())
+            .or_else(|| env::var("GITHUB_CLIENT_SECRET").ok())
+            .ok_or_else(|| ConnectorError::InvalidConfiguration("GitHub client_secret is required".to_string()))?;
+        
+        let redirect_url = config.settings.get("redirect_url")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .or_else(|| env::var("GITHUB_REDIRECT_URL").ok())
+            .unwrap_or_else(|| "http://localhost:3000/auth/github/callback".to_string());
+        
+        let client = BasicClient::new(
+            ClientId::new(client_id),
+            Some(ClientSecret::new(client_secret)),
+            AuthUrl::new("https://github.com/login/oauth/authorize".to_string())
+                .map_err(|e| ConnectorError::InvalidConfiguration(e.to_string()))?,
+            Some(TokenUrl::new("https://github.com/login/oauth/access_token".to_string())
+                .map_err(|e| ConnectorError::InvalidConfiguration(e.to_string()))?)
+        )
+        .set_redirect_uri(
+            RedirectUrl::new(redirect_url)
+                .map_err(|e| ConnectorError::InvalidConfiguration(e.to_string()))?
+        );
         
         let (auth_url, _csrf_token) = client
             .authorize_url(CsrfToken::new_random)
@@ -321,8 +346,25 @@ impl Connector for GitHubConnector {
     }
     
     async fn complete_oauth(&self, callback_data: OAuthCallbackData) -> Result<OAuthCredentials, ConnectorError> {
-        let client = self.oauth_client.as_ref()
-            .ok_or_else(|| ConnectorError::AuthenticationFailed("OAuth client not initialized".to_string()))?;
+        // Rebuild OAuth client from environment for stateless completion
+        let client_id = env::var("GITHUB_CLIENT_ID")
+            .map_err(|_| ConnectorError::InvalidConfiguration("GITHUB_CLIENT_ID not set".to_string()))?;
+        let client_secret = env::var("GITHUB_CLIENT_SECRET")
+            .map_err(|_| ConnectorError::InvalidConfiguration("GITHUB_CLIENT_SECRET not set".to_string()))?;
+        let redirect_url = env::var("GITHUB_REDIRECT_URL").unwrap_or_else(|_| "http://localhost:3000/auth/github/callback".to_string());
+
+        let client = BasicClient::new(
+            ClientId::new(client_id),
+            Some(ClientSecret::new(client_secret)),
+            AuthUrl::new("https://github.com/login/oauth/authorize".to_string())
+                .map_err(|e| ConnectorError::InvalidConfiguration(e.to_string()))?,
+            Some(TokenUrl::new("https://github.com/login/oauth/access_token".to_string())
+                .map_err(|e| ConnectorError::InvalidConfiguration(e.to_string()))?)
+        )
+        .set_redirect_uri(
+            RedirectUrl::new(redirect_url)
+                .map_err(|e| ConnectorError::InvalidConfiguration(e.to_string()))?
+        );
         
         let token_result = client
             .exchange_code(AuthorizationCode::new(callback_data.code))
@@ -335,7 +377,9 @@ impl Connector for GitHubConnector {
             refresh_token: token_result.refresh_token().map(|t| t.secret().clone()),
             token_type: "Bearer".to_string(),
             expires_in: token_result.expires_in().map(|d| d.as_secs() as i64),
+            expires_at: None,
             scope: None,
+            metadata: HashMap::new(),
         })
     }
     
@@ -453,7 +497,7 @@ impl Connector for GitHubConnector {
     async fn sync(
         &self,
         account: &ConnectedAccount,
-        request: &SyncRequest,
+        request: &SyncRequestWithFilters,
     ) -> Result<(SyncResult, Vec<DocumentForEmbedding>), ConnectorError> {
         let start_time = std::time::Instant::now();
         

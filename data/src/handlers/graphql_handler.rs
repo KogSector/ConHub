@@ -3,7 +3,7 @@ use async_graphql::http::{GraphQLPlaygroundConfig, playground_source};
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
 use uuid::Uuid;
 
-use crate::graphql::DataSchema;
+use crate::graphql::schema::DataSchema;
 
 /// GraphQL query/mutation handler
 pub async fn graphql_handler(

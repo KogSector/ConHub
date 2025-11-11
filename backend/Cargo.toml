@@ -49,5 +49,5 @@ conhub-utils = { path = "../shared/utils" }
 conhub-config = { path = "../shared/config" }
 
 # GraphQL
-async-graphql = "6"
-async-graphql-actix-web = "6"
+async-graphql = { version = "7.0", features = ["chrono"] }
+async-graphql-actix-web = "7.0"

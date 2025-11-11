@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE embedding_queue SET status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cea77f1f2db48eb91c70705a9eec5dfed7c6abdcf7017d0e47478ecdc22c7f01"
+}

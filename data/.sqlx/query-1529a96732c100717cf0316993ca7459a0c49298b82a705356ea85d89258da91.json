@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                COUNT(*) FILTER (WHERE status = 'pending') as \"pending!\",\n                COUNT(*) FILTER (WHERE status = 'processing') as \"processing!\",\n                COUNT(*) FILTER (WHERE status = 'completed') as \"completed!\",\n                COUNT(*) FILTER (WHERE status = 'failed') as \"failed!\"\n            FROM embedding_queue\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "pending!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "processing!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "completed!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "failed!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "1529a96732c100717cf0316993ca7459a0c49298b82a705356ea85d89258da91"
+}

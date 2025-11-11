@@ -74,6 +74,11 @@ impl ConnectorManager {
             ))
             .map(|factory| factory.create())
     }
+
+    /// Get a connector instance (alias to create_connector for GraphQL usage)
+    pub fn get_connector(&self, connector_type: &ConnectorType) -> Result<Box<dyn Connector>, ConnectorError> {
+        self.create_connector(connector_type)
+    }
     
     /// Connect a new data source
     pub async fn connect(
@@ -83,21 +88,27 @@ impl ConnectorManager {
     ) -> Result<ConnectedAccount, ConnectorError> {
         info!("🔌 Connecting new data source: {:?}", request.connector_type);
         
+        // Backwards-compatible: build both legacy and auth config
         let config = ConnectorConfig {
             user_id,
             connector_type: request.connector_type.clone(),
             credentials: request.credentials.clone(),
             settings: request.settings.unwrap_or_default(),
         };
+        let config_auth = ConnectorConfigAuth {
+            connector_type: request.connector_type.clone(),
+            credentials: config.credentials.clone(),
+            settings: config.settings.clone(),
+        };
         
         // Create connector instance
         let mut connector = self.create_connector(&request.connector_type)?;
         
         // Validate configuration
-        connector.validate_config(&config)?;
+        connector.validate_config(&config_auth)?;
         
         // Authenticate
-        let auth_result = connector.authenticate(&config).await?;
+        let auth_result = connector.authenticate(&config_auth).await?;
         
         if let Some(auth_url) = auth_result {
             // OAuth flow required - return pending auth status
@@ -189,7 +200,7 @@ impl ConnectorManager {
     pub async fn sync(
         &self,
         account_id: Uuid,
-        request: SyncRequest,
+        request: SyncRequestWithFilters,
     ) -> Result<(SyncResult, Vec<DocumentForEmbedding>), ConnectorError> {
         info!("🔄 Syncing data source: {}", account_id);
         

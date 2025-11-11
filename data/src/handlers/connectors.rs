@@ -4,7 +4,7 @@ use uuid::Uuid;
 use sqlx::PgPool;
 use tracing::{info, error};
 
-use crate::connectors::{ConnectorManager, ConnectRequest, SyncRequest, OAuthCallbackData};
+use crate::connectors::{ConnectorManager, ConnectRequest, SyncRequestWithFilters, OAuthCallbackData};
 use conhub_models::auth::Claims;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -53,7 +53,15 @@ pub async fn connect_source(
     claims: web::ReqData<Claims>,
     body: web::Json<ConnectRequestBody>,
 ) -> Result<HttpResponse> {
-    let user_id = claims.sub;
+    let user_id = match Uuid::parse_str(&claims.sub) {
+        Ok(id) => id,
+        Err(_) => {
+            return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "error": "Invalid user ID",
+            })));
+        }
+    };
     
     info!("🔌 User {} connecting to {}", user_id, body.connector_type);
     
@@ -140,7 +148,15 @@ pub async fn sync_source(
     claims: web::ReqData<Claims>,
     body: web::Json<SyncRequestBody>,
 ) -> Result<HttpResponse> {
-    let user_id = claims.sub;
+    let user_id = match Uuid::parse_str(&claims.sub) {
+        Ok(id) => id,
+        Err(_) => {
+            return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "error": "Invalid user ID",
+            })));
+        }
+    };
     
     let account_id = match Uuid::parse_str(&body.account_id) {
         Ok(id) => id,
@@ -154,9 +170,9 @@ pub async fn sync_source(
     
     info!("🔄 User {} syncing account {}", user_id, account_id);
     
-    let request = SyncRequest {
-        account_id,
-        incremental: body.incremental,
+    let request = SyncRequestWithFilters {
+        // Map legacy `incremental` flag to new `force_full_sync` semantics
+        force_full_sync: !body.incremental,
         filters: None,
     };
     
@@ -167,7 +183,7 @@ pub async fn sync_source(
             // Send documents to embedding service
             if !documents.is_empty() {
                 match embedding_client.embed_documents(documents).await {
-                    Ok(embed_result) => {
+                    Ok(_) => {
                         info!("📊 Embedding completed successfully");
                     }
                     Err(e) => {
@@ -198,7 +214,15 @@ pub async fn disconnect_source(
     claims: web::ReqData<Claims>,
     path: web::Path<String>,
 ) -> Result<HttpResponse> {
-    let user_id = claims.sub;
+    let user_id = match Uuid::parse_str(&claims.sub) {
+        Ok(id) => id,
+        Err(_) => {
+            return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "error": "Invalid user ID",
+            })));
+        }
+    };
     let account_id = match Uuid::parse_str(&path.into_inner()) {
         Ok(id) => id,
         Err(_) => {
@@ -234,7 +258,15 @@ pub async fn list_connected_accounts(
     pool: web::Data<Option<PgPool>>,
     claims: web::ReqData<Claims>,
 ) -> Result<HttpResponse> {
-    let user_id = claims.sub;
+    let user_id = match Uuid::parse_str(&claims.sub) {
+        Ok(id) => id,
+        Err(_) => {
+            return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "error": "Invalid user ID",
+            })));
+        }
+    };
     
     let pool = match pool.get_ref() {
         Some(p) => p,

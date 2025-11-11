@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO source_documents \n                (id, source_id, connector_type, external_id, name, content_type, \n                 mime_type, size, is_folder, metadata)\n                VALUES ($1, $2, 'local_file', $3, $4, $5, $6, $7, false, $8)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int8",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6146c2fd2b3e948d1aa88d487f2e942a50e2599b048e2d4e741b2645a3f69314"
+}

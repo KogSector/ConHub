@@ -50,26 +50,14 @@ impl EmbeddingClient {
     pub async fn embed_documents(
         &self,
         documents: Vec<DocumentForEmbedding>,
-    ) -> Result<BatchEmbedResponse, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         if !self.enabled {
             info!("📊 Embedding service disabled, skipping {} documents", documents.len());
-            return Ok(BatchEmbedResponse {
-                total_documents: documents.len(),
-                successful: 0,
-                failed: 0,
-                results: vec![],
-                duration_ms: 0,
-            });
+            return Ok(());
         }
         
         if documents.is_empty() {
-            return Ok(BatchEmbedResponse {
-                total_documents: 0,
-                successful: 0,
-                failed: 0,
-                results: vec![],
-                duration_ms: 0,
-            });
+            return Ok(());
         }
         
         info!("📤 Sending {} documents to embedding service", documents.len());
@@ -103,7 +91,7 @@ impl EmbeddingClient {
             result.failed
         );
         
-        Ok(result)
+        Ok(())
     }
     
     /// Check if the embedding service is healthy
@@ -130,5 +118,20 @@ impl Clone for EmbeddingClient {
             base_url: self.base_url.clone(),
             enabled: self.enabled,
         }
+    }
+}
+
+impl EmbeddingClient {
+    /// Temporary helper to satisfy pipeline usage; no-op embedding call
+    pub async fn embed_text(
+        &self,
+        _text: &str,
+    ) -> anyhow::Result<()> {
+        if !self.enabled {
+            return Ok(());
+        }
+        // This method can be implemented to call a single-text embedding endpoint.
+        // For now, it's a no-op to maintain compatibility with the pipeline.
+        Ok(())
     }
 }

@@ -49,8 +49,7 @@ impl QueryRoot {
             let user_id = ctx.data::<Uuid>()
                 .map_err(|_| Error::new("User ID not found in context"))?;
             
-            let accounts = sqlx::query_as!(
-                ConnectedAccountDb,
+            let accounts = sqlx::query_as::<_, ConnectedAccountDb>(
                 r#"
                 SELECT 
                     ca.id,
@@ -62,15 +61,15 @@ impl QueryRoot {
                     ca.last_sync_at,
                     ca.created_at,
                     ca.updated_at,
-                    COALESCE(COUNT(sd.id), 0)::int as document_count
+                    COALESCE(COUNT(sd.id), 0)::int AS document_count
                 FROM connected_accounts ca
                 LEFT JOIN source_documents sd ON sd.source_id = ca.id
                 WHERE ca.user_id = $1
                 GROUP BY ca.id
                 ORDER BY ca.created_at DESC
-                "#,
-                user_id
+                "#
             )
+            .bind(user_id)
             .fetch_all(pool)
             .await
             .map_err(|e| Error::new(format!("Failed to fetch connected accounts: {}", e)))?;
@@ -92,8 +91,7 @@ impl QueryRoot {
             let account_id = Uuid::parse_str(&id)
                 .map_err(|_| Error::new("Invalid account ID"))?;
             
-            let account = sqlx::query_as!(
-                ConnectedAccountDb,
+            let account = sqlx::query_as::<_, ConnectedAccountDb>(
                 r#"
                 SELECT 
                     ca.id,
@@ -105,15 +103,15 @@ impl QueryRoot {
                     ca.last_sync_at,
                     ca.created_at,
                     ca.updated_at,
-                    COALESCE(COUNT(sd.id), 0)::int as document_count
+                    COALESCE(COUNT(sd.id), 0)::int AS document_count
                 FROM connected_accounts ca
                 LEFT JOIN source_documents sd ON sd.source_id = ca.id
                 WHERE ca.id = $1 AND ca.user_id = $2
                 GROUP BY ca.id
-                "#,
-                account_id,
-                user_id
+                "#
             )
+            .bind(account_id)
+            .bind(user_id)
             .fetch_optional(pool)
             .await
             .map_err(|e| Error::new(format!("Failed to fetch connected account: {}", e)))?;
@@ -145,21 +143,20 @@ impl QueryRoot {
             let offset = offset.unwrap_or(0);
             
             // Verify user owns this source
-            let has_access = sqlx::query_scalar!(
-                "SELECT EXISTS(SELECT 1 FROM connected_accounts WHERE id = $1 AND user_id = $2)",
-                src_id,
-                user_id
+            let has_access: bool = sqlx::query_scalar::<_, bool>(
+                "SELECT EXISTS(SELECT 1 FROM connected_accounts WHERE id = $1 AND user_id = $2)"
             )
+            .bind(src_id)
+            .bind(user_id)
             .fetch_one(pool)
             .await
             .map_err(|e| Error::new(format!("Failed to verify access: {}", e)))?;
             
-            if !has_access.unwrap_or(false) {
+            if !has_access {
                 return Err(Error::new("Access denied"));
             }
             
-            let documents = sqlx::query_as!(
-                SourceDocumentDb,
+            let documents = sqlx::query_as::<_, SourceDocumentDb>(
                 r#"
                 SELECT 
                     id,
@@ -180,11 +177,11 @@ impl QueryRoot {
                 WHERE source_id = $1 AND is_folder = false
                 ORDER BY created_at DESC
                 LIMIT $2 OFFSET $3
-                "#,
-                src_id,
-                limit as i64,
-                offset as i64
+                "#
             )
+            .bind(src_id)
+            .bind(limit as i64)
+            .bind(offset as i64)
             .fetch_all(pool)
             .await
             .map_err(|e| Error::new(format!("Failed to fetch documents: {}", e)))?;
@@ -204,8 +201,7 @@ impl QueryRoot {
             let user_id = ctx.data::<Uuid>()
                 .map_err(|_| Error::new("User ID not found in context"))?;
             
-            let entries = sqlx::query_as!(
-                EmbeddingQueueDb,
+            let entries = sqlx::query_as::<_, EmbeddingQueueDb>(
                 r#"
                 SELECT 
                     eq.id,
@@ -221,9 +217,9 @@ impl QueryRoot {
                 WHERE ca.user_id = $1 AND eq.status != 'completed'
                 ORDER BY eq.created_at DESC
                 LIMIT 50
-                "#,
-                user_id
+                "#
             )
+            .bind(user_id)
             .fetch_all(pool)
             .await
             .map_err(|e| Error::new(format!("Failed to fetch embedding queue: {}", e)))?;

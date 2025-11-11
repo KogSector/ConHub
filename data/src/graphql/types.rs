@@ -22,7 +22,7 @@ pub enum ConnectorTypeGql {
 }
 
 /// Connection status
-#[derive(Debug, Clone, Serialize, Deserialize, Enum, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Enum, Eq, PartialEq)]
 pub enum ConnectionStatus {
     /// Connection is active and working
     Connected,
@@ -37,7 +37,7 @@ pub enum ConnectionStatus {
 }
 
 /// Document processing status
-#[derive(Debug, Clone, Serialize, Deserialize, Enum, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Enum, Eq, PartialEq)]
 pub enum DocumentStatus {
     /// Document is queued for processing
     Pending,
@@ -134,8 +134,8 @@ pub struct EmbeddingQueueEntry {
 pub struct ConnectSourceInput {
     pub connector_type: ConnectorTypeGql,
     pub account_name: String,
-    pub credentials: Option<JSON>,
-    pub settings: Option<JSON>,
+    pub credentials: Option<Json<serde_json::Value>>,
+    pub settings: Option<Json<serde_json::Value>>,
 }
 
 /// OAuth Callback Input
@@ -151,7 +151,7 @@ pub struct OAuthCallbackInput {
 pub struct SyncSourceInput {
     pub account_id: ID,
     pub force_full_sync: Option<bool>,
-    pub filters: Option<JSON>,
+    pub filters: Option<Json<serde_json::Value>>,
 }
 
 /// Upload Local File Input

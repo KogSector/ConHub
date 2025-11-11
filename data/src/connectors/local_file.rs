@@ -147,12 +147,12 @@ impl Connector for LocalFileConnector {
         ConnectorType::LocalFile
     }
     
-    fn validate_config(&self, _config: &ConnectorConfig) -> Result<(), ConnectorError> {
+    fn validate_config(&self, _config: &ConnectorConfigAuth) -> Result<(), ConnectorError> {
         // Local file connector doesn't need special configuration
         Ok(())
     }
-    
-    async fn authenticate(&self, _config: &ConnectorConfig) -> Result<Option<String>, ConnectorError> {
+
+    async fn authenticate(&self, _config: &ConnectorConfigAuth) -> Result<Option<String>, ConnectorError> {
         // No authentication needed for local files
         Ok(None)
     }
@@ -288,7 +288,7 @@ impl Connector for LocalFileConnector {
     async fn sync(
         &self,
         account: &ConnectedAccount,
-        request: &SyncRequest,
+        request: &SyncRequestWithFilters,
     ) -> Result<(SyncResult, Vec<DocumentForEmbedding>), ConnectorError> {
         let start_time = std::time::Instant::now();
         
