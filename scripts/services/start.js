@@ -26,7 +26,9 @@ if (fs.existsSync(rootEnvPath)) {
 }
 
 function readFeatureToggles() {
-  const togglesPath = path.resolve(__dirname, '..', 'feature-toggles.json');
+  // Always read toggles from the project root for consistency
+  const projectRoot = path.resolve(__dirname, '..', '..');
+  const togglesPath = path.join(projectRoot, 'feature-toggles.json');
   try {
     if (!fs.existsSync(togglesPath)) {
       return { Auth: false, Heavy: false, Docker: false };
@@ -70,7 +72,6 @@ console.log('   AI Service:       http://localhost:3012');
 console.log('   Data Service:     http://localhost:3013');
 console.log('   Security Service: http://localhost:3014');
 console.log('   Webhook Service:  http://localhost:3015');
-console.log('   Plugins Service:  http://localhost:3020');
 // Heavy-only services: embeddings and indexers
 if (toggles.Heavy === true) {
   console.log('   Indexer Service:  http://localhost:8080');
@@ -83,7 +84,8 @@ console.log('');
 
 // Ensure services can locate feature toggles regardless of their working directory
 process.env.ENV_MODE = 'local';
-process.env.FEATURE_TOGGLES_PATH = path.resolve(__dirname, '..', 'feature-toggles.json');
+// Ensure all services read the same toggles from the project root
+process.env.FEATURE_TOGGLES_PATH = path.join(projectRoot, 'feature-toggles.json');
 
 // Prefer Neon DB if configured; otherwise fall back to local DATABASE_URL
 (() => {
@@ -130,15 +132,14 @@ if (authEnabled) {
 }
 
 // Core services should run regardless of Heavy
-names.push('Billing','Client','Data','Security','Webhook', 'Plugins');
-prefixColors.push('magenta','green','yellow','red','gray', 'blue');
+names.push('Billing','AI','Data','Security','Webhook');
+prefixColors.push('magenta','green','yellow','red','gray');
 commands.push(
   'npm --prefix .. run dev:billing',
   'npm --prefix .. run dev:client',
   'npm --prefix .. run dev:data',
   'npm --prefix .. run dev:security',
-  'npm --prefix .. run dev:webhook',
-  'npm --prefix .. run dev:plugins'
+  'npm --prefix .. run dev:webhook'
 );
 
 // Heavy-only services: start when Heavy=true

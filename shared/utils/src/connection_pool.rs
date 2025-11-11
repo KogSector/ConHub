@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use dashmap::DashMap;
 use parking_lot::RwLock;
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
+use std::str::FromStr;
 use redis::Client as RedisClient;
 use qdrant_client::client::QdrantClient;
 use std::time::{Duration, Instant};
@@ -60,6 +61,10 @@ impl ConnectionPoolManager {
         }
 
         // Create new pool
+        // Disable server-side prepared statements to be compatible with pgbouncer/transaction pooling
+        let connect_options = PgConnectOptions::from_str(database_url)?
+            .statement_cache_capacity(0);
+
         let pool = PgPoolOptions::new()
             .max_connections(self.config.max_connections)
             .min_connections(self.config.min_idle)
@@ -67,7 +72,7 @@ impl ConnectionPoolManager {
             .idle_timeout(self.config.idle_timeout)
             .acquire_timeout(self.config.acquire_timeout)
             .test_before_acquire(true)
-            .connect(database_url)
+            .connect_with(connect_options)
             .await?;
 
         let entry = PoolEntry {

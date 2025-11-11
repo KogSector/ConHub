@@ -22,13 +22,12 @@ ConHub uses a modern **decoupled microservices architecture** with:
 - **Backend Service** (8000) - Unified GraphQL API gateway
 - **Auth Service** (3010) - Authentication, OAuth, JWT management
 - **Billing Service** (3011) - Stripe payments & subscriptions
-- **Client Service** (3014) - AI client integrations (OpenAI, Anthropic)
+- **AI Service** (3012) - AI client integrations (OpenAI, Anthropic)
 - **Data Service** (3013) - Data sources & repository management
-- **Security Service** (3012) - Security policies & audit logs
-- **Webhook Service** (3015) - External webhook handling
-- **Plugins Service** (3020) - Unified plugin management system
-- **Embedding Service** (8082) - Fusion embeddings & vector generation
-- **Indexers Service** (8080) - Code/document indexing & search
+- **Security Service** (3014) - Security policies & audit logs
+ - **Webhook Service** (3015) - External webhook handling
+ - **Embedding Service** (8082) - Fusion embeddings & vector generation
+ - **Indexers Service** (8080) - Code/document indexing & search
 
 ### Infrastructure
 - **PostgreSQL** (5432) - Primary database
@@ -87,31 +86,16 @@ Frontend (3000) → Nginx (80) → Backend (8000) → Microservices
                                     ↓
                     ┌───────────────┼───────────────┐
                     ↓               ↓               ↓
-              Auth (3010)    Data (3013)    Client (3014)
+              Auth (3010)    Data (3013)      AI (3012)
                     ↓               ↓               ↓
-              Billing (3011) Security (3012) Webhook (3015)
-                                    ↓
-                            Plugins (3020)
-                                    ↓
+              Billing (3011) Security (3014) Webhook (3015)
                     ┌───────────────┼───────────────┐
                     ↓               ↓               ↓
             Embedding (8082)  Indexers (8080)  Databases
 ```
 
-### Plugin System
-The unified plugin system replaces individual MCP microservices:
-
-**Source Plugins**: Dropbox, Google Drive, OneDrive, Notion, GitHub
-**Agent Plugins**: Cline, Amazon Q, GitHub Copilot
-
-```bash
-# Plugin Management API
-GET /api/plugins/status           # Get all plugin status
-POST /api/plugins/start/{id}      # Start plugin
-POST /api/plugins/stop/{id}       # Stop plugin
-GET /api/plugins/sources/{id}/documents  # Access source data
-POST /api/plugins/agents/{id}/chat       # Chat with agent
-```
+### MCP & Agents
+Agent and source integrations are handled via the MCP gateway and routed through Backend/AI services.
 
 ## 🔧 Development
 
@@ -138,11 +122,12 @@ Control development complexity with feature toggles (`feature-toggles.json`):
 
 ```json
 {
-  "Auth": false,    // Disable auth & databases for UI development
+  "Auth": true,     // Enable authentication & database connections (default)
   "Heavy": false,   // Disable embedding/indexing for fast iteration
   "Docker": false   // Use local development (true = Docker containers)
 }
 ```
+Note: Set `Auth: false` only for UI-only development without databases.
 
 **Toggle Modes:**
 - `Docker: false` - **Local Development** (fastest, default)
@@ -196,12 +181,12 @@ Dual-engine search architecture:
 - **Semantic Search** (Qdrant): Vector embeddings, similarity search
 - **Language Support**: 40+ languages via tree-sitter
 
-### 3. Plugin Architecture
-Scalable plugin system:
-- Dynamic loading/unloading
+### 3. MCP & Agent Integrations
+Standards-based agent integrations via MCP:
+- Connect sources and agents through MCP servers
 - Shared resources and connection pooling
-- Centralized configuration management
-- Hot reloading support
+- Centralized configuration via `mcp/` services
+- Hot reload support for development
 
 ## 🔐 Security
 
@@ -244,15 +229,7 @@ curl -X POST http://localhost/api/data/sources \
 ```
 
 ### AI Agent Integration
-```bash
-# Chat with agent
-curl -X POST http://localhost/api/plugins/agents/cline-main/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Help me debug this code",
-    "context": {...}
-  }'
-```
+Agent interactions are routed through Backend and AI services.
 
 ## 📁 Project Structure
 
@@ -266,7 +243,6 @@ ConHub/
 ├── embedding/               # Fusion embedding service
 ├── frontend/                # Next.js application
 ├── indexers/                # Search & indexing
-├── plugins/                 # Unified plugin system
 ├── security/                # Security & audit
 ├── webhook/                 # Webhook handling
 ├── shared/                  # Shared Rust libraries
@@ -350,7 +326,6 @@ curl http://localhost/health
 # Individual service health
 curl http://localhost:8000/health    # Backend
 curl http://localhost:3010/health    # Auth
-curl http://localhost:3020/health    # Plugins
 ```
 
 ## 🧪 Testing

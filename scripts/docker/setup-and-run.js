@@ -41,7 +41,8 @@ function logInfo(message) {
 }
 
 function readFeatureToggles() {
-    const togglesPath = path.resolve(__dirname, '..', 'feature-toggles.json');
+    // Resolve toggles from project root to match local start behavior
+    const togglesPath = path.resolve(__dirname, '..', '..', 'feature-toggles.json');
     try {
         if (!fs.existsSync(togglesPath)) {
             return { Auth: false, Heavy: false, Docker: false };
@@ -54,7 +55,7 @@ function readFeatureToggles() {
 }
 
 function getAllowedServices(toggles) {
-    const all = ['frontend','backend','auth','billing','security','data','client','webhook','plugins','nginx','postgres','redis','qdrant'];
+    const all = ['frontend','backend','auth','billing','security','data','client','webhook','nginx','postgres','redis','qdrant'];
     if (toggles && toggles.Heavy === false) {
         // Heavy=false should only skip compute-heavy services (embeddings/indexers).
         // Compose doesn't include embedding/indexers, so start the full stack.

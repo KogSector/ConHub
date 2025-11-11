@@ -24,7 +24,8 @@ function log(message, color = colors.reset) {
 }
 
 function readFeatureToggles() {
-  const projectRoot = path.resolve(__dirname, '..');
+  // Always resolve toggles from the project root to avoid conflicts
+  const projectRoot = path.resolve(__dirname, '..', '..');
   const togglesPath = path.join(projectRoot, 'feature-toggles.json');
   
   try {
@@ -75,6 +76,8 @@ function main() {
   log(`${colors.bright}${colors.magenta}🚀 ConHub Smart Start${colors.reset}\n`);
   
   const toggles = readFeatureToggles();
+  // Ensure downstream services read the same toggles file
+  process.env.FEATURE_TOGGLES_PATH = path.resolve(__dirname, '..', '..', 'feature-toggles.json');
   const dockerEnabled = toggles.Docker === true;
   
   log(`${colors.cyan}Feature Toggle Status:${colors.reset}`);

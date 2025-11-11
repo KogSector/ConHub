@@ -35,7 +35,7 @@ function Connect-DockerHub {
 # Define the services to build
 $services = @(
     "frontend", "backend", "auth", "billing", "security", "data", "client", 
-    "webhook", "plugins", "indexers", "embedding", "nginx"
+    "webhook", "indexers", "embedding", "nginx"
 )
 
 # Main script

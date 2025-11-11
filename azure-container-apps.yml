@@ -27,7 +27,6 @@ data:
   data_service_url: "https://conhub-data.internal"
   ai_service_url: "https://conhub-ai.internal"
   webhook_service_url: "https://conhub-webhook.internal"
-  plugins_service_url: "https://conhub-plugins.internal"
 
 ---
 # Backend Service
@@ -340,41 +339,6 @@ spec:
             cpu: "500m"
 
 ---
-# Plugins Service
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: conhub-plugins
-  labels:
-    app: conhub-plugins
-    tier: plugins
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: conhub-plugins
-  template:
-    metadata:
-      labels:
-        app: conhub-plugins
-    spec:
-      containers:
-      - name: plugins
-        image: ${CONTAINER_REGISTRY}/conhub-plugins:${IMAGE_TAG}
-        ports:
-        - containerPort: 8007
-        env:
-        - name: PORT
-          value: "8007"
-        resources:
-          requests:
-            memory: "1Gi"
-            cpu: "500m"
-          limits:
-            memory: "2Gi"
-            cpu: "1000m"
-
----
 # Services for Load Balancing
 apiVersion: v1
 kind: Service
@@ -467,14 +431,3 @@ spec:
   type: LoadBalancer
 
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: conhub-plugins-service
-spec:
-  selector:
-    app: conhub-plugins
-  ports:
-  - port: 80
-    targetPort: 8007
-  type: ClusterIP

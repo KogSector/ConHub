@@ -1,6 +1,7 @@
 use actix_web::{web, App, HttpServer, middleware::Logger};
 use actix_cors::Cors;
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
+use std::str::FromStr;
 use std::env;
 use tracing::{info, error};
 use tracing_subscriber;
@@ -43,13 +44,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Database connection (gated by Auth toggle)
     let db_pool_opt: Option<PgPool> = if auth_enabled {
-        let database_url = env::var("DATABASE_URL")
-            .expect("DATABASE_URL must be set when Auth is enabled");
+        // Prefer Neon if provided, otherwise require DATABASE_URL
+        let database_url = env::var("DATABASE_URL_NEON")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .or_else(|| env::var("DATABASE_URL").ok())
+            .ok_or_else(|| "DATABASE_URL or DATABASE_URL_NEON must be set when Auth is enabled")?;
 
-        tracing::info!("📊 [Billing Service] Connecting to database...");
+        if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
+            tracing::info!("📊 [Billing Service] Connecting to Neon DB...");
+        } else {
+            tracing::info!("📊 [Billing Service] Connecting to database...");
+        }
+
+        // Disable server-side prepared statements for pgbouncer/Neon
+        let connect_options = PgConnectOptions::from_str(&database_url)?
+            .statement_cache_capacity(0);
+
         let pool = PgPoolOptions::new()
             .max_connections(10)
-            .connect(&database_url)
+            .connect_with(connect_options)
             .await?;
         tracing::info!("✅ [Billing Service] Database connection established");
         Some(pool)

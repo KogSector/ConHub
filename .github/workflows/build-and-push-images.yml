@@ -23,7 +23,7 @@ on:
     paths:
       # Trigger builds when workflow or feature toggles change
       - '.github/workflows/**'
-      - 'scripts/feature-toggles.json'
+      - 'feature-toggles.json'
       # Trigger builds when shared libraries change (used by backend/data and others)
       - 'shared/**'
       # Trigger builds when microservice directories change
@@ -36,7 +36,6 @@ on:
       - 'frontend/**'
       - 'indexers/**'
       - 'nginx/**'
-      - 'plugins/**'
       - 'security/**'
       - 'webhook/**'
 
@@ -65,7 +64,7 @@ jobs:
       fail-fast: false # Ensures that if one build fails, the others will continue.
       # Defines a matrix of services to build. Add or remove services as needed.
       matrix:
-        service: [auth, backend, billing, client, data, embedding, frontend, indexers, nginx, plugins, security, webhook]
+        service: [auth, backend, billing, client, data, embedding, frontend, indexers, nginx, security, webhook]
     
     steps:
     - name: Checkout repository
@@ -84,9 +83,9 @@ jobs:
         if [ -n "$CI_HEAVY" ]; then HEAVY="$CI_HEAVY"; fi
 
         if [ -z "$AUTH" ] || [ -z "$HEAVY" ]; then
-          if [ -f scripts/feature-toggles.json ]; then
-            [ -z "$AUTH" ] && AUTH=$(jq -r '.Auth // false' scripts/feature-toggles.json)
-            [ -z "$HEAVY" ] && HEAVY=$(jq -r '.Heavy // false' scripts/feature-toggles.json)
+          if [ -f feature-toggles.json ]; then
+            [ -z "$AUTH" ] && AUTH=$(jq -r '.Auth // false' feature-toggles.json)
+            [ -z "$HEAVY" ] && HEAVY=$(jq -r '.Heavy // false' feature-toggles.json)
           else
             [ -z "$AUTH" ] && AUTH=false
             [ -z "$HEAVY" ] && HEAVY=false
@@ -115,7 +114,6 @@ jobs:
           "data",
           "embedding",
           "indexers",
-          "plugins",
           "security",
           "webhook",
           "shared/config",

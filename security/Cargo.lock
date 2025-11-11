@@ -839,6 +839,7 @@ version = "0.1.0"
 dependencies = [
  "actix-web",
  "actix-web-httpauth",
+ "base64 0.21.7",
  "chrono",
  "conhub-models",
  "futures",
