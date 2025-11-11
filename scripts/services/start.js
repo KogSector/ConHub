@@ -3,6 +3,7 @@
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const dotenv = require('dotenv');
 
 // ANSI color codes
 const colors = {
@@ -14,6 +15,15 @@ const colors = {
 };
 
 console.log(`${colors.green}[START] Starting ConHub...${colors.reset}`);
+
+// Load root .env to access shared configuration (including Neon DB URL)
+const projectRoot = path.resolve(__dirname, '..', '..');
+const rootEnvPath = path.join(projectRoot, '.env');
+if (fs.existsSync(rootEnvPath)) {
+  dotenv.config({ path: rootEnvPath });
+} else {
+  console.log(`${colors.yellow}[WARNING] Root .env not found at ${rootEnvPath}. Using process environment only.${colors.reset}`);
+}
 
 function readFeatureToggles() {
   const togglesPath = path.resolve(__dirname, '..', 'feature-toggles.json');
@@ -75,8 +85,34 @@ console.log('');
 process.env.ENV_MODE = 'local';
 process.env.FEATURE_TOGGLES_PATH = path.resolve(__dirname, '..', 'feature-toggles.json');
 
+// Prefer Neon DB if configured; otherwise fall back to local DATABASE_URL
+(() => {
+  const neonUrl = process.env.DATABASE_URL_NEON || process.env.NEON_DATABASE_URL;
+  const localUrl = process.env.DATABASE_URL_LOCAL;
+  const currentUrl = process.env.DATABASE_URL;
+
+  if (neonUrl && neonUrl.trim().length > 0) {
+    process.env.DATABASE_URL = neonUrl.trim();
+    console.log(`${colors.green}[DB] Using Neon Postgres (DATABASE_URL_NEON)${colors.reset}`);
+  } else if (!currentUrl && localUrl) {
+    process.env.DATABASE_URL = localUrl;
+    console.log(`${colors.yellow}[DB] Neon not configured; using DATABASE_URL_LOCAL${colors.reset}`);
+  } else if (currentUrl) {
+    console.log(`${colors.cyan}[DB] Using DATABASE_URL from environment${colors.reset}`);
+  } else {
+    console.log(`${colors.red}[DB] No DATABASE_URL found. Services may default to localhost.${colors.reset}`);
+  }
+
+  // Ensure sslmode=require for Neon if not already present
+  if (process.env.DATABASE_URL && /neon/i.test(process.env.DATABASE_URL) && !/sslmode=require/i.test(process.env.DATABASE_URL)) {
+    const hasQuery = process.env.DATABASE_URL.includes('?');
+    process.env.DATABASE_URL = process.env.DATABASE_URL + (hasQuery ? '&' : '?') + 'sslmode=require';
+    console.log(`${colors.cyan}[DB] Appended sslmode=require for Neon connection${colors.reset}`);
+  }
+})();
+
 // Use concurrently programmatic API to avoid CLI arg parsing quirks
-const projectRoot = path.join(__dirname, '..');
+const scriptsRoot = path.join(__dirname, '..');
 const isWin = process.platform === 'win32';
 const concurrentlyDefault = require('concurrently').default || require('concurrently');
 
@@ -122,7 +158,7 @@ const concurrentlyOpts = {
   restartTries: 2,
   killOthersOn: ['failure'],
   raw: false,
-  cwd: projectRoot,
+  cwd: scriptsRoot,
 };
 
 // Prefer invoking via npm which sets PATH for node_modules/.bin reliably
