@@ -8,8 +8,9 @@ mod graphql;
 
 use actix_web::{web, App, HttpServer};
 use actix_cors::Cors;
-use sqlx::postgres::PgPoolOptions;
+use sqlx::postgres::{PgPoolOptions, PgConnectOptions};
 use std::io;
+use std::str::FromStr;
 use conhub_middleware::auth::AuthMiddlewareFactory;
 use conhub_config::feature_toggles::FeatureToggles;
 
@@ -49,13 +50,30 @@ async fn main() -> io::Result<()> {
 
     // Database setup (gated by Auth toggle)
     let db_pool_opt = if auth_enabled {
-        log::info!("Connecting to PostgreSQL database...");
+        // Prefer Neon URL if present, fall back to DATABASE_URL
+        let database_url = std::env::var("DATABASE_URL_NEON")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .or_else(|| config.database_url.clone())
+            .expect("DATABASE_URL or DATABASE_URL_NEON must be set when Auth is enabled");
+
+        if std::env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
+            log::info!("📊 [Backend Service] Connecting to Neon DB...");
+        } else {
+            log::info!("Connecting to PostgreSQL database...");
+        }
+        
+        // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
+        let connect_options = PgConnectOptions::from_str(&database_url)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
+            .statement_cache_capacity(0);
+        
         let db_pool = PgPoolOptions::new()
             .max_connections(10)
-            .connect(&config.database_url.clone().expect("DATABASE_URL must be set when Auth is enabled"))
+            .connect_with(connect_options)
             .await
             .expect("Failed to connect to Postgres");
-        log::info!("Connected to PostgreSQL");
+        log::info!("✅ [Backend Service] Database connection established");
         Some(db_pool)
     } else {
         log::warn!("Auth disabled; skipping PostgreSQL connection.");
@@ -65,22 +83,33 @@ async fn main() -> io::Result<()> {
     // Redis setup (gated by Auth and Redis toggles)
     let redis_enabled = toggles.should_connect_redis();
     let redis_client = if redis_enabled {
-        log::info!("📊 [Backend Service] Connecting to Redis...");
-        let client = redis::Client::open(
-            config
-                .redis_url
-                .clone()
-                .expect("REDIS_URL must be set when Redis is enabled")
-        )
-            .expect("Failed to create Redis client");
-
-        // Test Redis connection
-        let _ = client
-            .get_connection()
-            .expect("Failed to connect to Redis");
-
-        log::info!("✅ [Backend Service] Connected to Redis");
-        Some(client)
+        if let Some(redis_url) = config.redis_url.clone() {
+            log::info!("📊 [Backend Service] Connecting to Redis...");
+            match redis::Client::open(redis_url.clone()) {
+                Ok(client) => {
+                    // Test Redis connection
+                    match client.get_connection() {
+                        Ok(_) => {
+                            log::info!("✅ [Backend Service] Connected to Redis");
+                            Some(client)
+                        }
+                        Err(e) => {
+                            log::warn!("⚠️  [Backend Service] Failed to connect to Redis: {}", e);
+                            log::warn!("⚠️  [Backend Service] Service will continue without Redis");
+                            None
+                        }
+                    }
+                }
+                Err(e) => {
+                    log::warn!("⚠️  [Backend Service] Failed to create Redis client: {}", e);
+                    log::warn!("⚠️  [Backend Service] Service will continue without Redis");
+                    None
+                }
+            }
+        } else {
+            log::warn!("⚠️  [Backend Service] REDIS_URL not set, skipping Redis connection");
+            None
+        }
     } else {
         if !auth_enabled {
             log::warn!("[Backend Service] Auth disabled; skipping Redis connection.");

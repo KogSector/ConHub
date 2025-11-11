@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Database connection (gated by Auth toggle)
     let db_pool_opt: Option<PgPool> = if auth_enabled {
-        // Prefer Neon if provided; fall back to DATABASE_URL or local default
+        // Prefer Neon URL if present, fall back to DATABASE_URL, then local default
         let database_url = env::var("DATABASE_URL_NEON")
             .ok()
             .filter(|v| !v.trim().is_empty())
@@ -60,31 +60,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .unwrap_or_else(|| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
 
         if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
-            println!("📊 [Auth Service] Connecting to Neon DB...");
+            tracing::info!("📊 [Auth Service] Connecting to Neon DB...");
+            tracing::info!("🔗 [Auth Service] Database URL: {}", database_url.split('@').last().unwrap_or("hidden"));
         } else {
-            println!("📊 [Auth Service] Connecting to database...");
+            tracing::info!("📊 [Auth Service] Connecting to database...");
+            tracing::info!("🔗 [Auth Service] Database URL: {}", database_url.split('@').last().unwrap_or("hidden"));
         }
-
+        
         // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
         let connect_options = PgConnectOptions::from_str(&database_url)?
             .statement_cache_capacity(0);
-
-        match PgPoolOptions::new()
+        
+        tracing::info!("🔌 [Auth Service] Attempting database connection...");
+        let pool = PgPoolOptions::new()
             .max_connections(10)
             .connect_with(connect_options)
-            .await
-        {
-            Ok(pool) => {
-                println!("✅ [Auth Service] Database connection established");
-                Some(pool)
-            }
-            Err(e) => {
-                eprintln!("⚠️  [Auth Service] Failed to connect to database: {}", e);
-                eprintln!("⚠️  [Auth Service] Service will start but database operations will fail");
-                eprintln!("⚠️  [Auth Service] Please ensure PostgreSQL is running and DATABASE_URL is correct");
-                None
-            }
-        }
+            .await?;
+        tracing::info!("✅ [Auth Service] Database connection established successfully");
+        tracing::info!("📊 [Auth Service] Database pool created with max 10 connections");
+        Some(pool)
     } else {
         tracing::warn!("[Auth Service] Auth disabled; skipping database connection.");
         None
@@ -129,12 +123,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut app = App::new()
             .app_data(web::Data::new(toggles.clone()))
+            .app_data(web::Data::new(db_pool_opt.clone()))
             .wrap(cors)
             .wrap(Logger::default());
-
-        if let Some(pool) = db_pool_opt.clone() {
-            app = app.app_data(web::Data::new(pool));
-        }
 
         if let Some(redis_client) = redis_client_opt.clone() {
             app = app.app_data(web::Data::new(redis_client));

@@ -2,5 +2,5 @@
   "Auth": true,
   "Heavy": false,
   "Docker": false,
-  "Redis": true
+  "Redis": false
 }

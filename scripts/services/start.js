@@ -90,6 +90,8 @@ console.log('');
 process.env.ENV_MODE = 'local';
 // Ensure all services read the same toggles from the project root
 process.env.FEATURE_TOGGLES_PATH = path.join(projectRoot, 'feature-toggles.json');
+// Enable SQLx offline mode to skip compile-time verification
+process.env.SQLX_OFFLINE = 'true';
 
 // Prefer Neon DB if configured; otherwise fall back to local DATABASE_URL
 (() => {
