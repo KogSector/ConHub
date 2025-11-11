@@ -1,10 +1,10 @@
 [package]
-name = "data-service"
+name = "mcp-service"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "data-service"
+name = "mcp-service"
 path = "src/main.rs"
 
 [dependencies]
@@ -17,8 +17,7 @@ conhub-config = { path = "../shared/config" }
 # Web framework
 actix-web = "4.4"
 actix-cors = "0.7"
-actix-multipart = "0.7"
-actix-files = "0.6"
+actix-ws = "0.2"
 
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }
@@ -42,57 +41,20 @@ sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chron
 uuid = { version = "1.6", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
-# Vector database
-qdrant-client = "1.7"
-
 # HTTP client
 reqwest = { version = "0.11", features = ["json"] }
-
-# Git operations
-git2 = "0.19"
-
-# URL parsing
-url = "2.4"
-
-# File operations
-walkdir = "2.4"
-tempfile = "3.8"
-mime_guess = "2.0"
-encoding_rs = "0.8"
 
 # Configuration
 dotenv = "0.15"
 anyhow = "1.0"
 thiserror = "1.0"
 
-# Encoding
-base64 = "0.21"
-urlencoding = "2.1"
-
-# Authentication
-oauth2 = "4.4"
-
-# Web framework (additional)
-warp = "0.3"
-
 # Utilities
 lazy_static = "1.4"
-regex = "1.10"
-validator = { version = "0.16", features = ["derive"] }
-
-# Additional dependencies for advanced features
-rand = "0.8"
 dashmap = "5.5"
-lru = "0.12"
-flate2 = "1.0"
 parking_lot = "0.12"
-arc-swap = "1.6"
-crossbeam = "0.8"
-crossbeam-channel = "0.5"
 once_cell = "1.19"
 bytes = "1.5"
-bit-vec = "0.6"
 
-# GraphQL
-async-graphql = "7.0"
-async-graphql-actix-web = "7.0"
+# MCP Protocol
+jsonrpc-core = "18.0"

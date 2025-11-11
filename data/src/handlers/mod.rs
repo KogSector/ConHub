@@ -1,9 +1,10 @@
 pub mod data_sources;
-pub mod repositories;
 pub mod documents;
-pub mod urls;
 pub mod indexing;
+pub mod repositories;
+pub mod urls;
 pub mod enhanced_handlers;
+pub mod connectors;
 
 pub use data_sources::*;
 pub use repositories::*;

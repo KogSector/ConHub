@@ -11,6 +11,7 @@ mod services;
 mod handlers;
 mod sources;
 mod errors;
+mod connectors;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -71,6 +72,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tracing::warn!("[Data Service] Auth disabled; skipping Qdrant connection.");
     }
 
+    // Initialize Embedding Client
+    let embedding_url = env::var("EMBEDDING_SERVICE_URL")
+        .unwrap_or_else(|_| "http://embedding:8082".to_string());
+    let heavy_enabled = toggles.is_enabled("Heavy");
+    let embedding_client = services::EmbeddingClient::new(embedding_url.clone(), heavy_enabled);
+    tracing::info!("📊 [Data Service] Embedding client initialized: {}", embedding_url);
+
+    // Initialize Connector Manager
+    let connector_manager = connectors::ConnectorManager::new(db_pool_opt.clone());
+    tracing::info!("🔌 [Data Service] Connector Manager initialized");
+
     tracing::info!("🚀 [Data Service] Starting on port {}", port);
 
     HttpServer::new(move || {
@@ -83,6 +95,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         App::new()
             .app_data(web::Data::new(db_pool_opt.clone()))
             .app_data(web::Data::new(toggles.clone()))
+            .app_data(web::Data::new(connector_manager.clone()))
+            .app_data(web::Data::new(embedding_client.clone()))
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(auth_middleware.clone())
@@ -129,6 +143,16 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
             .route("/index/url", web::post().to(handlers::indexing::index_url))
             .route("/index/file", web::post().to(handlers::indexing::index_file))
             .route("/index/status", web::get().to(handlers::indexing::get_indexing_status))
+    )
+    .service(
+        web::scope("/api/connectors")
+            // Connector management routes
+            .route("/list", web::get().to(handlers::connectors::list_connectors))
+            .route("/connect", web::post().to(handlers::connectors::connect_source))
+            .route("/oauth/callback", web::post().to(handlers::connectors::complete_oauth_callback))
+            .route("/sync", web::post().to(handlers::connectors::sync_source))
+            .route("/disconnect/{id}", web::delete().to(handlers::connectors::disconnect_source))
+            .route("/accounts", web::get().to(handlers::connectors::list_connected_accounts))
     )
     .service(
         web::scope("/api/enhanced")

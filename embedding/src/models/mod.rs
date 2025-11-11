@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 
+pub mod document;
+pub use document::*;
+
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum TextInput {
