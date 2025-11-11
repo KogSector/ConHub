@@ -13,11 +13,11 @@ pub trait Connector: Send + Sync {
     fn connector_type(&self) -> ConnectorType;
     
     /// Validates the configuration before connection
-    fn validate_config(&self, config: &ConnectorConfig) -> Result<(), ConnectorError>;
+    fn validate_config(&self, config: &ConnectorConfigAuth) -> Result<(), ConnectorError>;
     
     /// Initiates the authentication flow
     /// Returns an authorization URL if OAuth is required, or None if credentials are sufficient
-    async fn authenticate(&self, config: &ConnectorConfig) -> Result<Option<String>, ConnectorError>;
+    async fn authenticate(&self, config: &ConnectorConfigAuth) -> Result<Option<String>, ConnectorError>;
     
     /// Completes the OAuth flow with the callback data
     async fn complete_oauth(&self, callback_data: OAuthCallbackData) -> Result<OAuthCredentials, ConnectorError>;
@@ -47,7 +47,7 @@ pub trait Connector: Send + Sync {
     async fn sync(
         &self,
         account: &ConnectedAccount,
-        request: &SyncRequest,
+        request: &SyncRequestWithFilters,
     ) -> Result<(SyncResult, Vec<DocumentForEmbedding>), ConnectorError>;
     
     /// Handles incremental sync (only changed files since last sync)

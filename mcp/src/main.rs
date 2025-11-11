@@ -11,9 +11,12 @@ mod server;
 mod protocol;
 mod handlers;
 mod services;
+mod types;
+mod context;
 mod error;
 
 use server::MCPServer;
+use context::ContextManager;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -62,8 +65,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         None
     };
 
+    // Data Service URL for GraphQL queries
+    let data_service_url = env::var("DATA_SERVICE_URL")
+        .unwrap_or_else(|_| "http://localhost:3013".to_string());
+    
+    // Initialize Context Manager
+    let context_manager = std::sync::Arc::new(ContextManager::new(
+        db_pool_opt.clone(),
+        data_service_url.clone()
+    ));
+    tracing::info!("📊 [MCP Service] Context Manager initialized");
+    
     // Initialize MCP Server
-    let mcp_server = MCPServer::new(db_pool_opt.clone());
+    let mcp_server = MCPServer::new(
+        db_pool_opt.clone(),
+        context_manager.clone()
+    );
     tracing::info!("🔌 [MCP Service] MCP Server initialized");
 
     tracing::info!("🚀 [MCP Service] Starting on port {}", port);
@@ -79,11 +96,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .app_data(web::Data::new(db_pool_opt.clone()))
             .app_data(web::Data::new(toggles.clone()))
             .app_data(web::Data::new(mcp_server.clone()))
+            .app_data(web::Data::new(context_manager.clone()))
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(auth_middleware.clone())
             .configure(configure_routes)
             .route("/health", web::get().to(health_check))
+            // MCP Protocol WebSocket endpoint
+            .route("/mcp", web::get().to(handlers::mcp_websocket))
     })
     .bind(("0.0.0.0", port))?
     .run()

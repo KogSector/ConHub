@@ -6,11 +6,13 @@ use sqlx::PgPool;
 use tracing::{info, error};
 
 use crate::protocol::{Agent, Resource, Tool, Prompt, SharedContext};
+use crate::context::ContextManager;
 use crate::error::MCPError;
 
 /// MCP Server manages resources, tools, prompts, and agent connections
 pub struct MCPServer {
     db_pool: Option<PgPool>,
+    context_manager: Arc<ContextManager>,
     agents: Arc<DashMap<Uuid, Agent>>,
     resources: Arc<RwLock<Vec<Resource>>>,
     tools: Arc<RwLock<Vec<Tool>>>,
@@ -19,9 +21,10 @@ pub struct MCPServer {
 }
 
 impl MCPServer {
-    pub fn new(db_pool: Option<PgPool>) -> Self {
+    pub fn new(db_pool: Option<PgPool>, context_manager: Arc<ContextManager>) -> Self {
         let server = Self {
             db_pool,
+            context_manager,
             agents: Arc::new(DashMap::new()),
             resources: Arc::new(RwLock::new(Vec::new())),
             tools: Arc::new(RwLock::new(Vec::new())),
@@ -205,12 +208,18 @@ impl MCPServer {
     pub fn list_contexts(&self) -> Vec<SharedContext> {
         self.shared_contexts.iter().map(|entry| entry.value().clone()).collect()
     }
+    
+    // Context Manager access
+    pub fn context_manager(&self) -> &Arc<ContextManager> {
+        &self.context_manager
+    }
 }
 
 impl Clone for MCPServer {
     fn clone(&self) -> Self {
         Self {
             db_pool: self.db_pool.clone(),
+            context_manager: Arc::clone(&self.context_manager),
             agents: Arc::clone(&self.agents),
             resources: Arc::clone(&self.resources),
             tools: Arc::clone(&self.tools),

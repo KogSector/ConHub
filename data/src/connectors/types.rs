@@ -191,5 +191,22 @@ pub struct OAuthCredentials {
     pub refresh_token: Option<String>,
     pub token_type: String,
     pub expires_in: Option<i64>,
+    pub expires_at: Option<DateTime<Utc>>,
     pub scope: Option<String>,
+    pub metadata: HashMap<String, serde_json::Value>,
+}
+
+/// Sync request with filters
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncRequestWithFilters {
+    pub force_full_sync: bool,
+    pub filters: Option<SyncFilters>,
+}
+
+/// Connector config for authentication
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConnectorConfigAuth {
+    pub connector_type: ConnectorType,
+    pub credentials: HashMap<String, String>,
+    pub settings: HashMap<String, serde_json::Value>,
 }

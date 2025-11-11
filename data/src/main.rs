@@ -12,6 +12,7 @@ mod handlers;
 mod sources;
 mod errors;
 mod connectors;
+mod graphql;
 
 
 #[actix_web::main]
@@ -81,8 +82,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("📊 [Data Service] Embedding client initialized: {}", embedding_url);
 
     // Initialize Connector Manager
-    let connector_manager = connectors::ConnectorManager::new(db_pool_opt.clone());
+    let connector_manager = std::sync::Arc::new(connectors::ConnectorManager::new(db_pool_opt.clone()));
     tracing::info!("🔌 [Data Service] Connector Manager initialized");
+
+    // Initialize GraphQL Schema
+    let graphql_schema = graphql::create_schema(db_pool_opt.clone(), connector_manager.clone());
+    tracing::info!("📊 [Data Service] GraphQL schema initialized");
 
     tracing::info!("🚀 [Data Service] Starting on port {}", port);
 
@@ -98,11 +103,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .app_data(web::Data::new(toggles.clone()))
             .app_data(web::Data::new(connector_manager.clone()))
             .app_data(web::Data::new(embedding_client.clone()))
+            .app_data(web::Data::new(graphql_schema.clone()))
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(auth_middleware.clone())
             .configure(configure_routes)
             .route("/health", web::get().to(health_check))
+            // GraphQL routes
+            .route("/graphql", web::post().to(handlers::graphql_handler))
+            .route("/graphql", web::get().to(handlers::graphql_playground))
+            .route("/graphql/ws", web::get().to(handlers::graphql_subscription))
     })
     .bind(("0.0.0.0", port))?
     .run()

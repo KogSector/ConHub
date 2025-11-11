@@ -1,9 +1,12 @@
-use actix_web::{web, HttpResponse, Result};
+use actix_web::{web, HttpRequest, HttpResponse, Result};
+use actix_web_actors::ws;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use tracing::{info, error};
+use std::sync::Arc;
 
 use crate::server::MCPServer;
+use crate::context::ContextManager;
 use crate::protocol::{Agent, SyncRequest, ToolExecutionRequest};
 use conhub_middleware::auth::Claims;
 
@@ -335,4 +338,164 @@ pub async fn broadcast_to_agents(
         "broadcasted_to": target_agents.len(),
         "agents": target_agents.iter().map(|a| a.id).collect::<Vec<_>>(),
     })))
+}
+
+// WebSocket handler for MCP protocol
+use actix::{Actor, StreamHandler, AsyncContext, ActorContext, Handler, Message as ActixMessage};
+use actix_web_actors::ws::Message;
+
+/// WebSocket actor for MCP connections
+pub struct McpWebSocket {
+    server: MCPServer,
+    context_manager: Arc<ContextManager>,
+    agent_id: Option<Uuid>,
+}
+
+impl Actor for McpWebSocket {
+    type Context = ws::WebsocketContext<Self>;
+    
+    fn started(&mut self, ctx: &mut Self::Context) {
+        info!("MCP WebSocket connection established");
+    }
+    
+    fn stopped(&mut self, _ctx: &mut Self::Context) {
+        if let Some(agent_id) = self.agent_id {
+            info!("MCP WebSocket connection closed for agent: {}", agent_id);
+            // Unregister agent
+            let _ = self.server.unregister_agent(agent_id);
+        }
+    }
+}
+
+impl StreamHandler<Result<Message, ws::ProtocolError>> for McpWebSocket {
+    fn handle(&mut self, msg: Result<Message, ws::ProtocolError>, ctx: &mut Self::Context) {
+        match msg {
+            Ok(Message::Text(text)) => {
+                info!("Received MCP message: {}", text);
+                
+                // Parse JSON-RPC message
+                match serde_json::from_str::<crate::types::JsonRpcRequest>(&text) {
+                    Ok(request) => {
+                        // Handle MCP protocol message
+                        let response = self.handle_mcp_request(request);
+                        if let Ok(response_json) = serde_json::to_string(&response) {
+                            ctx.text(response_json);
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to parse MCP request: {}", e);
+                        let error_response = crate::types::JsonRpcResponse {
+                            jsonrpc: "2.0".to_string(),
+                            id: None,
+                            result: None,
+                            error: Some(crate::types::JsonRpcError {
+                                code: -32700,
+                                message: "Parse error".to_string(),
+                                data: Some(serde_json::json!({ "error": e.to_string() })),
+                            }),
+                        };
+                        if let Ok(json) = serde_json::to_string(&error_response) {
+                            ctx.text(json);
+                        }
+                    }
+                }
+            }
+            Ok(Message::Binary(_)) => {
+                error!("Binary messages not supported in MCP protocol");
+            }
+            Ok(Message::Ping(msg)) => {
+                ctx.pong(&msg);
+            }
+            Ok(Message::Pong(_)) => {}
+            Ok(Message::Close(reason)) => {
+                info!("MCP WebSocket closing: {:?}", reason);
+                ctx.close(reason);
+                ctx.stop();
+            }
+            _ => {}
+        }
+    }
+}
+
+impl McpWebSocket {
+    fn handle_mcp_request(&mut self, request: crate::types::JsonRpcRequest) -> crate::types::JsonRpcResponse {
+        use crate::types::*;
+        
+        match request.method.as_str() {
+            "initialize" => {
+                // Initialize MCP connection
+                JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id: request.id,
+                    result: Some(serde_json::json!({
+                        "protocolVersion": MCP_PROTOCOL_VERSION,
+                        "capabilities": {
+                            "resources": { "subscribe": true, "listChanged": true },
+                            "tools": { "listChanged": true },
+                            "prompts": { "listChanged": true }
+                        },
+                        "serverInfo": {
+                            "name": "conhub-mcp",
+                            "version": "1.0.0"
+                        }
+                    })),
+                    error: None,
+                }
+            }
+            "resources/list" => {
+                let resources = self.server.list_resources();
+                JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id: request.id,
+                    result: Some(serde_json::json!({ "resources": resources })),
+                    error: None,
+                }
+            }
+            "tools/list" => {
+                let tools = self.server.list_tools();
+                JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id: request.id,
+                    result: Some(serde_json::json!({ "tools": tools })),
+                    error: None,
+                }
+            }
+            "prompts/list" => {
+                let prompts = self.server.list_prompts();
+                JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id: request.id,
+                    result: Some(serde_json::json!({ "prompts": prompts })),
+                    error: None,
+                }
+            }
+            _ => {
+                JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id: request.id,
+                    result: None,
+                    error: Some(JsonRpcError {
+                        code: -32601,
+                        message: "Method not found".to_string(),
+                        data: Some(serde_json::json!({ "method": request.method })),
+                    }),
+                }
+            }
+        }
+    }
+}
+
+pub async fn mcp_websocket(
+    req: HttpRequest,
+    stream: web::Payload,
+    server: web::Data<MCPServer>,
+    context_manager: web::Data<Arc<ContextManager>>,
+) -> Result<HttpResponse> {
+    let ws = McpWebSocket {
+        server: server.get_ref().clone(),
+        context_manager: context_manager.get_ref().clone(),
+        agent_id: None,
+    };
+    
+    ws::start(ws, &req, stream)
 }
