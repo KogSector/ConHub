@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Suppress deprecation warnings BEFORE any other requires
+process.env.NODE_OPTIONS = (process.env.NODE_OPTIONS || '') + ' --no-deprecation --no-warnings';
+
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -13,10 +16,6 @@ const colors = {
   yellow: '\x1b[1;33m',
   reset: '\x1b[0m'
 };
-
-// Suppress noisy Node deprecation warnings from transitive dependencies
-// (e.g., spawn-command used by concurrently) to keep startup logs clean
-process.env.NODE_OPTIONS = [process.env.NODE_OPTIONS, '--no-deprecation'].filter(Boolean).join(' ');
 
 console.log(`${colors.green}[START] Starting ConHub...${colors.reset}`);
 

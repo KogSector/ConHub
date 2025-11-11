@@ -78,23 +78,24 @@ npm run dev:backend    # Backend service
 
 ### 4. NeonDB Setup (Recommended for Production)
 
-ConHub fully supports **NeonDB** (serverless PostgreSQL) for all microservices. For complete setup:
+ConHub fully supports **NeonDB** (serverless PostgreSQL) for all microservices.
 
-```bash
-# Automated setup (generates JWT keys + configures NeonDB)
-node scripts/setup/setup-neondb.js
+**Configuration:**
+1. Set your NeonDB connection string in `.env`:
+   ```env
+   DATABASE_URL_NEON=postgresql://user:password@ep-xxx.region.neon.tech/db?sslmode=require
+   ```
 
-# Verify configuration
-node scripts/setup/verify-config.js
+2. Configure JWT keys (file paths recommended for Windows):
+   ```env
+   JWT_PRIVATE_KEY_PATH=C:/path/to/ConHub/keys/private_key.pem
+   JWT_PUBLIC_KEY_PATH=C:/path/to/ConHub/keys/public_key.pem
+   ```
 
-# Start services
-npm start
-```
-
-**📚 Documentation:**
-- [🚀 Quick Start Guide](QUICK_START.md) - Get started in 2 minutes
-- [📖 Complete NeonDB Setup](docs/NEONDB_SETUP.md) - Detailed configuration guide
-- [📋 Setup Summary](SETUP_SUMMARY.md) - Migration details & troubleshooting
+3. Start services:
+   ```bash
+   npm start
+   ```
 
 **Key Features:**
 - ✅ All 6 microservices support NeonDB
@@ -178,7 +179,6 @@ Control development complexity with feature toggles (`feature-toggles.json`):
 **Usage:** Simply run `npm start` - it intelligently detects the mode from feature-toggles.json
 
 **Documentation:**
-- 📖 [Redis Toggle Guide](docs/REDIS_TOGGLE.md) - Control Redis connections
 - 📖 [Docker Toggle Guide](docs/DOCKER_TOGGLE_FEATURE.md) - Docker vs local mode
 
 ### GraphQL API
