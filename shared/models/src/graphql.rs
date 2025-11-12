@@ -34,6 +34,7 @@ pub struct RerankResult {
     pub id: String,
     pub score: f32,
     pub index: usize,
+    pub document: RerankDocumentOutput,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, InputObject)]
@@ -47,6 +48,14 @@ pub struct RerankRequest {
 pub struct RerankDocument {
     pub id: String,
     pub text: String,
+    pub metadata: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
+pub struct RerankDocumentOutput {
+    pub id: String,
+    pub text: String,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, SimpleObject)]
@@ -55,7 +64,7 @@ pub struct SearchResult {
     pub content: String,
     pub score: f32,
     pub source_type: String,
-    pub metadata: String, // JSON string
+    pub metadata: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, InputObject)]

@@ -1,7 +1,7 @@
 
 
 export const API_CONFIG = {
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
   timeout: 10000,
   retries: 3,
   retryDelay: 1000,

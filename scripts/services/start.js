@@ -19,14 +19,8 @@ const colors = {
 
 console.log(`${colors.green}[START] Starting ConHub...${colors.reset}`);
 
-// Load root .env to access shared configuration (including Neon DB URL)
+// Each service manages its own environment; do not load root .env
 const projectRoot = path.resolve(__dirname, '..', '..');
-const rootEnvPath = path.join(projectRoot, '.env');
-if (fs.existsSync(rootEnvPath)) {
-  dotenv.config({ path: rootEnvPath });
-} else {
-  console.log(`${colors.yellow}[WARNING] Root .env not found at ${rootEnvPath}. Using process environment only.${colors.reset}`);
-}
 
 function readFeatureToggles() {
   // Always read toggles from the project root for consistency
@@ -71,7 +65,11 @@ console.log(`${colors.cyan}[SERVICES] Starting services (Auth: ${authEnabled ? '
 console.log('   Frontend:         http://localhost:3000');
 if (authEnabled) console.log('   Auth Service:     http://localhost:3010');
 // Core services always available regardless of Heavy toggle
-console.log('   Billing Service:  http://localhost:3011');
+if (toggles.Billing === true) {
+  console.log('   Billing Service:  http://localhost:3011');
+} else {
+  console.log('   Billing Service:  disabled (Billing=false)');
+}
 console.log('   AI Service:       http://localhost:3012');
 console.log('   Data Service:     http://localhost:3013');
 console.log('   Security Service: http://localhost:3014');
@@ -101,21 +99,19 @@ process.env.SQLX_OFFLINE = 'true';
 
   if (neonUrl && neonUrl.trim().length > 0) {
     process.env.DATABASE_URL = neonUrl.trim();
-    console.log(`${colors.green}[DB] Using Neon Postgres (DATABASE_URL_NEON)${colors.reset}`);
   } else if (!currentUrl && localUrl) {
     process.env.DATABASE_URL = localUrl;
-    console.log(`${colors.yellow}[DB] Neon not configured; using DATABASE_URL_LOCAL${colors.reset}`);
   } else if (currentUrl) {
-    console.log(`${colors.cyan}[DB] Using DATABASE_URL from environment${colors.reset}`);
+    // use existing DATABASE_URL
   } else {
-    console.log(`${colors.red}[DB] No DATABASE_URL found. Services may default to localhost.${colors.reset}`);
+    // no DATABASE_URL found; proceed without logging
   }
 
   // Ensure sslmode=require for Neon if not already present
   if (process.env.DATABASE_URL && /neon/i.test(process.env.DATABASE_URL) && !/sslmode=require/i.test(process.env.DATABASE_URL)) {
     const hasQuery = process.env.DATABASE_URL.includes('?');
     process.env.DATABASE_URL = process.env.DATABASE_URL + (hasQuery ? '&' : '?') + 'sslmode=require';
-    console.log(`${colors.cyan}[DB] Appended sslmode=require for Neon connection${colors.reset}`);
+    // appended sslmode=require for Neon connection
   }
 })();
 
@@ -137,11 +133,15 @@ if (authEnabled) {
   commands.push('npm --prefix .. run dev:auth');
 }
 
-// Core services should run regardless of Heavy
-names.push('Billing','AI','Data','Security','Webhook');
-prefixColors.push('magenta','green','yellow','red','gray');
+// Core services should run regardless of Heavy, with Billing gated by toggle
+if (toggles.Billing === true) {
+  names.push('Billing');
+  prefixColors.push('magenta');
+  commands.push('npm --prefix .. run dev:billing');
+}
+names.push('AI','Data','Security','Webhook');
+prefixColors.push('green','yellow','red','gray');
 commands.push(
-  'npm --prefix .. run dev:billing',
   'npm --prefix .. run dev:client',
   'npm --prefix .. run dev:data',
   'npm --prefix .. run dev:security',

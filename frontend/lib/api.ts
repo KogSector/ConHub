@@ -86,12 +86,27 @@ export interface ApiResponse<T = unknown> {
 
 export class ApiClient {
   private baseUrl: string;
+  private authBaseUrl: string;
+  private billingEnabled: boolean;
 
   constructor(baseUrl = API_CONFIG.baseUrl) {
     this.baseUrl = baseUrl;
+    this.authBaseUrl = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || process.env.AUTH_SERVICE_URL || 'http://localhost:3010';
+    this.billingEnabled = (process.env.NEXT_PUBLIC_BILLING_ENABLED ?? 'false').toLowerCase() === 'true';
     
     if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       console.log('API Client initialized with baseUrl:', this.baseUrl);
+    }
+  }
+
+  private resolveBase(endpoint: string): string {
+    if (endpoint.startsWith('/api/auth')) return this.authBaseUrl;
+    return this.baseUrl;
+  }
+
+  private guardBilling(endpoint: string) {
+    if (!this.billingEnabled && endpoint.startsWith('/api/billing')) {
+      throw new Error('Billing is disabled in this environment');
     }
   }
 
@@ -132,7 +147,8 @@ export class ApiClient {
 
   async get<T = unknown>(endpoint: string, headers: Record<string, string> = {}): Promise<T> {
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      this.guardBilling(endpoint);
+      const response = await fetch(`${this.resolveBase(endpoint)}${endpoint}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -165,7 +181,8 @@ export class ApiClient {
   }
   async post<T = unknown>(endpoint: string, data: unknown, headers: Record<string, string> = {}): Promise<T> {
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      this.guardBilling(endpoint);
+      const response = await fetch(`${this.resolveBase(endpoint)}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -181,7 +198,8 @@ export class ApiClient {
   }
   async put<T = unknown>(endpoint: string, data: unknown, headers: Record<string, string> = {}): Promise<T> {
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      this.guardBilling(endpoint);
+      const response = await fetch(`${this.resolveBase(endpoint)}${endpoint}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -197,7 +215,8 @@ export class ApiClient {
   }
   async delete<T = unknown>(endpoint: string, headers: Record<string, string> = {}): Promise<T> {
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      this.guardBilling(endpoint);
+      const response = await fetch(`${this.resolveBase(endpoint)}${endpoint}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

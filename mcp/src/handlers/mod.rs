@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::server::MCPServer;
 use crate::context::ContextManager;
 use crate::protocol::{Agent, SyncRequest, ToolExecutionRequest};
-use conhub_middleware::auth::Claims;
+use conhub_models::auth::Claims;
 
 // Resource handlers
 
@@ -146,7 +146,7 @@ pub async fn register_agent(
     claims: web::ReqData<Claims>,
     body: web::Json<RegisterAgentRequest>,
 ) -> Result<HttpResponse> {
-    let user_id = claims.sub;
+    let user_id = claims.sub.clone();
     
     let agent = Agent {
         id: Uuid::new_v4(),
