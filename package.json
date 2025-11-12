@@ -22,6 +22,8 @@
     "db:restore": "node scripts/shared-database.js restore",
     "db:status": "node scripts/shared-database.js status",
     "db:sync": "node scripts/shared-database.js sync",
+    "db:check-rate-limits": "node scripts/database/check-rate-limits.js",
+    "db:clear-rate-limits": "node scripts/database/clear-rate-limits.js",
     "dev:security": "cd security && cargo run",
     "dev:webhook": "cd webhook && cargo run",
     "dev:indexer": "node scripts/services/run-indexer.js",
@@ -49,5 +51,8 @@
     "client",
     "development"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "pg": "^8.16.3"
+  }
 }
