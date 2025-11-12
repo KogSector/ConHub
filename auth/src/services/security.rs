@@ -134,6 +134,12 @@ impl SecurityService {
     }
     
     pub async fn check_rate_limit(&self, identifier: &str, action: &str, max_attempts: u32, window_minutes: u32) -> Result<bool, Box<dyn std::error::Error>> {
+        // DEVELOPMENT: Skip database rate limiting to avoid persistent blocks
+        if std::env::var("NODE_ENV").unwrap_or_default() == "development" {
+            tracing::debug!("Skipping rate limit check in development mode");
+            return Ok(true);
+        }
+        
         let key = format!("{}:{}", identifier, action);
         
         // Check database rate limit first

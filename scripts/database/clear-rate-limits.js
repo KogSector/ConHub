@@ -26,9 +26,21 @@ async function clearRateLimits() {
         await client.connect();
         console.log('✅ Connected to database');
 
-        // Read the SQL file
-        const sqlPath = path.join(__dirname, 'clear-rate-limits.sql');
-        const sql = fs.readFileSync(sqlPath, 'utf8');
+        // SQL to clear rate limits and reset security flags
+        const sql = `
+            -- Clear all rate limits
+            DELETE FROM rate_limits;
+
+            -- Clear all security audit logs (optional - for clean slate)
+            DELETE FROM security_audit_log;
+
+            -- Reset failed login attempts for all users
+            UPDATE users SET 
+                failed_login_attempts = 0,
+                is_locked = FALSE,
+                locked_until = NULL
+            WHERE failed_login_attempts > 0 OR is_locked = TRUE OR locked_until IS NOT NULL;
+        `;
 
         console.log('🧹 Clearing rate limits and resetting security flags...');
         

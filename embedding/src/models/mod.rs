@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 pub mod document;
+pub mod qwen;
 pub use document::*;
+pub use qwen::*;
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]

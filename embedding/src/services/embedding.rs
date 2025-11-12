@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use crate::services::llm::{openai, huggingface};
 use crate::llm::{LlmEmbeddingClient, LlmEmbeddingRequest};
+use crate::models::qwen::QwenEmbeddingClient;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tokio::sync::Semaphore;
@@ -113,6 +114,11 @@ impl LlmEmbeddingService {
         let client: Box<dyn LlmEmbeddingClient> = match provider {
             "openai" => Box::new(openai::Client::new(None, None)?),
             "huggingface" => Box::new(huggingface::Client::new(model)?),
+            "qwen" => {
+                let api_key = std::env::var("QWEN_API_KEY")
+                    .map_err(|_| anyhow!("QWEN_API_KEY environment variable not set"))?;
+                Box::new(QwenEmbeddingClient::new(api_key))
+            },
             _ => return Err(anyhow!("Unsupported LLM provider: {}", provider)),
         };
 
