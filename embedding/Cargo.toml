@@ -32,6 +32,7 @@ sha2 = "0.10"
 conhub-config = { path = "../shared/config" }
 pyo3 = { version = "0.27", features = ["auto-initialize"] }
 reqwest = { version = "0.11", features = ["json"] }
+qdrant-client = "1.7"
 
 
 

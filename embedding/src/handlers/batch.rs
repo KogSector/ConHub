@@ -6,7 +6,8 @@ use crate::models::{
     BatchEmbedRequest, BatchEmbedResponse, DocumentEmbedResult, 
     EmbedStatus, ErrorResponse, EmbeddedChunk
 };
-use crate::services::LlmEmbeddingService;
+use crate::services::{LlmEmbeddingService, vector_store::VectorStoreService};
+use std::env;
 
 const MAX_BATCH_DOCUMENTS: usize = 100;
 const MAX_CHUNK_LENGTH: usize = 8192;
@@ -34,18 +35,20 @@ pub async fn batch_embed_handler(
     log::info!("📦 Processing batch of {} documents", req.documents.len());
     
     let mut results = Vec::new();
+    let mut all_embedded_chunks: Vec<EmbeddedChunk> = Vec::new();
     let mut successful = 0;
     let mut failed = 0;
     
     // Process each document
     for document in &req.documents {
         match process_document(document, &service, req.normalize).await {
-            Ok(result) => {
+            Ok((result, chunks)) => {
                 if matches!(result.status, EmbedStatus::Success | EmbedStatus::PartialSuccess) {
                     successful += 1;
                 } else {
                     failed += 1;
                 }
+                all_embedded_chunks.extend(chunks);
                 results.push(result);
             }
             Err(e) => {
@@ -71,6 +74,33 @@ pub async fn batch_embed_handler(
         duration
     );
     
+    if req.store_in_vector_db && !all_embedded_chunks.is_empty() {
+        let qdrant_url = env::var("QDRANT_URL").unwrap_or_else(|_| "http://localhost:6333".to_string());
+        let collection = env::var("QDRANT_COLLECTION").unwrap_or_else(|_| "conhub_embeddings".to_string());
+        let dimension = service.get_dimension().unwrap_or(1536) as usize;
+        match VectorStoreService::new(&qdrant_url, 5).await {
+            Ok(store) => {
+                let _ = store.ensure_collection(&collection, dimension).await;
+                let mut points: Vec<(String, Vec<f32>, serde_json::Map<String, serde_json::Value>)> = Vec::with_capacity(all_embedded_chunks.len());
+                for ch in all_embedded_chunks.into_iter() {
+                    let id = format!("{}-{}", ch.document_id, ch.chunk_number);
+                    let mut map: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
+                    if let Some(obj) = ch.metadata.as_object() {
+                        for (k, v) in obj.iter() { map.insert(k.clone(), v.clone()); }
+                    } else {
+                        map.insert("metadata".to_string(), ch.metadata.clone());
+                    }
+                    map.insert("content".to_string(), serde_json::json!(ch.content));
+                    points.push((id, ch.embedding.clone(), map));
+                }
+                let _ = store.upsert(&collection, points).await;
+            }
+            Err(e) => {
+                log::error!("Vector store initialization failed: {}", e);
+            }
+        }
+    }
+
     HttpResponse::Ok().json(BatchEmbedResponse {
         total_documents: req.documents.len(),
         successful,
@@ -85,7 +115,7 @@ async fn process_document(
     document: &crate::models::DocumentForEmbedding,
     service: &Arc<LlmEmbeddingService>,
     normalize: bool,
-) -> Result<DocumentEmbedResult, anyhow::Error> {
+) -> Result<(DocumentEmbedResult, Vec<EmbeddedChunk>), anyhow::Error> {
     log::debug!("Processing document: {} ({})", document.name, document.id);
     
     // Get chunks from document or create a single chunk from content
@@ -103,13 +133,13 @@ async fn process_document(
     };
     
     if chunks.is_empty() {
-        return Ok(DocumentEmbedResult {
+        return Ok((DocumentEmbedResult {
             id: document.id,
             name: document.name.clone(),
             status: EmbedStatus::Failed,
             chunks_processed: 0,
             error: Some("No chunks to process".to_string()),
-        });
+        }, Vec::new()));
     }
     
     let mut embedded_chunks = Vec::new();
@@ -181,7 +211,7 @@ async fn process_document(
         EmbedStatus::Failed
     };
     
-    Ok(DocumentEmbedResult {
+    Ok((DocumentEmbedResult {
         id: document.id,
         name: document.name.clone(),
         status,
@@ -191,5 +221,5 @@ async fn process_document(
         } else {
             None
         },
-    })
+    }, embedded_chunks))
 }

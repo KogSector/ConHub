@@ -48,7 +48,7 @@ impl QwenEmbeddingClient {
         }
     }
 
-    pub async fn generate_embeddings(&self, texts: Vec<String>) -> Result<Vec<Vec<f32>>, Box<dyn std::error::Error>> {
+    pub async fn generate_embeddings(&self, texts: Vec<String>) -> Result<Vec<Vec<f32>>> {
         let request = QwenEmbeddingRequest {
             model: "text-embedding-v3".to_string(),
             input: texts,
@@ -64,8 +64,8 @@ impl QwenEmbeddingClient {
             .await?;
 
         if !response.status().is_success() {
-            let error_text = response.text().await?;
-            return Err(format!("Qwen API error: {}", error_text).into());
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(anyhow::anyhow!("Qwen API error: {}", error_text));
         }
 
         let embedding_response: QwenEmbeddingResponse = response.json().await?;
@@ -79,15 +79,11 @@ impl QwenEmbeddingClient {
 
 #[async_trait]
 impl LlmEmbeddingClient for QwenEmbeddingClient {
-    async fn embed_text(&self, request: LlmEmbeddingRequest<'_>) -> Result<LlmEmbeddingResponse> {
+    async fn embed_text<'req>(&self, request: LlmEmbeddingRequest<'req>) -> Result<LlmEmbeddingResponse> {
         let embeddings = self.generate_embeddings(vec![request.text.to_string()]).await?;
         
         if let Some(embedding) = embeddings.into_iter().next() {
-            Ok(LlmEmbeddingResponse {
-                embedding,
-                model: request.model.to_string(),
-                usage: None,
-            })
+            Ok(LlmEmbeddingResponse { embedding })
         } else {
             Err(anyhow::anyhow!("No embedding returned from Qwen API"))
         }
