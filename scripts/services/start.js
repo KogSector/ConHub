@@ -168,6 +168,29 @@ const concurrentlyOpts = {
   cwd: scriptsRoot,
 };
 
+function prebuildRustServices() {
+  const services = [];
+  if (authEnabled) services.push(path.join(projectRoot, 'auth'));
+  services.push(
+    path.join(projectRoot, 'client'),
+    path.join(projectRoot, 'data'),
+    path.join(projectRoot, 'security'),
+    path.join(projectRoot, 'webhook')
+  );
+  if (heavyEnabled) services.push(path.join(projectRoot, 'embedding'));
+  for (const dir of services) {
+    try {
+      execSync('cargo fetch', { stdio: 'inherit', cwd: dir });
+      execSync('cargo build', { stdio: 'inherit', cwd: dir });
+    } catch (_) {}
+  }
+}
+
+// Prefer sparse registry to reduce index contention
+process.env.CARGO_REGISTRIES_CRATES_IO_PROTOCOL = 'sparse';
+
+prebuildRustServices();
+
 // Prefer invoking via npm which sets PATH for node_modules/.bin reliably
 // Run via library to avoid yargs converting --prefix to boolean
 concurrentlyDefault(commandObjs, concurrentlyOpts).result.then(

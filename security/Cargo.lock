@@ -3368,6 +3368,7 @@ dependencies = [
  "hex",
  "hmac",
  "jsonwebtoken",
+ "lazy_static",
  "log",
  "rand 0.8.5",
  "rsa",

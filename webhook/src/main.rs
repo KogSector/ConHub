@@ -20,39 +20,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse::<u16>()
         .unwrap_or(3015);
 
-    // Database connection with graceful degradation (prefer Neon)
-    let database_url = env::var("DATABASE_URL_NEON")
-        .ok()
-        .filter(|v| !v.trim().is_empty())
-        .or_else(|| env::var("DATABASE_URL").ok())
-        .unwrap_or_else(|| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
+    let toggles = conhub_config::feature_toggles::FeatureToggles::from_env_path();
+    let auth_enabled = toggles.auth_enabled();
 
-    if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
-        println!("📊 [Webhook Service] Connecting to Neon DB...");
+    let pool = if auth_enabled {
+        let database_url = env::var("DATABASE_URL_NEON")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .or_else(|| env::var("DATABASE_URL").ok())
+            .unwrap_or_else(|| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
+
+        if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
+            println!("📊 [Webhook Service] Connecting to Neon DB...");
+        } else {
+            println!("📊 [Webhook Service] Connecting to database...");
+        }
+
+        let connect_options = PgConnectOptions::from_str(&database_url)?
+            .statement_cache_capacity(0);
+
+        match PgPoolOptions::new()
+            .max_connections(10)
+            .connect_with(connect_options)
+            .await {
+            Ok(p) => {
+                println!("✅ [Webhook Service] Database connection established");
+                Some(p)
+            }
+            Err(e) => {
+                eprintln!("⚠️  [Webhook Service] Failed to connect to database: {}", e);
+                None
+            }
+        }
     } else {
-        println!("📊 [Webhook Service] Connecting to database...");
-    }
-
-    // Disable server-side prepared statements for pgbouncer/Neon
-    let connect_options = PgConnectOptions::from_str(&database_url)?
-        .statement_cache_capacity(0);
-
-    let pool_result = PgPoolOptions::new()
-        .max_connections(10)
-        .connect_with(connect_options)
-        .await;
-
-    let pool = match pool_result {
-        Ok(p) => {
-            println!("✅ [Webhook Service] Database connection established");
-            Some(p)
-        }
-        Err(e) => {
-            eprintln!("⚠️  [Webhook Service] Failed to connect to database: {}", e);
-            eprintln!("⚠️  [Webhook Service] Service will start but database operations will fail");
-            eprintln!("⚠️  [Webhook Service] Please ensure PostgreSQL is running and DATABASE_URL is correct");
-            None
-        }
+        println!("[Webhook Service] Auth disabled; skipping database connection.");
+        None
     };
 
     println!("🚀 [Webhook Service] Starting on port {}", port);
@@ -102,7 +104,7 @@ async fn health_check(pool: Option<web::Data<PgPool>>) -> actix_web::Result<web:
                 }
             }
         }
-        None => "not_configured"
+        None => "disabled"
     };
 
     Ok(web::Json(serde_json::json!({

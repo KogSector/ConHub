@@ -196,6 +196,22 @@ export class ApiClient {
       throw error;
     }
   }
+  async postForm<T = unknown>(endpoint: string, form: FormData, headers: Record<string, string> = {}): Promise<T> {
+    try {
+      this.guardBilling(endpoint);
+      const response = await fetch(`${this.resolveBase(endpoint)}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          ...headers,
+        },
+        body: form,
+      });
+      return this.handleResponse<T>(response);
+    } catch (error) {
+      console.error(`API POST FORM ${endpoint} failed:`, error);
+      throw error;
+    }
+  }
   async put<T = unknown>(endpoint: string, data: unknown, headers: Record<string, string> = {}): Promise<T> {
     try {
       this.guardBilling(endpoint);
@@ -335,6 +351,32 @@ export const billingApiClient = new ApiClient(
   process.env.BILLING_SERVICE_URL ||
   'http://localhost:3011'
 );
+
+export const securityApiClient = new ApiClient(
+  process.env.NEXT_PUBLIC_SECURITY_SERVICE_URL || 'http://localhost:3014'
+);
+
+export async function importDocumentFromProvider(data: {
+  provider: string;
+  file_id: string;
+  name: string;
+  mime_type?: string;
+  size?: number;
+}): Promise<ApiResponse> {
+  return dataApiClient.post('/api/data/documents/import', data);
+}
+
+export async function listConnections(): Promise<ApiResponse<any>> {
+  return securityApiClient.get('/api/security/connections');
+}
+
+export async function connectProvider(platform: string): Promise<ApiResponse<{ account?: { status: string; credentials?: { auth_url?: string }}}>> {
+  return securityApiClient.post('/api/security/connections/connect', { platform });
+}
+
+export async function listProviderFiles(provider: string): Promise<ApiResponse<{ id: string; name: string; mime_type: string; size: number }[]>> {
+  return securityApiClient.get(`/api/security/connections/${provider}/files`);
+}
 
 // Convenience helper: fetch current user via GraphQL when auth is enabled
 export async function fetchCurrentUserViaGraphQL() {

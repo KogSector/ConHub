@@ -155,6 +155,8 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
             .route("/documents", web::post().to(handlers::documents::create_document))
             .route("/documents/{id}", web::delete().to(handlers::documents::delete_document))
             .route("/documents/analytics", web::get().to(handlers::documents::get_document_analytics))
+            .route("/documents/upload", web::post().to(handlers::documents::upload_documents))
+            .route("/documents/import", web::post().to(handlers::documents::import_document))
             
             // URL routes
             .route("/urls", web::get().to(handlers::urls::get_urls))

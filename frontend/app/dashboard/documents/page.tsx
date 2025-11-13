@@ -9,7 +9,7 @@ import { ConnectSourceModal } from "@/components/ui/ConnectSourceModal";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { Footer } from "@/components/ui/footer";
 import { useToast } from "@/hooks/use-toast";
-import { apiClient } from "@/lib/api";
+import { dataApiClient } from "@/lib/api";
 import Link from "next/link";
 import { 
   Plus, 
@@ -45,7 +45,7 @@ export default function DocumentsPage() {
 
   const fetchDocuments = useCallback(async () => {
     try {
-      const result = await apiClient.getDocuments();
+      const result = await dataApiClient.getDocuments();
       if (result.success) {
         
         setDocuments(Array.isArray(result.data) ? result.data : result.data?.data || []);
@@ -70,7 +70,7 @@ export default function DocumentsPage() {
 
   const deleteDocument = async (id: string) => {
     try {
-      const result = await apiClient.deleteDocument(id);
+      const result = await dataApiClient.deleteDocument(id);
       if (result.success) {
         setDocuments(prev => prev.filter(doc => doc.id !== id));
         toast({
@@ -96,7 +96,7 @@ export default function DocumentsPage() {
   useEffect(() => {
     const init = async () => {
       // Check backend health first to avoid JSON parse errors when API returns HTML or is down
-      const healthy = await apiClient.checkBackendHealth();
+      const healthy = await dataApiClient.checkBackendHealth();
       if (healthy) {
         await fetchDocuments();
       } else {

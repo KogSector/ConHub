@@ -69,6 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .wrap(cors)
             .wrap(Logger::default())
             .configure(configure_routes)
+            .configure(handlers::connections::configure_routes)
             .route("/health", web::get().to(health_check))
     })
     .bind(("0.0.0.0", port))?
