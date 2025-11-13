@@ -193,53 +193,73 @@ impl GitConnector {
         url: &str,
         credentials: &RepositoryCredentials,
     ) -> VcsResult<Value> {
-        let mut request = self.client.get(url);
+        tracing::info!("[VCS_CONNECTOR] make_api_request to: {}", url);
+        tracing::info!("[VCS_CONNECTOR] Credential type: {:?}", std::mem::discriminant(&credentials.credential_type));
         
+        let mut request = self.client.get(url);
         
         match &credentials.credential_type {
             CredentialType::PersonalAccessToken { token } => {
-                println!("Making API request to: {}", url);
+                tracing::info!("[VCS_CONNECTOR] Using PersonalAccessToken (length: {})", token.len());
                 
                 if url.contains("gitlab") {
-                    
-                    println!("Using GitLab Bearer auth");
+                    tracing::info!("[VCS_CONNECTOR] Using GitLab Bearer auth");
                     request = request.header("Authorization", format!("Bearer {}", token));
                 } else if token.starts_with("github_pat_") {
-                    
-                    println!("Using Bearer auth for fine-grained GitHub token");
+                    tracing::info!("[VCS_CONNECTOR] Using Bearer auth for fine-grained GitHub token");
                     request = request.header("Authorization", format!("Bearer {}", token));
                 } else if token.starts_with("ghp_") {
-                    
-                    println!("Using token auth for classic GitHub token");
+                    tracing::info!("[VCS_CONNECTOR] Using token auth for classic GitHub token");
                     request = request.header("Authorization", format!("token {}", token));
                 } else {
-                    
-                    println!("Using Bearer auth for unknown token type");
+                    tracing::info!("[VCS_CONNECTOR] Using Bearer auth for unknown token type");
                     request = request.header("Authorization", format!("Bearer {}", token));
                 }
             }
             CredentialType::UsernamePassword { username, password } => {
+                tracing::info!("[VCS_CONNECTOR] Using UsernamePassword for: {}", username);
                 request = request.basic_auth(username, Some(password));
             }
             CredentialType::AppPassword { username, app_password } => {
+                tracing::info!("[VCS_CONNECTOR] Using AppPassword for: {}", username);
                 request = request.basic_auth(username, Some(app_password));
             }
-            _ => {}
+            CredentialType::None => {
+                tracing::info!("[VCS_CONNECTOR] No credentials provided");
+            }
+            _ => {
+                tracing::warn!("[VCS_CONNECTOR] Unsupported credential type");
+            }
         }
         
+        tracing::info!("[VCS_CONNECTOR] Sending HTTP request");
         let response = request.send().await
-            .map_err(|e| VcsError::NetworkError(e.to_string()))?;
+            .map_err(|e| {
+                tracing::error!("[VCS_CONNECTOR] Network error: {}", e);
+                VcsError::NetworkError(e.to_string())
+            })?;
         
-        if response.status().is_success() {
+        let status = response.status();
+        tracing::info!("[VCS_CONNECTOR] HTTP response status: {}", status);
+        
+        if status.is_success() {
+            tracing::info!("[VCS_CONNECTOR] Parsing JSON response");
             let json = response.json::<Value>().await
-                .map_err(|e| VcsError::OperationFailed(e.to_string()))?;
+                .map_err(|e| {
+                    tracing::error!("[VCS_CONNECTOR] JSON parsing error: {}", e);
+                    VcsError::OperationFailed(e.to_string())
+                })?;
+            tracing::info!("[VCS_CONNECTOR] Successfully parsed JSON response");
             Ok(json)
         } else {
-            match response.status().as_u16() {
-                401 => Err(VcsError::AuthenticationFailed("Invalid credentials".to_string())),
-                403 => Err(VcsError::PermissionDenied("Access denied".to_string())),
-                404 => Err(VcsError::RepositoryNotFound("Repository not found".to_string())),
-                _ => Err(VcsError::OperationFailed(format!("HTTP {}", response.status()))),
+            let error_body = response.text().await.unwrap_or_default();
+            tracing::error!("[VCS_CONNECTOR] HTTP error {}: {}", status, error_body);
+            
+            match status.as_u16() {
+                401 => Err(VcsError::AuthenticationFailed(format!("Invalid credentials: {}", error_body))),
+                403 => Err(VcsError::PermissionDenied(format!("Access denied: {}", error_body))),
+                404 => Err(VcsError::RepositoryNotFound(format!("Repository not found: {}", error_body))),
+                _ => Err(VcsError::OperationFailed(format!("HTTP {}: {}", status, error_body))),
             }
         }
     }
@@ -362,30 +382,56 @@ impl VcsConnector for GitConnector {
         url: &str,
         credentials: &RepositoryCredentials,
     ) -> VcsResult<Vec<BranchInfo>> {
+        tracing::info!("[VCS_CONNECTOR] list_branches called for: {}", url);
+        
         let (vcs_type, provider) = VcsDetector::detect_from_url(url)
-            .map_err(|e| VcsError::InvalidUrl(e))?;
+            .map_err(|e| {
+                tracing::error!("[VCS_CONNECTOR] URL detection failed: {}", e);
+                VcsError::InvalidUrl(e)
+            })?;
+        
+        tracing::info!("[VCS_CONNECTOR] Detected - VCS: {:?}, Provider: {:?}", vcs_type, provider);
         
         let (owner, repo) = VcsDetector::extract_repo_info(url)
-            .map_err(|e| VcsError::InvalidUrl(e))?;
+            .map_err(|e| {
+                tracing::error!("[VCS_CONNECTOR] Repo info extraction failed: {}", e);
+                VcsError::InvalidUrl(e)
+            })?;
+        
+        tracing::info!("[VCS_CONNECTOR] Extracted - Owner: {}, Repo: {}", owner, repo);
         
         let api_base = self.get_api_base_url(&provider, url)?;
+        tracing::info!("[VCS_CONNECTOR] API base URL: {}", api_base);
         
         let api_url = match provider {
             VcsProvider::GitHub => format!("{}/repos/{}/{}/branches", api_base, owner, repo),
             VcsProvider::GitLab => format!("{}/projects/{}%2F{}/repository/branches", api_base, owner, repo),
             VcsProvider::Bitbucket => format!("{}/repositories/{}/{}/refs/branches", api_base, owner, repo),
-            _ => return Err(VcsError::UnsupportedVcs(vcs_type)),
+            _ => {
+                tracing::error!("[VCS_CONNECTOR] Unsupported VCS type: {:?}", vcs_type);
+                return Err(VcsError::UnsupportedVcs(vcs_type));
+            },
         };
         
-        let branches_data = self.make_api_request(&api_url, credentials).await?;
+        tracing::info!("[VCS_CONNECTOR] Making API request to: {}", api_url);
+        
+        let branches_data = self.make_api_request(&api_url, credentials).await
+            .map_err(|e| {
+                tracing::error!("[VCS_CONNECTOR] API request failed: {}", e);
+                e
+            })?;
+        
+        tracing::info!("[VCS_CONNECTOR] API request successful, parsing response");
         
         let mut branches = Vec::new();
         
         match provider {
             VcsProvider::GitHub => {
                 if let Some(branch_array) = branches_data.as_array() {
+                    tracing::info!("[VCS_CONNECTOR] GitHub: Processing {} branches", branch_array.len());
                     for branch in branch_array {
                         if let Some(name) = branch["name"].as_str() {
+                            tracing::debug!("[VCS_CONNECTOR] GitHub: Found branch {}", name);
                             branches.push(BranchInfo {
                                 name: name.to_string(),
                                 sha: branch["commit"]["sha"].as_str().unwrap_or("").to_string(),
@@ -394,6 +440,8 @@ impl VcsConnector for GitConnector {
                             });
                         }
                     }
+                } else {
+                    tracing::error!("[VCS_CONNECTOR] GitHub: Response is not an array");
                 }
             },
             VcsProvider::GitLab => {
@@ -427,6 +475,7 @@ impl VcsConnector for GitConnector {
             _ => return Err(VcsError::UnsupportedVcs(vcs_type)),
         }
         
+        tracing::info!("[VCS_CONNECTOR] Returning {} branches", branches.len());
         Ok(branches)
     }
     

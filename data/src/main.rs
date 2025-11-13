@@ -1,4 +1,4 @@
-use actix_web::{web, App, HttpServer, middleware::Logger};
+use actix_web::{web, App, HttpServer, middleware::Logger, HttpResponse};
 use actix_cors::Cors;
 use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
 use std::str::FromStr;
@@ -140,7 +140,7 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
         web::scope("/api/data")
             // Data sources routes
             .route("/sources", web::post().to(handlers::data_sources::connect_data_source))
-            .route("/sources/branches", web::post().to(handlers::data_sources::fetch_branches))
+            .route("/sources/branches", web::post().to(log_and_handle_fetch_branches))
             
             // Repository routes
             .route("/repositories", web::get().to(handlers::repositories::list_repositories))
@@ -196,6 +196,28 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
             // Enhanced health check
             .route("/health", web::get().to(handlers::enhanced_handlers::enhanced_health_check))
     );
+}
+
+async fn log_and_handle_fetch_branches(
+    req: web::Json<handlers::data_sources::FetchBranchesRequest>,
+) -> actix_web::Result<HttpResponse> {
+    tracing::info!("[MAIN] Received fetch_branches request");
+    tracing::info!("[MAIN] Request body: {:?}", req);
+    
+    match handlers::data_sources::fetch_branches(req).await {
+        Ok(response) => {
+            tracing::info!("[MAIN] fetch_branches succeeded");
+            Ok(response)
+        }
+        Err(e) => {
+            tracing::error!("[MAIN] fetch_branches failed: {:?}", e);
+            Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "message": "Bad Request",
+                "error": e.to_string()
+            })))
+        }
+    }
 }
 
 async fn health_check(pool_opt: web::Data<Option<PgPool>>) -> actix_web::Result<web::Json<serde_json::Value>> {

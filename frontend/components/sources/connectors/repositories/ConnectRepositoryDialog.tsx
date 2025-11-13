@@ -86,19 +86,23 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   };
 
   const handleFetchBranches = async () => {
+    console.log('[FRONTEND] handleFetchBranches called');
+    console.log('[FRONTEND] repositoryUrl:', repositoryUrl);
+    console.log('[FRONTEND] provider:', provider);
+    console.log('[FRONTEND] isProviderSelected:', isProviderSelected);
     
     if (!repositoryUrl || !isProviderSelected) {
       setFetchBranchesError("Please enter a repository URL and select a provider first.");
       return;
     }
     
-    
+    console.log('[FRONTEND] isUrlValid:', isUrlValid);
     if (!isUrlValid) {
       setFetchBranchesError("Please enter a valid repository URL.");
       return;
     }
     
-    
+    console.log('[FRONTEND] credentials:', credentials);
     if ((provider === 'github' || provider === 'gitlab') && !credentials.accessToken) {
       setFetchBranchesError(`Please enter your ${provider === 'github' ? 'GitHub' : 'GitLab'} access token first.`);
       return;
@@ -129,7 +133,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     setBranches([]);
 
     try {
-      
+      console.log('[FRONTEND] Building credentials payload');
       let credentialsPayload: Record<string, string> | undefined;
       if (provider === 'github' || provider === 'gitlab') {
         credentialsPayload = {
@@ -141,12 +145,19 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
           appPassword: credentials.appPassword.trim()
         };
       }
+      
+      const requestPayload = { repoUrl: repositoryUrl.trim(), credentials: credentialsPayload };
+      console.log('[FRONTEND] Request payload:', requestPayload);
+      console.log('[FRONTEND] Making API call to /api/data/sources/branches');
 
-      const resp = await dataApiClient.post<ApiResponse<{ branches: string[]; default_branch?: string; file_extensions?: string[] }>>('/api/data/sources/branches', { repoUrl: repositoryUrl.trim(), credentials: credentialsPayload });
+      const resp = await dataApiClient.post<ApiResponse<{ branches: string[]; default_branch?: string; file_extensions?: string[] }>>('/api/data/sources/branches', requestPayload);
+      console.log('[FRONTEND] API response:', resp);
       if (!resp.success) {
+        console.error('[FRONTEND] API error:', resp.error);
         throw new Error(resp.error || 'Failed to fetch branches.');
       }
       const { branches: fetchedBranches, default_branch, file_extensions } = resp.data || { branches: [], default_branch: undefined, file_extensions: undefined };
+      console.log('[FRONTEND] Parsed response data:', { fetchedBranches, default_branch, file_extensions });
       
       if (!fetchedBranches || fetchedBranches.length === 0) {
         setFetchBranchesError("No branches found. Please check the repository URL and permissions.");
@@ -166,8 +177,9 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         }
       }
     } catch (err: unknown) {
-      console.error('Branch fetching error:', err);
+      console.error('[FRONTEND] Branch fetching error:', err);
       let errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('[FRONTEND] Error message:', errorMessage);
       
       
       if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
