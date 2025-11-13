@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { dataApiClient, listConnections, listProviderFiles, importDocumentFromProvider } from "@/lib/api";
+import { dataApiClient } from "@/lib/api";
 import { Upload, Cloud, Loader2, CheckCircle2, XCircle, FolderOpen, FileText, HardDrive, Droplets, BookOpen } from "lucide-react";
 
 interface ConnectSourceModalProps {
@@ -22,7 +22,7 @@ interface ConnectSourceModalProps {
   onSourceConnected?: () => void;
 }
 
-type ConnectorType = "local_files" | "connections" | "third_party";
+type ConnectorType = "local_files" | "third_party";
 
 interface ConnectionStatus {
   status: "idle" | "connecting" | "success" | "error";
@@ -34,12 +34,18 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
   const [activeTab, setActiveTab] = useState<ConnectorType>("local_files");
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({ status: "idle" });
 
-  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
-  const [linkedConnections, setLinkedConnections] = useState<any[]>([]);
-  const [providerFiles, setProviderFiles] = useState<Record<string, any[]>>({});
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFiles(e.target.files);
+    const files = Array.from(e.target.files || []);
+    let combined = [...selectedFiles, ...files];
+    if (combined.length > 5) {
+      toast({ title: "Limit reached", description: "You can upload up to 5 files", variant: "destructive" });
+    }
+    combined = combined.slice(0, 5);
+    setSelectedFiles(combined);
+    e.target.value = "";
   };
 
   const handleLocalFileUpload = async () => {
@@ -50,7 +56,7 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
     setConnectionStatus({ status: "connecting" });
     try {
       const formData = new FormData();
-      Array.from(selectedFiles).forEach((file) => formData.append("files", file));
+      selectedFiles.forEach((file) => formData.append("files", file));
       const result = await dataApiClient.postForm<{ success: boolean; message?: string }>("/api/data/documents/upload", formData);
       if ((result as any).success) {
         setConnectionStatus({ status: "success", message: `Successfully uploaded ${selectedFiles.length} file(s)` });
@@ -65,40 +71,7 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
     }
   };
 
-  const fetchConnections = async () => {
-    try {
-      const res = await listConnections();
-      const data = (res as any).data || [];
-      setLinkedConnections(Array.isArray(data) ? data : []);
-    } catch {}
-  };
-
-  const browseProvider = async (platform: string) => {
-    setConnectionStatus({ status: "connecting" });
-    try {
-      const res = await listProviderFiles(platform);
-      const files = (res as any).data || [];
-      setProviderFiles(prev => ({ ...prev, [platform]: files }));
-      setConnectionStatus({ status: "success", message: `Fetched ${files.length} items` });
-    } catch (e: any) {
-      setConnectionStatus({ status: "error", message: e?.message || "Failed to fetch files" });
-    }
-  };
-
-  const importFromProvider = async (platform: string, file: any) => {
-    setConnectionStatus({ status: "connecting" });
-    try {
-      const resp = await importDocumentFromProvider({ provider: platform, file_id: file.id, name: file.name, mime_type: file.mime_type, size: file.size });
-      if ((resp as any).success) {
-        setConnectionStatus({ status: "success", message: `Imported ${file.name}` });
-        onSourceConnected?.(); onOpenChange(false); resetForm();
-      } else {
-        throw new Error((resp as any).message || "Import failed");
-      }
-    } catch (e: any) {
-      setConnectionStatus({ status: "error", message: e?.message || "Import failed" });
-    }
-  };
+  
 
   const handleThirdPartyConnect = async (service: string) => {
     setConnectionStatus({ status: "connecting" });
@@ -116,8 +89,7 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
   const resetForm = () => {
     setActiveTab("local_files");
     setConnectionStatus({ status: "idle" });
-    setSelectedFiles(null);
-    setProviderFiles({});
+    setSelectedFiles([]);
   };
 
   const renderStatusIcon = () => {
@@ -138,58 +110,46 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ConnectorType)} className="mt-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="local_files"><HardDrive className="w-4 h-4 mr-2" />Local Files</TabsTrigger>
-            <TabsTrigger value="connections" onClick={fetchConnections}><Cloud className="w-4 h-4 mr-2" />Connections</TabsTrigger>
             <TabsTrigger value="third_party"><Cloud className="w-4 h-4 mr-2" />Third Party</TabsTrigger>
           </TabsList>
 
           <TabsContent value="local_files" className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="files">Select Files</Label>
-              <div className="rounded-xl p-8 text-center border border-border bg-card/60">
-                <FolderOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <Input id="files" type="file" multiple onChange={handleFileChange} className="max-w-sm mx-auto" />
-                {selectedFiles && (<p className="text-sm text-muted-foreground mt-3">{selectedFiles.length} file(s) selected</p>)}
+              <Label htmlFor="files">Select Files (max 5)</Label>
+              <div className="rounded-xl p-10 text-center border border-border bg-card/60 hover:bg-card transition-colors">
+                <FolderOpen className="w-12 h-12 mx-auto text-primary mb-6" />
+                <input
+                  id="files"
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <Button variant="outline" className="mx-auto" onClick={() => fileInputRef.current?.click()}>Choose Files</Button>
+                <div className="mt-3 text-sm text-muted-foreground">
+                  {selectedFiles.length > 0 ? `${selectedFiles.length} file(s) selected` : 'No files chosen'}
+                </div>
+                {selectedFiles.length > 0 && (
+                  <div className="mt-4 max-h-36 overflow-auto text-left mx-auto inline-block">
+                    {selectedFiles.map((f, i) => (
+                      <div key={i} className="text-xs text-muted-foreground">{f.name}</div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             {connectionStatus.status !== "idle" && (
               <div className="flex items-center gap-2 p-3 bg-muted rounded-md">{renderStatusIcon()}<span className="text-sm">{connectionStatus.message}</span></div>
             )}
-            <Button onClick={handleLocalFileUpload} disabled={connectionStatus.status === "connecting"} className="w-full">
-              {connectionStatus.status === "connecting" ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" />Uploading...</>) : (<><Upload className="w-4 h-4 mr-2" />Upload Files</>)}
+            <Button onClick={handleLocalFileUpload} disabled={connectionStatus.status === "connecting" || selectedFiles.length === 0} className="w-full">
+              {connectionStatus.status === "connecting" ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" />Uploading...</>) : (<><Upload className="w-4 h-4 mr-2" />Upload Selected ({selectedFiles.length || 0})</>)}
             </Button>
           </TabsContent>
 
-          <TabsContent value="connections" className="space-y-4">
-            {linkedConnections.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No connections yet. Use the Connections page to connect your accounts.</div>
-            ) : (
-              <div className="space-y-4">
-                {linkedConnections.map((c) => (
-                  <div key={c.id} className="p-4 border border-border rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="font-medium text-foreground capitalize">{c.platform}</div>
-                      <Button variant="outline" size="sm" onClick={() => browseProvider(c.platform)}>Browse Files</Button>
-                    </div>
-                    {providerFiles[c.platform]?.length ? (
-                      <div className="mt-3 space-y-2">
-                        {providerFiles[c.platform].map((f) => (
-                          <div key={f.id} className="flex items-center justify-between text-sm">
-                            <div className="truncate">{f.name} <span className="text-muted-foreground">({f.mime_type})</span></div>
-                            <Button size="sm" onClick={() => importFromProvider(c.platform, f)}>Import</Button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            )}
-            {connectionStatus.status !== "idle" && (
-              <div className="flex items-center gap-2 p-3 bg-muted rounded-md">{renderStatusIcon()}<span className="text-sm">{connectionStatus.message}</span></div>
-            )}
-          </TabsContent>
+          
 
           <TabsContent value="third_party" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -230,4 +190,3 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
     </Dialog>
   );
 }
-
