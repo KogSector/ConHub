@@ -1,6 +1,9 @@
 use async_trait::async_trait;
 use reqwest::Client;
 use serde_json::Value;
+use serde::{Serialize, Deserialize};
+use base64::{Engine as _, engine::general_purpose};
+use std::collections::HashSet;
 
 use conhub_models::{
     VcsType, VcsProvider, RepositoryInfo, RepositoryCredentials, 
@@ -41,7 +44,7 @@ pub enum VcsError {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
 pub struct RepositoryMetadata {
     pub name: String,
@@ -135,6 +138,14 @@ pub trait VcsConnector: Send + Sync {
         secret: &str,
         credentials: &RepositoryCredentials,
     ) -> VcsResult<String>;
+    
+    /// Get file extensions present in the repository
+    async fn get_file_extensions(
+        &self,
+        url: &str,
+        branch: &str,
+        credentials: &RepositoryCredentials,
+    ) -> VcsResult<Vec<String>>;
 }
 
 
@@ -421,26 +432,119 @@ impl VcsConnector for GitConnector {
     
     async fn get_file_content(
         &self,
-        _url: &str,
-        _path: &str,
-        _branch: &str,
-        _credentials: &RepositoryCredentials,
+        url: &str,
+        path: &str,
+        branch: &str,
+        credentials: &RepositoryCredentials,
     ) -> VcsResult<FileContent> {
-        
-        
-        Err(VcsError::OperationFailed("Not implemented yet".to_string()))
+        let (_vcs_type, provider) = VcsDetector::detect_from_url(url)
+            .map_err(|e| VcsError::InvalidUrl(e))?;
+        let (owner, repo) = VcsDetector::extract_repo_info(url)
+            .map_err(|e| VcsError::InvalidUrl(e))?;
+        let access_token = match &credentials.credential_type {
+            CredentialType::PersonalAccessToken { token } => token.clone(),
+            _ => return Err(VcsError::InvalidCredentials("Unsupported credential type".to_string())),
+        };
+        let api_url = match provider {
+            VcsProvider::GitHub => format!(
+                "https://api.github.com/repos/{}/{}/contents/{}{}",
+                owner, repo, path,
+                if branch.is_empty() { String::new() } else { format!("?ref={}", branch) }
+            ),
+            _ => return Err(VcsError::UnsupportedVcs(VcsType::Git)),
+        };
+        let response = self.client
+            .get(&api_url)
+            .header("Authorization", format!("Bearer {}", access_token))
+            .header("User-Agent", "ConHub")
+            .send()
+            .await
+            .map_err(|e| VcsError::NetworkError(e.to_string()))?;
+        if !response.status().is_success() {
+            return Err(VcsError::OperationFailed(format!("HTTP {}", response.status())));
+        }
+        let file: serde_json::Value = response.json().await
+            .map_err(|e| VcsError::OperationFailed(e.to_string()))?;
+        let content_b64 = file["content"].as_str().unwrap_or("").replace('\n', "");
+        let decoded = general_purpose::STANDARD.decode(&content_b64).map_err(|e| VcsError::OperationFailed(e.to_string()))?;
+        let name = file["name"].as_str().unwrap_or(path).to_string();
+        let sha = file["sha"].as_str().unwrap_or("").to_string();
+        let size = file["size"].as_i64().unwrap_or(decoded.len() as i64) as u64;
+        let url_html = file["html_url"].as_str().unwrap_or("").to_string();
+        Ok(FileContent {
+            path: path.to_string(),
+            content: String::from_utf8_lossy(&decoded).to_string(),
+            sha,
+            size,
+            url: url_html,
+        })
     }
     
     async fn list_files(
         &self,
-        _url: &str,
-        _path: &str,
-        _branch: &str,
-        _credentials: &RepositoryCredentials,
-        _recursive: bool,
+        url: &str,
+        path: &str,
+        branch: &str,
+        credentials: &RepositoryCredentials,
+        recursive: bool,
     ) -> VcsResult<Vec<String>> {
-        
-        Err(VcsError::OperationFailed("Not implemented yet".to_string()))
+        let (_vcs_type, provider) = VcsDetector::detect_from_url(url)
+            .map_err(|e| VcsError::InvalidUrl(e))?;
+        let (owner, repo) = VcsDetector::extract_repo_info(url)
+            .map_err(|e| VcsError::InvalidUrl(e))?;
+
+        let mut results: Vec<String> = Vec::new();
+        let mut stack: Vec<String> = vec![path.to_string()];
+        let access_token = match &credentials.credential_type {
+            CredentialType::PersonalAccessToken { token } => token.clone(),
+            CredentialType::AppPassword { username: _, app_password: _ } => {
+                return Err(VcsError::InvalidCredentials("Use PersonalAccessToken for GitHub".to_string()))
+            }
+            _ => return Err(VcsError::InvalidCredentials("Unsupported credential type".to_string())),
+        };
+
+        while let Some(curr_path) = stack.pop() {
+            let url_api = match provider {
+                VcsProvider::GitHub => format!(
+                    "https://api.github.com/repos/{}/{}/contents/{}{}",
+                    owner,
+                    repo,
+                    curr_path,
+                    if branch.is_empty() { String::new() } else { format!("?ref={}", branch) }
+                ),
+                _ => return Err(VcsError::UnsupportedVcs(VcsType::Git)),
+            };
+
+            let mut request = self.client.get(&url_api)
+                .header("Authorization", format!("Bearer {}", access_token))
+                .header("User-Agent", "ConHub");
+
+            let response = request.send().await
+                .map_err(|e| VcsError::NetworkError(e.to_string()))?;
+            if !response.status().is_success() {
+                return Err(VcsError::OperationFailed(format!("HTTP {}", response.status())));
+            }
+            let entries = response.json::<serde_json::Value>().await
+                .map_err(|e| VcsError::OperationFailed(e.to_string()))?;
+
+            if let Some(arr) = entries.as_array() {
+                for entry in arr {
+                    let file_type = entry["type"].as_str().unwrap_or("");
+                    let file_path = entry["path"].as_str().unwrap_or("");
+                    if file_type == "dir" {
+                        if recursive { stack.push(file_path.to_string()); }
+                    } else if file_type == "file" {
+                        results.push(format!("{}/{}/{}", owner, repo, file_path));
+                    }
+                }
+            } else if entries["type"].as_str() == Some("file") {
+                if let Some(file_path) = entries["path"].as_str() {
+                    results.push(format!("{}/{}/{}", owner, repo, file_path));
+                }
+            }
+        }
+
+        Ok(results)
     }
     
     async fn sync_repository(
@@ -461,6 +565,31 @@ impl VcsConnector for GitConnector {
     ) -> VcsResult<String> {
         
         Err(VcsError::OperationFailed("Not implemented yet".to_string()))
+    }
+    
+    async fn get_file_extensions(
+        &self,
+        url: &str,
+        branch: &str,
+        credentials: &RepositoryCredentials,
+    ) -> VcsResult<Vec<String>> {
+        let files = self.list_files(url, "", branch, credentials, true).await?;
+        let mut extensions = HashSet::new();
+        
+        for file_path in files {
+            // Extract file path from owner/repo/path format
+            let path = file_path.splitn(3, '/').nth(2).unwrap_or(&file_path);
+            if let Some(ext_start) = path.rfind('.') {
+                let ext = &path[ext_start..];
+                if ext.len() > 1 && ext.len() <= 10 { // Reasonable extension length
+                    extensions.insert(ext.to_lowercase());
+                }
+            }
+        }
+        
+        let mut result: Vec<String> = extensions.into_iter().collect();
+        result.sort();
+        Ok(result)
     }
 }
 
@@ -537,6 +666,15 @@ impl VcsConnector for SvnConnector {
         _secret: &str,
         _credentials: &RepositoryCredentials,
     ) -> VcsResult<String> {
+        Err(VcsError::UnsupportedVcs(VcsType::Subversion))
+    }
+    
+    async fn get_file_extensions(
+        &self,
+        _url: &str,
+        _branch: &str,
+        _credentials: &RepositoryCredentials,
+    ) -> VcsResult<Vec<String>> {
         Err(VcsError::UnsupportedVcs(VcsType::Subversion))
     }
 }

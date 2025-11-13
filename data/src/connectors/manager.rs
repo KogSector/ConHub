@@ -11,6 +11,7 @@ use super::error::ConnectorError;
 use super::local_file::LocalFileConnector;
 use super::github::GitHubConnector;
 use super::google_drive::GoogleDriveConnector;
+use super::slack::SlackConnector;
 
 /// Manages all connectors and their instances
 #[derive(Clone)]
@@ -55,6 +56,12 @@ impl ConnectorManager {
         self.factories.insert(
             ConnectorType::GoogleDrive,
             Arc::new(GoogleDriveConnector::factory()),
+        );
+
+        // Slack connector
+        self.factories.insert(
+            ConnectorType::Slack,
+            Arc::new(SlackConnector::factory()),
         );
         
         info!("✅ Registered {} connectors", self.factories.len());

@@ -50,6 +50,7 @@ pub async fn list_connectors(
 /// Connect a new data source
 pub async fn connect_source(
     manager: web::Data<ConnectorManager>,
+    embedding_client: web::Data<crate::services::EmbeddingClient>,
     claims: web::ReqData<Claims>,
     body: web::Json<ConnectRequestBody>,
 ) -> Result<HttpResponse> {
@@ -70,6 +71,7 @@ pub async fn connect_source(
         "local_file" => crate::connectors::ConnectorType::LocalFile,
         "github" => crate::connectors::ConnectorType::GitHub,
         "google_drive" => crate::connectors::ConnectorType::GoogleDrive,
+        "slack" => crate::connectors::ConnectorType::Slack,
         _ => {
             return Ok(HttpResponse::BadRequest().json(serde_json::json!({
                 "success": false,
@@ -88,6 +90,45 @@ pub async fn connect_source(
     match manager.connect(user_id, request).await {
         Ok(account) => {
             info!("✅ Successfully connected account: {}", account.id);
+            // Auto-trigger initial sync and embedding when connection is fully established
+            if matches!(account.status, crate::connectors::ConnectionStatus::Connected) {
+                let sync_req = SyncRequestWithFilters { force_full_sync: true, filters: None };
+                match manager.sync(account.id, sync_req).await {
+                    Ok((_sync_result, documents)) => {
+                        if !documents.is_empty() {
+                            let _ = embedding_client.embed_documents(documents.clone()).await;
+                            if account.connector_type == crate::connectors::ConnectorType::GitHub {
+                                let mut repos: std::collections::HashSet<String> = std::collections::HashSet::new();
+                                for d in documents {
+                                    if let Some(url_val) = d.metadata.get("url") {
+                                        if let Some(url) = url_val.as_str() {
+                                            if let Some(pos) = url.find("/blob/") {
+                                                let base = &url[..pos];
+                                                repos.insert(base.to_string());
+                                            }
+                                        }
+                                    }
+                                }
+                                if !repos.is_empty() {
+                                    if let Ok(indexer_url) = std::env::var("UNIFIED_INDEXER_URL") {
+                                        let client = reqwest::Client::new();
+                                        for repo_url in repos {
+                                            let body = serde_json::json!({
+                                                "repository_url": repo_url,
+                                                "branch": "main",
+                                            });
+                                            let _ = client.post(format!("{}/api/index/repository", indexer_url)).json(&body).send().await;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error!("Initial sync failed for account {}: {}", account.id, e);
+                    }
+                }
+            }
             Ok(HttpResponse::Ok().json(serde_json::json!({
                 "success": true,
                 "account": account,

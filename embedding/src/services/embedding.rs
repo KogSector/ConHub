@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Result};
-use crate::services::llm::{openai, huggingface};
 use crate::llm::{LlmEmbeddingClient, LlmEmbeddingRequest};
 use crate::models::qwen::QwenEmbeddingClient;
 use std::collections::HashMap;
@@ -110,24 +109,17 @@ pub struct LlmEmbeddingService {
 
 impl LlmEmbeddingService {
     /// Creates a new embedding service with a client for the specified provider.
-    pub fn new(provider: &str, model: &str) -> Result<Self> {
-        let client: Box<dyn LlmEmbeddingClient> = match provider {
-            "openai" => Box::new(openai::Client::new(None, None)?),
-            "huggingface" => Box::new(huggingface::Client::new(model)?),
-            "qwen" => {
-                let api_key = std::env::var("QWEN_API_KEY")
-                    .map_err(|_| anyhow!("QWEN_API_KEY environment variable not set"))?;
-                Box::new(QwenEmbeddingClient::new(api_key))
-            },
-            _ => return Err(anyhow!("Unsupported LLM provider: {}", provider)),
-        };
+    pub fn new(model: &str) -> Result<Self> {
+        let api_key = std::env::var("QWEN_API_KEY")
+            .map_err(|_| anyhow!("QWEN_API_KEY environment variable not set"))?;
+        let client: Box<dyn LlmEmbeddingClient> = Box::new(QwenEmbeddingClient::new(api_key));
 
         Ok(Self {
             client,
             model: model.to_string(),
-            cache: EmbeddingCache::new(10000), // Cache up to 10k embeddings
-            semaphore: Arc::new(Semaphore::new(10)), // Limit concurrent requests
-            batch_size: 100, // Process in batches of 100
+            cache: EmbeddingCache::new(std::env::var("EMBEDDING_CACHE_SIZE").ok().and_then(|v| v.parse().ok()).unwrap_or(10000)),
+            semaphore: Arc::new(Semaphore::new(std::env::var("EMBEDDING_MAX_CONCURRENCY").ok().and_then(|v| v.parse().ok()).unwrap_or(10))),
+            batch_size: std::env::var("EMBEDDING_BATCH_SIZE").ok().and_then(|v| v.parse().ok()).unwrap_or(100),
         })
     }
 

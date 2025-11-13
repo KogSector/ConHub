@@ -142,11 +142,11 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         };
       }
 
-      const resp = await dataApiClient.post<ApiResponse<{ branches: string[]; default_branch?: string }>>('/api/data/sources/branches', { repoUrl: repositoryUrl.trim(), credentials: credentialsPayload });
+      const resp = await dataApiClient.post<ApiResponse<{ branches: string[]; default_branch?: string; file_extensions?: string[] }>>('/api/data/sources/branches', { repoUrl: repositoryUrl.trim(), credentials: credentialsPayload });
       if (!resp.success) {
         throw new Error(resp.error || 'Failed to fetch branches.');
       }
-      const { branches: fetchedBranches, default_branch } = resp.data || { branches: [], default_branch: undefined };
+      const { branches: fetchedBranches, default_branch, file_extensions } = resp.data || { branches: [], default_branch: undefined, file_extensions: undefined };
       
       if (!fetchedBranches || fetchedBranches.length === 0) {
         setFetchBranchesError("No branches found. Please check the repository URL and permissions.");
@@ -154,9 +154,16 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         setConfig(prev => ({ ...prev, defaultBranch: 'main' }));
       } else {
         setBranches(fetchedBranches);
-        setConfig(prev => ({ ...prev, defaultBranch: default_branch || fetchedBranches[0] }));
+        setConfig(prev => ({ 
+          ...prev, 
+          defaultBranch: default_branch || fetchedBranches[0],
+          fileExtensions: file_extensions && file_extensions.length > 0 ? file_extensions : prev.fileExtensions
+        }));
         
         console.log(`Successfully fetched ${fetchedBranches.length} branches from ${repositoryUrl}`);
+        if (file_extensions && file_extensions.length > 0) {
+          console.log(`Found ${file_extensions.length} file types: ${file_extensions.join(', ')}`);
+        }
       }
     } catch (err: unknown) {
       console.error('Branch fetching error:', err);
@@ -491,6 +498,12 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
               {branches.length > 0 && !fetchBranchesError && (
                 <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
                   <p className="text-sm text-green-700">✓ Successfully found {branches.length} branches</p>
+                  {config.fileExtensions && config.fileExtensions.length > 0 && (
+                    <p className="text-xs text-green-600 mt-1">
+                      Found file types: {config.fileExtensions.slice(0, 10).join(', ')}
+                      {config.fileExtensions.length > 10 && ` and ${config.fileExtensions.length - 10} more`}
+                    </p>
+                  )}
                 </div>
               )}
             </div>

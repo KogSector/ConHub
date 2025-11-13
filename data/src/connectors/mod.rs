@@ -4,6 +4,7 @@ pub mod manager;
 pub mod local_file;
 pub mod github;
 pub mod google_drive;
+pub mod slack;
 pub mod error;
 
 pub use traits::Connector;

@@ -6,6 +6,9 @@ use tracing::{error, info};
 
 use crate::sources::DataSourceFactory;
 use crate::errors::ServiceError;
+use conhub_models::{RepositoryCredentials, CredentialType};
+use crate::services::data::vcs_connector::{VcsConnectorFactory, VcsConnector};
+use crate::services::data::vcs_detector::VcsDetector;
 
 #[derive(Debug, Deserialize)]
 pub struct ConnectDataSourceRequest {
@@ -34,6 +37,7 @@ pub struct FetchBranchesResponse {
     pub branches: Vec<String>,
     #[serde(rename = "defaultBranch")]
     pub default_branch: Option<String>,
+    pub file_extensions: Option<Vec<String>>,
     pub error: Option<String>,
 }
 
@@ -71,50 +75,101 @@ pub async fn fetch_branches(
 ) -> Result<HttpResponse, ServiceError> {
     info!("Fetching branches for repository: {}", req.repo_url);
 
-    
-    let source_type = if req.repo_url.contains("github.com") {
-        "github"
-    } else if req.repo_url.contains("bitbucket.org") {
-        "bitbucket"
-    } else {
-        return Err(ServiceError::BadRequest("Unsupported repository URL format".to_string()));
+    // Detect VCS type from URL
+    let (vcs_type, _provider) = match VcsDetector::detect_from_url(&req.repo_url) {
+        Ok(result) => result,
+        Err(e) => {
+            return Err(ServiceError::BadRequest(format!("Invalid repository URL: {}", e)));
+        }
     };
 
-    
-    let credentials = req.credentials.clone().unwrap_or_default();
-
-    match DataSourceFactory::create_connector(source_type) {
-        Ok(mut connector) => {
-            if let Err(e) = connector.connect(&credentials, &serde_json::Value::Null).await {
-                return Err(ServiceError::BadRequest(format!("Failed to connect: {}", e)));
+    // Convert frontend credentials to backend format
+    let credentials = match req.credentials.as_ref() {
+        Some(creds) => {
+            if let Some(access_token) = creds.get("accessToken") {
+                RepositoryCredentials {
+                    credential_type: CredentialType::PersonalAccessToken {
+                        token: access_token.clone(),
+                    },
+                    expires_at: None,
+                }
+            } else if let (Some(username), Some(app_password)) = (creds.get("username"), creds.get("appPassword")) {
+                RepositoryCredentials {
+                    credential_type: CredentialType::AppPassword {
+                        username: username.clone(),
+                        app_password: app_password.clone(),
+                    },
+                    expires_at: None,
+                }
+            } else {
+                RepositoryCredentials {
+                    credential_type: CredentialType::None,
+                    expires_at: None,
+                }
             }
-            
-            match connector.fetch_branches(&req.repo_url).await {
-                Ok(branches) => {
-                    let default_branch = if branches.contains(&"main".to_string()) {
+        }
+        None => RepositoryCredentials {
+            credential_type: CredentialType::None,
+            expires_at: None,
+        },
+    };
+
+    // Use VCS connector directly
+    let connector = VcsConnectorFactory::create_connector(&vcs_type);
+    
+    match connector.list_branches(&req.repo_url, &credentials).await {
+        Ok(branch_info) => {
+            let branches: Vec<String> = branch_info.iter().map(|b| b.name.clone()).collect();
+            let default_branch = branch_info.iter()
+                .find(|b| b.is_default)
+                .map(|b| b.name.clone())
+                .or_else(|| {
+                    // Fallback logic for default branch detection
+                    if branches.contains(&"main".to_string()) {
                         Some("main".to_string())
                     } else if branches.contains(&"master".to_string()) {
                         Some("master".to_string())
                     } else {
                         branches.first().cloned()
-                    };
+                    }
+                });
 
-                    info!("Successfully fetched {} branches for repository: {}", branches.len(), req.repo_url);
-                    Ok(HttpResponse::Ok().json(FetchBranchesResponse {
-                        branches,
-                        default_branch,
-                        error: None,
-                    }))
+            // Fetch file extensions from the default branch
+            let file_extensions = if let Some(ref branch) = default_branch {
+                match connector.get_file_extensions(&req.repo_url, branch, &credentials).await {
+                    Ok(extensions) => Some(extensions),
+                    Err(e) => {
+                        info!("Could not fetch file extensions: {}", e);
+                        None
+                    }
                 }
-                Err(e) => {
-                    error!("Failed to fetch branches for repository {}: {}", req.repo_url, e);
-                    Err(ServiceError::BadRequest(format!("Failed to fetch branches: {}", e)))
-                }
-            }
+            } else {
+                None
+            };
+
+            info!("Successfully fetched {} branches for repository: {}", branches.len(), req.repo_url);
+            Ok(HttpResponse::Ok().json(FetchBranchesResponse {
+                branches,
+                default_branch,
+                file_extensions,
+                error: None,
+            }))
         }
         Err(e) => {
-            error!("Unsupported repository type: {}", source_type);
-            Err(ServiceError::BadRequest(format!("Unsupported repository type: {}", e)))
+            error!("Failed to fetch branches for repository {}: {}", req.repo_url, e);
+            let error_msg = match e {
+                crate::services::data::vcs_connector::VcsError::AuthenticationFailed(msg) => {
+                    format!("Authentication failed: {}", msg)
+                }
+                crate::services::data::vcs_connector::VcsError::RepositoryNotFound(msg) => {
+                    format!("Repository not found: {}", msg)
+                }
+                crate::services::data::vcs_connector::VcsError::PermissionDenied(msg) => {
+                    format!("Permission denied: {}", msg)
+                }
+                _ => format!("Failed to fetch branches: {}", e),
+            };
+            Err(ServiceError::BadRequest(error_msg))
         }
     }
 }
