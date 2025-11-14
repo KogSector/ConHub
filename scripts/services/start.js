@@ -22,27 +22,35 @@ class ServiceManager {
 
   async checkPrerequisites() {
     console.log('🔍 Checking prerequisites...');
-    
-    // Check if required directories exist
-    const requiredDirs = ['auth', 'data', 'frontend'];
-    for (const dir of requiredDirs) {
-      const dirPath = path.join(this.projectRoot, dir);
+
+    // Check if required directories exist and have .env files
+    const serviceNames = Object.keys(SERVICES);
+    let allEnvFilesPresent = true;
+
+    for (const serviceName of serviceNames) {
+      const service = SERVICES[serviceName];
+      const dirPath = path.join(this.projectRoot, service.path);
+
       if (!fs.existsSync(dirPath)) {
-        console.error(`❌ Required directory missing: ${dir}`);
+        console.error(`❌ Required directory missing: ${service.path}`);
         return false;
       }
-      
+
       // Check if each service has its own .env file
       const serviceEnvPath = path.join(dirPath, '.env');
-      if (fs.existsSync(serviceEnvPath)) {
-        console.log(`✅ ${dir} service has .env file`);
-      } else {
-        console.log(`⚠️  ${dir} service missing .env file`);
+      if (!fs.existsSync(serviceEnvPath)) {
+        console.log(`⚠️  ${serviceName} service missing .env file`);
+        allEnvFilesPresent = false;
       }
     }
 
+    if (allEnvFilesPresent) {
+      console.log('✅ All microservices have proper environment variables');
+    } else {
+      console.log('⚠️  Some microservices are missing .env files');
+    }
+
     console.log('✅ All prerequisites checked');
-    console.log('ℹ️  Each microservice manages its own environment variables');
     return true;
   }
 
