@@ -24,7 +24,8 @@
     "dev:webhook": "cd webhook && cargo run",
     "dev:embedding": "cd embedding && cargo run",
     "dev:mcp-service": "cd mcp/service && npm start",
-    "test": "cd tests && pytest -v"
+    "test": "cd tests && python -m pytest -v",
+    "validate": "node scripts/validate_microservices.js"
   },
   "workspaces": [
     "frontend",

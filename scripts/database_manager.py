@@ -13,8 +13,8 @@ from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
 import json
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from auth service (as it's the primary database user)
+load_dotenv(dotenv_path="../auth/.env")
 
 class DatabaseManager:
     """Manages database operations for ConHub."""

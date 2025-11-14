@@ -23,22 +23,6 @@ class ServiceManager {
   async checkPrerequisites() {
     console.log('🔍 Checking prerequisites...');
     
-    // Check if .env file exists
-    const envPath = path.join(this.projectRoot, '.env');
-    if (!fs.existsSync(envPath)) {
-      console.log('⚠️  .env file not found, using defaults');
-    } else {
-      console.log('✅ .env file found');
-    }
-
-    // Check if database connection string is set
-    if (!process.env.DATABASE_URL_NEON && !process.env.DATABASE_URL) {
-      console.log('⚠️  No database connection string found in environment');
-      console.log('   Set DATABASE_URL_NEON or DATABASE_URL in your .env file');
-    } else {
-      console.log('✅ Database connection string configured');
-    }
-
     // Check if required directories exist
     const requiredDirs = ['auth', 'data', 'frontend'];
     for (const dir of requiredDirs) {
@@ -47,9 +31,18 @@ class ServiceManager {
         console.error(`❌ Required directory missing: ${dir}`);
         return false;
       }
+      
+      // Check if each service has its own .env file
+      const serviceEnvPath = path.join(dirPath, '.env');
+      if (fs.existsSync(serviceEnvPath)) {
+        console.log(`✅ ${dir} service has .env file`);
+      } else {
+        console.log(`⚠️  ${dir} service missing .env file`);
+      }
     }
 
     console.log('✅ All prerequisites checked');
+    console.log('ℹ️  Each microservice manages its own environment variables');
     return true;
   }
 
@@ -106,15 +99,13 @@ class ServiceManager {
     try {
       const env = { 
         ...process.env, 
-        NODE_ENV: 'development',
-        DATABASE_URL_NEON: process.env.DATABASE_URL_NEON || ''
+        NODE_ENV: 'development'
       };
 
       const childProcess = spawn(service.command, service.args, {
         cwd: servicePath,
         env: env,
-        stdio: 'inherit',
-        shell: process.platform === 'win32'
+        stdio: 'inherit'
       });
 
       this.processes.set(serviceName, childProcess);
