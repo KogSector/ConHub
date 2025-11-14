@@ -8,6 +8,8 @@ use conhub_models::{
 };
 use crate::services::data::{RepositoryService, CredentialValidator};
 use crate::services::data::vcs_connector::VcsError;
+use crate::services::data::vcs_connector::{VcsConnectorFactory, VcsConnector, RepositoryMetadata};
+use crate::services::data::vcs_detector::VcsDetector;
 
 
 pub async fn connect_repository(
@@ -141,26 +143,72 @@ pub async fn test_repository_connection(path: web::Path<String>) -> Result<HttpR
 pub async fn sync_repository(path: web::Path<String>) -> Result<HttpResponse> {
     let repo_id = path.into_inner();
     let repository_service = RepositoryService::new();
-    
-    match repository_service.sync_repository(&repo_id).await {
-        Ok(()) => Ok(HttpResponse::Ok().json(ApiResponse {
+    if let Some(repo) = repository_service.get_repository(&repo_id).await {
+        use crate::services::data::vcs_connector::{VcsConnectorFactory, VcsConnector};
+        let connector = VcsConnectorFactory::create_connector(&repo.vcs_type);
+        let branch = repo.config.branch.clone();
+        let paths = match connector.list_files(&repo.url, "", &branch, &repo.credentials, true).await {
+            Ok(p) => p,
+            Err(e) => {
+                return Ok(HttpResponse::InternalServerError().json(ApiResponse::<()> {
+                    success: false,
+                    message: "Failed to list repository files".to_string(),
+                    data: None,
+                    error: Some(e.to_string()),
+                }))
+            }
+        };
+        let allowed_exts = repo.config.include_file_extensions.clone();
+        let max_size_mb = repo.config.max_file_size_mb as i64;
+        let mut documents: Vec<crate::connectors::DocumentForEmbedding> = Vec::new();
+        for doc_id in paths {
+            let ext_ok = allowed_exts.is_empty() || allowed_exts.iter().any(|ext| doc_id.ends_with(ext));
+            if !ext_ok { continue; }
+            // extract relative file path from owner/repo/path
+            let rel_path = doc_id.splitn(3, '/').skip(2).next().unwrap_or("");
+            match connector.get_file_content(&repo.url, rel_path, &branch, &repo.credentials).await {
+                Ok(content) => {
+                    if content.size > (max_size_mb as u64) * 1024 * 1024 { continue; }
+                    let text = content.content;
+                    // Simple chunking (reuse size similar to Local/GitHub connector)
+                    let chunks = {
+                        const CHUNK: usize = 1000; const OVERLAP: usize = 200;
+                        let mut out = Vec::new(); let bytes = text.as_bytes(); let mut start = 0usize; let mut idx=0usize;
+                        while start < bytes.len() { let end = (start+CHUNK).min(bytes.len()); let s = String::from_utf8_lossy(&bytes[start..end]).to_string(); if !s.trim().is_empty(){ out.push(crate::connectors::DocumentChunk{chunk_number:idx,content:s,start_offset:start,end_offset:end,metadata:None}); idx+=1;} if end>=bytes.len(){break;} start = end.saturating_sub(OVERLAP);} out
+                    };
+                    documents.push(crate::connectors::DocumentForEmbedding{
+                        id: uuid::Uuid::new_v4(),
+                        source_id: uuid::Uuid::parse_str(&repo.id).unwrap_or_else(|_| uuid::Uuid::new_v4()),
+                        connector_type: crate::connectors::ConnectorType::GitHub,
+                        external_id: content.sha.clone(),
+                        name: rel_path.split('/').last().unwrap_or("").to_string(),
+                        path: Some(rel_path.to_string()),
+                        content: text,
+                        content_type: crate::connectors::ContentType::Code,
+                        metadata: serde_json::json!({"url": content.url, "size": content.size, "branch": branch}),
+                        chunks: Some(chunks),
+                    });
+                }
+                Err(_) => { /* skip failed file */ }
+            }
+        }
+        let embedding_url = std::env::var("EMBEDDING_SERVICE_URL").unwrap_or_else(|_| "http://localhost:8082".to_string());
+        let heavy = conhub_config::feature_toggles::FeatureToggles::from_env_path().is_enabled("Heavy");
+        let client = crate::services::EmbeddingClient::new(embedding_url, heavy);
+        if !documents.is_empty() { let _ = client.embed_documents(documents).await; }
+        Ok(HttpResponse::Ok().json(ApiResponse {
             success: true,
             message: "Repository synchronized successfully".to_string(),
             data: Some(json!({ "synced": true })),
             error: None,
-        })),
-        Err(VcsError::RepositoryNotFound(msg)) => Ok(HttpResponse::NotFound().json(ApiResponse::<()> {
+        }))
+    } else {
+        Ok(HttpResponse::NotFound().json(ApiResponse::<()> {
             success: false,
             message: "Repository not found".to_string(),
             data: None,
-            error: Some(msg),
-        })),
-        Err(e) => Ok(HttpResponse::InternalServerError().json(ApiResponse::<()> {
-            success: false,
-            message: "Failed to sync repository".to_string(),
-            data: None,
-            error: Some(e.to_string()),
-        })),
+            error: Some("Invalid repository ID".to_string()),
+        }))
     }
 }
 
@@ -430,6 +478,121 @@ pub async fn validate_repository_url(
 
 
 #[derive(serde::Deserialize)]
+pub struct CheckRepoRequest {
+    pub repo_url: String,
+    pub credentials: RepositoryCredentials,
+}
+
+#[derive(serde::Serialize)]
+pub struct CheckRepoResponse {
+    pub owner: String,
+    pub repo_name: String,
+    pub provider: String,
+    pub vcs_type: String,
+    pub metadata: RepositoryMetadata,
+    pub branches: Vec<String>,
+    pub default_branch: String,
+    pub clone_https: String,
+    pub clone_ssh: Option<String>,
+}
+
+pub async fn check_repository(
+    req: web::Json<CheckRepoRequest>,
+) -> Result<HttpResponse> {
+    let url = &req.repo_url;
+    let (vcs_type, provider) = match VcsDetector::detect_from_url(url) {
+        Ok(result) => result,
+        Err(e) => {
+            return Ok(HttpResponse::BadRequest().json(ApiResponse::<()> {
+                success: false,
+                message: "Invalid repository URL".to_string(),
+                data: None,
+                error: Some(e),
+            }));
+        }
+    };
+
+    let (owner, repo_name) = match VcsDetector::extract_repo_info(url) {
+        Ok((o, r)) => (o, r),
+        Err(e) => {
+            return Ok(HttpResponse::BadRequest().json(ApiResponse::<()> {
+                success: false,
+                message: "Failed to parse repository URL".to_string(),
+                data: None,
+                error: Some(e),
+            }));
+        }
+    };
+
+    let connector = VcsConnectorFactory::create_connector(&vcs_type);
+    // Fetch repository metadata
+    let metadata = match connector.get_repository_metadata(url, &req.credentials).await {
+        Ok(m) => m,
+        Err(e) => {
+            let (mut status, error_msg) = match e {
+                VcsError::AuthenticationFailed(msg) => (HttpResponse::Unauthorized(), msg),
+                VcsError::RepositoryNotFound(msg) => (HttpResponse::NotFound(), msg),
+                VcsError::InvalidCredentials(msg) => (HttpResponse::BadRequest(), msg),
+                VcsError::InvalidUrl(msg) => (HttpResponse::BadRequest(), msg),
+                VcsError::PermissionDenied(msg) => (HttpResponse::Forbidden(), msg),
+                _ => (HttpResponse::InternalServerError(), e.to_string()),
+            };
+            return Ok(status.json(ApiResponse::<()> {
+                success: false,
+                message: "Failed to fetch repository metadata".to_string(),
+                data: None,
+                error: Some(error_msg),
+            }));
+        }
+    };
+
+    // Fetch branches
+    let branches_info = match connector.list_branches(url, &req.credentials).await {
+        Ok(b) => b,
+        Err(e) => {
+            let (mut status, error_msg) = match e {
+                VcsError::AuthenticationFailed(msg) => (HttpResponse::Unauthorized(), msg),
+                VcsError::RepositoryNotFound(msg) => (HttpResponse::NotFound(), msg),
+                VcsError::InvalidCredentials(msg) => (HttpResponse::BadRequest(), msg),
+                VcsError::InvalidUrl(msg) => (HttpResponse::BadRequest(), msg),
+                VcsError::PermissionDenied(msg) => (HttpResponse::Forbidden(), msg),
+                _ => (HttpResponse::InternalServerError(), e.to_string()),
+            };
+            return Ok(status.json(ApiResponse::<()> {
+                success: false,
+                message: "Failed to fetch branches".to_string(),
+                data: None,
+                error: Some(error_msg),
+            }));
+        }
+    };
+
+    let branches: Vec<String> = branches_info.iter().map(|b| b.name.clone()).collect();
+    let default_branch = metadata.default_branch.clone();
+
+    // Clone URLs
+    let clone_urls = match VcsDetector::generate_clone_urls(url, &provider) {
+        Ok(c) => c,
+        Err(_) => crate::services::data::vcs_detector::CloneUrls { https: url.to_string(), ssh: None, original: url.to_string() },
+    };
+
+    let result = CheckRepoResponse {
+        owner,
+        repo_name,
+        provider: format!("{:?}", provider),
+        vcs_type: format!("{:?}", vcs_type),
+        metadata,
+        branches,
+        default_branch,
+        clone_https: clone_urls.https,
+        clone_ssh: clone_urls.ssh,
+    };
+
+    Ok(HttpResponse::Ok().json(ApiResponse::success(result)))
+}
+
+
+#[derive(serde::Deserialize)]
 pub struct FetchBranchesRequest {
     pub repo_url: String,
     pub credentials: Option<RepositoryCredentials>,
@@ -519,6 +682,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/repositories")
             .route("/connect", web::post().to(connect_repository))
+            .route("/check", web::post().to(check_repository))
             .route("/validate-url", web::post().to(validate_repository_url))
             .route("/fetch-branches", web::post().to(fetch_branches))
             .route("/stats", web::get().to(get_repository_stats))

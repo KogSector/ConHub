@@ -5,7 +5,8 @@ use tokio::sync::Semaphore;
 use serde::{Deserialize, Serialize};
 use crate::config::AppConfig;
 use conhub_models::auth::Claims;
-use conhub_models::graphql::{EmbeddingResult, RerankResult, RerankDocument as SharedRerankDocument};
+use conhub_models::graphql::{EmbeddingResult, RerankResult, RerankDocument as SharedRerankDocument, RerankDocumentOutput};
+use std::collections::HashMap;
 use conhub_config::feature_toggles::FeatureToggles;
 use conhub_utils::cache_manager::{get_cache, CacheError};
 
@@ -162,10 +163,23 @@ impl QueryRoot {
                         let parsed: Result<RerankResponseRest, _> = resp.json().await;
                         match parsed {
                             Ok(parsed) => {
+                                let map: HashMap<String, RerankDocumentInput> = documents
+                                    .iter()
+                                    .cloned()
+                                    .map(|d| (d.id.clone(), d))
+                                    .collect();
                                 let results = parsed
                                     .results
                                     .into_iter()
-                                    .map(|r| RerankResult { id: r.id, score: r.score })
+                                    .enumerate()
+                                    .map(|(idx, r)| {
+                                        let doc_out = map.get(&r.id).map(|d| RerankDocumentOutput {
+                                            id: d.id.clone(),
+                                            text: d.text.clone(),
+                                            metadata: d.metadata.clone(),
+                                        }).unwrap_or(RerankDocumentOutput { id: r.id.clone(), text: String::new(), metadata: None });
+                                        RerankResult { id: r.id, score: r.score, index: idx, document: doc_out }
+                                    })
                                     .collect::<Vec<_>>();
                                 return Ok(results);
                             }

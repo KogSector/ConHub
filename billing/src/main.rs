@@ -1,6 +1,7 @@
 use actix_web::{web, App, HttpServer, middleware::Logger};
 use actix_cors::Cors;
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
+use std::str::FromStr;
 use std::env;
 use tracing::{info, error};
 use tracing_subscriber;
@@ -28,6 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize authentication middleware with feature toggle
     let toggles = FeatureToggles::from_env_path();
     let auth_enabled = toggles.auth_enabled();
+    let billing_enabled = toggles.billing_enabled();
     let auth_middleware = if auth_enabled {
         AuthMiddlewareFactory::new()
             .map_err(|e| {
@@ -42,14 +44,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("🔐 [Billing Service] Authentication middleware initialized");
 
     // Database connection (gated by Auth toggle)
-    let db_pool_opt: Option<PgPool> = if auth_enabled {
-        let database_url = env::var("DATABASE_URL")
-            .expect("DATABASE_URL must be set when Auth is enabled");
+    let db_pool_opt: Option<PgPool> = if auth_enabled && billing_enabled {
+        // Prefer Neon if provided, otherwise require DATABASE_URL
+        let database_url = env::var("DATABASE_URL_NEON")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .or_else(|| env::var("DATABASE_URL").ok())
+            .ok_or_else(|| "DATABASE_URL or DATABASE_URL_NEON must be set when Auth is enabled")?;
 
-        tracing::info!("📊 [Billing Service] Connecting to database...");
+        if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
+            tracing::info!("📊 [Billing Service] Connecting to Neon DB...");
+        } else {
+            tracing::info!("📊 [Billing Service] Connecting to database...");
+        }
+
+        // Disable server-side prepared statements for pgbouncer/Neon
+        let connect_options = PgConnectOptions::from_str(&database_url)?
+            .statement_cache_capacity(0);
+
         let pool = PgPoolOptions::new()
             .max_connections(10)
-            .connect(&database_url)
+            .connect_with(connect_options)
             .await?;
         tracing::info!("✅ [Billing Service] Database connection established");
         Some(pool)
@@ -73,6 +88,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     tracing::info!("🚀 [Billing Service] Starting on port {}", port);
+    if !billing_enabled {
+        tracing::warn!("[Billing Service] Billing toggle disabled; limiting routes to health only");
+    }
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -81,14 +99,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .allow_any_header()
             .supports_credentials();
 
-        App::new()
+        let mut app = App::new()
             .app_data(web::Data::new(db_pool_opt.clone()))
             .app_data(web::Data::new(stripe_key_opt.clone()))
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(auth_middleware.clone())
-            .configure(handlers::billing::configure_billing_routes)
-            .route("/health", web::get().to(health_check))
+            .route("/health", web::get().to(health_check));
+
+        if billing_enabled {
+            app = app.configure(handlers::billing::configure_billing_routes);
+        }
+
+        app
     })
     .bind(("0.0.0.0", port))?
     .run()

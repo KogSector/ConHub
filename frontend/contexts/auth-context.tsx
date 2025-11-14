@@ -152,7 +152,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 2000)
 
-      const response = await fetch(`${API_CONFIG.baseUrl}/api/auth/verify`, {
+      const authBase = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || 'http://localhost:3010';
+      const response = await fetch(`${authBase}/api/auth/verify`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${tokenToVerify}`,

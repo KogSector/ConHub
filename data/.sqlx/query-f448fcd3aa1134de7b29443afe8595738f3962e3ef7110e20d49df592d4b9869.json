@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT \n                    ca.id,\n                    ca.user_id,\n                    ca.connector_type,\n                    ca.account_name,\n                    ca.account_identifier,\n                    ca.status,\n                    ca.last_sync_at,\n                    ca.created_at,\n                    ca.updated_at,\n                    COALESCE(COUNT(sd.id), 0)::int as document_count\n                FROM connected_accounts ca\n                LEFT JOIN source_documents sd ON sd.source_id = ca.id\n                WHERE ca.user_id = $1\n                GROUP BY ca.id\n                ORDER BY ca.created_at DESC\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "connector_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "account_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "account_identifier",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "status",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 6,
+        "name": "last_sync_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "document_count",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "f448fcd3aa1134de7b29443afe8595738f3962e3ef7110e20d49df592d4b9869"
+}

@@ -19,7 +19,6 @@ COPY client/Cargo.toml client/Cargo.toml
 COPY data/Cargo.toml data/Cargo.toml
 COPY embedding/Cargo.toml embedding/Cargo.toml
 COPY indexers/Cargo.toml indexers/Cargo.toml
-COPY plugins/Cargo.toml plugins/Cargo.toml
 COPY security/Cargo.toml security/Cargo.toml
 COPY webhook/Cargo.toml webhook/Cargo.toml
 COPY shared/config/Cargo.toml shared/config/Cargo.toml
@@ -39,14 +38,13 @@ RUN mkdir -p auth/src && \
     echo "pub fn dummy() {}" > shared/plugins/src/lib.rs && \
     echo "pub fn dummy() {}" > shared/utils/src/lib.rs && \
     # Create dummy binaries for all workspace services so Cargo can parse manifests
-    mkdir -p backend/src billing/src client/src data/src embedding/src indexers/src plugins/src security/src webhook/src && \
+    mkdir -p backend/src billing/src client/src data/src embedding/src indexers/src security/src webhook/src && \
     echo "fn main() {}" > backend/src/main.rs && \
     echo "fn main() {}" > billing/src/main.rs && \
     echo "fn main() {}" > client/src/main.rs && \
     echo "fn main() {}" > data/src/main.rs && \
     echo "fn main() {}" > embedding/src/main.rs && \
     echo "fn main() {}" > indexers/src/main.rs && \
-    echo "fn main() {}" > plugins/src/main.rs && \
     echo "fn main() {}" > security/src/main.rs && \
     echo "fn main() {}" > webhook/src/main.rs
 

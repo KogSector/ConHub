@@ -1,5 +1,7 @@
 {
-  "Auth": false,
+  "Auth": true,
   "Heavy": false,
-  "Docker": false
+  "Docker": false,
+  "Redis": true,
+  "Billing": false
 }

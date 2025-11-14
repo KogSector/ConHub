@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, RefreshCw, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { apiClient, unwrapResponse } from '@/lib/api';
+import { securityApiClient, unwrapResponse } from '@/lib/api';
 
 interface SocialConnection {
   id: string;
@@ -68,9 +68,7 @@ export function SocialConnections() {
 
   const fetchConnections = async () => {
     try {
-      const resp = await apiClient.get('/api/social/connections', {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      });
+      const resp = await securityApiClient.get('/api/security/connections');
 
       const data = unwrapResponse<SocialConnection[]>(resp) ?? []
       setConnections(data)
@@ -88,12 +86,11 @@ export function SocialConnections() {
 
   const connectPlatform = async (platform: string) => {
     try {
-      const resp = await apiClient.post(`/api/social/connect/${platform}`, {}, {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      });
-      const data = unwrapResponse<{ auth_url?: string }>(resp) ?? {}
-      if (data.auth_url) {
-        window.open(data.auth_url, '_blank', 'width=500,height=600')
+      const resp = await securityApiClient.post('/api/security/connections/connect', { platform });
+      const payload = unwrapResponse<{ account?: { credentials?: { auth_url?: string } } }>(resp) ?? {}
+      const authUrl = payload?.account?.credentials?.auth_url
+      if (authUrl) {
+        window.open(authUrl, '_blank', 'width=500,height=600')
         setTimeout(() => {
           fetchConnections();
         }, 3000);
@@ -116,9 +113,7 @@ export function SocialConnections() {
 
   const disconnectPlatform = async (connectionId: string) => {
     try {
-      await apiClient.delete(`/api/social/connections/${connectionId}`, {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      });
+      await securityApiClient.delete(`/api/security/connections/${connectionId}`);
       setConnections(prev => prev.filter(conn => conn.id !== connectionId));
       toast({
         title: "Success",
@@ -137,9 +132,7 @@ export function SocialConnections() {
   const syncPlatform = async (connectionId: string, platform: string) => {
     setSyncing(connectionId);
     try {
-      await apiClient.post(`/api/social/sync/${platform}`, {}, {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      });
+      await securityApiClient.post(`/api/security/connections/oauth/callback`, { platform, code: 'dummy' });
       toast({
         title: "Success",
         description: `${PLATFORM_CONFIGS[platform as keyof typeof PLATFORM_CONFIGS].name} synced successfully`
@@ -165,7 +158,7 @@ export function SocialConnections() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Social Connections</h2>
+        <h2 className="text-2xl font-bold">Connections</h2>
         <div className="animate-pulse space-y-4">
           {[1, 2, 3].map(i => (
             <Card key={i}>
@@ -183,7 +176,7 @@ export function SocialConnections() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Social Connections</h2>
+        <h2 className="text-2xl font-bold mb-2">Connections</h2>
         <p className="text-muted-foreground">
           Connect your accounts to enhance context and collaboration across platforms
         </p>

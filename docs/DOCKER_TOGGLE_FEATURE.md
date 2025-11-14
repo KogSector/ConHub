@@ -13,7 +13,7 @@ The Docker toggle feature provides developers with fine-grained control over whe
 
 ```json
 {
-  "Auth": false,      // Controls authentication and database connections
+  "Auth": true,       // Controls authentication and database connections (enabled by default)
   "Heavy": false,     // Controls heavy operations (embedding, indexing)
   "Docker": false     // Controls build/run mode (Docker vs Local)
 }
@@ -34,9 +34,9 @@ The Docker toggle feature provides developers with fine-grained control over whe
 - Frontend (Next.js) - Port 3000
 - Auth Service (Rust/Actix) - Port 3010
 - Billing Service (Rust/Actix) - Port 3011
-- Client Service (Rust/Actix) - Port 3014
-- Data Service (Rust/Actix) - Port 3013
-- Security Service (Rust/Actix) - Port 3012
+ - AI Service (Rust/Actix) - Port 3012
+ - Data Service (Rust/Actix) - Port 3013
+ - Security Service (Rust/Actix) - Port 3014
 - Webhook Service (Rust/Actix) - Port 3015
 - Indexers Service (TypeScript) - Port 8080
 - MCP Service (TypeScript) - Port 3004

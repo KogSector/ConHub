@@ -86,19 +86,23 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   };
 
   const handleFetchBranches = async () => {
+    console.log('[FRONTEND] handleFetchBranches called');
+    console.log('[FRONTEND] repositoryUrl:', repositoryUrl);
+    console.log('[FRONTEND] provider:', provider);
+    console.log('[FRONTEND] isProviderSelected:', isProviderSelected);
     
     if (!repositoryUrl || !isProviderSelected) {
       setFetchBranchesError("Please enter a repository URL and select a provider first.");
       return;
     }
     
-    
+    console.log('[FRONTEND] isUrlValid:', isUrlValid);
     if (!isUrlValid) {
       setFetchBranchesError("Please enter a valid repository URL.");
       return;
     }
     
-    
+    console.log('[FRONTEND] credentials:', credentials);
     if ((provider === 'github' || provider === 'gitlab') && !credentials.accessToken) {
       setFetchBranchesError(`Please enter your ${provider === 'github' ? 'GitHub' : 'GitLab'} access token first.`);
       return;
@@ -129,24 +133,31 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     setBranches([]);
 
     try {
-      
+      console.log('[FRONTEND] Building credentials payload');
       let credentialsPayload: Record<string, string> | undefined;
       if (provider === 'github' || provider === 'gitlab') {
         credentialsPayload = {
-          token: credentials.accessToken.trim()
+          accessToken: credentials.accessToken.trim()
         };
       } else if (provider === 'bitbucket') {
         credentialsPayload = {
           username: credentials.username.trim(),
-          app_password: credentials.appPassword.trim()
+          appPassword: credentials.appPassword.trim()
         };
       }
+      
+      const requestPayload = { repoUrl: repositoryUrl.trim(), credentials: credentialsPayload };
+      console.log('[FRONTEND] Request payload:', requestPayload);
+      console.log('[FRONTEND] Making API call to /api/data/sources/branches');
 
-      const resp = await dataApiClient.post<ApiResponse<{ branches: string[]; default_branch?: string }>>('/api/data/sources/branches', { repoUrl: repositoryUrl.trim(), credentials: credentialsPayload });
+      const resp = await dataApiClient.post<ApiResponse<{ branches: string[]; default_branch?: string; file_extensions?: string[] }>>('/api/data/sources/branches', requestPayload);
+      console.log('[FRONTEND] API response:', resp);
       if (!resp.success) {
+        console.error('[FRONTEND] API error:', resp.error);
         throw new Error(resp.error || 'Failed to fetch branches.');
       }
-      const { branches: fetchedBranches, default_branch } = resp.data || { branches: [], default_branch: undefined };
+      const { branches: fetchedBranches, default_branch, file_extensions } = resp.data || { branches: [], default_branch: undefined, file_extensions: undefined };
+      console.log('[FRONTEND] Parsed response data:', { fetchedBranches, default_branch, file_extensions });
       
       if (!fetchedBranches || fetchedBranches.length === 0) {
         setFetchBranchesError("No branches found. Please check the repository URL and permissions.");
@@ -154,13 +165,21 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         setConfig(prev => ({ ...prev, defaultBranch: 'main' }));
       } else {
         setBranches(fetchedBranches);
-        setConfig(prev => ({ ...prev, defaultBranch: default_branch || fetchedBranches[0] }));
+        setConfig(prev => ({ 
+          ...prev, 
+          defaultBranch: default_branch || fetchedBranches[0],
+          fileExtensions: file_extensions && file_extensions.length > 0 ? file_extensions : prev.fileExtensions
+        }));
         
         console.log(`Successfully fetched ${fetchedBranches.length} branches from ${repositoryUrl}`);
+        if (file_extensions && file_extensions.length > 0) {
+          console.log(`Found ${file_extensions.length} file types: ${file_extensions.join(', ')}`);
+        }
       }
     } catch (err: unknown) {
-      console.error('Branch fetching error:', err);
+      console.error('[FRONTEND] Branch fetching error:', err);
       let errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('[FRONTEND] Error message:', errorMessage);
       
       
       if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
@@ -491,6 +510,12 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
               {branches.length > 0 && !fetchBranchesError && (
                 <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
                   <p className="text-sm text-green-700">✓ Successfully found {branches.length} branches</p>
+                  {config.fileExtensions && config.fileExtensions.length > 0 && (
+                    <p className="text-xs text-green-600 mt-1">
+                      Found file types: {config.fileExtensions.slice(0, 10).join(', ')}
+                      {config.fileExtensions.length > 10 && ` and ${config.fileExtensions.length - 10} more`}
+                    </p>
+                  )}
                 </div>
               )}
             </div>

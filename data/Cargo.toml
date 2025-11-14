@@ -25,6 +25,7 @@ tokio = { version = "1.0", features = ["full"] }
 futures = "0.3"
 futures-util = "0.3"
 async-trait = "0.1"
+tokio-stream = "0.1"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -92,3 +93,7 @@ crossbeam-channel = "0.5"
 once_cell = "1.19"
 bytes = "1.5"
 bit-vec = "0.6"
+
+# GraphQL
+async-graphql = { version = "7.0", features = ["chrono"] }
+async-graphql-actix-web = "7.0"

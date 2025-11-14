@@ -327,6 +327,19 @@ class ConHubLogger {
     }
   }
 
+  private safeStringify(obj: unknown): string {
+    const seen = new WeakSet();
+    return JSON.stringify(obj, (key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return '[Circular Reference]';
+        }
+        seen.add(value);
+      }
+      return value;
+    });
+  }
+
   public async flush() {
     if (this.logBuffer.length === 0 && this.performanceBuffer.length === 0 && this.userActionBuffer.length === 0) {
       return;
@@ -340,38 +353,38 @@ class ConHubLogger {
       timestamp: new Date().toISOString()
     };
 
-    
+
     this.logBuffer = [];
     this.performanceBuffer = [];
     this.userActionBuffer = [];
 
     try {
-      
+
       await fetch('/api/logs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(payload)
+        body: this.safeStringify(payload)
       });
     } catch (error) {
-      
+
       if (typeof localStorage !== 'undefined') {
         const stored = localStorage.getItem('conhub_logs') || '[]';
         const logs = JSON.parse(stored);
         logs.push(payload);
-        
-        
+
+
         if (logs.length > 10) {
           logs.splice(0, logs.length - 10);
         }
-        
-        localStorage.setItem('conhub_logs', JSON.stringify(logs));
+
+        localStorage.setItem('conhub_logs', this.safeStringify(logs));
       }
     }
   }
 
-  
+
   public async retryFailedLogs() {
     if (typeof localStorage === 'undefined') return;
 
@@ -379,7 +392,7 @@ class ConHubLogger {
     if (!stored) return;
 
     const logs = JSON.parse(stored);
-    
+
     for (const payload of logs) {
       try {
         await fetch('/api/logs', {
@@ -387,15 +400,15 @@ class ConHubLogger {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(payload)
+          body: this.safeStringify(payload)
         });
       } catch (error) {
-        
+
         break;
       }
     }
 
-    
+
     localStorage.removeItem('conhub_logs');
   }
 }

@@ -1,1 +1,0 @@
-export { DocumentsPageClient } from './DocumentsPageClient';

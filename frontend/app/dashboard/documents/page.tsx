@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AddDocumentModal } from "@/components/ui/AddDocumentModal";
+import { ConnectSourceModal } from "@/components/ui/ConnectSourceModal";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { Footer } from "@/components/ui/footer";
 import { useToast } from "@/hooks/use-toast";
-import { apiClient } from "@/lib/api";
+import { dataApiClient } from "@/lib/api";
 import Link from "next/link";
 import { 
   Plus, 
@@ -38,12 +39,13 @@ interface DocumentRecord {
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   const fetchDocuments = useCallback(async () => {
     try {
-      const result = await apiClient.getDocuments();
+      const result = await dataApiClient.getDocuments();
       if (result.success) {
         
         setDocuments(Array.isArray(result.data) ? result.data : result.data?.data || []);
@@ -68,7 +70,7 @@ export default function DocumentsPage() {
 
   const deleteDocument = async (id: string) => {
     try {
-      const result = await apiClient.deleteDocument(id);
+      const result = await dataApiClient.deleteDocument(id);
       if (result.success) {
         setDocuments(prev => prev.filter(doc => doc.id !== id));
         toast({
@@ -94,7 +96,7 @@ export default function DocumentsPage() {
   useEffect(() => {
     const init = async () => {
       // Check backend health first to avoid JSON parse errors when API returns HTML or is down
-      const healthy = await apiClient.checkBackendHealth();
+      const healthy = await dataApiClient.checkBackendHealth();
       if (healthy) {
         await fetchDocuments();
       } else {
@@ -174,9 +176,9 @@ export default function DocumentsPage() {
             <p className="text-sm text-muted-foreground">Connect and manage documents from various sources</p>
           </div>
           <div className="flex gap-3">
-            <Button onClick={() => setIsModalOpen(true)}>
+            <Button onClick={() => setIsConnectModalOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
-              Add Documents
+              Connect Source
             </Button>
           </div>
         </div>
@@ -198,9 +200,9 @@ export default function DocumentsPage() {
                 <p className="text-muted-foreground mb-8">
                   Start by connecting your first document source.
                 </p>
-                <Button onClick={() => setIsModalOpen(true)}>
+                <Button onClick={() => setIsConnectModalOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Your Document
+                  Connect Your First Source
                 </Button>
               </div>
             ) : (
@@ -272,6 +274,12 @@ export default function DocumentsPage() {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         onDocumentAdded={fetchDocuments}
+      />
+
+      <ConnectSourceModal
+        open={isConnectModalOpen}
+        onOpenChange={setIsConnectModalOpen}
+        onSourceConnected={fetchDocuments}
       />
       
       <Footer />

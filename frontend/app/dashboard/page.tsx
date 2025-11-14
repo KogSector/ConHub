@@ -19,7 +19,8 @@ import {
   Link as LinkIcon,
   Globe,
   BookOpen,
-  Users
+  Users,
+  MessageSquare
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -95,7 +96,23 @@ export default function Dashboard() {
                   </div>
                 </Link>
                 
-                <Link href="/dashboard/social" className="group">
+                <Link href="/sources/chats" className="group">
+                  <div className="relative transform transition-all duration-300 hover:scale-105 hover:-translate-y-2">
+                    <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-rose-600 rounded-2xl blur-xl opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
+                    <div className="relative bg-gradient-to-br from-pink-500 to-pink-600 hover:from-pink-600 hover:to-rose-600 text-white rounded-2xl p-6 shadow-2xl border border-pink-400/20 backdrop-blur-sm transition-all duration-300">
+                      <div className="flex flex-col items-center space-y-3">
+                        <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                          <MessageSquare className="w-7 h-7" />
+                        </div>
+                        <span className="font-semibold text-center leading-tight">Connect Chats</span>
+                      </div>
+                      <div className="absolute top-2 right-2 w-2 h-2 bg-white/30 rounded-full"></div>
+                      <div className="absolute bottom-2 left-2 w-1 h-1 bg-white/20 rounded-full"></div>
+                    </div>
+                  </div>
+                </Link>
+                
+                <Link href="/dashboard/connections" className="group">
                   <div className="relative transform transition-all duration-300 hover:scale-105 hover:-translate-y-2">
                     <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl blur-xl opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
                     <div className="relative bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-purple-600 text-white rounded-2xl p-6 shadow-2xl border border-indigo-400/20 backdrop-blur-sm transition-all duration-300">
@@ -103,7 +120,7 @@ export default function Dashboard() {
                         <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
                           <Users className="w-7 h-7" />
                         </div>
-                        <span className="font-semibold text-center leading-tight">Social Connections</span>
+                        <span className="font-semibold text-center leading-tight">Connections</span>
                       </div>
                       <div className="absolute top-2 right-2 w-2 h-2 bg-white/30 rounded-full"></div>
                       <div className="absolute bottom-2 left-2 w-1 h-1 bg-white/20 rounded-full"></div>

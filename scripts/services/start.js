@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
+// Suppress deprecation warnings BEFORE any other requires
+process.env.NODE_OPTIONS = (process.env.NODE_OPTIONS || '') + ' --no-deprecation --no-warnings';
+
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const dotenv = require('dotenv');
 
 // ANSI color codes
 const colors = {
@@ -15,16 +19,21 @@ const colors = {
 
 console.log(`${colors.green}[START] Starting ConHub...${colors.reset}`);
 
+// Each service manages its own environment; do not load root .env
+const projectRoot = path.resolve(__dirname, '..', '..');
+
 function readFeatureToggles() {
-  const togglesPath = path.resolve(__dirname, '..', 'feature-toggles.json');
+  // Always read toggles from the project root for consistency
+  const projectRoot = path.resolve(__dirname, '..', '..');
+  const togglesPath = path.join(projectRoot, 'feature-toggles.json');
   try {
     if (!fs.existsSync(togglesPath)) {
-      return { Auth: false, Heavy: false, Docker: false };
+      return { Auth: false, Redis: false, Heavy: false, Docker: false };
     }
     const content = fs.readFileSync(togglesPath, 'utf8');
     return JSON.parse(content);
   } catch (_) {
-    return { Auth: false, Heavy: false, Docker: false };
+    return { Auth: false, Redis: false, Heavy: false, Docker: false };
   }
 }
 
@@ -50,17 +59,21 @@ if (fs.existsSync(cleanupScript)) {
 
 const toggles = readFeatureToggles();
 const authEnabled = toggles.Auth === true;
+const redisEnabled = toggles.Redis === true;
 
-console.log(`${colors.cyan}[SERVICES] Starting services (Auth: ${authEnabled ? 'enabled' : 'disabled'})...${colors.reset}`);
+console.log(`${colors.cyan}[SERVICES] Starting services (Auth: ${authEnabled ? 'enabled' : 'disabled'}, Redis: ${redisEnabled ? 'enabled' : 'disabled'})...${colors.reset}`);
 console.log('   Frontend:         http://localhost:3000');
 if (authEnabled) console.log('   Auth Service:     http://localhost:3010');
 // Core services always available regardless of Heavy toggle
-console.log('   Billing Service:  http://localhost:3011');
+if (toggles.Billing === true) {
+  console.log('   Billing Service:  http://localhost:3011');
+} else {
+  console.log('   Billing Service:  disabled (Billing=false)');
+}
 console.log('   AI Service:       http://localhost:3012');
 console.log('   Data Service:     http://localhost:3013');
 console.log('   Security Service: http://localhost:3014');
 console.log('   Webhook Service:  http://localhost:3015');
-console.log('   Plugins Service:  http://localhost:3020');
 // Heavy-only services: embeddings and indexers
 if (toggles.Heavy === true) {
   console.log('   Indexer Service:  http://localhost:8080');
@@ -73,10 +86,37 @@ console.log('');
 
 // Ensure services can locate feature toggles regardless of their working directory
 process.env.ENV_MODE = 'local';
-process.env.FEATURE_TOGGLES_PATH = path.resolve(__dirname, '..', 'feature-toggles.json');
+// Ensure all services read the same toggles from the project root
+process.env.FEATURE_TOGGLES_PATH = path.join(projectRoot, 'feature-toggles.json');
+// Enable SQLx offline mode to skip compile-time verification
+process.env.SQLX_OFFLINE = 'true';
+
+// Prefer Neon DB if configured; otherwise fall back to local DATABASE_URL
+(() => {
+  const neonUrl = process.env.DATABASE_URL_NEON || process.env.NEON_DATABASE_URL;
+  const localUrl = process.env.DATABASE_URL_LOCAL;
+  const currentUrl = process.env.DATABASE_URL;
+
+  if (neonUrl && neonUrl.trim().length > 0) {
+    process.env.DATABASE_URL = neonUrl.trim();
+  } else if (!currentUrl && localUrl) {
+    process.env.DATABASE_URL = localUrl;
+  } else if (currentUrl) {
+    // use existing DATABASE_URL
+  } else {
+    // no DATABASE_URL found; proceed without logging
+  }
+
+  // Ensure sslmode=require for Neon if not already present
+  if (process.env.DATABASE_URL && /neon/i.test(process.env.DATABASE_URL) && !/sslmode=require/i.test(process.env.DATABASE_URL)) {
+    const hasQuery = process.env.DATABASE_URL.includes('?');
+    process.env.DATABASE_URL = process.env.DATABASE_URL + (hasQuery ? '&' : '?') + 'sslmode=require';
+    // appended sslmode=require for Neon connection
+  }
+})();
 
 // Use concurrently programmatic API to avoid CLI arg parsing quirks
-const projectRoot = path.join(__dirname, '..');
+const scriptsRoot = path.join(__dirname, '..');
 const isWin = process.platform === 'win32';
 const concurrentlyDefault = require('concurrently').default || require('concurrently');
 
@@ -93,16 +133,19 @@ if (authEnabled) {
   commands.push('npm --prefix .. run dev:auth');
 }
 
-// Core services should run regardless of Heavy
-names.push('Billing','Client','Data','Security','Webhook', 'Plugins');
-prefixColors.push('magenta','green','yellow','red','gray', 'blue');
+// Core services should run regardless of Heavy, with Billing gated by toggle
+if (toggles.Billing === true) {
+  names.push('Billing');
+  prefixColors.push('magenta');
+  commands.push('npm --prefix .. run dev:billing');
+}
+names.push('AI','Data','Security','Webhook');
+prefixColors.push('green','yellow','red','gray');
 commands.push(
-  'npm --prefix .. run dev:billing',
   'npm --prefix .. run dev:client',
   'npm --prefix .. run dev:data',
   'npm --prefix .. run dev:security',
-  'npm --prefix .. run dev:webhook',
-  'npm --prefix .. run dev:plugins'
+  'npm --prefix .. run dev:webhook'
 );
 
 // Heavy-only services: start when Heavy=true
@@ -122,8 +165,31 @@ const concurrentlyOpts = {
   restartTries: 2,
   killOthersOn: ['failure'],
   raw: false,
-  cwd: projectRoot,
+  cwd: scriptsRoot,
 };
+
+function prebuildRustServices() {
+  const services = [];
+  if (authEnabled) services.push(path.join(projectRoot, 'auth'));
+  services.push(
+    path.join(projectRoot, 'client'),
+    path.join(projectRoot, 'data'),
+    path.join(projectRoot, 'security'),
+    path.join(projectRoot, 'webhook')
+  );
+  if (heavyEnabled) services.push(path.join(projectRoot, 'embedding'));
+  for (const dir of services) {
+    try {
+      execSync('cargo fetch', { stdio: 'inherit', cwd: dir });
+      execSync('cargo build', { stdio: 'inherit', cwd: dir });
+    } catch (_) {}
+  }
+}
+
+// Prefer sparse registry to reduce index contention
+process.env.CARGO_REGISTRIES_CRATES_IO_PROTOCOL = 'sparse';
+
+prebuildRustServices();
 
 // Prefer invoking via npm which sets PATH for node_modules/.bin reliably
 // Run via library to avoid yargs converting --prefix to boolean

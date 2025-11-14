@@ -29,11 +29,12 @@ To streamline development, we use feature toggles located in `feature-toggles.js
 
 ```json
 {
-  "Auth": false,
+  "Auth": true,
   "Heavy": false,
   "Docker": false
 }
 ```
+Default: `Auth` is enabled. Set `Auth: false` only for UI-only work.
 
 | Flag | `false` (Default/Development) | `true` (Production-like) |
 | :--- | :--- | :--- |

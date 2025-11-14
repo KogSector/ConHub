@@ -1,4 +1,7 @@
 use actix_web::{web, HttpResponse};
+use actix_multipart::Multipart;
+use futures_util::StreamExt;
+use tokio::io::AsyncWriteExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -39,6 +42,15 @@ pub struct CreateDocumentResponse {
 
 lazy_static! {
     static ref DOCUMENT_STORAGE: Mutex<HashMap<String, Vec<DocumentRecord>>> = Mutex::new(HashMap::new());
+}
+
+#[derive(Deserialize)]
+pub struct ImportDocumentRequest {
+    pub provider: String,
+    pub file_id: String,
+    pub name: String,
+    pub mime_type: Option<String>,
+    pub size: Option<u64>,
 }
 
 pub async fn create_document(req: web::Json<CreateDocumentRequest>) -> Result<HttpResponse, ServiceError> {
@@ -175,5 +187,86 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("", web::get().to(get_documents))
             .route("/{id}", web::delete().to(delete_document))
             .route("/analytics", web::get().to(get_document_analytics))
+            .route("/import", web::post().to(import_document))
     );
+}
+
+pub async fn upload_documents(mut payload: Multipart) -> Result<HttpResponse, ServiceError> {
+    let user_id = "user_123".to_string();
+    let upload_dir = std::path::Path::new("data/uploads");
+    if !upload_dir.exists() {
+        std::fs::create_dir_all(upload_dir)?;
+    }
+
+    let mut created: Vec<DocumentRecord> = Vec::new();
+
+    while let Some(Ok(mut field)) = payload.next().await {
+        let content_disposition = field.content_disposition().cloned();
+        let filename = content_disposition
+            .and_then(|cd| cd.get_filename().map(|s| s.to_string()))
+            .unwrap_or_else(|| format!("upload_{}", chrono::Utc::now().timestamp_millis()));
+
+        let filepath = upload_dir.join(&filename);
+        let mut f = tokio::fs::File::create(&filepath).await?;
+
+        let mut size: u64 = 0;
+        while let Some(Ok(chunk)) = field.next().await {
+            size += chunk.len() as u64;
+            f.write_all(&chunk).await?;
+        }
+
+        let mut storage = DOCUMENT_STORAGE
+            .lock()
+            .map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
+        let user_docs = storage.entry(user_id.clone()).or_insert_with(Vec::new);
+
+        let record = DocumentRecord {
+            id: format!("doc_{}", chrono::Utc::now().timestamp_millis()),
+            user_id: user_id.clone(),
+            name: filename.clone(),
+            doc_type: mime_guess::from_path(&filepath).first_or_octet_stream().essence_str().to_string(),
+            source: "local_files".to_string(),
+            size: format!("{} B", size),
+            tags: vec![],
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            status: "processed".to_string(),
+        };
+        user_docs.push(record.clone());
+        created.push(record);
+    }
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "Files uploaded",
+        "data": created
+    })))
+}
+
+pub async fn import_document(req: web::Json<ImportDocumentRequest>) -> Result<HttpResponse, ServiceError> {
+    let user_id = "user_123".to_string();
+    let mut storage = DOCUMENT_STORAGE
+        .lock()
+        .map_err(|e| ServiceError::MutexLockError(e.to_string()))?;
+    let user_docs = storage.entry(user_id.clone()).or_insert_with(Vec::new);
+
+    let record = DocumentRecord {
+        id: format!("doc_{}", chrono::Utc::now().timestamp_millis()),
+        user_id: user_id.clone(),
+        name: req.name.clone(),
+        doc_type: req.mime_type.clone().unwrap_or_else(|| "application/octet-stream".into()),
+        source: req.provider.clone(),
+        size: req.size.map(|s| format!("{} B", s)).unwrap_or_else(|| "Unknown".into()),
+        tags: vec![],
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+        status: "processed".to_string(),
+    };
+    user_docs.push(record.clone());
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "Imported document",
+        "data": record
+    })))
 }

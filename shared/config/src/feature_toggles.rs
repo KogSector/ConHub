@@ -75,6 +75,30 @@ impl FeatureToggles {
         self.docker_enabled()
     }
 
+    // Convenience: read Redis enablement
+    // Controls whether Redis connections should be established for sessions/caching
+    pub fn redis_enabled(&self) -> bool {
+        // Default to true when Auth is enabled, false otherwise
+        self.is_enabled_or("Redis", self.auth_enabled())
+    }
+
+    // Check if Redis connections should be established
+    pub fn should_connect_redis(&self) -> bool {
+        self.auth_enabled() && self.redis_enabled()
+    }
+
+    // Convenience: read Billing enablement
+    // Controls whether Billing microservice and dependencies are active
+    pub fn billing_enabled(&self) -> bool {
+        // Default to false for development unless explicitly enabled
+        self.is_enabled_or("Billing", false)
+    }
+
+    // Check if Billing-related connections should be established
+    pub fn should_use_billing(&self) -> bool {
+        self.billing_enabled()
+    }
+
     // Get all enabled features
     pub fn enabled_features(&self) -> Vec<String> {
         self.flags

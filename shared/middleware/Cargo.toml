@@ -23,6 +23,7 @@ futures-util = "0.3"
 # JWT and auth
 jsonwebtoken = "9.2"
 rsa = "0.9"
+base64 = "0.21"
 
 # Logging
 tracing = "0.1"

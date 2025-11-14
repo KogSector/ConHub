@@ -1,6 +1,7 @@
 use actix_web::{web, App, HttpServer, middleware::Logger};
 use actix_cors::Cors;
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
+use std::str::FromStr;
 use std::env;
 use tracing_subscriber;
 
@@ -51,36 +52,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Database connection (gated by Auth toggle)
     let db_pool_opt: Option<PgPool> = if auth_enabled {
-        let database_url = env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
+        // Prefer Neon URL if present, fall back to DATABASE_URL, then local default
+        let database_url = env::var("DATABASE_URL_NEON")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .or_else(|| env::var("DATABASE_URL").ok())
+            .unwrap_or_else(|| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
 
-        println!("📊 [Auth Service] Connecting to database...");
-        match PgPoolOptions::new()
-            .max_connections(10)
-            .connect(&database_url)
-            .await
-        {
-            Ok(pool) => {
-                println!("✅ [Auth Service] Database connection established");
-                Some(pool)
-            }
-            Err(e) => {
-                eprintln!("⚠️  [Auth Service] Failed to connect to database: {}", e);
-                eprintln!("⚠️  [Auth Service] Service will start but database operations will fail");
-                eprintln!("⚠️  [Auth Service] Please ensure PostgreSQL is running and DATABASE_URL is correct");
-                None
-            }
+        if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
+            tracing::info!("📊 [Auth Service] Connecting to Neon DB...");
+            tracing::info!("🔗 [Auth Service] Database URL: {}", database_url.split('@').last().unwrap_or("hidden"));
+        } else {
+            tracing::info!("📊 [Auth Service] Connecting to database...");
+            tracing::info!("🔗 [Auth Service] Database URL: {}", database_url.split('@').last().unwrap_or("hidden"));
         }
+        
+        // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
+        let connect_options = PgConnectOptions::from_str(&database_url)?
+            .statement_cache_capacity(0);
+        
+        tracing::info!("🔌 [Auth Service] Attempting database connection...");
+        let pool = PgPoolOptions::new()
+            .max_connections(10)
+            .connect_with(connect_options)
+            .await?;
+        tracing::info!("✅ [Auth Service] Database connection established successfully");
+        tracing::info!("📊 [Auth Service] Database pool created with max 10 connections");
+        Some(pool)
     } else {
         tracing::warn!("[Auth Service] Auth disabled; skipping database connection.");
         None
     };
 
-    // Redis connection for sessions (gated by Auth toggle)
-    let redis_client_opt: Option<redis::Client> = if auth_enabled {
+    // Redis connection for sessions (gated by Auth and Redis toggles)
+    let redis_enabled = toggles.should_connect_redis();
+    let redis_client_opt: Option<redis::Client> = if redis_enabled {
         let redis_url = env::var("REDIS_URL")
             .unwrap_or_else(|_| "redis://localhost:6379".to_string());
         
+        println!("📊 [Auth Service] Connecting to Redis...");
         match redis::Client::open(redis_url.clone()) {
             Ok(client) => {
                 println!("✅ [Auth Service] Redis connection established");
@@ -94,7 +104,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     } else {
-        tracing::warn!("[Auth Service] Auth disabled; skipping Redis connection.");
+        if !auth_enabled {
+            tracing::warn!("[Auth Service] Auth disabled; skipping Redis connection.");
+        } else {
+            tracing::warn!("[Auth Service] Redis feature disabled; skipping Redis connection.");
+        }
         None
     };
 
@@ -109,12 +123,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut app = App::new()
             .app_data(web::Data::new(toggles.clone()))
+            .app_data(web::Data::new(db_pool_opt.clone()))
             .wrap(cors)
             .wrap(Logger::default());
-
-        if let Some(pool) = db_pool_opt.clone() {
-            app = app.app_data(web::Data::new(pool));
-        }
 
         if let Some(redis_client) = redis_client_opt.clone() {
             app = app.app_data(web::Data::new(redis_client));

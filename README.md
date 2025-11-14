@@ -22,16 +22,15 @@ ConHub uses a modern **decoupled microservices architecture** with:
 - **Backend Service** (8000) - Unified GraphQL API gateway
 - **Auth Service** (3010) - Authentication, OAuth, JWT management
 - **Billing Service** (3011) - Stripe payments & subscriptions
-- **Client Service** (3014) - AI client integrations (OpenAI, Anthropic)
+- **AI Service** (3012) - AI client integrations (OpenAI, Anthropic)
 - **Data Service** (3013) - Data sources & repository management
-- **Security Service** (3012) - Security policies & audit logs
-- **Webhook Service** (3015) - External webhook handling
-- **Plugins Service** (3020) - Unified plugin management system
-- **Embedding Service** (8082) - Fusion embeddings & vector generation
-- **Indexers Service** (8080) - Code/document indexing & search
+- **Security Service** (3014) - Security policies & audit logs
+ - **Webhook Service** (3015) - External webhook handling
+ - **Embedding Service** (8082) - Fusion embeddings & vector generation
+ - **Indexers Service** (8080) - Code/document indexing & search
 
 ### Infrastructure
-- **PostgreSQL** (5432) - Primary database
+- **PostgreSQL** (5432) - Primary database (Local/Docker or **NeonDB** cloud)
 - **Redis** (6379) - Cache & sessions
 - **Qdrant** (6333) - Vector database for semantic search
 - **Nginx** (80) - API Gateway & load balancer
@@ -77,6 +76,34 @@ npm run dev:auth       # Auth service
 npm run dev:backend    # Backend service
 ```
 
+### 4. NeonDB Setup (Recommended for Production)
+
+ConHub fully supports **NeonDB** (serverless PostgreSQL) for all microservices.
+
+**Configuration:**
+1. Set your NeonDB connection string in `.env`:
+   ```env
+   DATABASE_URL_NEON=postgresql://user:password@ep-xxx.region.neon.tech/db?sslmode=require
+   ```
+
+2. Configure JWT keys (file paths recommended for Windows):
+   ```env
+   JWT_PRIVATE_KEY_PATH=C:/path/to/ConHub/keys/private_key.pem
+   JWT_PUBLIC_KEY_PATH=C:/path/to/ConHub/keys/public_key.pem
+   ```
+
+3. Start services:
+   ```bash
+   npm start
+   ```
+
+**Key Features:**
+- ✅ All 6 microservices support NeonDB
+- ✅ Automatic connection pooling optimization
+- ✅ JWT RS256 authentication with file-based keys
+- ✅ SSL/TLS secure connections
+- ✅ No multiline .env issues (Windows-compatible)
+
 ## 🚀 Service Architecture
 
 ### Service Communication
@@ -87,31 +114,16 @@ Frontend (3000) → Nginx (80) → Backend (8000) → Microservices
                                     ↓
                     ┌───────────────┼───────────────┐
                     ↓               ↓               ↓
-              Auth (3010)    Data (3013)    Client (3014)
+              Auth (3010)    Data (3013)      AI (3012)
                     ↓               ↓               ↓
-              Billing (3011) Security (3012) Webhook (3015)
-                                    ↓
-                            Plugins (3020)
-                                    ↓
+              Billing (3011) Security (3014) Webhook (3015)
                     ┌───────────────┼───────────────┐
                     ↓               ↓               ↓
             Embedding (8082)  Indexers (8080)  Databases
 ```
 
-### Plugin System
-The unified plugin system replaces individual MCP microservices:
-
-**Source Plugins**: Dropbox, Google Drive, OneDrive, Notion, GitHub
-**Agent Plugins**: Cline, Amazon Q, GitHub Copilot
-
-```bash
-# Plugin Management API
-GET /api/plugins/status           # Get all plugin status
-POST /api/plugins/start/{id}      # Start plugin
-POST /api/plugins/stop/{id}       # Stop plugin
-GET /api/plugins/sources/{id}/documents  # Access source data
-POST /api/plugins/agents/{id}/chat       # Chat with agent
-```
+### MCP & Agents
+Agent and source integrations are handled via the MCP gateway and routed through Backend/AI services.
 
 ## 🔧 Development
 
@@ -138,11 +150,18 @@ Control development complexity with feature toggles (`feature-toggles.json`):
 
 ```json
 {
-  "Auth": false,    // Disable auth & databases for UI development
-  "Heavy": false,   // Disable embedding/indexing for fast iteration
-  "Docker": false   // Use local development (true = Docker containers)
+  "Auth": true,    // Enable authentication & database connections
+  "Redis": true,   // Enable Redis for sessions/caching (requires Auth)
+  "Heavy": false,  // Enable indexing/embedding services
+  "Docker": false  // Use Docker builds
 }
 ```
+
+**Toggle Details:**
+- **Auth**: Controls PostgreSQL, authentication middleware, and enables other features
+- **Redis**: Controls Redis connections for session management (only when Auth is enabled)
+- **Heavy**: Controls resource-intensive services (indexers, embeddings)
+- **Docker**: Switches between Docker and local development mode
 
 **Toggle Modes:**
 - `Docker: false` - **Local Development** (fastest, default)
@@ -159,7 +178,8 @@ Control development complexity with feature toggles (`feature-toggles.json`):
 
 **Usage:** Simply run `npm start` - it intelligently detects the mode from feature-toggles.json
 
-See [Docker Toggle Documentation](docs/DOCKER_TOGGLE_FEATURE.md) for details.
+**Documentation:**
+- 📖 [Docker Toggle Guide](docs/DOCKER_TOGGLE_FEATURE.md) - Docker vs local mode
 
 ### GraphQL API
 Unified GraphQL endpoint at `http://localhost:8000/api/graphql`:
@@ -196,12 +216,12 @@ Dual-engine search architecture:
 - **Semantic Search** (Qdrant): Vector embeddings, similarity search
 - **Language Support**: 40+ languages via tree-sitter
 
-### 3. Plugin Architecture
-Scalable plugin system:
-- Dynamic loading/unloading
+### 3. MCP & Agent Integrations
+Standards-based agent integrations via MCP:
+- Connect sources and agents through MCP servers
 - Shared resources and connection pooling
-- Centralized configuration management
-- Hot reloading support
+- Centralized configuration via `mcp/` services
+- Hot reload support for development
 
 ## 🔐 Security
 
@@ -244,15 +264,7 @@ curl -X POST http://localhost/api/data/sources \
 ```
 
 ### AI Agent Integration
-```bash
-# Chat with agent
-curl -X POST http://localhost/api/plugins/agents/cline-main/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Help me debug this code",
-    "context": {...}
-  }'
-```
+Agent interactions are routed through Backend and AI services.
 
 ## 📁 Project Structure
 
@@ -266,7 +278,6 @@ ConHub/
 ├── embedding/               # Fusion embedding service
 ├── frontend/                # Next.js application
 ├── indexers/                # Search & indexing
-├── plugins/                 # Unified plugin system
 ├── security/                # Security & audit
 ├── webhook/                 # Webhook handling
 ├── shared/                  # Shared Rust libraries
@@ -350,7 +361,6 @@ curl http://localhost/health
 # Individual service health
 curl http://localhost:8000/health    # Backend
 curl http://localhost:3010/health    # Auth
-curl http://localhost:3020/health    # Plugins
 ```
 
 ## 🧪 Testing

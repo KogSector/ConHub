@@ -76,14 +76,13 @@ ConHub is a **knowledge layer + context engine** designed to help AI Agents and 
          │  - Audit Logs       │                           │  - GitLab Webhooks   │
          └─────────────────────┘                           └──────────────────────┘
                                                                       
-         ┌─────────────────────┐                           ┌──────────────────────┐
-         │  Plugins Service    │                           │  Embedding Service   │
-         │  Port 3020/8007     │                           │  Port 8082           │
-         │  - Plugin Registry  │                           │  - Fusion Embeddings │
-         │  - Dynamic Loading  │                           │  - Multi-Model       │
-         │  - Source Plugins   │                           │  - Batch Processing  │
-         │  - Agent Plugins    │                           └──────────────────────┘
-         └─────────────────────┘                                      
+                                                          ┌──────────────────────┐
+                                                          │  Embedding Service   │
+                                                          │  Port 8082           │
+                                                          │  - Fusion Embeddings │
+                                                          │  - Multi-Model       │
+                                                          │  - Batch Processing  │
+                                                          └──────────────────────┘
                                                            ┌──────────────────────┐
          ┌─────────────────────┐                           │  Indexers Service    │
          │  Infrastructure     │                           │  Port 8080           │
@@ -121,7 +120,7 @@ ConHub is a **knowledge layer + context engine** designed to help AI Agents and 
 - **GitHub Copilot**: Code completion with project context
 - **Cline**: Agentic software engineering tasks
 - **Cursor IDE**: AI-powered code generation
-- **Custom Agents**: Extensible plugin system
+ - **Custom Agents**: Extensible MCP adapters
 
 ### 3. Intelligent Indexing & Search
 
@@ -153,7 +152,7 @@ ConHub is a **knowledge layer + context engine** designed to help AI Agents and 
 [workspace]
 members = [
     "auth", "backend", "billing", "client", "data",
-    "embedding", "indexers", "plugins", "security", "webhook",
+    "embedding", "indexers", "security", "webhook",
     "shared/config", "shared/middleware", "shared/models",
     "shared/plugins", "shared/utils"
 ]
@@ -263,7 +262,7 @@ User → Frontend → Data Service → Git Clone
 ### Example 2: AI Agent Context Retrieval
 
 ```mermaid
-AI Agent (Copilot) → MCP Service → Plugins Service
+AI Agent (Copilot) → MCP Service → Backend/AI Service
                                          ↓
                             ┌────────────┴────────────┐
                             ↓                         ↓
@@ -383,7 +382,7 @@ docker-compose.yml:
 - [ ] SSO integration (SAML, LDAP)
 - [ ] Advanced compliance (SOC 2, GDPR)
 - [ ] Audit logging
-- [ ] Custom plugins marketplace
+ - [ ] Custom integrations marketplace
 
 ---
 

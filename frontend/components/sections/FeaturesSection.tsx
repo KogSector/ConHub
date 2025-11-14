@@ -15,7 +15,6 @@ import {
   Star,
   FileText,
   Globe,
-  Database,
   Download,
   Eye,
   Monitor

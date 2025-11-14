@@ -24,7 +24,8 @@ function log(message, color = colors.reset) {
 }
 
 function readFeatureToggles() {
-  const projectRoot = path.resolve(__dirname, '..');
+  // Always resolve toggles from the project root to avoid conflicts
+  const projectRoot = path.resolve(__dirname, '..', '..');
   const togglesPath = path.join(projectRoot, 'feature-toggles.json');
   
   try {
@@ -32,6 +33,7 @@ function readFeatureToggles() {
       log(`⚠ feature-toggles.json not found. Creating default configuration...`, colors.yellow);
       const defaultToggles = {
         Auth: false,
+        Redis: false,
         Heavy: false,
         Docker: false
       };
@@ -44,7 +46,7 @@ function readFeatureToggles() {
   } catch (error) {
     log(`✗ Error reading feature-toggles.json: ${error.message}`, colors.red);
     log(`  Using default configuration (Docker: false)`, colors.yellow);
-    return { Auth: false, Heavy: false, Docker: false };
+    return { Auth: false, Redis: false, Heavy: false, Docker: false };
   }
 }
 
@@ -75,10 +77,13 @@ function main() {
   log(`${colors.bright}${colors.magenta}🚀 ConHub Smart Start${colors.reset}\n`);
   
   const toggles = readFeatureToggles();
+  // Ensure downstream services read the same toggles file
+  process.env.FEATURE_TOGGLES_PATH = path.resolve(__dirname, '..', '..', 'feature-toggles.json');
   const dockerEnabled = toggles.Docker === true;
   
   log(`${colors.cyan}Feature Toggle Status:${colors.reset}`);
   log(`  • Auth:   ${toggles.Auth ? colors.green + 'Enabled' : colors.yellow + 'Disabled'}${colors.reset}`);
+  log(`  • Redis:  ${toggles.Redis ? colors.green + 'Enabled' : colors.yellow + 'Disabled'}${colors.reset}`);
   log(`  • Heavy:  ${toggles.Heavy ? colors.green + 'Enabled' : colors.yellow + 'Disabled'}${colors.reset}`);
   log(`  • Docker: ${toggles.Docker ? colors.green + 'Enabled' : colors.yellow + 'Disabled'}${colors.reset}`);
   log('');

@@ -259,18 +259,6 @@ $services = @{
         MinReplicas = 1
         MaxReplicas = 3
     }
-    "conhub-plugins" = @{
-        Image = "$DockerHubUsername/conhub-plugins:$ImageTag"
-        Port = 8007
-        EnvVars = @{
-            "PORT" = "8007"
-            "RUST_LOG" = "info"
-        }
-        Memory = "2Gi"
-        CPU = "1.0"
-        MinReplicas = 1
-        MaxReplicas = 3
-    }
 }
 
 # Deploy each service

@@ -9,7 +9,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 use conhub_models::auth::Claims;
 use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
-use rsa::{RsaPublicKey, pkcs8::DecodePublicKey};
+use rsa::{RsaPublicKey, pkcs8::{DecodePublicKey, EncodePublicKey}, pkcs1::DecodeRsaPublicKey};
+use base64;
 use serde_json::json;
 use chrono;
 use tracing;
@@ -100,8 +101,13 @@ pub struct AuthMiddlewareFactory {
 
 impl AuthMiddlewareFactory {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let public_key = load_public_key()?;
-        Ok(Self { mode: AuthMode::Enabled(Arc::new(public_key)) })
+        match load_public_key() {
+            Ok(public_key) => Ok(Self { mode: AuthMode::Enabled(Arc::new(public_key)) }),
+            Err(e) => {
+                tracing::warn!("JWT public key not found or invalid ({}). Falling back to disabled auth (dev claims). Set `JWT_PUBLIC_KEY_PATH` or `JWT_PUBLIC_KEY` to enable.", e);
+                Ok(Self::disabled())
+            }
+        }
     }
 
     pub fn from_public_key(public_key: RsaPublicKey) -> Self {
@@ -163,22 +169,85 @@ async fn verify_jwt_token(token: &str, public_key: &RsaPublicKey) -> Result<Clai
     Ok(token_data.claims)
 }
 
-// Load public key from environment variable or file
+// Load public key from environment variable or file with robust parsing
 fn load_public_key() -> Result<RsaPublicKey, Box<dyn std::error::Error>> {
-    // Try to load from environment variable first
-    if let Ok(public_key_pem) = std::env::var("JWT_PUBLIC_KEY") {
-        let public_key = RsaPublicKey::from_public_key_pem(&public_key_pem)?;
-        return Ok(public_key);
-    }
-    
-    // Try to load from file
+    // Prefer file path to avoid .env multiline pitfalls
     if let Ok(public_key_path) = std::env::var("JWT_PUBLIC_KEY_PATH") {
-        let public_key_pem = std::fs::read_to_string(public_key_path)?;
-        let public_key = RsaPublicKey::from_public_key_pem(&public_key_pem)?;
-        return Ok(public_key);
+        let raw = std::fs::read_to_string(&public_key_path)?;
+        match parse_public_key_from_str(&raw) {
+            Ok(key) => return Ok(key),
+            Err(e) => {
+                tracing::error!("Failed parsing JWT_PUBLIC_KEY_PATH ({}): {}", public_key_path, e);
+                return Err(e);
+            }
+        }
     }
-    
-    Err("No public key found. Set JWT_PUBLIC_KEY or JWT_PUBLIC_KEY_PATH environment variable".into())
+
+    // Fallback to inline env var
+    if let Ok(inline) = std::env::var("JWT_PUBLIC_KEY") {
+        match parse_public_key_from_str(&inline) {
+            Ok(key) => return Ok(key),
+            Err(e) => {
+                tracing::error!("Failed parsing JWT_PUBLIC_KEY env var: {}", e);
+                return Err(e);
+            }
+        }
+    }
+
+    Err("No public key found. Set JWT_PUBLIC_KEY_PATH or JWT_PUBLIC_KEY environment variable".into())
+}
+
+// Attempt to parse a public key from various formats:
+// - Proper PEM with headers
+// - PEM provided via .env with escaped newlines (\n)
+// - Raw Base64 DER (PKCS#1 or PKCS#8)
+fn parse_public_key_from_str(input: &str) -> Result<RsaPublicKey, Box<dyn std::error::Error>> {
+    // Trim and unquote if value wrapped in quotes
+    let mut s = input.trim().to_string();
+    if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')) {
+        s = s[1..s.len()-1].to_string();
+    }
+    // Replace literal \n with newline and normalize Windows CRLF
+    let s = s.replace("\\n", "\n").replace("\\r", "\r");
+
+    // If it looks like PEM, try PEM variants only and do not fall back to Base64 decoding
+    if s.contains("-----BEGIN") {
+        // PKCS#8 / SPKI
+        if let Ok(key) = RsaPublicKey::from_public_key_pem(&s) {
+            return Ok(key);
+        }
+        // PKCS#1
+        if let Ok(key) = RsaPublicKey::from_pkcs1_pem(&s) {
+            return Ok(key);
+        }
+        // If we only received the header line, this is likely a multiline .env issue
+        if s.trim().lines().count() == 1 {
+            return Err("PEM appears truncated (only header). Use JWT_PUBLIC_KEY_PATH or escape newlines (\\n).".into());
+        }
+        // Explicitly return an error for invalid PEM to avoid confusing Base64 errors
+        return Err("Invalid PEM public key format".into());
+    }
+
+    // Otherwise, try raw Base64 DER (strip whitespace)
+    let b64 = s.lines().collect::<Vec<_>>().join("");
+    let b64 = b64.replace(' ', "");
+    // Ignore empty or obviously placeholder values
+    if b64.is_empty() || b64.contains("YOUR_PUBLIC_KEY_HERE") {
+        return Err("Public key value is empty or placeholder".into());
+    }
+
+    let bytes = base64::decode(b64.as_bytes())?;
+
+    // Try PKCS#8 DER first
+    if let Ok(key) = RsaPublicKey::from_public_key_der(&bytes) {
+        return Ok(key);
+    }
+    // Fallback to PKCS#1 DER
+    if let Ok(key) = RsaPublicKey::from_pkcs1_der(&bytes) {
+        return Ok(key);
+    }
+
+    Err("Unsupported public key format: expected PEM or Base64 DER".into())
 }
 
 // Check if the endpoint is public and doesn't require authentication

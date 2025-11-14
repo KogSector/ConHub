@@ -1,6 +1,7 @@
-use actix_web::{web, App, HttpServer, middleware::Logger};
+use actix_web::{web, App, HttpServer, middleware::Logger, HttpResponse};
 use actix_cors::Cors;
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
+use std::str::FromStr;
 use std::env;
 use tracing::{info, error};
 use tracing_subscriber;
@@ -11,6 +12,9 @@ mod services;
 mod handlers;
 mod sources;
 mod errors;
+mod connectors;
+mod graphql;
+
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -44,13 +48,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Database connection (gated by Auth toggle)
     let db_pool_opt: Option<PgPool> = if auth_enabled {
-        let database_url = env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://conhub:conhub_password@postgres:5432/conhub".to_string());
+        // Prefer Neon URL if present, fall back to DATABASE_URL, then local default
+        let database_url = env::var("DATABASE_URL_NEON")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .or_else(|| env::var("DATABASE_URL").ok())
+            .unwrap_or_else(|| "postgresql://conhub:conhub_password@postgres:5432/conhub".to_string());
 
-        tracing::info!("📊 [Data Service] Connecting to database...");
+        if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
+            tracing::info!("📊 [Data Service] Connecting to Neon DB...");
+        } else {
+            tracing::info!("📊 [Data Service] Connecting to database...");
+        }
+
+        // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
+        let connect_options = PgConnectOptions::from_str(&database_url)?
+            .statement_cache_capacity(0);
+
         let pool = PgPoolOptions::new()
             .max_connections(10)
-            .connect(&database_url)
+            .connect_with(connect_options)
             .await?;
         tracing::info!("✅ [Data Service] Database connection established");
         Some(pool)
@@ -61,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Qdrant connection (vector database) — gated by Auth toggle
     let qdrant_url = env::var("QDRANT_URL")
-        .unwrap_or_else(|_| "http://qdrant:6333".to_string());
+        .unwrap_or_else(|_| "http://localhost:6333".to_string());
 
     if auth_enabled {
         tracing::info!("📊 [Data Service] Connecting to Qdrant at {}...", qdrant_url);
@@ -70,6 +87,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         tracing::warn!("[Data Service] Auth disabled; skipping Qdrant connection.");
     }
+
+    // Initialize Embedding Client
+    let embedding_url = env::var("EMBEDDING_SERVICE_URL")
+        .unwrap_or_else(|_| "http://localhost:8082".to_string());
+    let heavy_enabled = toggles.is_enabled("Heavy");
+    let embedding_client = services::EmbeddingClient::new(embedding_url.clone(), heavy_enabled);
+    tracing::info!("📊 [Data Service] Embedding client initialized: {}", embedding_url);
+
+    // Initialize Connector Manager
+    let connector_manager = std::sync::Arc::new(connectors::ConnectorManager::new(db_pool_opt.clone()));
+    tracing::info!("🔌 [Data Service] Connector Manager initialized");
+
+    // Initialize GraphQL Schema
+    let graphql_schema = graphql::create_schema(db_pool_opt.clone(), connector_manager.clone());
+    tracing::info!("📊 [Data Service] GraphQL schema initialized");
 
     tracing::info!("🚀 [Data Service] Starting on port {}", port);
 
@@ -83,11 +115,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         App::new()
             .app_data(web::Data::new(db_pool_opt.clone()))
             .app_data(web::Data::new(toggles.clone()))
+            .app_data(web::Data::new(connector_manager.clone()))
+            .app_data(web::Data::new(embedding_client.clone()))
+            .app_data(web::Data::new(graphql_schema.clone()))
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(auth_middleware.clone())
             .configure(configure_routes)
             .route("/health", web::get().to(health_check))
+            // GraphQL routes
+            .route("/graphql", web::post().to(handlers::graphql_handler))
+            .route("/graphql", web::get().to(handlers::graphql_playground))
+            .route("/graphql/ws", web::get().to(handlers::graphql_subscription))
     })
     .bind(("0.0.0.0", port))?
     .run()
@@ -101,7 +140,7 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
         web::scope("/api/data")
             // Data sources routes
             .route("/sources", web::post().to(handlers::data_sources::connect_data_source))
-            .route("/sources/branches", web::post().to(handlers::data_sources::fetch_branches))
+            .route("/sources/branches", web::post().to(log_and_handle_fetch_branches))
             
             // Repository routes
             .route("/repositories", web::get().to(handlers::repositories::list_repositories))
@@ -116,6 +155,8 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
             .route("/documents", web::post().to(handlers::documents::create_document))
             .route("/documents/{id}", web::delete().to(handlers::documents::delete_document))
             .route("/documents/analytics", web::get().to(handlers::documents::get_document_analytics))
+            .route("/documents/upload", web::post().to(handlers::documents::upload_documents))
+            .route("/documents/import", web::post().to(handlers::documents::import_document))
             
             // URL routes
             .route("/urls", web::get().to(handlers::urls::get_urls))
@@ -129,6 +170,16 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
             .route("/index/url", web::post().to(handlers::indexing::index_url))
             .route("/index/file", web::post().to(handlers::indexing::index_file))
             .route("/index/status", web::get().to(handlers::indexing::get_indexing_status))
+    )
+    .service(
+        web::scope("/api/connectors")
+            // Connector management routes
+            .route("/list", web::get().to(handlers::connectors::list_connectors))
+            .route("/connect", web::post().to(handlers::connectors::connect_source))
+            .route("/oauth/callback", web::post().to(handlers::connectors::complete_oauth_callback))
+            .route("/sync", web::post().to(handlers::connectors::sync_source))
+            .route("/disconnect/{id}", web::delete().to(handlers::connectors::disconnect_source))
+            .route("/accounts", web::get().to(handlers::connectors::list_connected_accounts))
     )
     .service(
         web::scope("/api/enhanced")
@@ -145,6 +196,28 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
             // Enhanced health check
             .route("/health", web::get().to(handlers::enhanced_handlers::enhanced_health_check))
     );
+}
+
+async fn log_and_handle_fetch_branches(
+    req: web::Json<handlers::data_sources::FetchBranchesRequest>,
+) -> actix_web::Result<HttpResponse> {
+    tracing::info!("[MAIN] Received fetch_branches request");
+    tracing::info!("[MAIN] Request body: {:?}", req);
+    
+    match handlers::data_sources::fetch_branches(req).await {
+        Ok(response) => {
+            tracing::info!("[MAIN] fetch_branches succeeded");
+            Ok(response)
+        }
+        Err(e) => {
+            tracing::error!("[MAIN] fetch_branches failed: {:?}", e);
+            Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "message": "Bad Request",
+                "error": e.to_string()
+            })))
+        }
+    }
 }
 
 async fn health_check(pool_opt: web::Data<Option<PgPool>>) -> actix_web::Result<web::Json<serde_json::Value>> {

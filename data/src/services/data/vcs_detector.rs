@@ -1,6 +1,7 @@
 use regex::Regex;
 use url::Url;
 use conhub_models::{VcsType, VcsProvider};
+use serde::{Serialize, Deserialize};
 
 pub struct VcsDetector;
 
@@ -206,7 +207,7 @@ impl VcsDetector {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloneUrls {
     pub https: String,
     pub ssh: Option<String>,
