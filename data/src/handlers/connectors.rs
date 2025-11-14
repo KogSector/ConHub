@@ -5,6 +5,7 @@ use sqlx::PgPool;
 use tracing::{info, error};
 
 use crate::connectors::{ConnectorManager, ConnectRequest, SyncRequestWithFilters, OAuthCallbackData};
+use crate::services::IngestionService;
 use conhub_models::auth::Claims;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -71,6 +72,9 @@ pub async fn connect_source(
         "local_file" => crate::connectors::ConnectorType::LocalFile,
         "github" => crate::connectors::ConnectorType::GitHub,
         "google_drive" => crate::connectors::ConnectorType::GoogleDrive,
+        "bitbucket" => crate::connectors::ConnectorType::Bitbucket,
+        "url_scraper" => crate::connectors::ConnectorType::UrlScraper,
+        "dropbox" => crate::connectors::ConnectorType::Dropbox,
         "slack" => crate::connectors::ConnectorType::Slack,
         _ => {
             return Ok(HttpResponse::BadRequest().json(serde_json::json!({

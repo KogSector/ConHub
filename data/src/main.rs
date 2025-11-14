@@ -98,6 +98,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize Connector Manager
     let connector_manager = std::sync::Arc::new(connectors::ConnectorManager::new(db_pool_opt.clone()));
     tracing::info!("🔌 [Data Service] Connector Manager initialized");
+    
+    // Initialize Ingestion Service
+    let ingestion_service = std::sync::Arc::new(services::IngestionService::new(
+        connector_manager.clone(),
+        std::sync::Arc::new(embedding_client.clone()),
+        db_pool_opt.clone(),
+    ));
+    tracing::info!("🚀 [Data Service] Ingestion Service initialized");
 
     // Initialize GraphQL Schema
     let graphql_schema = graphql::create_schema(db_pool_opt.clone(), connector_manager.clone());
@@ -117,6 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .app_data(web::Data::new(toggles.clone()))
             .app_data(web::Data::new(connector_manager.clone()))
             .app_data(web::Data::new(embedding_client.clone()))
+            .app_data(web::Data::new(ingestion_service.clone()))
             .app_data(web::Data::new(graphql_schema.clone()))
             .wrap(cors)
             .wrap(Logger::default())
@@ -170,6 +179,12 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
             .route("/index/url", web::post().to(handlers::indexing::index_url))
             .route("/index/file", web::post().to(handlers::indexing::index_file))
             .route("/index/status", web::get().to(handlers::indexing::get_indexing_status))
+            
+            // Ingestion routes
+            .route("/ingestion/sync", web::post().to(handlers::ingestion::start_sync_job))
+            .route("/ingestion/jobs", web::get().to(handlers::ingestion::get_active_sync_jobs))
+            .route("/ingestion/jobs/{job_id}", web::get().to(handlers::ingestion::get_sync_job_status))
+            .route("/ingestion/jobs/{job_id}/cancel", web::post().to(handlers::ingestion::cancel_sync_job))
     )
     .service(
         web::scope("/api/connectors")

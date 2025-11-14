@@ -4,6 +4,9 @@ pub mod manager;
 pub mod local_file;
 pub mod github;
 pub mod google_drive;
+pub mod bitbucket;
+pub mod url_scraper;
+pub mod dropbox;
 pub mod slack;
 pub mod error;
 

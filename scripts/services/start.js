@@ -1,215 +1,222 @@
 #!/usr/bin/env node
 
-// Suppress deprecation warnings BEFORE any other requires
-process.env.NODE_OPTIONS = (process.env.NODE_OPTIONS || '') + ' --no-deprecation --no-warnings';
-
-const { spawn, execSync } = require('child_process');
+const { spawn } = require('child_process');
+const http = require('http');
 const path = require('path');
 const fs = require('fs');
-const dotenv = require('dotenv');
 
-// ANSI color codes
-const colors = {
-  cyan: '\x1b[0;36m',
-  green: '\x1b[0;32m',
-  red: '\x1b[0;31m',
-  yellow: '\x1b[1;33m',
-  reset: '\x1b[0m'
+const SERVICES = {
+  auth: { port: 3010, path: 'auth', command: 'cargo', args: ['run'], healthPath: '/health' },
+  data: { port: 3013, path: 'data', command: 'cargo', args: ['run'], healthPath: '/health' },
+  billing: { port: 3011, path: 'billing', command: 'cargo', args: ['run'], healthPath: '/health' },
+  security: { port: 3014, path: 'security', command: 'cargo', args: ['run'], healthPath: '/health' },
+  webhook: { port: 3015, path: 'webhook', command: 'cargo', args: ['run'], healthPath: '/health' },
+  frontend: { port: 3000, path: 'frontend', command: 'npm', args: ['run', 'dev'], healthPath: '/' }
 };
 
-console.log(`${colors.green}[START] Starting ConHub...${colors.reset}`);
+class ServiceManager {
+  constructor() {
+    this.projectRoot = path.resolve(__dirname, '../..');
+    this.processes = new Map();
+  }
 
-// Each service manages its own environment; do not load root .env
-const projectRoot = path.resolve(__dirname, '..', '..');
-
-function readFeatureToggles() {
-  // Always read toggles from the project root for consistency
-  const projectRoot = path.resolve(__dirname, '..', '..');
-  const togglesPath = path.join(projectRoot, 'feature-toggles.json');
-  try {
-    if (!fs.existsSync(togglesPath)) {
-      return { Auth: false, Redis: false, Heavy: false, Docker: false };
+  async checkPrerequisites() {
+    console.log('🔍 Checking prerequisites...');
+    
+    // Check if .env file exists
+    const envPath = path.join(this.projectRoot, '.env');
+    if (!fs.existsSync(envPath)) {
+      console.log('⚠️  .env file not found, using defaults');
+    } else {
+      console.log('✅ .env file found');
     }
-    const content = fs.readFileSync(togglesPath, 'utf8');
-    return JSON.parse(content);
-  } catch (_) {
-    return { Auth: false, Redis: false, Heavy: false, Docker: false };
-  }
-}
 
-// Check if we're in the scripts directory or project root
-const scriptsPackageJson = path.join(__dirname, '../package.json');
-const rootPackageJson = path.join(__dirname, '../../package.json');
+    // Check if database connection string is set
+    if (!process.env.DATABASE_URL_NEON && !process.env.DATABASE_URL) {
+      console.log('⚠️  No database connection string found in environment');
+      console.log('   Set DATABASE_URL_NEON or DATABASE_URL in your .env file');
+    } else {
+      console.log('✅ Database connection string configured');
+    }
 
-if (!fs.existsSync(scriptsPackageJson) && !fs.existsSync(rootPackageJson)) {
-  console.log(`${colors.red}[ERROR] Run from project root or scripts directory${colors.reset}`);
-  process.exit(1);
-}
+    // Check if required directories exist
+    const requiredDirs = ['auth', 'data', 'frontend'];
+    for (const dir of requiredDirs) {
+      const dirPath = path.join(this.projectRoot, dir);
+      if (!fs.existsSync(dirPath)) {
+        console.error(`❌ Required directory missing: ${dir}`);
+        return false;
+      }
+    }
 
-console.log(`${colors.yellow}[CLEANUP] Cleaning up ports and locks...${colors.reset}`);
-const scriptDir = __dirname;
-const cleanupScript = path.join(scriptDir, '../maintenance/cleanup-ports.js');
-if (fs.existsSync(cleanupScript)) {
-  try {
-    execSync(`node "${cleanupScript}"`, { stdio: 'inherit' });
-  } catch (e) {
-    console.log(`${colors.yellow}[WARNING] Cleanup script not found or failed${colors.reset}`);
-  }
-}
-
-const toggles = readFeatureToggles();
-const authEnabled = toggles.Auth === true;
-const redisEnabled = toggles.Redis === true;
-
-console.log(`${colors.cyan}[SERVICES] Starting services (Auth: ${authEnabled ? 'enabled' : 'disabled'}, Redis: ${redisEnabled ? 'enabled' : 'disabled'})...${colors.reset}`);
-console.log('   Frontend:         http://localhost:3000');
-if (authEnabled) console.log('   Auth Service:     http://localhost:3010');
-// Core services always available regardless of Heavy toggle
-if (toggles.Billing === true) {
-  console.log('   Billing Service:  http://localhost:3011');
-} else {
-  console.log('   Billing Service:  disabled (Billing=false)');
-}
-console.log('   AI Service:       http://localhost:3012');
-console.log('   Data Service:     http://localhost:3013');
-console.log('   Security Service: http://localhost:3014');
-console.log('   Webhook Service:  http://localhost:3015');
-// Heavy-only services: embeddings and indexers
-if (toggles.Heavy === true) {
-  console.log('   Indexer Service:  http://localhost:8080');
-  console.log('   Embedding Service:http://localhost:8082');
-} else {
-  console.log('   Indexer Service:  disabled (Heavy=false)');
-  console.log('   Embedding Service:disabled (Heavy=false)');
-}
-console.log('');
-
-// Ensure services can locate feature toggles regardless of their working directory
-process.env.ENV_MODE = 'local';
-// Ensure all services read the same toggles from the project root
-process.env.FEATURE_TOGGLES_PATH = path.join(projectRoot, 'feature-toggles.json');
-// Enable SQLx offline mode to skip compile-time verification
-process.env.SQLX_OFFLINE = 'true';
-
-// Prefer Neon DB if configured; otherwise fall back to local DATABASE_URL
-(() => {
-  const neonUrl = process.env.DATABASE_URL_NEON || process.env.NEON_DATABASE_URL;
-  const localUrl = process.env.DATABASE_URL_LOCAL;
-  const currentUrl = process.env.DATABASE_URL;
-
-  if (neonUrl && neonUrl.trim().length > 0) {
-    process.env.DATABASE_URL = neonUrl.trim();
-  } else if (!currentUrl && localUrl) {
-    process.env.DATABASE_URL = localUrl;
-  } else if (currentUrl) {
-    // use existing DATABASE_URL
-  } else {
-    // no DATABASE_URL found; proceed without logging
+    console.log('✅ All prerequisites checked');
+    return true;
   }
 
-  // Ensure sslmode=require for Neon if not already present
-  if (process.env.DATABASE_URL && /neon/i.test(process.env.DATABASE_URL) && !/sslmode=require/i.test(process.env.DATABASE_URL)) {
-    const hasQuery = process.env.DATABASE_URL.includes('?');
-    process.env.DATABASE_URL = process.env.DATABASE_URL + (hasQuery ? '&' : '?') + 'sslmode=require';
-    // appended sslmode=require for Neon connection
+  async checkServiceHealth(serviceName) {
+    const service = SERVICES[serviceName];
+    if (!service) return false;
+
+    return new Promise((resolve) => {
+      const url = `http://localhost:${service.port}${service.healthPath}`;
+      const req = http.get(url, { timeout: 5000 }, (res) => {
+        resolve(res.statusCode === 200);
+      });
+
+      req.on('error', () => resolve(false));
+      req.on('timeout', () => {
+        req.destroy();
+        resolve(false);
+      });
+    });
   }
-})();
 
-// Use concurrently programmatic API to avoid CLI arg parsing quirks
-const scriptsRoot = path.join(__dirname, '..');
-const isWin = process.platform === 'win32';
-const concurrentlyDefault = require('concurrently').default || require('concurrently');
+  async waitForService(serviceName, timeout = 30000) {
+    console.log(`⏳ Waiting for ${serviceName} to be ready...`);
+    
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeout) {
+      if (await this.checkServiceHealth(serviceName)) {
+        console.log(`✅ ${serviceName} is ready!`);
+        return true;
+      }
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
+    console.log(`⚠️  ${serviceName} may not be fully ready yet, continuing...`);
+    return false;
+  }
 
-const heavyEnabled = toggles.Heavy === true;
+  async startService(serviceName) {
+    if (!SERVICES[serviceName]) {
+      console.error(`❌ Unknown service: ${serviceName}`);
+      return false;
+    }
 
-const names = ['Frontend'];
-const prefixColors = ['cyan'];
-const commands = ['npm --prefix .. run dev:frontend'];
+    const service = SERVICES[serviceName];
+    const servicePath = path.join(this.projectRoot, service.path);
 
-// Auth follows its own toggle, independent of Heavy
-if (authEnabled) {
-  names.push('Auth');
-  prefixColors.push('blue');
-  commands.push('npm --prefix .. run dev:auth');
-}
+    if (!fs.existsSync(servicePath)) {
+      console.error(`❌ Service path not found: ${servicePath}`);
+      return false;
+    }
 
-// Core services should run regardless of Heavy, with Billing gated by toggle
-if (toggles.Billing === true) {
-  names.push('Billing');
-  prefixColors.push('magenta');
-  commands.push('npm --prefix .. run dev:billing');
-}
-names.push('AI','Data','Security','Webhook');
-prefixColors.push('green','yellow','red','gray');
-commands.push(
-  'npm --prefix .. run dev:client',
-  'npm --prefix .. run dev:data',
-  'npm --prefix .. run dev:security',
-  'npm --prefix .. run dev:webhook'
-);
+    console.log(`🚀 Starting ${serviceName} service...`);
 
-// Heavy-only services: start when Heavy=true
-if (heavyEnabled) {
-  names.push('Indexer','Embedding');
-  prefixColors.push('white','white');
-  commands.push(
-    'npm --prefix .. run dev:indexer',
-    'npm --prefix .. run dev:embedding'
-  );
-}
-
-const commandObjs = commands.map((cmd, idx) => ({ command: cmd, name: names[idx] }));
-const concurrentlyOpts = {
-  prefix: 'name',
-  prefixColors,
-  restartTries: 2,
-  killOthersOn: ['failure'],
-  raw: false,
-  cwd: scriptsRoot,
-};
-
-function prebuildRustServices() {
-  const services = [];
-  if (authEnabled) services.push(path.join(projectRoot, 'auth'));
-  services.push(
-    path.join(projectRoot, 'client'),
-    path.join(projectRoot, 'data'),
-    path.join(projectRoot, 'security'),
-    path.join(projectRoot, 'webhook')
-  );
-  if (heavyEnabled) services.push(path.join(projectRoot, 'embedding'));
-  for (const dir of services) {
     try {
-      execSync('cargo fetch', { stdio: 'inherit', cwd: dir });
-      execSync('cargo build', { stdio: 'inherit', cwd: dir });
-    } catch (_) {}
+      const env = { 
+        ...process.env, 
+        NODE_ENV: 'development',
+        DATABASE_URL_NEON: process.env.DATABASE_URL_NEON || ''
+      };
+
+      const childProcess = spawn(service.command, service.args, {
+        cwd: servicePath,
+        env: env,
+        stdio: 'inherit',
+        shell: process.platform === 'win32'
+      });
+
+      this.processes.set(serviceName, childProcess);
+
+      childProcess.on('error', (error) => {
+        console.error(`❌ Failed to start ${serviceName}: ${error.message}`);
+      });
+
+      childProcess.on('exit', (code) => {
+        console.log(`🛑 ${serviceName} exited with code ${code}`);
+        this.processes.delete(serviceName);
+      });
+
+      // Wait a moment to see if it starts successfully
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      if (this.processes.has(serviceName)) {
+        console.log(`✅ ${serviceName} service started on port ${service.port}`);
+        return true;
+      } else {
+        console.error(`❌ ${serviceName} service failed to start`);
+        return false;
+      }
+
+    } catch (error) {
+      console.error(`❌ Failed to start ${serviceName}: ${error.message}`);
+      return false;
+    }
+  }
+
+  async smartStart() {
+    console.log('🚀 ConHub Smart Start');
+    console.log('='.repeat(50));
+
+    // Check prerequisites first
+    const prereqsOk = await this.checkPrerequisites();
+    if (!prereqsOk) {
+      console.error('❌ Prerequisites not met, aborting start');
+      process.exit(1);
+    }
+
+    // Start services in optimal order
+    console.log('\n🚀 Starting services in optimal order...');
+    
+    // 1. Start auth service first (other services depend on it)
+    console.log('\n1️⃣  Starting Auth Service...');
+    await this.startService('auth');
+    await this.waitForService('auth', 30000);
+
+    // 2. Start data service (core backend functionality)
+    console.log('\n2️⃣  Starting Data Service...');
+    await this.startService('data');
+    await this.waitForService('data', 20000);
+
+    // 3. Start other backend services in parallel
+    console.log('\n3️⃣  Starting other backend services...');
+    const otherServices = ['billing', 'security', 'webhook'];
+    await Promise.all(otherServices.map(service => this.startService(service)));
+    
+    // Wait for all backend services
+    for (const service of otherServices) {
+      await this.waitForService(service, 15000);
+    }
+
+    // 4. Start frontend last
+    console.log('\n4️⃣  Starting Frontend...');
+    await this.startService('frontend');
+    await this.waitForService('frontend', 30000);
+
+    console.log('\n🎉 ConHub startup complete!');
+    console.log('🌐 Frontend: http://localhost:3000');
+    console.log('🔐 Auth API: http://localhost:3010');
+    console.log('📊 Data API: http://localhost:3013');
+  }
+
+  async startAll() {
+    return this.smartStart();
+  }
+
+  async startSpecific(services) {
+    console.log(`🚀 Starting services: ${services.join(', ')}`);
+    
+    for (const service of services) {
+      await this.startService(service);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
 }
 
-// Prefer sparse registry to reduce index contention
-process.env.CARGO_REGISTRIES_CRATES_IO_PROTOCOL = 'sparse';
+async function main() {
+  const args = process.argv.slice(2);
+  const serviceManager = new ServiceManager();
 
-prebuildRustServices();
+  if (args.length === 0 || args[0] === 'all') {
+    await serviceManager.startAll();
+  } else {
+    await serviceManager.startSpecific(args);
+  }
+}
 
-// Prefer invoking via npm which sets PATH for node_modules/.bin reliably
-// Run via library to avoid yargs converting --prefix to boolean
-concurrentlyDefault(commandObjs, concurrentlyOpts).result.then(
-  () => process.exit(0),
-  () => process.exit(1)
-);
+if (require.main === module) {
+  main().catch(console.error);
+}
 
-// Note: Docker builds are now controlled by feature-toggles.json (Docker key)
-// Use "npm start" with Docker: true to enable Docker builds
-// Use "npm start" with Docker: false for local development only
-
-// Note: Docker-related functions removed as Docker mode is now handled separately
-// via the Docker toggle feature. Use "npm run docker:stop" to stop Docker containers.
-
-process.on('SIGINT', () => {
-  console.log(`\n${colors.yellow}[STOP] Received SIGINT, stopping all services...${colors.reset}`);
-  process.exit(0);
-});
-process.on('SIGTERM', () => {
-  console.log(`\n${colors.yellow}[STOP] Received SIGTERM, stopping all services...${colors.reset}`);
-  process.exit(0);
-});
+module.exports = ServiceManager;
