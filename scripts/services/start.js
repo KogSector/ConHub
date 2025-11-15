@@ -1,215 +1,393 @@
 #!/usr/bin/env node
 
-// Suppress deprecation warnings BEFORE any other requires
-process.env.NODE_OPTIONS = (process.env.NODE_OPTIONS || '') + ' --no-deprecation --no-warnings';
-
-const { spawn, execSync } = require('child_process');
+const { spawn } = require('child_process');
+const http = require('http');
 const path = require('path');
 const fs = require('fs');
-const dotenv = require('dotenv');
 
-// ANSI color codes
-const colors = {
-  cyan: '\x1b[0;36m',
-  green: '\x1b[0;32m',
-  red: '\x1b[0;31m',
-  yellow: '\x1b[1;33m',
-  reset: '\x1b[0m'
+const SERVICES = {
+  auth: { port: 3010, path: 'auth', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Authentication & JWT' },
+  data: { port: 3013, path: 'data', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Data Sources & Connectors' },
+  billing: { port: 3011, path: 'billing', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Stripe Payments' },
+  security: { port: 3014, path: 'security', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Security & Audit' },
+  webhook: { port: 3015, path: 'webhook', command: 'cargo', args: ['run'], healthPath: '/health', description: 'External Webhooks' },
+  client: { port: 3012, path: 'client', command: 'cargo', args: ['run'], healthPath: '/health', description: 'AI Client Service' },
+  backend: { port: 8000, path: 'backend', command: 'cargo', args: ['run'], healthPath: '/health', description: 'GraphQL Gateway' },
+  embedding: { port: 8082, path: 'embedding', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Fusion Embeddings' },
+  indexers: { port: 8080, path: 'indexers', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Search & Indexing' },
+  frontend: { port: 3000, path: 'frontend', command: 'npm.cmd', args: ['run', 'dev'], healthPath: '/', description: 'Next.js UI' }
 };
 
-console.log(`${colors.green}[START] Starting ConHub...${colors.reset}`);
+class ServiceManager {
+  constructor() {
+    this.projectRoot = path.resolve(__dirname, '../..');
+    this.processes = new Map();
+    this.serviceStatus = new Map();
+  }
 
-// Each service manages its own environment; do not load root .env
-const projectRoot = path.resolve(__dirname, '..', '..');
+  async checkPrerequisites() {
+    console.log('🔍 Checking prerequisites...');
 
-function readFeatureToggles() {
-  // Always read toggles from the project root for consistency
-  const projectRoot = path.resolve(__dirname, '..', '..');
-  const togglesPath = path.join(projectRoot, 'feature-toggles.json');
-  try {
-    if (!fs.existsSync(togglesPath)) {
-      return { Auth: false, Redis: false, Heavy: false, Docker: false };
+    // Check if required directories exist and have .env files
+    const serviceNames = Object.keys(SERVICES);
+    let allEnvFilesPresent = true;
+
+    for (const serviceName of serviceNames) {
+      const service = SERVICES[serviceName];
+      const dirPath = path.join(this.projectRoot, service.path);
+
+      if (!fs.existsSync(dirPath)) {
+        console.error(`❌ Required directory missing: ${service.path}`);
+        return false;
+      }
+
+      // Check if each service has its own .env file
+      const serviceEnvPath = path.join(dirPath, '.env');
+      if (!fs.existsSync(serviceEnvPath)) {
+        console.log(`⚠️  ${serviceName} service missing .env file`);
+        allEnvFilesPresent = false;
+      }
     }
-    const content = fs.readFileSync(togglesPath, 'utf8');
-    return JSON.parse(content);
-  } catch (_) {
-    return { Auth: false, Redis: false, Heavy: false, Docker: false };
-  }
-}
 
-// Check if we're in the scripts directory or project root
-const scriptsPackageJson = path.join(__dirname, '../package.json');
-const rootPackageJson = path.join(__dirname, '../../package.json');
-
-if (!fs.existsSync(scriptsPackageJson) && !fs.existsSync(rootPackageJson)) {
-  console.log(`${colors.red}[ERROR] Run from project root or scripts directory${colors.reset}`);
-  process.exit(1);
-}
-
-console.log(`${colors.yellow}[CLEANUP] Cleaning up ports and locks...${colors.reset}`);
-const scriptDir = __dirname;
-const cleanupScript = path.join(scriptDir, '../maintenance/cleanup-ports.js');
-if (fs.existsSync(cleanupScript)) {
-  try {
-    execSync(`node "${cleanupScript}"`, { stdio: 'inherit' });
-  } catch (e) {
-    console.log(`${colors.yellow}[WARNING] Cleanup script not found or failed${colors.reset}`);
-  }
-}
-
-const toggles = readFeatureToggles();
-const authEnabled = toggles.Auth === true;
-const redisEnabled = toggles.Redis === true;
-
-console.log(`${colors.cyan}[SERVICES] Starting services (Auth: ${authEnabled ? 'enabled' : 'disabled'}, Redis: ${redisEnabled ? 'enabled' : 'disabled'})...${colors.reset}`);
-console.log('   Frontend:         http://localhost:3000');
-if (authEnabled) console.log('   Auth Service:     http://localhost:3010');
-// Core services always available regardless of Heavy toggle
-if (toggles.Billing === true) {
-  console.log('   Billing Service:  http://localhost:3011');
-} else {
-  console.log('   Billing Service:  disabled (Billing=false)');
-}
-console.log('   AI Service:       http://localhost:3012');
-console.log('   Data Service:     http://localhost:3013');
-console.log('   Security Service: http://localhost:3014');
-console.log('   Webhook Service:  http://localhost:3015');
-// Heavy-only services: embeddings and indexers
-if (toggles.Heavy === true) {
-  console.log('   Indexer Service:  http://localhost:8080');
-  console.log('   Embedding Service:http://localhost:8082');
-} else {
-  console.log('   Indexer Service:  disabled (Heavy=false)');
-  console.log('   Embedding Service:disabled (Heavy=false)');
-}
-console.log('');
-
-// Ensure services can locate feature toggles regardless of their working directory
-process.env.ENV_MODE = 'local';
-// Ensure all services read the same toggles from the project root
-process.env.FEATURE_TOGGLES_PATH = path.join(projectRoot, 'feature-toggles.json');
-// Enable SQLx offline mode to skip compile-time verification
-process.env.SQLX_OFFLINE = 'true';
-
-// Prefer Neon DB if configured; otherwise fall back to local DATABASE_URL
-(() => {
-  const neonUrl = process.env.DATABASE_URL_NEON || process.env.NEON_DATABASE_URL;
-  const localUrl = process.env.DATABASE_URL_LOCAL;
-  const currentUrl = process.env.DATABASE_URL;
-
-  if (neonUrl && neonUrl.trim().length > 0) {
-    process.env.DATABASE_URL = neonUrl.trim();
-  } else if (!currentUrl && localUrl) {
-    process.env.DATABASE_URL = localUrl;
-  } else if (currentUrl) {
-    // use existing DATABASE_URL
-  } else {
-    // no DATABASE_URL found; proceed without logging
+    if (allEnvFilesPresent) {
+      console.log('✅ All microservices have proper environment variables. ✅ Prerequisites checked');
+    } else {
+      console.log('⚠️  Some microservices are missing .env files. ✅ Prerequisites checked');
+    }
+    return true;
   }
 
-  // Ensure sslmode=require for Neon if not already present
-  if (process.env.DATABASE_URL && /neon/i.test(process.env.DATABASE_URL) && !/sslmode=require/i.test(process.env.DATABASE_URL)) {
-    const hasQuery = process.env.DATABASE_URL.includes('?');
-    process.env.DATABASE_URL = process.env.DATABASE_URL + (hasQuery ? '&' : '?') + 'sslmode=require';
-    // appended sslmode=require for Neon connection
+  async checkServiceHealth(serviceName) {
+    const service = SERVICES[serviceName];
+    if (!service) return false;
+
+    return new Promise((resolve) => {
+      const url = `http://localhost:${service.port}${service.healthPath}`;
+      const req = http.get(url, { timeout: 5000 }, (res) => {
+        resolve(res.statusCode === 200);
+      });
+
+      req.on('error', () => resolve(false));
+      req.on('timeout', () => {
+        req.destroy();
+        resolve(false);
+      });
+    });
   }
-})();
 
-// Use concurrently programmatic API to avoid CLI arg parsing quirks
-const scriptsRoot = path.join(__dirname, '..');
-const isWin = process.platform === 'win32';
-const concurrentlyDefault = require('concurrently').default || require('concurrently');
+  async waitForService(serviceName, timeout = 30000) {
+    console.log(`⏳ Waiting for ${serviceName}...`);
 
-const heavyEnabled = toggles.Heavy === true;
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeout) {
+      if (await this.checkServiceHealth(serviceName)) {
+        console.log(`✅ ${serviceName} ready!`);
+        this.updateServiceStatus(serviceName, 'HEALTHY', 'Health check passed');
+        return true;
+      }
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
 
-const names = ['Frontend'];
-const prefixColors = ['cyan'];
-const commands = ['npm --prefix .. run dev:frontend'];
+    console.log(`⚠️  ${serviceName} health check timeout, but process may still be starting...`);
+    this.updateServiceStatus(serviceName, 'RUNNING', 'Health check timeout');
+    return false;
+  }
 
-// Auth follows its own toggle, independent of Heavy
-if (authEnabled) {
-  names.push('Auth');
-  prefixColors.push('blue');
-  commands.push('npm --prefix .. run dev:auth');
-}
+  updateServiceStatus(serviceName, status, details = '') {
+    this.serviceStatus.set(serviceName, {
+      status,
+      details,
+      timestamp: new Date().toISOString(),
+      port: SERVICES[serviceName]?.port
+    });
+  }
 
-// Core services should run regardless of Heavy, with Billing gated by toggle
-if (toggles.Billing === true) {
-  names.push('Billing');
-  prefixColors.push('magenta');
-  commands.push('npm --prefix .. run dev:billing');
-}
-names.push('AI','Data','Security','Webhook');
-prefixColors.push('green','yellow','red','gray');
-commands.push(
-  'npm --prefix .. run dev:client',
-  'npm --prefix .. run dev:data',
-  'npm --prefix .. run dev:security',
-  'npm --prefix .. run dev:webhook'
-);
+  printServiceStatus() {
+    console.log('\n📊 SERVICE STATUS OVERVIEW');
+    console.log('='.repeat(60));
+    console.log('Service'.padEnd(12) + 'Port'.padEnd(8) + 'Status');
+    console.log('-'.repeat(60));
+    
+    for (const [serviceName, service] of Object.entries(SERVICES)) {
+      const status = this.serviceStatus.get(serviceName) || { status: 'NOT_STARTED', details: '' };
+      const statusIcon = {
+        'STARTING': '🟡',
+        'RUNNING': '🟢',
+        'HEALTHY': '✅',
+        'FAILED': '🔴',
+        'STOPPED': '⚫',
+        'NOT_STARTED': '⚪'
+      }[status.status] || '❓';
+      
+      console.log(
+        serviceName.padEnd(12) + 
+        service.port.toString().padEnd(8) + 
+        `${statusIcon} ${status.status}`
+      );
+    }
+    console.log('='.repeat(60));
+  }
 
-// Heavy-only services: start when Heavy=true
-if (heavyEnabled) {
-  names.push('Indexer','Embedding');
-  prefixColors.push('white','white');
-  commands.push(
-    'npm --prefix .. run dev:indexer',
-    'npm --prefix .. run dev:embedding'
-  );
-}
+  async runCommand(cwd, command, args, env) {
+    return new Promise((resolve) => {
+      const proc = spawn(command, args, {
+        cwd,
+        env,
+        stdio: ['ignore', 'pipe', 'inherit'],
+        shell: process.platform === 'win32' && command.endsWith('.cmd')
+      });
+      proc.stdout.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(line => line.trim());
+        lines.forEach(line => console.log(`[build] ${line}`));
+      });
+      proc.on('exit', (code) => resolve(code === 0));
+      proc.on('error', () => resolve(false));
+    });
+  }
 
-const commandObjs = commands.map((cmd, idx) => ({ command: cmd, name: names[idx] }));
-const concurrentlyOpts = {
-  prefix: 'name',
-  prefixColors,
-  restartTries: 2,
-  killOthersOn: ['failure'],
-  raw: false,
-  cwd: scriptsRoot,
-};
+  async startService(serviceName, toggles) {
+    if (!SERVICES[serviceName]) {
+      console.error(`❌ Unknown service: ${serviceName}`);
+      this.updateServiceStatus(serviceName, 'FAILED', 'Unknown service');
+      return false;
+    }
 
-function prebuildRustServices() {
-  const services = [];
-  if (authEnabled) services.push(path.join(projectRoot, 'auth'));
-  services.push(
-    path.join(projectRoot, 'client'),
-    path.join(projectRoot, 'data'),
-    path.join(projectRoot, 'security'),
-    path.join(projectRoot, 'webhook')
-  );
-  if (heavyEnabled) services.push(path.join(projectRoot, 'embedding'));
-  for (const dir of services) {
+    const service = SERVICES[serviceName];
+    const servicePath = path.join(this.projectRoot, service.path);
+
+    if (!fs.existsSync(servicePath)) {
+      console.error(`❌ Service path not found: ${servicePath}`);
+      this.updateServiceStatus(serviceName, 'FAILED', 'Path not found');
+      return false;
+    }
+
+    console.log(`🚀 Starting ${serviceName} on port ${service.port}...`);
+    this.updateServiceStatus(serviceName, 'STARTING', 'Initializing...');
+
     try {
-      execSync('cargo fetch', { stdio: 'inherit', cwd: dir });
-      execSync('cargo build', { stdio: 'inherit', cwd: dir });
-    } catch (_) {}
+      const isProd = !!(toggles && toggles.Prod);
+      const env = { 
+        ...process.env, 
+        NODE_ENV: isProd ? 'production' : 'development'
+      };
+
+      const featureTogglesPath = path.join(this.projectRoot, 'feature-toggles.json');
+      env.FEATURE_TOGGLES_PATH = featureTogglesPath;
+
+      let command = service.command;
+      let args = [...service.args];
+
+      if (isProd) {
+        if (service.command === 'cargo') {
+          command = 'cargo';
+          args = ['run', '--release'];
+        }
+        if (serviceName === 'frontend') {
+          const built = await this.runCommand(servicePath, 'npm.cmd', ['run', 'build'], env);
+          if (!built) {
+            console.error('❌ frontend build failed');
+            this.updateServiceStatus(serviceName, 'FAILED', 'Build failed');
+            return false;
+          }
+          command = 'npm.cmd';
+          args = ['start'];
+        }
+      }
+
+      const childProcess = spawn(command, args, {
+        cwd: servicePath,
+        env: env,
+        stdio: ['ignore', 'pipe', 'inherit'],
+        shell: process.platform === 'win32' && command.endsWith('.cmd')
+      });
+
+      childProcess.stdout.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(line => line.trim());
+        lines.forEach(line => console.log(`[${serviceName}] ${line}`));
+      });
+
+      this.processes.set(serviceName, childProcess);
+
+      childProcess.on('error', (error) => {
+        console.error(`❌ Failed to start ${serviceName}: ${error.message}`);
+        this.updateServiceStatus(serviceName, 'FAILED', error.message);
+      });
+
+      childProcess.on('exit', (code) => {
+        console.log(`🛑 ${serviceName} exited with code ${code}`);
+        this.updateServiceStatus(serviceName, 'STOPPED', `Exit code: ${code}`);
+        this.processes.delete(serviceName);
+      });
+
+      // Wait a moment to see if it starts successfully
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      if (this.processes.has(serviceName)) {
+        console.log(`✅ ${serviceName} started`);
+        this.updateServiceStatus(serviceName, 'RUNNING', 'Process active');
+        return true;
+      } else {
+        console.error(`❌ ${serviceName} process failed to start`);
+        this.updateServiceStatus(serviceName, 'FAILED', 'Process died immediately');
+        return false;
+      }
+
+    } catch (error) {
+      console.error(`❌ Failed to start ${serviceName}: ${error.message}`);
+      this.updateServiceStatus(serviceName, 'FAILED', error.message);
+      return false;
+    }
+  }
+
+  async checkFeatureToggles() {
+    const togglePath = path.join(this.projectRoot, 'feature-toggles.json');
+    if (fs.existsSync(togglePath)) {
+      try {
+        const toggles = JSON.parse(fs.readFileSync(togglePath, 'utf8'));
+        return toggles;
+      } catch (error) {
+        
+      }
+    }
+    return { Auth: true, Heavy: false, Docker: false, Redis: true };
+  }
+
+  async smartStart() {
+    console.log('🚀 ConHub Comprehensive Service Manager');
+    console.log('='.repeat(60));
+
+    // Check feature toggles
+    const toggles = await this.checkFeatureToggles();
+
+    // Check prerequisites first
+    const prereqsOk = await this.checkPrerequisites();
+    if (!prereqsOk) {
+      console.error('❌ Prerequisites not met, aborting start');
+      process.exit(1);
+    }
+
+    // Initialize all service statuses
+    for (const serviceName of Object.keys(SERVICES)) {
+      this.updateServiceStatus(serviceName, 'NOT_STARTED', 'Waiting to start');
+    }
+
+    
+
+    // Start services in optimal order based on dependencies
+    console.log('\n🚀 Starting services... ');
+    if (toggles.Auth) {
+      await this.startService('auth', toggles);
+      await this.waitForService('auth', 30000);
+      console.log('');
+    }
+
+
+    await this.startService('data', toggles);
+    await this.waitForService('data', 25000);
+    console.log('');
+
+    const supportServices = ['billing', 'security', 'webhook', 'client'];
+    for (const service of supportServices) {
+      await this.startService(service, toggles);
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Stagger starts
+      await this.waitForService(service, 15000);
+      console.log('');
+    }
+
+    if (toggles.Heavy) {
+      const heavyServices = ['embedding', 'indexers'];
+      for (const service of heavyServices) {
+        await this.startService(service, toggles);
+        await this.waitForService(service, 20000);
+        console.log('');
+      }
+    }
+
+
+    await this.startService('backend', toggles);
+    await this.waitForService('backend', 25000);
+    console.log('');
+
+
+    await this.startService('frontend', toggles);
+    await this.waitForService('frontend', 60000);
+    console.log('');
+
+    // Print final comprehensive status
+    console.log('\n');
+    this.printServiceStatus();
+    
+    console.log('\n🎉 ConHub startup sequence complete!');
+    console.log('\n🌐 ACCESS POINTS:');
+    console.log('   🌐 Frontend:     http://localhost:3000');
+    console.log('   🔗 GraphQL API:  http://localhost:8000/api/graphql');
+    console.log('   🔐 Auth API:     http://localhost:3010/health');
+    console.log('   📊 Data API:     http://localhost:3013/health');
+    console.log('   🤖 AI Service:   http://localhost:3012/health');
+    if (toggles.Heavy) {
+      console.log('   🧠 Embeddings:   http://localhost:8082/health');
+      console.log('   🔍 Search:       http://localhost:8080/health');
+    }
+    
+    console.log('\n💡 Use Ctrl+C to stop all services');
+    console.log('📊 Run "npm run status" to check service health anytime');
+  }
+
+  async startAll() {
+    return this.smartStart();
+  }
+
+  async checkAllServices() {
+    console.log('🔍 ConHub Service Health Check');
+    console.log('='.repeat(50));
+    
+    for (const [serviceName, service] of Object.entries(SERVICES)) {
+      const isHealthy = await this.checkServiceHealth(serviceName);
+      const status = isHealthy ? 'HEALTHY' : 'UNHEALTHY';
+      this.updateServiceStatus(serviceName, status, isHealthy ? 'Health check passed' : 'Health check failed');
+    }
+    
+    this.printServiceStatus();
+  }
+
+  async startSpecific(services) {
+    console.log(`🚀 Starting services: ${services.join(', ')}`);
+    
+    for (const service of services) {
+      await this.startService(service);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
 }
 
-// Prefer sparse registry to reduce index contention
-process.env.CARGO_REGISTRIES_CRATES_IO_PROTOCOL = 'sparse';
+async function main() {
+  const args = process.argv.slice(2);
+  const serviceManager = new ServiceManager();
 
-prebuildRustServices();
+  if (args.length === 0 || args[0] === 'all') {
+    await serviceManager.startAll();
+  } else {
+    await serviceManager.startSpecific(args);
+  }
+}
 
-// Prefer invoking via npm which sets PATH for node_modules/.bin reliably
-// Run via library to avoid yargs converting --prefix to boolean
-concurrentlyDefault(commandObjs, concurrentlyOpts).result.then(
-  () => process.exit(0),
-  () => process.exit(1)
-);
-
-// Note: Docker builds are now controlled by feature-toggles.json (Docker key)
-// Use "npm start" with Docker: true to enable Docker builds
-// Use "npm start" with Docker: false for local development only
-
-// Note: Docker-related functions removed as Docker mode is now handled separately
-// via the Docker toggle feature. Use "npm run docker:stop" to stop Docker containers.
-
-process.on('SIGINT', () => {
-  console.log(`\n${colors.yellow}[STOP] Received SIGINT, stopping all services...${colors.reset}`);
+// Graceful shutdown handling
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Received SIGINT, shutting down gracefully...');
+  const { stopAllServices } = require('./stop.js');
+  await stopAllServices();
   process.exit(0);
 });
-process.on('SIGTERM', () => {
-  console.log(`\n${colors.yellow}[STOP] Received SIGTERM, stopping all services...${colors.reset}`);
+
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
+  const { stopAllServices } = require('./stop.js');
+  await stopAllServices();
   process.exit(0);
 });
+
+if (require.main === module) {
+  main().catch(console.error);
+}
+
+module.exports = ServiceManager;

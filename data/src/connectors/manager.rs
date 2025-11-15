@@ -11,6 +11,9 @@ use super::error::ConnectorError;
 use super::local_file::LocalFileConnector;
 use super::github::GitHubConnector;
 use super::google_drive::GoogleDriveConnector;
+use super::bitbucket::BitbucketConnector;
+use super::url_scraper::UrlScraperConnector;
+use super::dropbox::DropboxConnector;
 use super::slack::SlackConnector;
 
 /// Manages all connectors and their instances
@@ -56,6 +59,24 @@ impl ConnectorManager {
         self.factories.insert(
             ConnectorType::GoogleDrive,
             Arc::new(GoogleDriveConnector::factory()),
+        );
+        
+        // Bitbucket connector
+        self.factories.insert(
+            ConnectorType::Bitbucket,
+            Arc::new(BitbucketConnector::factory()),
+        );
+        
+        // URL scraper connector
+        self.factories.insert(
+            ConnectorType::UrlScraper,
+            Arc::new(UrlScraperConnector::factory()),
+        );
+        
+        // Dropbox connector
+        self.factories.insert(
+            ConnectorType::Dropbox,
+            Arc::new(DropboxConnector::factory()),
         );
 
         // Slack connector

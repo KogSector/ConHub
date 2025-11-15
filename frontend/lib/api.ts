@@ -92,7 +92,7 @@ export class ApiClient {
   constructor(baseUrl = API_CONFIG.baseUrl) {
     this.baseUrl = baseUrl;
     this.authBaseUrl = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || process.env.AUTH_SERVICE_URL || 'http://localhost:3010';
-    this.billingEnabled = (process.env.NEXT_PUBLIC_BILLING_ENABLED ?? 'false').toLowerCase() === 'true';
+    this.billingEnabled = true;
     
     if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       console.log('API Client initialized with baseUrl:', this.baseUrl);
@@ -102,12 +102,6 @@ export class ApiClient {
   private resolveBase(endpoint: string): string {
     if (endpoint.startsWith('/api/auth')) return this.authBaseUrl;
     return this.baseUrl;
-  }
-
-  private guardBilling(endpoint: string) {
-    if (!this.billingEnabled && endpoint.startsWith('/api/billing')) {
-      throw new Error('Billing is disabled in this environment');
-    }
   }
 
   private async handleGraphQLResponse<T>(response: Response): Promise<T> {
@@ -147,7 +141,6 @@ export class ApiClient {
 
   async get<T = unknown>(endpoint: string, headers: Record<string, string> = {}): Promise<T> {
     try {
-      this.guardBilling(endpoint);
       const response = await fetch(`${this.resolveBase(endpoint)}${endpoint}`, {
         method: 'GET',
         headers: {
@@ -181,7 +174,6 @@ export class ApiClient {
   }
   async post<T = unknown>(endpoint: string, data: unknown, headers: Record<string, string> = {}): Promise<T> {
     try {
-      this.guardBilling(endpoint);
       const response = await fetch(`${this.resolveBase(endpoint)}${endpoint}`, {
         method: 'POST',
         headers: {
@@ -198,7 +190,6 @@ export class ApiClient {
   }
   async postForm<T = unknown>(endpoint: string, form: FormData, headers: Record<string, string> = {}): Promise<T> {
     try {
-      this.guardBilling(endpoint);
       const response = await fetch(`${this.resolveBase(endpoint)}${endpoint}`, {
         method: 'POST',
         headers: {
@@ -214,7 +205,6 @@ export class ApiClient {
   }
   async put<T = unknown>(endpoint: string, data: unknown, headers: Record<string, string> = {}): Promise<T> {
     try {
-      this.guardBilling(endpoint);
       const response = await fetch(`${this.resolveBase(endpoint)}${endpoint}`, {
         method: 'PUT',
         headers: {
@@ -231,7 +221,6 @@ export class ApiClient {
   }
   async delete<T = unknown>(endpoint: string, headers: Record<string, string> = {}): Promise<T> {
     try {
-      this.guardBilling(endpoint);
       const response = await fetch(`${this.resolveBase(endpoint)}${endpoint}`, {
         method: 'DELETE',
         headers: {
@@ -366,7 +355,7 @@ export async function importDocumentFromProvider(data: {
   return dataApiClient.post('/api/data/documents/import', data);
 }
 
-export async function listConnections(): Promise<ApiResponse<any>> {
+export async function listConnections(): Promise<ApiResponse> {
   return securityApiClient.get('/api/security/connections');
 }
 

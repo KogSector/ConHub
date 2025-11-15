@@ -2,8 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { apiClient, ApiResponse } from '@/lib/api';
-import { API_CONFIG } from '@/lib/config';
+import { apiClient, ApiResponse, unwrapResponse } from '@/lib/api';
 import { isLoginEnabled } from '@/lib/feature-toggles';
 // Use a fixed dev user ID to avoid bundling issues with uuid in client
 
@@ -242,16 +241,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         router.push('/dashboard')
         return
       }
-      const result = await apiClient.post<ApiResponse<AuthResponse>>('/api/auth/login', { email, password })
+      const result = await apiClient.post('/api/auth/login', { email, password })
+      const data = unwrapResponse<AuthResponse>(result)
 
-      if (result?.success && result.data) {
-        const data: AuthResponse = result.data
+      if (data && data.user && data.token) {
         setUser(data.user)
         setToken(data.token)
         saveSession(data.token, data.expires_at)
         router.push('/dashboard')
       } else {
-        throw new Error(result?.error || 'Login failed')
+        throw new Error('Login failed')
       }
     } catch (error) {
       console.error('Login error:', error)
@@ -271,16 +270,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         router.push('/dashboard')
         return
       }
-      const result = await apiClient.post<ApiResponse<AuthResponse>>('/api/auth/register', data)
+      const result = await apiClient.post('/api/auth/register', data)
+      const authData = unwrapResponse<AuthResponse>(result)
 
-      if (result?.success && result.data) {
-        const authData: AuthResponse = result.data
+      if (authData && authData.user && authData.token) {
         setUser(authData.user)
         setToken(authData.token)
         saveSession(authData.token, authData.expires_at)
         router.push('/dashboard')
       } else {
-        throw new Error(result?.error || 'Registration failed')
+        throw new Error('Registration failed')
       }
     } catch (error) {
       console.error('Registration error:', error)

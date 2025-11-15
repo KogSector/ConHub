@@ -16,3 +16,7 @@ export const isHeavyModeEnabled = (): boolean => {
 export const isDockerEnabled = (): boolean => {
   return isFeatureEnabled('Docker');
 }
+
+export const isProdEnabled = (): boolean => {
+  return isFeatureEnabled('Prod');
+}

@@ -14,6 +14,7 @@ pub enum OAuthProvider {
     Google,
     Microsoft,
     GitHub,
+    Bitbucket,
 }
 
 impl std::fmt::Display for OAuthProvider {
@@ -22,6 +23,7 @@ impl std::fmt::Display for OAuthProvider {
             OAuthProvider::Google => write!(f, "google"),
             OAuthProvider::Microsoft => write!(f, "microsoft"),
             OAuthProvider::GitHub => write!(f, "github"),
+            OAuthProvider::Bitbucket => write!(f, "bitbucket"),
         }
     }
 }
@@ -70,6 +72,8 @@ pub struct OAuthService {
     microsoft_client_secret: String,
     github_client_id: String,
     github_client_secret: String,
+    bitbucket_client_id: String,
+    bitbucket_client_secret: String,
     redirect_uri: String,
 }
 
@@ -84,6 +88,8 @@ impl OAuthService {
             microsoft_client_secret: std::env::var("MICROSOFT_CLIENT_SECRET").unwrap_or_default(),
             github_client_id: std::env::var("GITHUB_CLIENT_ID").unwrap_or_default(),
             github_client_secret: std::env::var("GITHUB_CLIENT_SECRET").unwrap_or_default(),
+            bitbucket_client_id: std::env::var("BITBUCKET_CLIENT_ID").unwrap_or_default(),
+            bitbucket_client_secret: std::env::var("BITBUCKET_CLIENT_SECRET").unwrap_or_default(),
             redirect_uri: std::env::var("OAUTH_REDIRECT_URI")
                 .unwrap_or_else(|_| "http://localhost:3000/auth/callback".to_string()),
         }
@@ -132,6 +138,21 @@ impl OAuthService {
                     state
                 )
             }
+            OAuthProvider::Bitbucket => {
+                let scopes = ["repository:read", "account", "email"].join(" ");
+                format!(
+                    "https://bitbucket.org/site/oauth2/authorize?\
+                    client_id={}&\
+                    redirect_uri={}&\
+                    response_type=code&\
+                    scope={}&\
+                    state={}",
+                    self.bitbucket_client_id,
+                    urlencoding::encode(&self.redirect_uri),
+                    urlencoding::encode(&scopes),
+                    state
+                )
+            }
         }
     }
 
@@ -145,6 +166,7 @@ impl OAuthService {
             OAuthProvider::Google => self.exchange_google_code(code).await,
             OAuthProvider::Microsoft => self.exchange_microsoft_code(code).await,
             OAuthProvider::GitHub => self.exchange_github_code(code).await,
+            OAuthProvider::Bitbucket => self.exchange_bitbucket_code(code).await,
         }
     }
 
@@ -217,6 +239,28 @@ impl OAuthService {
         Ok(response.json().await?)
     }
 
+    async fn exchange_bitbucket_code(&self, code: &str) -> Result<OAuthTokenResponse> {
+        let params = [
+            ("grant_type", "authorization_code"),
+            ("code", code),
+            ("redirect_uri", &self.redirect_uri),
+        ];
+
+        let response = self.client
+            .post("https://bitbucket.org/site/oauth2/access_token")
+            .basic_auth(&self.bitbucket_client_id, Some(&self.bitbucket_client_secret))
+            .form(&params)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let error_text = response.text().await?;
+            return Err(anyhow!("Bitbucket token exchange failed: {}", error_text));
+        }
+
+        Ok(response.json().await?)
+    }
+
     
     pub async fn get_user_info(
         &self,
@@ -268,6 +312,37 @@ impl OAuthService {
                     email,
                     user_info.name.unwrap_or(user_info.login),
                     user_info.avatar_url,
+                ))
+            }
+            OAuthProvider::Bitbucket => {
+                let user: serde_json::Value = self.client
+                    .get("https://api.bitbucket.org/2.0/user")
+                    .bearer_auth(access_token)
+                    .send()
+                    .await?
+                    .json()
+                    .await?;
+
+                let emails: serde_json::Value = self.client
+                    .get("https://api.bitbucket.org/2.0/user/emails")
+                    .bearer_auth(access_token)
+                    .send()
+                    .await?
+                    .json()
+                    .await?;
+
+                let email = emails["values"].as_array().unwrap_or(&vec![])
+                    .iter()
+                    .find(|e| e["is_primary"].as_bool().unwrap_or(false) && e["is_confirmed"].as_bool().unwrap_or(false))
+                    .and_then(|e| e["email"].as_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                Ok((
+                    user["uuid"].as_str().unwrap_or("").to_string(),
+                    email,
+                    user["display_name"].as_str().unwrap_or("").to_string(),
+                    None,
                 ))
             }
         }

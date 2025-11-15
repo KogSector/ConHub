@@ -140,7 +140,7 @@ export function RegisterForm() {
       const errorMessage = err instanceof Error ? err.message : 'Registration failed'
       
       
-      if (errorMessage.includes('User with this email already exists')) {
+      if (errorMessage.toLowerCase().includes('already exists')) {
         setError('An account with this email already exists. Please sign in instead.')
       } else {
         setError(errorMessage)

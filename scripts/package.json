@@ -4,10 +4,9 @@
   "description": "ConHub orchestration and utility scripts",
   "type": "commonjs",
   "scripts": {
-    "start": "node services/smart-start.js",
+    "start": "node services/start.js",
     "stop": "node services/stop.js",
     "status": "node services/status.js",
-    "dev:concurrently": "concurrently --names Frontend,Auth,Billing,AI,Data,Security,Webhook,MCP-Svc,MCP-GDrive,MCP-FS,MCP-Dropbox --prefix-colors cyan,blue,magenta,green,yellow,red,gray,bgBlue,bgGreen,bgYellow,bgMagenta --restart-tries 2 --kill-others-on-fail \"npm --prefix .. run dev:frontend\" \"npm --prefix .. run dev:auth\" \"npm --prefix .. run dev:billing\" \"npm --prefix .. run dev:client\" \"npm --prefix .. run dev:data\" \"npm --prefix .. run dev:security\" \"npm --prefix .. run dev:webhook\" \"npm --prefix .. run dev:mcp-service\" \"echo 'MCP GDrive not implemented'\" \"echo 'MCP FS not implemented'\" \"echo 'MCP Dropbox not implemented'\"",
     "docker:setup": "node docker/setup-and-run.js",
     "docker:start": "node docker/setup-and-run.js --start-only",
     "docker:stop": "node docker/stop.js",
@@ -19,12 +18,11 @@
     "docker:force-stop": "node docker/stop.js --force",
     "cleanup": "node maintenance/cleanup-ports.js",
     "force-stop": "node maintenance/force-stop.js",
-    "test:local": "node test/validate-setup.js local",
-    "test:docker": "node test/validate-setup.js docker",
-    "db:clear": "node database/clear-database.js",
-    "db:test": "node database/test-connection.js",
-    "db:reset-password": "node database/reset-postgres-password.js",
-    "db:start": "node database/start-docker-postgres.js"
+    "test": "cd ../tests && pytest -v",
+    "db:health": "python database_manager.py health",
+    "db:users": "python database_manager.py list-users",
+    "db:clean": "node database/reset-database.js --clean",
+    "db:drop": "node database/reset-database.js --drop"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

@@ -8,6 +8,7 @@ use sqlx::PgPool;
 use serde_json::json;
 use tokio::sync::RwLock;
 use rsa::{RsaPrivateKey, RsaPublicKey, pkcs1::DecodeRsaPrivateKey, pkcs1::EncodeRsaPrivateKey, pkcs1::DecodeRsaPublicKey, pkcs1::EncodeRsaPublicKey};
+use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey};
 use jsonwebtoken::{encode, decode, Header, Algorithm, EncodingKey, DecodingKey, Validation};
 use governor::{Quota, RateLimiter, state::{InMemoryState, NotKeyed}, clock::DefaultClock};
 use nonzero_ext::*;
@@ -51,30 +52,70 @@ impl SecurityService {
     }
     
     async fn load_or_generate_keys() -> Result<(RsaPrivateKey, RsaPublicKey), Box<dyn std::error::Error>> {
-        // Try to load keys from environment variables first
+        if let (Ok(private_path), Ok(public_path)) = (
+            std::env::var("JWT_PRIVATE_KEY_PATH"),
+            std::env::var("JWT_PUBLIC_KEY_PATH")
+        ) {
+            let private_pem = std::fs::read_to_string(private_path)?;
+            let public_pem = std::fs::read_to_string(public_path)?;
+            let private_key = match RsaPrivateKey::from_pkcs1_pem(&private_pem) {
+                Ok(k) => k,
+                Err(_) => RsaPrivateKey::from_pkcs8_pem(&private_pem)?,
+            };
+            let public_key = match RsaPublicKey::from_pkcs1_pem(&public_pem) {
+                Ok(k) => k,
+                Err(_) => RsaPublicKey::from_public_key_pem(&public_pem)?,
+            };
+            return Ok((private_key, public_key));
+        }
+
+        if let (Ok(private_pem), Ok(public_pem)) = (
+            std::env::var("JWT_PRIVATE_KEY"),
+            std::env::var("JWT_PUBLIC_KEY")
+        ) {
+            let private_key = match RsaPrivateKey::from_pkcs1_pem(&private_pem) {
+                Ok(k) => k,
+                Err(_) => RsaPrivateKey::from_pkcs8_pem(&private_pem)?,
+            };
+            let public_key = match RsaPublicKey::from_pkcs1_pem(&public_pem) {
+                Ok(k) => k,
+                Err(_) => RsaPublicKey::from_public_key_pem(&public_pem)?,
+            };
+            return Ok((private_key, public_key));
+        }
+
         if let (Ok(private_pem), Ok(public_pem)) = (
             std::env::var("RSA_PRIVATE_KEY"),
             std::env::var("RSA_PUBLIC_KEY")
         ) {
-            let private_key = RsaPrivateKey::from_pkcs1_pem(&private_pem)?;
-            let public_key = RsaPublicKey::from_pkcs1_pem(&public_pem)?;
+            let private_key = match RsaPrivateKey::from_pkcs1_pem(&private_pem) {
+                Ok(k) => k,
+                Err(_) => RsaPrivateKey::from_pkcs8_pem(&private_pem)?,
+            };
+            let public_key = match RsaPublicKey::from_pkcs1_pem(&public_pem) {
+                Ok(k) => k,
+                Err(_) => RsaPublicKey::from_public_key_pem(&public_pem)?,
+            };
             return Ok((private_key, public_key));
         }
-        
-        // Generate new keys if not found
-        tracing::info!("Generating new RSA key pair for JWT signing");
+
+        if std::path::Path::new("keys/private_key.pem").exists() && std::path::Path::new("keys/public_key.pem").exists() {
+            let private_pem = std::fs::read_to_string("keys/private_key.pem")?;
+            let public_pem = std::fs::read_to_string("keys/public_key.pem")?;
+            let private_key = match RsaPrivateKey::from_pkcs1_pem(&private_pem) {
+                Ok(k) => k,
+                Err(_) => RsaPrivateKey::from_pkcs8_pem(&private_pem)?,
+            };
+            let public_key = match RsaPublicKey::from_pkcs1_pem(&public_pem) {
+                Ok(k) => k,
+                Err(_) => RsaPublicKey::from_public_key_pem(&public_pem)?,
+            };
+            return Ok((private_key, public_key));
+        }
+
         let mut rng = rand::thread_rng();
         let private_key = RsaPrivateKey::new(&mut rng, 2048)?;
         let public_key = RsaPublicKey::from(&private_key);
-        
-        // Log the keys for deployment (in production, store these securely)
-        let private_pem = private_key.to_pkcs1_pem(rsa::pkcs1::LineEnding::LF)?;
-        let public_pem = public_key.to_pkcs1_pem(rsa::pkcs1::LineEnding::LF)?;
-        
-        tracing::warn!("Generated RSA keys. Store these securely:");
-        tracing::warn!("RSA_PRIVATE_KEY={}", private_pem.as_str());
-        tracing::warn!("RSA_PUBLIC_KEY={}", public_pem.as_str());
-        
         Ok((private_key, public_key))
     }
     

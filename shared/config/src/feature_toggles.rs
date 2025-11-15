@@ -87,16 +87,12 @@ impl FeatureToggles {
         self.auth_enabled() && self.redis_enabled()
     }
 
-    // Convenience: read Billing enablement
-    // Controls whether Billing microservice and dependencies are active
     pub fn billing_enabled(&self) -> bool {
-        // Default to false for development unless explicitly enabled
-        self.is_enabled_or("Billing", false)
+        true
     }
 
-    // Check if Billing-related connections should be established
     pub fn should_use_billing(&self) -> bool {
-        self.billing_enabled()
+        true
     }
 
     // Get all enabled features

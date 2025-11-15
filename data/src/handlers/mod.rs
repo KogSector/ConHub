@@ -1,10 +1,11 @@
 pub mod data_sources;
-pub mod documents;
-pub mod indexing;
 pub mod repositories;
+pub mod documents;
 pub mod urls;
-pub mod enhanced_handlers;
+pub mod indexing;
 pub mod connectors;
+pub mod ingestion;
+pub mod enhanced_handlers;
 pub mod graphql_handler;
 
 pub use data_sources::*;

@@ -89,17 +89,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let redis_client_opt: Option<redis::Client> = if redis_enabled {
         let redis_url = env::var("REDIS_URL")
             .unwrap_or_else(|_| "redis://localhost:6379".to_string());
-        
         println!("📊 [Auth Service] Connecting to Redis...");
         match redis::Client::open(redis_url.clone()) {
             Ok(client) => {
-                println!("✅ [Auth Service] Redis connection established");
-                Some(client)
+                match client.get_async_connection().await {
+                    Ok(mut conn) => {
+                        match redis::cmd("PING").query_async::<_, String>(&mut conn).await {
+                            Ok(_) => {
+                                println!("✅ [Auth Service] Connected to Redis");
+                                Some(client)
+                            }
+                            Err(e) => {
+                                eprintln!("⚠️  [Auth Service] Failed to connect to Redis: {}", e);
+                                eprintln!("⚠️  [Auth Service] Service will continue without Redis");
+                                None
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("⚠️  [Auth Service] Failed to connect to Redis: {}", e);
+                        eprintln!("⚠️  [Auth Service] Service will continue without Redis");
+                        None
+                    }
+                }
             }
             Err(e) => {
-                eprintln!("⚠️  [Auth Service] Failed to connect to Redis: {}", e);
-                eprintln!("⚠️  [Auth Service] Session management will not work");
-                eprintln!("⚠️  [Auth Service] Please ensure Redis is running and REDIS_URL is correct");
+                eprintln!("⚠️  [Auth Service] Failed to create Redis client: {}", e);
+                eprintln!("⚠️  [Auth Service] Service will continue without Redis");
                 None
             }
         }
