@@ -73,7 +73,6 @@ npm run dev
 # Or start individual services
 npm run dev:frontend    # Frontend only
 npm run dev:auth       # Auth service
-npm run dev:backend    # Backend service
 ```
 
 ### 4. NeonDB Setup (Recommended for Production)
@@ -432,6 +431,7 @@ docker-compose build --no-cache
 - **Migration Guide**: `docs/MIGRATION_GUIDE.md`
 - **API Documentation**: `docs/api-documentation.md`
 - **Security Guide**: `docs/security-guide.md`
+- **Development Guide**: `docs/development-guide.md`
 
 ## 🤝 Contributing
 

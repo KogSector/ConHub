@@ -65,5 +65,5 @@ Monitoring the health and performance of the platform is crucial for maintaining
   # Auth Service
   curl http://localhost:3010/health
   
-  # Client Service
-  curl http://localhost:3014/health
+  # AI Service
+  curl http://localhost:3012/health

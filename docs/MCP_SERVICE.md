@@ -347,15 +347,15 @@ Comprehensive logging:
 Start the MCP service:
 
 ```bash
-cd mcp
-cargo run
+cd mcp/service
+npm start
 ```
 
-Service starts on port `3030` by default.
+Service starts on port `3004` by default.
 
 Test health:
 ```bash
-curl http://localhost:3030/health
+curl http://localhost:3004/health
 ```
 
 ## Configuration
@@ -363,7 +363,7 @@ curl http://localhost:3030/health
 Environment variables:
 
 ```
-MCP_SERVICE_PORT=3030
+MCP_SERVICE_PORT=3004
 DATABASE_URL=postgresql://...
 ```
 

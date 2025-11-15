@@ -63,8 +63,8 @@ ConHub is a **knowledge layer + context engine** designed to help AI Agents and 
          └────────────────────┘                            └──────────────────────┘
                     │                                                   │
          ┌──────────▼─────────┐                            ┌───────────▼──────────┐
-         │  Billing Service   │                            │  Client (AI) Service │
-         │  Port 3011/8002    │                            │  Port 3014/8005      │
+         │  Billing Service   │                            │  AI Service          │
+         │  Port 3011/8002    │                            │  Port 3012/8005      │
          │  - Stripe API      │                            │  - OpenAI Client     │
          │  - Subscriptions   │                            │  - Anthropic Client  │
          └────────────────────┘                            │  - Context Gen       │
@@ -396,7 +396,6 @@ docker-compose.yml:
 
 ### Documentation
 - `README.md` - Quick start guide
-- `OPTIMIZATIONS.md` - Architecture optimizations
 - `MIGRATION_GUIDE.md` - Upgrade instructions
 - `ARCHITECTURE_SUMMARY.md` - This file
 
