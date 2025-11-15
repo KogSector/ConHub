@@ -78,18 +78,18 @@ class ServiceManager {
   }
 
   async waitForService(serviceName, timeout = 30000) {
-    console.log(`⏳ Waiting for ${serviceName} health check...`);
-    
+    console.log(`⏳ Waiting for ${serviceName}...`);
+
     const startTime = Date.now();
     while (Date.now() - startTime < timeout) {
       if (await this.checkServiceHealth(serviceName)) {
-        console.log(`✅ ${serviceName} is healthy and ready!`);
+        console.log(`✅ ${serviceName} ready!`);
         this.updateServiceStatus(serviceName, 'HEALTHY', 'Health check passed');
         return true;
       }
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
-    
+
     console.log(`⚠️  ${serviceName} health check timeout, but process may still be starting...`);
     this.updateServiceStatus(serviceName, 'RUNNING', 'Health check timeout');
     return false;
@@ -158,8 +158,8 @@ class ServiceManager {
       const childProcess = spawn(service.command, service.args, {
         cwd: servicePath,
         env: env,
-        stdio: 'inherit',
-        shell: true
+        stdio: ['ignore', 'ignore', 'inherit'],
+        shell: process.platform === 'win32' && service.command.endsWith('.cmd')
       });
 
       this.processes.set(serviceName, childProcess);
@@ -179,7 +179,7 @@ class ServiceManager {
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       if (this.processes.has(serviceName)) {
-        console.log(`✅ ${serviceName} process started on port ${service.port}`);
+        console.log(`✅ ${serviceName} started`);
         this.updateServiceStatus(serviceName, 'RUNNING', 'Process active');
         return true;
       } else {
@@ -234,18 +234,20 @@ class ServiceManager {
     if (toggles.Auth) {
       await this.startService('auth');
       await this.waitForService('auth', 30000);
+      console.log('');
     }
 
-    
+
     await this.startService('data');
     await this.waitForService('data', 25000);
+    console.log('');
 
-    
     const supportServices = ['billing', 'security', 'webhook', 'client'];
     for (const service of supportServices) {
       await this.startService(service);
       await new Promise(resolve => setTimeout(resolve, 2000)); // Stagger starts
       await this.waitForService(service, 15000);
+      console.log('');
     }
 
     if (toggles.Heavy) {
@@ -253,16 +255,19 @@ class ServiceManager {
       for (const service of heavyServices) {
         await this.startService(service);
         await this.waitForService(service, 20000);
+        console.log('');
       }
     }
 
-    
+
     await this.startService('backend');
     await this.waitForService('backend', 25000);
+    console.log('');
 
-    
+
     await this.startService('frontend');
-    await this.waitForService('frontend', 30000);
+    await this.waitForService('frontend', 60000);
+    console.log('');
 
     // Print final comprehensive status
     console.log('\n');
