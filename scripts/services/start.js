@@ -14,7 +14,7 @@ const SERVICES = {
   client: { port: 3012, path: 'client', command: 'cargo', args: ['run'], healthPath: '/health', description: 'AI Client Service' },
   backend: { port: 8000, path: 'backend', command: 'cargo', args: ['run'], healthPath: '/health', description: 'GraphQL Gateway' },
   embedding: { port: 8082, path: 'embedding', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Fusion Embeddings' },
-  indexers: { port: 8080, path: 'indexers', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Search & Indexing' },
+  // indexers: { port: 8080, path: 'indexers', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Search & Indexing' }, // Removed - will be rewritten
   frontend: { port: 3000, path: 'frontend', command: 'npm.cmd', args: ['run', 'dev'], healthPath: '/', description: 'Next.js UI' }
 };
 
@@ -275,6 +275,8 @@ class ServiceManager {
 
     // Start services in optimal order based on dependencies
     console.log('\n🚀 Starting services... ');
+    console.log(''); // First empty line
+    console.log(''); // Second empty line
     if (toggles.Auth) {
       await this.startService('auth', toggles);
       await this.waitForService('auth', 30000);
@@ -295,7 +297,7 @@ class ServiceManager {
     }
 
     if (toggles.Heavy) {
-      const heavyServices = ['embedding', 'indexers'];
+      const heavyServices = ['embedding']; // indexers removed - will be rewritten later
       for (const service of heavyServices) {
         await this.startService(service, toggles);
         await this.waitForService(service, 20000);

@@ -5,7 +5,7 @@ use tracing::{info, error};
 
 use crate::services::IngestionService;
 use crate::connectors::SyncRequestWithFilters;
-use conhub_models::auth::Claims;
+use conhub_config::auth::Claims;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StartSyncRequest {

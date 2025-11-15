@@ -228,3 +228,77 @@ pub struct ConnectorConfigAuth {
     pub credentials: HashMap<String, String>,
     pub settings: HashMap<String, serde_json::Value>,
 }
+
+/// GitHub repository access validation request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitHubRepoAccessRequest {
+    pub repo_url: String,
+    pub access_token: String,
+}
+
+/// GitHub repository access validation response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitHubRepoAccessResponse {
+    pub has_access: bool,
+    pub repo_info: Option<GitHubRepoInfo>,
+    pub error_message: Option<String>,
+}
+
+/// GitHub repository information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitHubRepoInfo {
+    pub id: i64,
+    pub name: String,
+    pub full_name: String,
+    pub description: Option<String>,
+    pub html_url: String,
+    pub clone_url: String,
+    pub private: bool,
+    pub default_branch: String,
+    pub branches: Vec<GitHubBranch>,
+    pub languages: Vec<String>,
+    pub permissions: GitHubRepoPermissions,
+}
+
+/// GitHub branch information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitHubBranch {
+    pub name: String,
+    pub commit: GitHubCommit,
+    pub protected: bool,
+}
+
+/// GitHub commit information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitHubCommit {
+    pub sha: String,
+    pub url: String,
+}
+
+/// GitHub repository permissions
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitHubRepoPermissions {
+    pub admin: bool,
+    pub maintain: bool,
+    pub push: bool,
+    pub triage: bool,
+    pub pull: bool,
+}
+
+/// GitHub repository sync configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitHubSyncConfig {
+    pub repo_url: String,
+    pub branch: String,
+    pub include_languages: Option<Vec<String>>,
+    pub exclude_paths: Option<Vec<String>>,
+    pub max_file_size_mb: Option<i64>,
+}
+
+/// Qdrant vector storage configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QdrantConfig {
+    pub url: String,
+    pub api_key: String,
+    pub collection_name: String,
+}

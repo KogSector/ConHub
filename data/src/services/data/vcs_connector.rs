@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 use base64::{Engine as _, engine::general_purpose};
 use std::collections::HashSet;
 
-use conhub_models::{
+use conhub_config::{
     VcsType, VcsProvider, RepositoryInfo, RepositoryCredentials, 
     CredentialType
 };

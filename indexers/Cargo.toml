@@ -7,6 +7,10 @@ edition = "2021"
 name = "conhub_indexers"
 path = "src/lib.rs"
 
+[[bin]]
+name = "indexers-minimal"
+path = "src/main_minimal.rs"
+
 [dependencies]
 # Shared workspace libraries (if needed)
 # conhub-models = { path = "../shared/models" }

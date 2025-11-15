@@ -1,6 +1,6 @@
 use regex::Regex;
 use url::Url;
-use conhub_models::{VcsType, VcsProvider};
+use conhub_config::{VcsType, VcsProvider};
 use serde::{Serialize, Deserialize};
 
 pub struct VcsDetector;

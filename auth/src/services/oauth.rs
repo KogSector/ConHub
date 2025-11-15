@@ -502,7 +502,7 @@ impl OAuthService {
                    role::text as role, subscription_tier::text as subscription_tier,
                    is_verified, is_active, is_locked, failed_login_attempts, locked_until,
                    password_changed_at, email_verified_at, two_factor_enabled, two_factor_secret,
-                   backup_codes, created_at, updated_at, last_login_at, last_login_ip, last_password_reset
+                   backup_codes, created_at, updated_at, last_login_at, last_login_ip::text as last_login_ip, last_password_reset
             FROM users
             WHERE id = $1
             "#

@@ -1,4 +1,4 @@
-use conhub_models::social::*;
+use conhub_config::social::*;
 use crate::services::data::platform_data_fetcher::PlatformDataFetcher;
 use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope,

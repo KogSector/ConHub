@@ -1,7 +1,7 @@
 use actix_web::{web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use conhub_models::ApiResponse;
+use conhub_config::ApiResponse;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateUrlRequest {
