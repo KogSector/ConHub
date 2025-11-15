@@ -3,7 +3,8 @@
 import { useMemo, useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { dataApiClient, ApiResponse } from '@/lib/api';
+import { dataApiClient, apiClient, ApiResponse } from '@/lib/api';
+import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +21,7 @@ interface ConnectRepositoryDialogProps {
 }
 
 export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: ConnectRepositoryDialogProps) {
+  const { token } = useAuth()
   const [provider, setProvider] = useState('');
   const [name, setName] = useState('');
   const [repositoryUrl, setRepositoryUrl] = useState('');
@@ -146,17 +148,42 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         };
       }
       
-      const requestPayload = { repoUrl: repositoryUrl.trim(), credentials: credentialsPayload };
-      console.log('[FRONTEND] Request payload:', requestPayload);
-      console.log('[FRONTEND] Making API call to /api/data/sources/branches');
-
-      const resp = await dataApiClient.post<ApiResponse<{ branches: string[]; default_branch?: string; file_extensions?: string[] }>>('/api/data/sources/branches', requestPayload);
-      console.log('[FRONTEND] API response:', resp);
-      if (!resp.success) {
-        console.error('[FRONTEND] API error:', resp.error);
-        throw new Error(resp.error || 'Failed to fetch branches.');
+      const repoCheck = await apiClient.post<{ provider?: string; name?: string; full_name?: string }>('/api/auth/repos/check', { 
+        provider,
+        repo_url: repositoryUrl.trim(),
+        access_token: credentialsPayload?.accessToken
+      }, token ? { Authorization: `Bearer ${token}` } : {})
+      const repoName = repoCheck.name || repoCheck.full_name
+      if (repoName) {
+        setName(prev => prev || repoName)
       }
-      const { branches: fetchedBranches, default_branch, file_extensions } = resp.data || { branches: [], default_branch: undefined, file_extensions: undefined };
+
+      let fetchedBranches: string[] = []
+      let default_branch: string | undefined
+      let file_extensions: string[] | undefined
+      if (provider === 'github') {
+        const urlObj = new URL(repositoryUrl.trim())
+        const parts = urlObj.pathname.split('/').filter(Boolean)
+        const owner = parts[0]
+        const repo = parts[1]?.replace('.git','')
+        const res = await apiClient.get<{ branches: string[] }>(`/api/auth/repos/github/branches?repo=${owner}/${repo}`, token ? { Authorization: `Bearer ${token}` } : {})
+        fetchedBranches = res.branches || []
+      } else if (provider === 'bitbucket') {
+        const urlObj = new URL(repositoryUrl.trim())
+        const parts = urlObj.pathname.split('/').filter(Boolean)
+        const workspace = parts[0]
+        const repo = parts[1]?.replace('.git','')
+        const res = await apiClient.get<{ branches: string[] }>(`/api/auth/repos/bitbucket/branches?repo=${workspace}/${repo}`, token ? { Authorization: `Bearer ${token}` } : {})
+        fetchedBranches = res.branches || []
+      } else {
+        const requestPayload = { repoUrl: repositoryUrl.trim(), credentials: credentialsPayload };
+        const resp = await dataApiClient.post<ApiResponse<{ branches: string[]; default_branch?: string; file_extensions?: string[] }>>('/api/data/sources/branches', requestPayload);
+        if (!resp.success) throw new Error(resp.error || 'Failed to fetch branches.')
+        const payload: { branches: string[]; default_branch?: string; file_extensions?: string[] } = resp.data ?? { branches: [], default_branch: undefined, file_extensions: undefined }
+        fetchedBranches = payload.branches
+        default_branch = payload.default_branch
+        file_extensions = payload.file_extensions
+      }
       console.log('[FRONTEND] Parsed response data:', { fetchedBranches, default_branch, file_extensions });
       
       if (!fetchedBranches || fetchedBranches.length === 0) {
@@ -581,7 +608,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   </Select>
                   {!hasBranches && (
                     <p className="text-xs text-muted-foreground">
-                      Click "Check" button above to fetch available branches
+                      Click &quot;Check&quot; button above to fetch available branches
                     </p>
                   )}
                 </div>

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc, Duration};
 use uuid::Uuid;
 use sqlx::{PgPool, Row};
-use bcrypt::{hash, verify, DEFAULT_COST};
+// Removed bcrypt; using Argon2 via SecurityService
 use validator::Validate;
 use serde_json::json;
 use anyhow::{anyhow, Result};
@@ -28,8 +28,17 @@ impl UserService {
     }
 
     pub async fn create_user(&self, request: &RegisterRequest) -> Result<User> {
-        
-        if self.find_by_email(&request.email).await.is_ok() {
+        // Existence check ignores is_active to prevent duplicate emails
+        let exists = sqlx::query_scalar::<_, i64>(
+            r#"SELECT 1 FROM users WHERE email = $1 LIMIT 1"#
+        )
+        .bind(&request.email)
+        .fetch_optional(&self.pool)
+        .await
+        .map(|opt| opt.is_some())
+        .map_err(|e| anyhow!("Failed to check existing user: {}", e))?;
+
+        if exists {
             return Err(anyhow!("User with this email already exists"));
         }
 
@@ -169,23 +178,19 @@ impl UserService {
 
     pub async fn verify_password(&self, email: &str, password: &str) -> Result<User> {
         let user = self.find_by_email(email).await?;
-        
-        // Check if account is locked
+
         if user.is_locked {
             return Err(anyhow!("Account is locked"));
         }
 
-        // Check if locked_until has passed
         if let Some(locked_until) = user.locked_until {
             if locked_until > Utc::now() {
                 return Err(anyhow!("Account is temporarily locked"));
             }
         }
 
-        // Verify password
-        match verify(password, &user.password_hash) {
+        match self.security_service.verify_password(password, &user.password_hash) {
             Ok(true) => {
-                // Reset failed login attempts on successful login
                 if user.failed_login_attempts > 0 {
                     sqlx::query("UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = $1")
                         .bind(user.id)
@@ -196,15 +201,13 @@ impl UserService {
                 Ok(user)
             }
             Ok(false) => {
-                // Increment failed login attempts
                 let new_attempts = user.failed_login_attempts + 1;
-                let max_attempts = 5; // This should come from config
-                
+                let max_attempts = 5;
+
                 if new_attempts >= max_attempts {
-                    // Lock the account
-                    let lock_duration = Duration::minutes(15); // This should come from config
+                    let lock_duration = Duration::minutes(15);
                     let locked_until = Utc::now() + lock_duration;
-                    
+
                     sqlx::query("UPDATE users SET failed_login_attempts = $1, is_locked = true, locked_until = $2, updated_at = NOW() WHERE id = $3")
                         .bind(new_attempts)
                         .bind(locked_until)
@@ -212,17 +215,16 @@ impl UserService {
                         .execute(&self.pool)
                         .await
                         .map_err(|e| anyhow!("Failed to lock account: {}", e))?;
-                    
+
                     Err(anyhow!("Invalid credentials. Account locked due to too many failed attempts"))
                 } else {
-                    // Just increment the counter
                     sqlx::query("UPDATE users SET failed_login_attempts = $1, updated_at = NOW() WHERE id = $2")
                         .bind(new_attempts)
                         .bind(user.id)
                         .execute(&self.pool)
                         .await
                         .map_err(|e| anyhow!("Failed to update failed login attempts: {}", e))?;
-                    
+
                     Err(anyhow!("Invalid credentials"))
                 }
             }

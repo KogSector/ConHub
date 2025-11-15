@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, RefreshCw, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { securityApiClient, unwrapResponse } from '@/lib/api';
+import { securityApiClient, apiClient, unwrapResponse } from '@/lib/api';
 
 interface SocialConnection {
   id: string;
-  platform: 'slack' | 'notion' | 'google_drive' | 'gmail' | 'dropbox' | 'linkedin';
+  platform: 'slack' | 'notion' | 'google_drive' | 'gmail' | 'dropbox' | 'linkedin' | 'github' | 'bitbucket';
   username: string;
   is_active: boolean;
   connected_at: string;
@@ -54,6 +54,19 @@ const PLATFORM_CONFIGS = {
     color: 'bg-blue-700',
     icon: '👔'
   }
+  ,
+  github: {
+    name: 'GitHub',
+    description: 'Connect your GitHub account',
+    color: 'bg-gray-900',
+    icon: '🐙'
+  },
+  bitbucket: {
+    name: 'Bitbucket',
+    description: 'Connect your Bitbucket account',
+    color: 'bg-blue-800',
+    icon: '🧩'
+  }
 };
 
 export function SocialConnections() {
@@ -64,6 +77,14 @@ export function SocialConnections() {
 
   useEffect(() => {
     fetchConnections();
+    const handler = (e: MessageEvent) => {
+      const data = e.data as any
+      if (data && data.type === 'oauth-connected') {
+        fetchConnections()
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
   }, []);
 
   const fetchConnections = async () => {
@@ -86,6 +107,17 @@ export function SocialConnections() {
 
   const connectPlatform = async (platform: string) => {
     try {
+      if (platform === 'github' || platform === 'bitbucket') {
+        const resp = await apiClient.get<{ url: string; state: string }>(`/api/auth/oauth/url?provider=${platform}`)
+        const authUrl = (resp as any)?.url
+        if (authUrl) {
+          window.open(authUrl, '_blank', 'width=500,height=700')
+          setTimeout(() => { fetchConnections(); }, 5000)
+        } else {
+          toast({ title: 'Error', description: `Failed to get ${platform} auth URL`, variant: 'destructive' })
+        }
+        return
+      }
       const resp = await securityApiClient.post('/api/security/connections/connect', { platform });
       const payload = unwrapResponse<{ account?: { credentials?: { auth_url?: string } } }>(resp) ?? {}
       const authUrl = payload?.account?.credentials?.auth_url
@@ -95,19 +127,11 @@ export function SocialConnections() {
           fetchConnections();
         }, 3000);
       } else {
-        toast({
-          title: "Error",
-          description: `Failed to connect to ${platform}`,
-          variant: "destructive"
-        });
+        toast({ title: 'Error', description: `Failed to connect to ${platform}`, variant: 'destructive' });
       }
     } catch (error) {
       console.error('Error connecting platform:', error);
-      toast({
-        title: "Error",
-        description: `Failed to connect to ${platform}`,
-        variant: "destructive"
-      });
+      toast({ title: 'Error', description: `Failed to connect to ${platform}`, variant: 'destructive' });
     }
   };
 

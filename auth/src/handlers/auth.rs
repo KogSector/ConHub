@@ -14,6 +14,7 @@ use crate::services::{
     sessions::SessionService,
     security::SecurityService,
 };
+use reqwest::{Client, Url};
 
 // Disabled-mode handler: responds consistently when auth is turned off
 pub async fn disabled() -> Result<HttpResponse> {
@@ -359,10 +360,17 @@ pub async fn register(
             user
         },
         Err(e) => {
-            tracing::error!("❌ [Register] Failed to create user: {}", e);
+            let msg = e.to_string();
+            tracing::error!("❌ [Register] Failed to create user: {}", msg);
+            if msg.contains("already exists") {
+                return Ok(HttpResponse::Conflict().json(json!({
+                    "error": "User already exists",
+                    "details": msg
+                })));
+            }
             return Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Failed to create user",
-                "details": format!("{}", e)
+                "details": msg
             })));
         }
     };
@@ -401,6 +409,36 @@ pub async fn register(
 pub async fn verify_token() -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().json(json!({
         "valid": true
+    })))
+}
+
+pub async fn dev_reset(pool_opt: web::Data<Option<PgPool>>) -> Result<HttpResponse> {
+    let pool = match pool_opt.get_ref() {
+        Some(p) => p,
+        None => {
+            return Ok(HttpResponse::ServiceUnavailable().json(json!({
+                "error": "Database service unavailable"
+            })));
+        }
+    };
+
+    let env = std::env::var("NODE_ENV").unwrap_or_default();
+    if env != "development" {
+        return Ok(HttpResponse::Forbidden().json(json!({
+            "error": "Reset is only allowed in development"
+        })));
+    }
+
+    if let Err(e) = sqlx::query("TRUNCATE TABLE users RESTART IDENTITY CASCADE").execute(pool).await {
+        tracing::error!("Failed to truncate users table: {}", e);
+        return Ok(HttpResponse::InternalServerError().json(json!({
+            "error": "Failed to reset database",
+            "details": format!("{}", e)
+        })));
+    }
+
+    Ok(HttpResponse::Ok().json(json!({
+        "message": "Development database reset: users cleared"
     })))
 }
 
@@ -834,5 +872,346 @@ pub fn configure_auth_routes(cfg: &mut web::ServiceConfig) {
             .route("/profile", web::get().to(get_profile))
             .route("/users", web::get().to(list_users))
             .route("/oauth/callback", web::post().to(oauth_callback))
+            .route("/oauth/url", web::get().to(oauth_url))
+            .route("/oauth/exchange", web::post().to(oauth_exchange))
+            .route("/repos/github", web::get().to(list_github_repos))
+            .route("/repos/github/branches", web::get().to(list_github_branches))
+            .route("/repos/bitbucket", web::get().to(list_bitbucket_repos))
+            .route("/repos/bitbucket/branches", web::get().to(list_bitbucket_branches))
+            .route("/repos/check", web::post().to(check_repo))
+            .route("/dev/reset", web::post().to(dev_reset))
     );
+}
+
+pub async fn oauth_url(
+    query: web::Query<std::collections::HashMap<String, String>>,
+    pool_opt: web::Data<Option<PgPool>>,
+) -> Result<HttpResponse> {
+    let pool = match pool_opt.get_ref() {
+        Some(p) => p,
+        None => {
+            return Ok(HttpResponse::ServiceUnavailable().json(json!({
+                "error": "Database service unavailable"
+            })));
+        }
+    };
+
+    let provider = query.get("provider").cloned().unwrap_or_default();
+    let state = Uuid::new_v4().to_string();
+
+    let oauth_service = crate::services::oauth::OAuthService::new(pool.clone());
+    let provider_enum = match provider.to_lowercase().as_str() {
+        "google" => crate::services::oauth::OAuthProvider::Google,
+        "microsoft" => crate::services::oauth::OAuthProvider::Microsoft,
+        "github" => crate::services::oauth::OAuthProvider::GitHub,
+        _ => {
+            return Ok(HttpResponse::BadRequest().json(json!({
+                "error": "Unsupported provider"
+            })));
+        }
+    };
+
+    let url = oauth_service.get_authorization_url(provider_enum, &state);
+    Ok(HttpResponse::Ok().json(json!({"url": url, "state": state})))
+}
+
+async fn get_bearer_token_for_provider(pool: &PgPool, user_id: uuid::Uuid, provider: &str) -> Result<String, anyhow::Error> {
+    let row = sqlx::query(
+        "SELECT access_token FROM social_connections WHERE user_id = $1 AND platform = $2 AND is_active = true ORDER BY updated_at DESC LIMIT 1"
+    )
+    .bind(user_id)
+    .bind(provider)
+    .fetch_optional(pool)
+    .await?
+    ;
+
+    match row {
+        Some(row) => Ok(row.get::<String, _>("access_token")),
+        None => Err(anyhow::anyhow!("No active connection for provider")),
+    }
+}
+
+pub async fn list_github_repos(
+    req: HttpRequest,
+    pool_opt: web::Data<Option<PgPool>>,
+) -> Result<HttpResponse> {
+    let pool = match pool_opt.get_ref() { Some(p) => p, None => return Ok(HttpResponse::ServiceUnavailable().json(json!({"error": "Database service unavailable"}))) };
+    use crate::services::middleware::extract_claims_from_request;
+    let claims = match extract_claims_from_request(&req) { Some(c) => c, None => return Ok(HttpResponse::Unauthorized().json(json!({"error": "Authentication required"}))) };
+    let user_id: uuid::Uuid = claims.sub.parse().map_err(|_| actix_web::error::ErrorBadRequest("Invalid user id"))?;
+
+    let token = match get_bearer_token_for_provider(pool, user_id, "github").await {
+        Ok(t) => t,
+        Err(e) => return Ok(HttpResponse::BadRequest().json(json!({"error": e.to_string()}))),
+    };
+
+    let client = Client::new();
+    let resp = client
+        .get("https://api.github.com/user/repos?per_page=100")
+        .header("User-Agent", "ConHub")
+        .bearer_auth(&token)
+        .send()
+        .await;
+
+    match resp {
+        Ok(r) if r.status().is_success() => {
+            let repos: serde_json::Value = r.json().await.unwrap_or(json!([]));
+            let simplified: Vec<serde_json::Value> = repos.as_array().unwrap_or(&vec![]).iter().map(|repo| json!({
+                "name": repo["name"].as_str().unwrap_or_default(),
+                "full_name": repo["full_name"].as_str().unwrap_or_default(),
+                "default_branch": repo["default_branch"].as_str().unwrap_or("main")
+            })).collect();
+            Ok(HttpResponse::Ok().json(json!({"repos": simplified})))
+        }
+        Ok(r) => Ok(HttpResponse::BadRequest().json(json!({"error": format!("GitHub API error: {}", r.status())}))),
+        Err(e) => Ok(HttpResponse::BadRequest().json(json!({"error": format!("GitHub request failed: {}", e)}))),
+    }
+}
+
+pub async fn list_github_branches(
+    req: HttpRequest,
+    pool_opt: web::Data<Option<PgPool>>,
+    query: web::Query<std::collections::HashMap<String, String>>,
+) -> Result<HttpResponse> {
+    let pool = match pool_opt.get_ref() { Some(p) => p, None => return Ok(HttpResponse::ServiceUnavailable().json(json!({"error": "Database service unavailable"}))) };
+    use crate::services::middleware::extract_claims_from_request;
+    let claims = match extract_claims_from_request(&req) { Some(c) => c, None => return Ok(HttpResponse::Unauthorized().json(json!({"error": "Authentication required"}))) };
+    let user_id: uuid::Uuid = claims.sub.parse().map_err(|_| actix_web::error::ErrorBadRequest("Invalid user id"))?;
+    let repo_full_name = query.get("repo").cloned().unwrap_or_default();
+    if repo_full_name.is_empty() { return Ok(HttpResponse::BadRequest().json(json!({"error": "Missing repo query parameter"}))); }
+
+    let token = match get_bearer_token_for_provider(pool, user_id, "github").await {
+        Ok(t) => t,
+        Err(e) => return Ok(HttpResponse::BadRequest().json(json!({"error": e.to_string()}))),
+    };
+
+    let client = Client::new();
+    let url = format!("https://api.github.com/repos/{}/branches?per_page=200", repo_full_name);
+    let resp = client
+        .get(&url)
+        .header("User-Agent", "ConHub")
+        .bearer_auth(&token)
+        .send()
+        .await;
+
+    match resp {
+        Ok(r) if r.status().is_success() => {
+            let branches: serde_json::Value = r.json().await.unwrap_or(json!([]));
+            let names: Vec<String> = branches.as_array().unwrap_or(&vec![]).iter().map(|b| b["name"].as_str().unwrap_or("").to_string()).collect();
+            Ok(HttpResponse::Ok().json(json!({"branches": names})))
+        }
+        Ok(r) => Ok(HttpResponse::BadRequest().json(json!({"error": format!("GitHub API error: {}", r.status())}))),
+        Err(e) => Ok(HttpResponse::BadRequest().json(json!({"error": format!("GitHub request failed: {}", e)}))),
+    }
+}
+
+pub async fn list_bitbucket_repos(
+    req: HttpRequest,
+    pool_opt: web::Data<Option<PgPool>>,
+) -> Result<HttpResponse> {
+    let pool = match pool_opt.get_ref() { Some(p) => p, None => return Ok(HttpResponse::ServiceUnavailable().json(json!({"error": "Database service unavailable"}))) };
+    use crate::services::middleware::extract_claims_from_request;
+    let claims = match extract_claims_from_request(&req) { Some(c) => c, None => return Ok(HttpResponse::Unauthorized().json(json!({"error": "Authentication required"}))) };
+    let user_id: uuid::Uuid = claims.sub.parse().map_err(|_| actix_web::error::ErrorBadRequest("Invalid user id"))?;
+    let token = match get_bearer_token_for_provider(pool, user_id, "bitbucket").await { Ok(t) => t, Err(e) => return Ok(HttpResponse::BadRequest().json(json!({"error": e.to_string()}))) };
+
+    let client = Client::new();
+    let resp = client
+        .get("https://api.bitbucket.org/2.0/repositories?role=member")
+        .bearer_auth(&token)
+        .send()
+        .await;
+
+    match resp {
+        Ok(r) if r.status().is_success() => {
+            let data: serde_json::Value = r.json().await.unwrap_or(json!({"values": []}));
+            let simplified: Vec<serde_json::Value> = data["values"].as_array().unwrap_or(&vec![]).iter().map(|repo| json!({
+                "name": repo["name"].as_str().unwrap_or_default(),
+                "full_name": repo["full_name"].as_str().unwrap_or_default(),
+                "slug": repo["slug"].as_str().unwrap_or_default(),
+            })).collect();
+            Ok(HttpResponse::Ok().json(json!({"repos": simplified})))
+        }
+        Ok(r) => Ok(HttpResponse::BadRequest().json(json!({"error": format!("Bitbucket API error: {}", r.status())}))),
+        Err(e) => Ok(HttpResponse::BadRequest().json(json!({"error": format!("Bitbucket request failed: {}", e)}))),
+    }
+}
+
+pub async fn list_bitbucket_branches(
+    req: HttpRequest,
+    pool_opt: web::Data<Option<PgPool>>,
+    query: web::Query<std::collections::HashMap<String, String>>,
+) -> Result<HttpResponse> {
+    let pool = match pool_opt.get_ref() { Some(p) => p, None => return Ok(HttpResponse::ServiceUnavailable().json(json!({"error": "Database service unavailable"}))) };
+    use crate::services::middleware::extract_claims_from_request;
+    let claims = match extract_claims_from_request(&req) { Some(c) => c, None => return Ok(HttpResponse::Unauthorized().json(json!({"error": "Authentication required"}))) };
+    let user_id: uuid::Uuid = claims.sub.parse().map_err(|_| actix_web::error::ErrorBadRequest("Invalid user id"))?;
+    let full_name = query.get("repo").cloned().unwrap_or_default();
+    if full_name.is_empty() { return Ok(HttpResponse::BadRequest().json(json!({"error": "Missing repo query parameter"}))); }
+    let token = match get_bearer_token_for_provider(pool, user_id, "bitbucket").await { Ok(t) => t, Err(e) => return Ok(HttpResponse::BadRequest().json(json!({"error": e.to_string()}))) };
+
+    let client = Client::new();
+    let url = format!("https://api.bitbucket.org/2.0/repositories/{}/refs/branches?pagelen=100", full_name);
+    let resp = client.get(&url).bearer_auth(&token).send().await;
+
+    match resp {
+        Ok(r) if r.status().is_success() => {
+            let data: serde_json::Value = r.json().await.unwrap_or(json!({"values": []}));
+            let names: Vec<String> = data["values"].as_array().unwrap_or(&vec![]).iter().map(|b| b["name"].as_str().unwrap_or("").to_string()).collect();
+            Ok(HttpResponse::Ok().json(json!({"branches": names})))
+        }
+        Ok(r) => Ok(HttpResponse::BadRequest().json(json!({"error": format!("Bitbucket API error: {}", r.status())}))),
+        Err(e) => Ok(HttpResponse::BadRequest().json(json!({"error": format!("Bitbucket request failed: {}", e)}))),
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct RepoCheckRequest {
+    provider: Option<String>,
+    repo_url: String,
+    access_token: Option<String>,
+}
+
+pub async fn check_repo(
+    req: HttpRequest,
+    payload: web::Json<RepoCheckRequest>,
+    pool_opt: web::Data<Option<PgPool>>,
+) -> Result<HttpResponse> {
+    let pool = match pool_opt.get_ref() { Some(p) => p, None => return Ok(HttpResponse::ServiceUnavailable().json(json!({"error": "Database service unavailable"}))) };
+    use crate::services::middleware::extract_claims_from_request;
+    let claims = match extract_claims_from_request(&req) { Some(c) => c, None => return Ok(HttpResponse::Unauthorized().json(json!({"error": "Authentication required"}))) };
+    let user_id: uuid::Uuid = claims.sub.parse().map_err(|_| actix_web::error::ErrorBadRequest("Invalid user id"))?;
+
+    let url = &payload.repo_url;
+    let host = Url::parse(url).map(|u| u.host_str().unwrap_or("").to_string()).unwrap_or_default();
+    let provider = payload.provider.clone().unwrap_or_else(|| {
+        if host.contains("github.com") { "github".to_string() } else if host.contains("bitbucket.org") { "bitbucket".to_string() } else { "".to_string() }
+    });
+    if provider.is_empty() { return Ok(HttpResponse::BadRequest().json(json!({"error": "Unsupported repo URL"}))); }
+
+    let token = if let Some(t) = &payload.access_token { t.clone() } else {
+        match get_bearer_token_for_provider(pool, user_id, &provider).await { Ok(t) => t, Err(e) => return Ok(HttpResponse::BadRequest().json(json!({"error": e.to_string()}))) }
+    };
+
+    let client = Client::new();
+    if provider == "github" {
+        let parts: Vec<&str> = url.trim_end_matches('/').split('/').collect();
+        let (owner, repo) = (parts.get(parts.len()-2).unwrap_or(&""), parts.get(parts.len()-1).unwrap_or(&""));
+        let api_url = format!("https://api.github.com/repos/{}/{}", owner, repo);
+        let resp = client.get(&api_url).header("User-Agent", "ConHub").bearer_auth(&token).send().await;
+        match resp {
+            Ok(r) if r.status().is_success() => {
+                let v: serde_json::Value = r.json().await.unwrap_or(json!({}));
+                let name = v["name"].as_str().unwrap_or("");
+                let full_name = v["full_name"].as_str().unwrap_or("");
+                return Ok(HttpResponse::Ok().json(json!({"provider": "github", "name": name, "full_name": full_name})));
+            }
+            Ok(r) => return Ok(HttpResponse::BadRequest().json(json!({"error": format!("GitHub API error: {}", r.status())}))),
+            Err(e) => return Ok(HttpResponse::BadRequest().json(json!({"error": format!("GitHub request failed: {}", e)}))),
+        }
+    } else {
+        let parts: Vec<&str> = url.trim_end_matches('/').split('/').collect();
+        let (workspace, repo) = (parts.get(parts.len()-2).unwrap_or(&""), parts.get(parts.len()-1).unwrap_or(&""));
+        let api_url = format!("https://api.bitbucket.org/2.0/repositories/{}/{}", workspace, repo);
+        let resp = client.get(&api_url).bearer_auth(&token).send().await;
+        match resp {
+            Ok(r) if r.status().is_success() => {
+                let v: serde_json::Value = r.json().await.unwrap_or(json!({}));
+                let name = v["name"].as_str().unwrap_or("");
+                let full_name = v["full_name"].as_str().unwrap_or("");
+                return Ok(HttpResponse::Ok().json(json!({"provider": "bitbucket", "name": name, "full_name": full_name})));
+            }
+            Ok(r) => return Ok(HttpResponse::BadRequest().json(json!({"error": format!("Bitbucket API error: {}", r.status())}))),
+            Err(e) => return Ok(HttpResponse::BadRequest().json(json!({"error": format!("Bitbucket request failed: {}", e)}))),
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct OAuthExchangeRequest { provider: String, code: String }
+
+pub async fn oauth_exchange(
+    req: HttpRequest,
+    request: web::Json<OAuthExchangeRequest>,
+    pool_opt: web::Data<Option<PgPool>>,
+) -> Result<HttpResponse> {
+    let pool = match pool_opt.get_ref() { Some(p) => p, None => return Ok(HttpResponse::ServiceUnavailable().json(json!({"error": "Database service unavailable"}))) };
+    use crate::services::middleware::extract_claims_from_request;
+    let claims = match extract_claims_from_request(&req) { Some(c) => c, None => return Ok(HttpResponse::Unauthorized().json(json!({"error": "Authentication required"}))) };
+    let user_id: uuid::Uuid = claims.sub.parse().map_err(|_| actix_web::error::ErrorBadRequest("Invalid user id"))?;
+
+    let oauth_service = crate::services::oauth::OAuthService::new(pool.clone());
+    let provider_enum = match request.provider.to_lowercase().as_str() {
+        "google" => crate::services::oauth::OAuthProvider::Google,
+        "microsoft" => crate::services::oauth::OAuthProvider::Microsoft,
+        "github" => crate::services::oauth::OAuthProvider::GitHub,
+        "bitbucket" => crate::services::oauth::OAuthProvider::Bitbucket,
+        _ => return Ok(HttpResponse::BadRequest().json(json!({"error": "Unsupported provider"}))),
+    };
+
+    let token = match oauth_service.exchange_code_for_token(provider_enum.clone(), &request.code).await {
+        Ok(t) => t,
+        Err(e) => return Ok(HttpResponse::BadRequest().json(json!({"error": format!("Token exchange failed: {}", e)}))),
+    };
+
+    let (platform_user_id, email, name, avatar_url) = match oauth_service.get_user_info(provider_enum.clone(), &token.access_token).await {
+        Ok(info) => info,
+        Err(e) => return Ok(HttpResponse::BadRequest().json(json!({"error": format!("Failed to fetch user info: {}", e)}))),
+    };
+
+    let scope = token.scope.clone().unwrap_or_default();
+    let expires_at = token.expires_in.and_then(|s| chrono::Duration::from_std(std::time::Duration::from_secs(s as u64)).ok()).map(|d| (Utc::now() + d).timestamp());
+
+    let connection_id = Uuid::new_v4();
+    let now = Utc::now();
+    let provider_str = format!("{}", provider_enum);
+
+    let result = sqlx::query(
+        r#"
+        INSERT INTO social_connections (
+            id, user_id, platform, platform_user_id, username,
+            access_token, refresh_token, token_expires_at, scope,
+            is_active, created_at, updated_at
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+        )
+        ON CONFLICT (user_id, platform, platform_user_id) 
+        DO UPDATE SET
+            access_token = EXCLUDED.access_token,
+            refresh_token = EXCLUDED.refresh_token,
+            token_expires_at = EXCLUDED.token_expires_at,
+            scope = EXCLUDED.scope,
+            is_active = true,
+            updated_at = EXCLUDED.updated_at
+        RETURNING id
+        "#
+    )
+    .bind(connection_id)
+    .bind(user_id)
+    .bind(provider_str)
+    .bind(&platform_user_id)
+    .bind(email.split('@').next().unwrap_or("user"))
+    .bind(&token.access_token)
+    .bind(token.refresh_token.as_ref())
+    .bind(expires_at.map(|ts| chrono::DateTime::<Utc>::from_timestamp(ts, 0)))
+    .bind(&scope)
+    .bind(true)
+    .bind(now)
+    .bind(now)
+    .fetch_one(pool)
+    .await;
+
+    let final_connection_id = match result {
+        Ok(row) => row.get("id"),
+        Err(e) => {
+            tracing::error!("Failed to create/update social connection: {}", e);
+            return Ok(HttpResponse::InternalServerError().json(json!({"error": "Failed to store social connection"})));
+        }
+    };
+
+    Ok(HttpResponse::Ok().json(json!({
+        "user_id": user_id,
+        "is_new_user": false,
+        "connection_id": final_connection_id
+    })))
 }
