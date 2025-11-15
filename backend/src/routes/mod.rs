@@ -19,9 +19,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
         .configure(webhooks::configure_webhook_routes)
         .configure(crate::graphql::configure_graphql_routes);
 
-    if toggles.billing_enabled() {
-        api_scope = api_scope.configure(billing::configure_billing_routes);
-    }
+    api_scope = api_scope.configure(billing::configure_billing_routes);
 
     cfg.service(api_scope)
         .route("/health", web::get().to(health::health_check))

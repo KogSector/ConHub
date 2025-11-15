@@ -155,11 +155,19 @@ class ServiceManager {
         NODE_ENV: 'development'
       };
 
+      const featureTogglesPath = path.join(this.projectRoot, 'feature-toggles.json');
+      env.FEATURE_TOGGLES_PATH = featureTogglesPath;
+
       const childProcess = spawn(service.command, service.args, {
         cwd: servicePath,
         env: env,
-        stdio: ['ignore', 'ignore', 'inherit'],
+        stdio: ['ignore', 'pipe', 'inherit'],
         shell: process.platform === 'win32' && service.command.endsWith('.cmd')
+      });
+
+      childProcess.stdout.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(line => line.trim());
+        lines.forEach(line => console.log(`[${serviceName}] ${line}`));
       });
 
       this.processes.set(serviceName, childProcess);

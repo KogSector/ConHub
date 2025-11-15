@@ -20,7 +20,9 @@
     "force-stop": "node maintenance/force-stop.js",
     "test": "cd ../tests && pytest -v",
     "db:health": "python database_manager.py health",
-    "db:users": "python database_manager.py list-users"
+    "db:users": "python database_manager.py list-users",
+    "db:clean": "node database/reset-database.js --clean",
+    "db:drop": "node database/reset-database.js --drop"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
