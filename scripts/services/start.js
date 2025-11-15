@@ -128,7 +128,24 @@ class ServiceManager {
     console.log('='.repeat(60));
   }
 
-  async startService(serviceName) {
+  async runCommand(cwd, command, args, env) {
+    return new Promise((resolve) => {
+      const proc = spawn(command, args, {
+        cwd,
+        env,
+        stdio: ['ignore', 'pipe', 'inherit'],
+        shell: process.platform === 'win32' && command.endsWith('.cmd')
+      });
+      proc.stdout.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(line => line.trim());
+        lines.forEach(line => console.log(`[build] ${line}`));
+      });
+      proc.on('exit', (code) => resolve(code === 0));
+      proc.on('error', () => resolve(false));
+    });
+  }
+
+  async startService(serviceName, toggles) {
     if (!SERVICES[serviceName]) {
       console.error(`❌ Unknown service: ${serviceName}`);
       this.updateServiceStatus(serviceName, 'FAILED', 'Unknown service');
@@ -148,19 +165,40 @@ class ServiceManager {
     this.updateServiceStatus(serviceName, 'STARTING', 'Initializing...');
 
     try {
+      const isProd = !!(toggles && toggles.Prod);
       const env = { 
         ...process.env, 
-        NODE_ENV: 'development'
+        NODE_ENV: isProd ? 'production' : 'development'
       };
 
       const featureTogglesPath = path.join(this.projectRoot, 'feature-toggles.json');
       env.FEATURE_TOGGLES_PATH = featureTogglesPath;
 
-      const childProcess = spawn(service.command, service.args, {
+      let command = service.command;
+      let args = [...service.args];
+
+      if (isProd) {
+        if (service.command === 'cargo') {
+          command = 'cargo';
+          args = ['run', '--release'];
+        }
+        if (serviceName === 'frontend') {
+          const built = await this.runCommand(servicePath, 'npm.cmd', ['run', 'build'], env);
+          if (!built) {
+            console.error('❌ frontend build failed');
+            this.updateServiceStatus(serviceName, 'FAILED', 'Build failed');
+            return false;
+          }
+          command = 'npm.cmd';
+          args = ['start'];
+        }
+      }
+
+      const childProcess = spawn(command, args, {
         cwd: servicePath,
         env: env,
         stdio: ['ignore', 'pipe', 'inherit'],
-        shell: process.platform === 'win32' && service.command.endsWith('.cmd')
+        shell: process.platform === 'win32' && command.endsWith('.cmd')
       });
 
       childProcess.stdout.on('data', (data) => {
@@ -238,19 +276,19 @@ class ServiceManager {
     // Start services in optimal order based on dependencies
     console.log('\n🚀 Starting services... ');
     if (toggles.Auth) {
-      await this.startService('auth');
+      await this.startService('auth', toggles);
       await this.waitForService('auth', 30000);
       console.log('');
     }
 
 
-    await this.startService('data');
+    await this.startService('data', toggles);
     await this.waitForService('data', 25000);
     console.log('');
 
     const supportServices = ['billing', 'security', 'webhook', 'client'];
     for (const service of supportServices) {
-      await this.startService(service);
+      await this.startService(service, toggles);
       await new Promise(resolve => setTimeout(resolve, 2000)); // Stagger starts
       await this.waitForService(service, 15000);
       console.log('');
@@ -259,19 +297,19 @@ class ServiceManager {
     if (toggles.Heavy) {
       const heavyServices = ['embedding', 'indexers'];
       for (const service of heavyServices) {
-        await this.startService(service);
+        await this.startService(service, toggles);
         await this.waitForService(service, 20000);
         console.log('');
       }
     }
 
 
-    await this.startService('backend');
+    await this.startService('backend', toggles);
     await this.waitForService('backend', 25000);
     console.log('');
 
 
-    await this.startService('frontend');
+    await this.startService('frontend', toggles);
     await this.waitForService('frontend', 60000);
     console.log('');
 
