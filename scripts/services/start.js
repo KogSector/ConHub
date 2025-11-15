@@ -50,12 +50,10 @@ class ServiceManager {
     }
 
     if (allEnvFilesPresent) {
-      console.log('✅ All microservices have proper environment variables');
+      console.log('✅ All microservices have proper environment variables. ✅ Prerequisites checked');
     } else {
-      console.log('⚠️  Some microservices are missing .env files');
+      console.log('⚠️  Some microservices are missing .env files. ✅ Prerequisites checked');
     }
-
-    console.log('✅ All prerequisites checked');
     return true;
   }
 
@@ -106,9 +104,9 @@ class ServiceManager {
 
   printServiceStatus() {
     console.log('\n📊 SERVICE STATUS OVERVIEW');
-    console.log('='.repeat(80));
+    console.log('='.repeat(60));
     console.log('Service'.padEnd(12) + 'Port'.padEnd(8) + 'Status');
-    console.log('-'.repeat(80));
+    console.log('-'.repeat(60));
     
     for (const [serviceName, service] of Object.entries(SERVICES)) {
       const status = this.serviceStatus.get(serviceName) || { status: 'NOT_STARTED', details: '' };
@@ -127,7 +125,7 @@ class ServiceManager {
         `${statusIcon} ${status.status}`
       );
     }
-    console.log('='.repeat(80));
+    console.log('='.repeat(60));
   }
 
   async startService(serviceName) {
@@ -218,7 +216,7 @@ class ServiceManager {
 
   async smartStart() {
     console.log('🚀 ConHub Comprehensive Service Manager');
-    console.log('='.repeat(80));
+    console.log('='.repeat(60));
 
     // Check feature toggles
     const toggles = await this.checkFeatureToggles();
@@ -238,7 +236,7 @@ class ServiceManager {
     
 
     // Start services in optimal order based on dependencies
-    console.log('\n🚀 Starting services...');
+    console.log('\n🚀 Starting services... ');
     if (toggles.Auth) {
       await this.startService('auth');
       await this.waitForService('auth', 30000);
