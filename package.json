@@ -20,6 +20,7 @@
     "db:health": "cd scripts && python database_manager.py health",
     "db:users": "cd scripts && python database_manager.py list-users",
     "db:status": "cd scripts && python database_manager.py health",
+    "db:reset": "dotenv -e .env.example -- node scripts/database/reset-database.js",
     "dev:security": "cd security && cargo run",
     "dev:webhook": "cd webhook && cargo run",
     "dev:embedding": "cd embedding && cargo run",
@@ -50,5 +51,8 @@
   "dependencies": {
     "dotenv": "^17.2.3",
     "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0"
   }
 }
