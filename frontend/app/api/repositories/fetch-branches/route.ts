@@ -23,24 +23,26 @@ function succeeded(resp: unknown): boolean {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { repoUrl?: unknown }
+    const body = await request.json() as { repoUrl?: unknown, credentials?: unknown }
     const repoUrl = typeof body.repoUrl === 'string' ? body.repoUrl : ''
+    const credentials = typeof body.credentials === 'object' && body.credentials !== null ? body.credentials as Record<string, string> : null
 
     if (!repoUrl) {
       return NextResponse.json({ error: 'Repository URL is required.' }, { status: 400 })
     }
 
-    const branchesData = await dataApiClient.post('/api/data/sources/branches', { repoUrl: repoUrl, credentials: null })
+    const branchesData = await dataApiClient.post('/api/repositories/fetch-branches', { repoUrl, credentials })
     if (!succeeded(branchesData)) {
       const err = isApiResp(branchesData) ? branchesData.error : undefined
       return NextResponse.json({ error: err || 'Failed to fetch branches' }, { status: 502 })
     }
 
-    const branches = getData<{ branches?: unknown[]; default_branch?: string }>(branchesData)
+    const branches = getData<{ branches?: unknown[]; default_branch?: string; file_extensions?: string[] }>(branchesData)
 
     return NextResponse.json({
       branches: branches?.branches,
       defaultBranch: branches?.default_branch,
+      file_extensions: branches?.file_extensions,
       provider: undefined,
       repoInfo: undefined,
     })
