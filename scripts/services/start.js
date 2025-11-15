@@ -107,7 +107,7 @@ class ServiceManager {
   printServiceStatus() {
     console.log('\n📊 SERVICE STATUS OVERVIEW');
     console.log('='.repeat(80));
-    console.log('Service'.padEnd(12) + 'Port'.padEnd(8) + 'Status'.padEnd(12) + 'Description'.padEnd(25) + 'Details');
+    console.log('Service'.padEnd(12) + 'Port'.padEnd(8) + 'Status');
     console.log('-'.repeat(80));
     
     for (const [serviceName, service] of Object.entries(SERVICES)) {
@@ -124,9 +124,7 @@ class ServiceManager {
       console.log(
         serviceName.padEnd(12) + 
         service.port.toString().padEnd(8) + 
-        `${statusIcon} ${status.status}`.padEnd(12) + 
-        service.description.padEnd(25) + 
-        status.details
+        `${statusIcon} ${status.status}`
       );
     }
     console.log('='.repeat(80));
@@ -148,7 +146,7 @@ class ServiceManager {
       return false;
     }
 
-    console.log(`🚀 Starting ${serviceName} (${service.description}) on port ${service.port}...`);
+    console.log(`🚀 Starting ${serviceName} on port ${service.port}...`);
     this.updateServiceStatus(serviceName, 'STARTING', 'Initializing...');
 
     try {
@@ -202,10 +200,9 @@ class ServiceManager {
     if (fs.existsSync(togglePath)) {
       try {
         const toggles = JSON.parse(fs.readFileSync(togglePath, 'utf8'));
-        console.log('🎯 Feature Toggles:', JSON.stringify(toggles, null, 2));
         return toggles;
       } catch (error) {
-        console.log('⚠️  Could not read feature toggles, using defaults');
+        
       }
     }
     return { Auth: true, Heavy: false, Docker: false, Redis: true };
@@ -230,26 +227,20 @@ class ServiceManager {
       this.updateServiceStatus(serviceName, 'NOT_STARTED', 'Waiting to start');
     }
 
-    // Print initial status
-    this.printServiceStatus();
+    
 
     // Start services in optimal order based on dependencies
-    console.log('\n🚀 Starting services in dependency order...');
-    
-    // Phase 1: Core Infrastructure Services
-    console.log('\n1️⃣  PHASE 1: Core Infrastructure');
+    console.log('\n🚀 Starting services...');
     if (toggles.Auth) {
       await this.startService('auth');
       await this.waitForService('auth', 30000);
     }
 
-    // Phase 2: Data Layer Services  
-    console.log('\n2️⃣  PHASE 2: Data Layer');
+    
     await this.startService('data');
     await this.waitForService('data', 25000);
 
-    // Phase 3: Supporting Backend Services
-    console.log('\n3️⃣  PHASE 3: Supporting Services');
+    
     const supportServices = ['billing', 'security', 'webhook', 'client'];
     for (const service of supportServices) {
       await this.startService(service);
@@ -257,9 +248,7 @@ class ServiceManager {
       await this.waitForService(service, 15000);
     }
 
-    // Phase 4: Heavy Services (if enabled)
     if (toggles.Heavy) {
-      console.log('\n4️⃣  PHASE 4: Heavy Processing Services');
       const heavyServices = ['embedding', 'indexers'];
       for (const service of heavyServices) {
         await this.startService(service);
@@ -267,13 +256,11 @@ class ServiceManager {
       }
     }
 
-    // Phase 5: API Gateway
-    console.log('\n5️⃣  PHASE 5: API Gateway');
+    
     await this.startService('backend');
     await this.waitForService('backend', 25000);
 
-    // Phase 6: Frontend
-    console.log('\n6️⃣  PHASE 6: Frontend Application');
+    
     await this.startService('frontend');
     await this.waitForService('frontend', 30000);
 

@@ -26,7 +26,7 @@ const MICROSERVICES = [
 
 class MicroserviceValidator {
   constructor() {
-    this.projectRoot = path.resolve(__dirname, '..');
+    this.projectRoot = path.resolve(__dirname, '..', '..');
     this.results = {
       envFiles: {},
       dockerfiles: {},
@@ -217,7 +217,6 @@ class MicroserviceValidator {
   }
 }
 
-// Run validation
 if (require.main === module) {
   const validator = new MicroserviceValidator();
   validator.validateAll().catch(console.error);
