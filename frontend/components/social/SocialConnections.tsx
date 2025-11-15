@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -75,19 +75,7 @@ export function SocialConnections() {
   const [syncing, setSyncing] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchConnections();
-    const handler = (e: MessageEvent) => {
-      const data = e.data as any
-      if (data && data.type === 'oauth-connected') {
-        fetchConnections()
-      }
-    }
-    window.addEventListener('message', handler)
-    return () => window.removeEventListener('message', handler)
-  }, []);
-
-  const fetchConnections = async () => {
+  const fetchConnections = useCallback(async () => {
     try {
       const resp = await securityApiClient.get('/api/security/connections');
 
@@ -103,13 +91,32 @@ export function SocialConnections() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchConnections();
+    const handler = (e: MessageEvent) => {
+      const dataUnknown: unknown = e.data
+      if (
+        typeof dataUnknown === 'object' &&
+        dataUnknown !== null &&
+        'type' in dataUnknown &&
+        (dataUnknown as { type: string }).type === 'oauth-connected'
+      ) {
+        fetchConnections()
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [fetchConnections]);
+
+  
 
   const connectPlatform = async (platform: string) => {
     try {
       if (platform === 'github' || platform === 'bitbucket') {
         const resp = await apiClient.get<{ url: string; state: string }>(`/api/auth/oauth/url?provider=${platform}`)
-        const authUrl = (resp as any)?.url
+        const { url: authUrl } = resp
         if (authUrl) {
           window.open(authUrl, '_blank', 'width=500,height=700')
           setTimeout(() => { fetchConnections(); }, 5000)
@@ -174,9 +181,11 @@ export function SocialConnections() {
     }
   };
 
-  const connectedPlatforms = new Set(connections.map(conn => conn.platform));
-  const availablePlatforms = Object.keys(PLATFORM_CONFIGS).filter(
-    platform => !connectedPlatforms.has(platform as any)
+  const connectedPlatforms = new Set<keyof typeof PLATFORM_CONFIGS>(
+    connections.map(conn => conn.platform as keyof typeof PLATFORM_CONFIGS)
+  );
+  const availablePlatforms = (Object.keys(PLATFORM_CONFIGS) as Array<keyof typeof PLATFORM_CONFIGS>).filter(
+    (platform) => !connectedPlatforms.has(platform)
   );
 
   if (loading) {
