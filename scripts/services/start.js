@@ -6,18 +6,23 @@ const path = require('path');
 const fs = require('fs');
 
 const SERVICES = {
-  auth: { port: 3010, path: 'auth', command: 'cargo', args: ['run'], healthPath: '/health' },
-  data: { port: 3013, path: 'data', command: 'cargo', args: ['run'], healthPath: '/health' },
-  billing: { port: 3011, path: 'billing', command: 'cargo', args: ['run'], healthPath: '/health' },
-  security: { port: 3014, path: 'security', command: 'cargo', args: ['run'], healthPath: '/health' },
-  webhook: { port: 3015, path: 'webhook', command: 'cargo', args: ['run'], healthPath: '/health' },
-  frontend: { port: 3000, path: 'frontend', command: 'npm', args: ['run', 'dev'], healthPath: '/' }
+  auth: { port: 3010, path: 'auth', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Authentication & JWT' },
+  data: { port: 3013, path: 'data', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Data Sources & Connectors' },
+  billing: { port: 3011, path: 'billing', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Stripe Payments' },
+  security: { port: 3014, path: 'security', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Security & Audit' },
+  webhook: { port: 3015, path: 'webhook', command: 'cargo', args: ['run'], healthPath: '/health', description: 'External Webhooks' },
+  client: { port: 3012, path: 'client', command: 'cargo', args: ['run'], healthPath: '/health', description: 'AI Client Service' },
+  backend: { port: 8000, path: 'backend', command: 'cargo', args: ['run'], healthPath: '/health', description: 'GraphQL Gateway' },
+  embedding: { port: 8082, path: 'embedding', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Fusion Embeddings' },
+  indexers: { port: 8080, path: 'indexers', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Search & Indexing' },
+  frontend: { port: 3000, path: 'frontend', command: 'npm.cmd', args: ['run', 'dev'], healthPath: '/', description: 'Next.js UI' }
 };
 
 class ServiceManager {
   constructor() {
     this.projectRoot = path.resolve(__dirname, '../..');
     this.processes = new Map();
+    this.serviceStatus = new Map();
   }
 
   async checkPrerequisites() {
@@ -73,24 +78,64 @@ class ServiceManager {
   }
 
   async waitForService(serviceName, timeout = 30000) {
-    console.log(`⏳ Waiting for ${serviceName} to be ready...`);
+    console.log(`⏳ Waiting for ${serviceName} health check...`);
     
     const startTime = Date.now();
     while (Date.now() - startTime < timeout) {
       if (await this.checkServiceHealth(serviceName)) {
-        console.log(`✅ ${serviceName} is ready!`);
+        console.log(`✅ ${serviceName} is healthy and ready!`);
+        this.updateServiceStatus(serviceName, 'HEALTHY', 'Health check passed');
         return true;
       }
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
     
-    console.log(`⚠️  ${serviceName} may not be fully ready yet, continuing...`);
+    console.log(`⚠️  ${serviceName} health check timeout, but process may still be starting...`);
+    this.updateServiceStatus(serviceName, 'RUNNING', 'Health check timeout');
     return false;
+  }
+
+  updateServiceStatus(serviceName, status, details = '') {
+    this.serviceStatus.set(serviceName, {
+      status,
+      details,
+      timestamp: new Date().toISOString(),
+      port: SERVICES[serviceName]?.port
+    });
+  }
+
+  printServiceStatus() {
+    console.log('\n📊 SERVICE STATUS OVERVIEW');
+    console.log('='.repeat(80));
+    console.log('Service'.padEnd(12) + 'Port'.padEnd(8) + 'Status'.padEnd(12) + 'Description'.padEnd(25) + 'Details');
+    console.log('-'.repeat(80));
+    
+    for (const [serviceName, service] of Object.entries(SERVICES)) {
+      const status = this.serviceStatus.get(serviceName) || { status: 'NOT_STARTED', details: '' };
+      const statusIcon = {
+        'STARTING': '🟡',
+        'RUNNING': '🟢',
+        'HEALTHY': '✅',
+        'FAILED': '🔴',
+        'STOPPED': '⚫',
+        'NOT_STARTED': '⚪'
+      }[status.status] || '❓';
+      
+      console.log(
+        serviceName.padEnd(12) + 
+        service.port.toString().padEnd(8) + 
+        `${statusIcon} ${status.status}`.padEnd(12) + 
+        service.description.padEnd(25) + 
+        status.details
+      );
+    }
+    console.log('='.repeat(80));
   }
 
   async startService(serviceName) {
     if (!SERVICES[serviceName]) {
       console.error(`❌ Unknown service: ${serviceName}`);
+      this.updateServiceStatus(serviceName, 'FAILED', 'Unknown service');
       return false;
     }
 
@@ -99,10 +144,12 @@ class ServiceManager {
 
     if (!fs.existsSync(servicePath)) {
       console.error(`❌ Service path not found: ${servicePath}`);
+      this.updateServiceStatus(serviceName, 'FAILED', 'Path not found');
       return false;
     }
 
-    console.log(`🚀 Starting ${serviceName} service...`);
+    console.log(`🚀 Starting ${serviceName} (${service.description}) on port ${service.port}...`);
+    this.updateServiceStatus(serviceName, 'STARTING', 'Initializing...');
 
     try {
       const env = { 
@@ -113,40 +160,63 @@ class ServiceManager {
       const childProcess = spawn(service.command, service.args, {
         cwd: servicePath,
         env: env,
-        stdio: 'inherit'
+        stdio: 'inherit',
+        shell: true
       });
 
       this.processes.set(serviceName, childProcess);
 
       childProcess.on('error', (error) => {
         console.error(`❌ Failed to start ${serviceName}: ${error.message}`);
+        this.updateServiceStatus(serviceName, 'FAILED', error.message);
       });
 
       childProcess.on('exit', (code) => {
         console.log(`🛑 ${serviceName} exited with code ${code}`);
+        this.updateServiceStatus(serviceName, 'STOPPED', `Exit code: ${code}`);
         this.processes.delete(serviceName);
       });
 
       // Wait a moment to see if it starts successfully
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       if (this.processes.has(serviceName)) {
-        console.log(`✅ ${serviceName} service started on port ${service.port}`);
+        console.log(`✅ ${serviceName} process started on port ${service.port}`);
+        this.updateServiceStatus(serviceName, 'RUNNING', 'Process active');
         return true;
       } else {
-        console.error(`❌ ${serviceName} service failed to start`);
+        console.error(`❌ ${serviceName} process failed to start`);
+        this.updateServiceStatus(serviceName, 'FAILED', 'Process died immediately');
         return false;
       }
 
     } catch (error) {
       console.error(`❌ Failed to start ${serviceName}: ${error.message}`);
+      this.updateServiceStatus(serviceName, 'FAILED', error.message);
       return false;
     }
   }
 
+  async checkFeatureToggles() {
+    const togglePath = path.join(this.projectRoot, 'feature-toggles.json');
+    if (fs.existsSync(togglePath)) {
+      try {
+        const toggles = JSON.parse(fs.readFileSync(togglePath, 'utf8'));
+        console.log('🎯 Feature Toggles:', JSON.stringify(toggles, null, 2));
+        return toggles;
+      } catch (error) {
+        console.log('⚠️  Could not read feature toggles, using defaults');
+      }
+    }
+    return { Auth: true, Heavy: false, Docker: false, Redis: true };
+  }
+
   async smartStart() {
-    console.log('🚀 ConHub Smart Start');
-    console.log('='.repeat(50));
+    console.log('🚀 ConHub Comprehensive Service Manager');
+    console.log('='.repeat(80));
+
+    // Check feature toggles
+    const toggles = await this.checkFeatureToggles();
 
     // Check prerequisites first
     const prereqsOk = await this.checkPrerequisites();
@@ -155,42 +225,93 @@ class ServiceManager {
       process.exit(1);
     }
 
-    // Start services in optimal order
-    console.log('\n🚀 Starting services in optimal order...');
-    
-    // 1. Start auth service first (other services depend on it)
-    console.log('\n1️⃣  Starting Auth Service...');
-    await this.startService('auth');
-    await this.waitForService('auth', 30000);
+    // Initialize all service statuses
+    for (const serviceName of Object.keys(SERVICES)) {
+      this.updateServiceStatus(serviceName, 'NOT_STARTED', 'Waiting to start');
+    }
 
-    // 2. Start data service (core backend functionality)
-    console.log('\n2️⃣  Starting Data Service...');
+    // Print initial status
+    this.printServiceStatus();
+
+    // Start services in optimal order based on dependencies
+    console.log('\n🚀 Starting services in dependency order...');
+    
+    // Phase 1: Core Infrastructure Services
+    console.log('\n1️⃣  PHASE 1: Core Infrastructure');
+    if (toggles.Auth) {
+      await this.startService('auth');
+      await this.waitForService('auth', 30000);
+    }
+
+    // Phase 2: Data Layer Services  
+    console.log('\n2️⃣  PHASE 2: Data Layer');
     await this.startService('data');
-    await this.waitForService('data', 20000);
+    await this.waitForService('data', 25000);
 
-    // 3. Start other backend services in parallel
-    console.log('\n3️⃣  Starting other backend services...');
-    const otherServices = ['billing', 'security', 'webhook'];
-    await Promise.all(otherServices.map(service => this.startService(service)));
-    
-    // Wait for all backend services
-    for (const service of otherServices) {
+    // Phase 3: Supporting Backend Services
+    console.log('\n3️⃣  PHASE 3: Supporting Services');
+    const supportServices = ['billing', 'security', 'webhook', 'client'];
+    for (const service of supportServices) {
+      await this.startService(service);
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Stagger starts
       await this.waitForService(service, 15000);
     }
 
-    // 4. Start frontend last
-    console.log('\n4️⃣  Starting Frontend...');
+    // Phase 4: Heavy Services (if enabled)
+    if (toggles.Heavy) {
+      console.log('\n4️⃣  PHASE 4: Heavy Processing Services');
+      const heavyServices = ['embedding', 'indexers'];
+      for (const service of heavyServices) {
+        await this.startService(service);
+        await this.waitForService(service, 20000);
+      }
+    }
+
+    // Phase 5: API Gateway
+    console.log('\n5️⃣  PHASE 5: API Gateway');
+    await this.startService('backend');
+    await this.waitForService('backend', 25000);
+
+    // Phase 6: Frontend
+    console.log('\n6️⃣  PHASE 6: Frontend Application');
     await this.startService('frontend');
     await this.waitForService('frontend', 30000);
 
-    console.log('\n🎉 ConHub startup complete!');
-    console.log('🌐 Frontend: http://localhost:3000');
-    console.log('🔐 Auth API: http://localhost:3010');
-    console.log('📊 Data API: http://localhost:3013');
+    // Print final comprehensive status
+    console.log('\n');
+    this.printServiceStatus();
+    
+    console.log('\n🎉 ConHub startup sequence complete!');
+    console.log('\n🌐 ACCESS POINTS:');
+    console.log('   🌐 Frontend:     http://localhost:3000');
+    console.log('   🔗 GraphQL API:  http://localhost:8000/api/graphql');
+    console.log('   🔐 Auth API:     http://localhost:3010/health');
+    console.log('   📊 Data API:     http://localhost:3013/health');
+    console.log('   🤖 AI Service:   http://localhost:3012/health');
+    if (toggles.Heavy) {
+      console.log('   🧠 Embeddings:   http://localhost:8082/health');
+      console.log('   🔍 Search:       http://localhost:8080/health');
+    }
+    
+    console.log('\n💡 Use Ctrl+C to stop all services');
+    console.log('📊 Run "npm run status" to check service health anytime');
   }
 
   async startAll() {
     return this.smartStart();
+  }
+
+  async checkAllServices() {
+    console.log('🔍 ConHub Service Health Check');
+    console.log('='.repeat(50));
+    
+    for (const [serviceName, service] of Object.entries(SERVICES)) {
+      const isHealthy = await this.checkServiceHealth(serviceName);
+      const status = isHealthy ? 'HEALTHY' : 'UNHEALTHY';
+      this.updateServiceStatus(serviceName, status, isHealthy ? 'Health check passed' : 'Health check failed');
+    }
+    
+    this.printServiceStatus();
   }
 
   async startSpecific(services) {
@@ -213,6 +334,21 @@ async function main() {
     await serviceManager.startSpecific(args);
   }
 }
+
+// Graceful shutdown handling
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Received SIGINT, shutting down gracefully...');
+  const { stopAllServices } = require('./stop.js');
+  await stopAllServices();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
+  const { stopAllServices } = require('./stop.js');
+  await stopAllServices();
+  process.exit(0);
+});
 
 if (require.main === module) {
   main().catch(console.error);

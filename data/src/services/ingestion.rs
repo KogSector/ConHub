@@ -204,7 +204,7 @@ impl IngestionService {
                 document.external_id,
                 document.name,
                 document.path,
-                document.content_type.as_str(),
+                &document.content_type.to_string(),
                 document.content.len() as i64,
                 document.metadata
             )
@@ -233,7 +233,7 @@ impl IngestionService {
                         chunk.content,
                         chunk.start_offset as i32,
                         chunk.end_offset as i32,
-                        chunk.metadata.unwrap_or_else(|| serde_json::json!({}))
+                        chunk.metadata.clone().unwrap_or_else(|| serde_json::json!({}))
                     )
                     .execute(pool)
                     .await
@@ -282,7 +282,7 @@ impl IngestionService {
                             SET embedding_vector = $1, updated_at = CURRENT_TIMESTAMP
                             WHERE document_id = $2 AND chunk_number = $3
                             "#,
-                            embedding.as_slice(),
+                            &serde_json::to_string(&embedding).unwrap_or_default(),
                             document.id,
                             chunk.chunk_number as i32
                         )

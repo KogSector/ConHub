@@ -105,6 +105,24 @@ pub enum ContentType {
     Unknown,
 }
 
+impl ContentType {
+    pub fn to_string(&self) -> String {
+        match self {
+            ContentType::Text => "text".to_string(),
+            ContentType::Binary => "binary".to_string(),
+            ContentType::Code => "code".to_string(),
+            ContentType::Markdown => "markdown".to_string(),
+            ContentType::Html => "html".to_string(),
+            ContentType::Pdf => "pdf".to_string(),
+            ContentType::Image => "image".to_string(),
+            ContentType::Video => "video".to_string(),
+            ContentType::Audio => "audio".to_string(),
+            ContentType::Archive => "archive".to_string(),
+            ContentType::Unknown => "unknown".to_string(),
+        }
+    }
+}
+
 /// Result of a sync operation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncResult {

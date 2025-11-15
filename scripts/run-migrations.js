@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
-require('dotenv').config({ path: '../data/.env' });
+require('dotenv').config({ path: './data/.env' });
 
 async function runMigrations() {
   const client = new Client({
