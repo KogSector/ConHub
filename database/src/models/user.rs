@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use sqlx::FromRow;
+use ipnetwork::IpNetwork;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
@@ -22,10 +23,11 @@ pub struct User {
     pub email_verified_at: Option<DateTime<Utc>>,
     pub two_factor_enabled: bool,
     pub two_factor_secret: Option<String>,
+    pub backup_codes: Option<Vec<String>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub last_login_at: Option<DateTime<Utc>>,
-    pub last_login_ip: Option<String>,
+    pub last_login_ip: Option<IpNetwork>,
     pub last_password_reset: Option<DateTime<Utc>>,
 }
 
@@ -59,7 +61,7 @@ pub struct UserSession {
     pub id: Uuid,
     pub user_id: Uuid,
     pub refresh_token: String,
-    pub ip_address: Option<String>,
+    pub ip_address: Option<IpNetwork>,
     pub user_agent: Option<String>,
     pub expires_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
@@ -68,7 +70,7 @@ pub struct UserSession {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct ApiToken {
     pub id: Uuid,
-    pub user_id: Uuid,
+    pub user_id: Option<Uuid>,
     pub name: String,
     pub token_hash: String,
     pub scopes: Vec<String>,

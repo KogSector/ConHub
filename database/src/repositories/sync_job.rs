@@ -88,7 +88,7 @@ impl SyncJobRepository {
         let jobs = query_as!(
             SyncJob,
             "SELECT * FROM sync_jobs WHERE status = 'pending' ORDER BY priority, scheduled_at LIMIT $1",
-            limit
+            limit as i64
         )
         .fetch_all(&self.pool)
         .await

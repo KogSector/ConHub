@@ -15,11 +15,12 @@ pub struct SourceDocument {
     pub mime_type: Option<String>,
     pub size: Option<i64>,
     pub url: Option<String>,
-    pub is_folder: bool,
+    pub parent_id: Option<String>,
+    pub is_folder: Option<bool>,
     pub metadata: Option<serde_json::Value>,
-    pub indexed_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub indexed_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

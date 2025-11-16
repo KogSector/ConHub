@@ -202,7 +202,7 @@ impl DocumentRepository {
         let items = query_as!(
             EmbeddingQueueItem,
             "SELECT * FROM embedding_queue WHERE status = 'pending' AND retry_count < 3 ORDER BY created_at LIMIT $1",
-            limit
+            limit as i64
         )
         .fetch_all(&self.pool)
         .await

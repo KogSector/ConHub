@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use anyhow::{Result, Context};
 use sqlx::{PgPool, query_as, query};
 use uuid::Uuid;
+use ipnetwork::IpNetwork;
 
 use crate::models::{User, CreateUserInput, UpdateUserInput, UserSession, ApiToken, Model, Pagination, PaginatedResult};
 use super::Repository;
@@ -21,7 +22,11 @@ impl UserRepository {
             r#"
             INSERT INTO users (email, name, password_hash, organization, role, subscription_tier)
             VALUES ($1, $2, $3, $4, 'user', 'free')
-            RETURNING *
+            RETURNING id, email, password_hash, name, avatar_url, organization,
+                      role::text as "role!", subscription_tier::text as "subscription_tier!",
+                      is_verified, is_active, is_locked, failed_login_attempts, locked_until,
+                      password_changed_at, email_verified_at, two_factor_enabled, two_factor_secret,
+                      backup_codes, created_at, updated_at, last_login_at, last_login_ip, last_password_reset
             "#,
             input.email,
             input.name,
@@ -38,7 +43,12 @@ impl UserRepository {
     pub async fn find_by_email(&self, email: &str) -> Result<Option<User>> {
         let user = query_as!(
             User,
-            "SELECT * FROM users WHERE email = $1",
+            r#"SELECT id, email, password_hash, name, avatar_url, organization,
+                      role::text as "role!", subscription_tier::text as "subscription_tier!",
+                      is_verified, is_active, is_locked, failed_login_attempts, locked_until,
+                      password_changed_at, email_verified_at, two_factor_enabled, two_factor_secret,
+                      backup_codes, created_at, updated_at, last_login_at, last_login_ip, last_password_reset
+               FROM users WHERE email = $1"#,
             email
         )
         .fetch_optional(&self.pool)
@@ -51,7 +61,12 @@ impl UserRepository {
     pub async fn find_by_name(&self, name: &str) -> Result<Option<User>> {
         let user = query_as!(
             User,
-            "SELECT * FROM users WHERE name = $1",
+            r#"SELECT id, email, password_hash, name, avatar_url, organization,
+                      role::text as "role!", subscription_tier::text as "subscription_tier!",
+                      is_verified, is_active, is_locked, failed_login_attempts, locked_until,
+                      password_changed_at, email_verified_at, two_factor_enabled, two_factor_secret,
+                      backup_codes, created_at, updated_at, last_login_at, last_login_ip, last_password_reset
+               FROM users WHERE name = $1"#,
             name
         )
         .fetch_optional(&self.pool)
@@ -71,7 +86,11 @@ impl UserRepository {
                 organization = COALESCE($3, organization),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $4
-            RETURNING *
+            RETURNING id, email, password_hash, name, avatar_url, organization,
+                      role::text as "role!", subscription_tier::text as "subscription_tier!",
+                      is_verified, is_active, is_locked, failed_login_attempts, locked_until,
+                      password_changed_at, email_verified_at, two_factor_enabled, two_factor_secret,
+                      backup_codes, created_at, updated_at, last_login_at, last_login_ip, last_password_reset
             "#,
             input.name,
             input.avatar_url,
@@ -130,17 +149,16 @@ impl UserRepository {
         Ok(())
     }
 
-    pub async fn create_session(&self, user_id: &Uuid, refresh_token: &str, ip_address: Option<String>, user_agent: Option<String>) -> Result<UserSession> {
+    pub async fn create_session(&self, user_id: &Uuid, refresh_token: &str, ip_address: Option<&str>, user_agent: Option<String>) -> Result<UserSession> {
+        let ip_net: Option<IpNetwork> = ip_address.and_then(|s| s.parse().ok());
         let session = query_as!(
             UserSession,
-            r#"
-            INSERT INTO user_sessions (user_id, refresh_token, ip_address, user_agent, expires_at)
-            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP + INTERVAL '7 days')
-            RETURNING *
-            "#,
+            r#"INSERT INTO user_sessions (user_id, refresh_token, ip_address, user_agent, expires_at)
+               VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP + INTERVAL '7 days')
+               RETURNING id, user_id, refresh_token, ip_address, user_agent, expires_at, created_at"#,
             user_id,
             refresh_token,
-            ip_address,
+            ip_net as _,
             user_agent
         )
         .fetch_one(&self.pool)
@@ -153,7 +171,7 @@ impl UserRepository {
     pub async fn find_session_by_token(&self, refresh_token: &str) -> Result<Option<UserSession>> {
         let session = query_as!(
             UserSession,
-            "SELECT * FROM user_sessions WHERE refresh_token = $1 AND expires_at > CURRENT_TIMESTAMP",
+            "SELECT id, user_id, refresh_token, ip_address, user_agent, expires_at, created_at FROM user_sessions WHERE refresh_token = $1 AND expires_at > CURRENT_TIMESTAMP",
             refresh_token
         )
         .fetch_optional(&self.pool)
@@ -179,9 +197,19 @@ impl UserRepository {
         let token = query_as!(
             ApiToken,
             r#"
-            INSERT INTO api_tokens (user_id, name, token_hash, scopes)
+            INSERT INTO api_keys (user_id, service_name, key_hash, permissions)
             VALUES ($1, $2, $3, $4)
-            RETURNING *
+            RETURNING
+                id,
+                user_id,
+                service_name AS "name!",
+                key_hash AS "token_hash!",
+                permissions AS "scopes!",
+                is_active,
+                expires_at,
+                last_used_at,
+                created_at,
+                updated_at
             "#,
             user_id,
             name,
@@ -198,7 +226,22 @@ impl UserRepository {
     pub async fn list_api_tokens(&self, user_id: &Uuid) -> Result<Vec<ApiToken>> {
         let tokens = query_as!(
             ApiToken,
-            "SELECT * FROM api_tokens WHERE user_id = $1 AND is_active = TRUE ORDER BY created_at DESC",
+            r#"
+            SELECT
+                id,
+                user_id,
+                service_name AS "name!",
+                key_hash AS "token_hash!",
+                permissions AS "scopes!",
+                is_active,
+                expires_at,
+                last_used_at,
+                created_at,
+                updated_at
+            FROM api_keys
+            WHERE user_id = $1 AND is_active = TRUE
+            ORDER BY created_at DESC
+            "#,
             user_id
         )
         .fetch_all(&self.pool)
@@ -210,7 +253,7 @@ impl UserRepository {
 
     pub async fn revoke_api_token(&self, id: &Uuid) -> Result<()> {
         query!(
-            "UPDATE api_tokens SET is_active = FALSE WHERE id = $1",
+            "UPDATE api_keys SET is_active = FALSE WHERE id = $1",
             id
         )
         .execute(&self.pool)
@@ -224,23 +267,25 @@ impl UserRepository {
 #[async_trait]
 impl Repository<User> for UserRepository {
     async fn create(&self, entity: &User) -> Result<User> {
-        let user = query_as!(
-            User,
-            r#"
-            INSERT INTO users (id, email, username, password_hash, full_name, avatar_url, email_verified, is_active, is_admin)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING *
-            "#,
-            entity.id,
-            entity.email,
-            entity.username,
-            entity.password_hash,
-            entity.full_name,
-            entity.avatar_url,
-            entity.email_verified,
-            entity.is_active,
-            entity.is_admin
+        let user = sqlx::query_as::<_, User>(
+            r#"INSERT INTO users (id, email, name, password_hash, avatar_url, organization, role, subscription_tier, is_verified, is_active)
+               VALUES ($1, $2, $3, $4, $5, $6, $7::user_role, $8::subscription_tier, $9, $10)
+               RETURNING id, email, password_hash, name, avatar_url, organization,
+                         role::text as role, subscription_tier::text as subscription_tier,
+                         is_verified, is_active, is_locked, failed_login_attempts, locked_until,
+                         password_changed_at, email_verified_at, two_factor_enabled, two_factor_secret,
+                         backup_codes, created_at, updated_at, last_login_at, last_login_ip, last_password_reset"#
         )
+        .bind(entity.id)
+        .bind(&entity.email)
+        .bind(&entity.name)
+        .bind(&entity.password_hash)
+        .bind(&entity.avatar_url)
+        .bind(&entity.organization)
+        .bind(&entity.role)
+        .bind(&entity.subscription_tier)
+        .bind(entity.is_verified)
+        .bind(entity.is_active)
         .fetch_one(&self.pool)
         .await
         .context("Failed to create user")?;
@@ -251,7 +296,12 @@ impl Repository<User> for UserRepository {
     async fn find_by_id(&self, id: &Uuid) -> Result<Option<User>> {
         let user = query_as!(
             User,
-            "SELECT * FROM users WHERE id = $1",
+            r#"SELECT id, email, password_hash, name, avatar_url, organization,
+                      role::text as "role!", subscription_tier::text as "subscription_tier!",
+                      is_verified, is_active, is_locked, failed_login_attempts, locked_until,
+                      password_changed_at, email_verified_at, two_factor_enabled, two_factor_secret,
+                      backup_codes, created_at, updated_at, last_login_at, last_login_ip, last_password_reset
+               FROM users WHERE id = $1"#,
             id
         )
         .fetch_optional(&self.pool)
@@ -262,24 +312,27 @@ impl Repository<User> for UserRepository {
     }
 
     async fn update(&self, id: &Uuid, entity: &User) -> Result<User> {
-        let user = query_as!(
-            User,
-            r#"
-            UPDATE users
-            SET email = $1, username = $2, full_name = $3, avatar_url = $4,
-                email_verified = $5, is_active = $6, is_admin = $7, updated_at = CURRENT_TIMESTAMP
-            WHERE id = $8
-            RETURNING *
-            "#,
-            entity.email,
-            entity.username,
-            entity.full_name,
-            entity.avatar_url,
-            entity.email_verified,
-            entity.is_active,
-            entity.is_admin,
-            id
+        let user = sqlx::query_as::<_, User>(
+            r#"UPDATE users
+               SET email = $1, name = $2, avatar_url = $3, organization = $4,
+                   role = $5::user_role, subscription_tier = $6::subscription_tier, is_verified = $7, is_active = $8,
+                   updated_at = CURRENT_TIMESTAMP
+               WHERE id = $9
+               RETURNING id, email, password_hash, name, avatar_url, organization,
+                         role::text as role, subscription_tier::text as subscription_tier,
+                         is_verified, is_active, is_locked, failed_login_attempts, locked_until,
+                         password_changed_at, email_verified_at, two_factor_enabled, two_factor_secret,
+                         backup_codes, created_at, updated_at, last_login_at, last_login_ip, last_password_reset"#
         )
+        .bind(&entity.email)
+        .bind(&entity.name)
+        .bind(&entity.avatar_url)
+        .bind(&entity.organization)
+        .bind(&entity.role)
+        .bind(&entity.subscription_tier)
+        .bind(entity.is_verified)
+        .bind(entity.is_active)
+        .bind(id)
         .fetch_one(&self.pool)
         .await
         .context("Failed to update user")?;
@@ -309,7 +362,12 @@ impl Repository<User> for UserRepository {
 
         let users = query_as!(
             User,
-            "SELECT * FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+            r#"SELECT id, email, password_hash, name, avatar_url, organization,
+                      role::text as "role!", subscription_tier::text as "subscription_tier!",
+                      is_verified, is_active, is_locked, failed_login_attempts, locked_until,
+                      password_changed_at, email_verified_at, two_factor_enabled, two_factor_secret,
+                      backup_codes, created_at, updated_at, last_login_at, last_login_ip, last_password_reset
+               FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2"#,
             pagination.limit,
             pagination.offset
         )

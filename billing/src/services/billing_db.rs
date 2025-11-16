@@ -15,26 +15,8 @@ impl BillingServiceDb {
     }
 
     pub async fn get_subscription_plans(&self) -> Result<Vec<SubscriptionPlan>, ServiceError> {
-        let plans = sqlx::query_as!(
-            SubscriptionPlan,
-            r#"
-            SELECT 
-                id,
-                name,
-                description,
-                tier,
-                price_monthly,
-                price_yearly,
-                features,
-                limits,
-                is_active,
-                stripe_price_id,
-                created_at,
-                updated_at
-            FROM subscription_plans 
-            WHERE is_active = true 
-            ORDER BY price_monthly ASC
-            "#
+        let db_plans = sqlx::query_as::<_, conhub_database::models::SubscriptionPlan>(
+            "SELECT id, name, description, tier, price_monthly, price_yearly, features, limits, is_active, stripe_price_id, created_at, updated_at FROM subscription_plans WHERE is_active = true ORDER BY price_monthly ASC"
         )
         .fetch_all(&self.pool)
         .await
@@ -42,6 +24,21 @@ impl BillingServiceDb {
             error!("Failed to fetch subscription plans: {}", e);
             ServiceError::DatabaseError(e.to_string())
         })?;
+
+        let plans = db_plans.into_iter().map(|p| SubscriptionPlan {
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            tier: p.tier,
+            price_monthly: p.price_monthly,
+            price_yearly: p.price_yearly,
+            features: p.features,
+            limits: p.limits,
+            is_active: p.is_active.unwrap_or(true),
+            stripe_price_id: p.stripe_price_id,
+            created_at: p.created_at,
+            updated_at: p.updated_at,
+        }).collect();
 
         Ok(plans)
     }
@@ -118,37 +115,36 @@ impl BillingServiceDb {
     }
 
     pub async fn get_invoices(&self, user_id: Uuid) -> Result<Vec<Invoice>, ServiceError> {
-        let invoices = sqlx::query_as!(
-            Invoice,
-            r#"
-            SELECT 
-                id,
-                user_id,
-                subscription_id,
-                invoice_number,
-                status as "status: InvoiceStatus",
-                amount_due,
-                amount_paid,
-                currency,
-                due_date,
-                paid_at,
-                stripe_invoice_id,
-                metadata,
-                created_at,
-                updated_at
-            FROM invoices 
-            WHERE user_id = $1
-            ORDER BY created_at DESC
-            LIMIT 10
-            "#,
-            user_id
+        let db_invoices = sqlx::query_as::<_, conhub_database::models::Invoice>(
+            "SELECT id, user_id, subscription_id, invoice_number, status, amount_due, amount_paid, currency, due_date, paid_at, stripe_invoice_id, metadata, created_at, updated_at FROM invoices WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10"
         )
+        .bind(user_id)
         .fetch_all(&self.pool)
         .await
         .map_err(|e| {
             error!("Failed to fetch invoices: {}", e);
             ServiceError::DatabaseError(e.to_string())
         })?;
+
+        // Convert database models to API models
+        let invoices = db_invoices.into_iter().map(|inv| Invoice {
+            id: inv.id,
+            user_id: inv.user_id,
+            subscription_id: inv.subscription_id,
+            invoice_number: inv.invoice_number,
+            status: inv.status.parse().unwrap_or(InvoiceStatus::Draft),
+            amount_due: inv.amount_due,
+            amount_paid: inv.amount_paid.unwrap_or(rust_decimal::Decimal::ZERO),
+            currency: inv.currency.unwrap_or_else(|| "USD".to_string()),
+            due_date: inv.due_date,
+            paid_at: inv.paid_at,
+            stripe_invoice_id: inv.stripe_invoice_id,
+            hosted_invoice_url: None,
+            invoice_pdf_url: None,
+            metadata: inv.metadata.unwrap_or_else(|| serde_json::json!({})),
+            created_at: inv.created_at,
+            updated_at: inv.updated_at,
+        }).collect();
 
         Ok(invoices)
     }

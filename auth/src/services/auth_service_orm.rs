@@ -5,7 +5,7 @@ use chrono::{Duration, Utc};
 use conhub_database::{
     Database, DatabaseConfig,
     models::{User, CreateUserInput, UpdateUserInput},
-    repositories::UserRepository,
+    repositories::{UserRepository, Repository},
     cache::{RedisCache, CacheKeyBuilder},
     utils::{hash_password, verify_password, generate_token},
 };
@@ -46,14 +46,16 @@ pub struct UserResponse {
 
 impl From<User> for UserResponse {
     fn from(user: User) -> Self {
+        let email_verified = user.email_verified();
+        let is_admin = user.is_admin();
         Self {
             id: user.id,
             email: user.email,
-            username: user.username,
-            full_name: user.full_name,
+            username: Some(user.name.clone()),
+            full_name: Some(user.name),
             avatar_url: user.avatar_url,
-            email_verified: user.email_verified,
-            is_admin: user.is_admin,
+            email_verified,
+            is_admin,
             created_at: user.created_at,
         }
     }
@@ -93,9 +95,9 @@ impl AuthServiceOrm {
         // Create user
         let input = CreateUserInput {
             email: req.email.clone(),
-            username: req.username.clone(),
+            name: req.username.clone().unwrap_or_else(|| req.email.split('@').next().unwrap_or("user").to_string()),
             password: password_hash,
-            full_name: req.full_name.clone(),
+            organization: None,
         };
 
         let user = self.user_repo.create_user(&input).await?;
@@ -272,7 +274,7 @@ impl AuthServiceOrm {
         let claims = Claims {
             sub: user.id.to_string(),
             email: user.email.clone(),
-            is_admin: user.is_admin,
+            is_admin: user.is_admin(),
             exp: expiration,
         };
 

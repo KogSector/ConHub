@@ -37,6 +37,20 @@ pub enum InvoiceStatus {
     Uncollectible,
 }
 
+impl std::str::FromStr for InvoiceStatus {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "draft" => Ok(InvoiceStatus::Draft),
+            "open" => Ok(InvoiceStatus::Open),
+            "paid" => Ok(InvoiceStatus::Paid),
+            "void" => Ok(InvoiceStatus::Void),
+            "uncollectible" => Ok(InvoiceStatus::Uncollectible),
+            _ => Err(format!("Unknown invoice status: {}", s)),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(rename_all = "lowercase")]
 pub enum PaymentMethodType {
