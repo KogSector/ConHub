@@ -6,7 +6,7 @@ use tracing::error;
 
 use conhub_models::billing::*;
 use crate::services::billing::BillingService;
-// use crate::services::billing_db::BillingServiceDb;  // Disabled until DB tables created
+use crate::services::billing_db::BillingServiceDb;
 use crate::errors::ServiceError;
 use sqlx::PgPool;
 
