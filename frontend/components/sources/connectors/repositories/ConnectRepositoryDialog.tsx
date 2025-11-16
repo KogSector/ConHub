@@ -466,19 +466,21 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
             </div>
           )}
 
-          <div className="space-y-3">
-            <Label htmlFor="name" className="text-sm font-medium">Connection Name (Optional)</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-              placeholder={repositoryUrl ? extractRepoName(repositoryUrl) : "Auto-generated from repository URL"}
-              className="mt-2"
-            />
-            <p className="text-xs text-muted-foreground mt-2">
-              Leave empty to automatically use the repository name from the URL
-            </p>
-          </div>
+          {isValidated && (
+            <div className="space-y-3">
+              <Label htmlFor="name" className="text-sm font-medium">Connection Name (Optional)</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                placeholder={repositoryUrl ? extractRepoName(repositoryUrl) : "Auto-generated from repository URL"}
+                className="mt-2"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Leave empty to automatically use the repository name from the URL
+              </p>
+            </div>
+          )}
 
           <div className="space-y-3">
             <Label htmlFor="provider" className="text-sm font-medium">Repository Provider</Label>

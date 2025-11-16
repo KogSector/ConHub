@@ -57,6 +57,7 @@ pub struct SubscriptionPlan {
     pub features: serde_json::Value,
     pub limits: serde_json::Value,
     pub is_active: bool,
+    pub stripe_price_id: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -74,6 +75,7 @@ pub struct UserSubscription {
     pub cancel_at_period_end: bool,
     pub cancelled_at: Option<DateTime<Utc>>,
     pub stripe_subscription_id: Option<String>,
+    pub stripe_customer_id: Option<String>,
     pub metadata: serde_json::Value,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -105,7 +107,6 @@ pub struct Invoice {
     pub status: InvoiceStatus,
     pub amount_due: Decimal,
     pub amount_paid: Decimal,
-    pub tax_amount: Decimal,
     pub currency: String,
     pub due_date: Option<DateTime<Utc>>,
     pub paid_at: Option<DateTime<Utc>>,
@@ -147,6 +148,9 @@ pub struct UsageTracking {
     pub updated_at: DateTime<Utc>,
 }
 
+// Alias for compatibility
+pub type UsageRecord = UsageTracking;
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct BillingAddress {
     pub id: Uuid,
@@ -168,6 +172,8 @@ pub struct CreateSubscriptionRequest {
     pub plan_id: Uuid,
     pub payment_method_id: Option<Uuid>,
     pub coupon_code: Option<String>,
+    pub stripe_subscription_id: Option<String>,
+    pub stripe_customer_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Validate)]
@@ -182,6 +188,10 @@ pub struct CreatePaymentMethodRequest {
     pub stripe_payment_method_id: Option<String>,
     pub is_default: Option<bool>,
     pub billing_details: Option<serde_json::Value>,
+    pub last_four: Option<String>,
+    pub brand: Option<String>,
+    pub exp_month: Option<i32>,
+    pub exp_year: Option<i32>,
 }
 
 #[derive(Debug, Deserialize, Validate)]

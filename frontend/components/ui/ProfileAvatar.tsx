@@ -57,7 +57,7 @@ export function ProfileAvatar() {
         <DropdownMenuItem asChild className="py-3 px-4 text-base">
           <Link href="/billing" className="cursor-pointer">
             <CreditCard className="mr-3 h-5 w-5" />
-            <span>Billing</span>
+            <span>Usage & Subs</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

@@ -106,37 +106,34 @@ export function FileUploadZone({ open, onOpenChange, onUploadComplete }: FileUpl
       ));
 
       try {
-        const fileExtension = uploadFile.file.name.split('.').pop()?.toLowerCase() || '';
-        const docType = getDocumentType(fileExtension);
-        const fileSize = formatFileSize(uploadFile.file.size);
+        // Create FormData for file upload
+        const formData = new FormData();
+        formData.append('file', uploadFile.file);
         
-        // Store in localStorage temporarily
-        const document = {
-          id: uploadFile.id,
-          name: uploadFile.file.name,
-          source: 'Local Upload',
-          doc_type: docType,
-          size: fileSize,
-          tags: [fileExtension, 'uploaded'],
-          created_at: new Date().toISOString(),
-          status: 'uploaded'
-        };
+        // Upload to backend API
+        const response = await fetch('/api/data/documents/upload', {
+          method: 'POST',
+          body: formData,
+        });
         
-        const existingDocs = JSON.parse(localStorage.getItem('uploadedDocuments') || '[]');
-        existingDocs.push(document);
-        localStorage.setItem('uploadedDocuments', JSON.stringify(existingDocs));
-
-        // Simulate upload progress
-        for (let progress = 0; progress <= 100; progress += 20) {
-          await new Promise(resolve => setTimeout(resolve, 50));
-          setFiles(prev => prev.map(f => 
-            f.id === uploadFile.id ? { ...f, progress } : f
-          ));
+        if (!response.ok) {
+          throw new Error(`Upload failed: ${response.statusText}`);
         }
-
-        setFiles(prev => prev.map(f => 
-          f.id === uploadFile.id ? { ...f, status: 'success', progress: 100 } : f
-        ));
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          setFiles(prev => prev.map(f => 
+            f.id === uploadFile.id ? { ...f, status: 'success', progress: 100 } : f
+          ));
+          
+          toast({
+            title: "Upload Successful",
+            description: `${uploadFile.file.name} has been uploaded and is being processed.`,
+          });
+        } else {
+          throw new Error(result.message || 'Upload failed');
+        }
       } catch (error) {
         setFiles(prev => prev.map(f => 
           f.id === uploadFile.id ? { 

@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import { ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 import { BillingDashboard } from '@/components/billing/BillingDashboard'
 import { SubscriptionPlans } from '@/components/billing/SubscriptionPlans'
 import { PaymentMethods } from '@/components/billing/PaymentMethods'
@@ -34,6 +37,14 @@ export default function BillingPage() {
     <StripeProvider>
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            <Link href="/dashboard">
+              <Button variant="ghost" size="sm">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Dashboard
+              </Button>
+            </Link>
+          </div>
           <h1 className="text-3xl font-bold">Billing & Subscription</h1>
           <p className="text-muted-foreground mt-2">
             Manage your subscription, payment methods, and billing information.
