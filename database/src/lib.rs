@@ -18,6 +18,7 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 use anyhow::{Result, Context};
 
 /// Database connection manager
+#[derive(Clone)]
 pub struct Database {
     pool: PgPool,
     cache: Option<RedisCache>,

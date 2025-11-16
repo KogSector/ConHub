@@ -4,6 +4,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use std::time::Duration;
 
 /// Redis cache wrapper with JSON serialization support
+#[derive(Clone)]
 pub struct RedisCache {
     manager: ConnectionManager,
 }
@@ -37,7 +38,7 @@ impl RedisCache {
     pub async fn set<T: Serialize>(&self, key: &str, value: &T, ttl: Duration) -> Result<()> {
         let mut conn = self.manager.clone();
         let json_str = serde_json::to_string(value)?;
-        conn.set_ex(key, json_str, ttl.as_secs() as usize).await?;
+        conn.set_ex(key, json_str, ttl.as_secs()).await?;
         Ok(())
     }
 
@@ -65,7 +66,7 @@ impl RedisCache {
     /// Set expiry for a key
     pub async fn expire(&self, key: &str, ttl: Duration) -> Result<()> {
         let mut conn = self.manager.clone();
-        conn.expire(key, ttl.as_secs() as usize).await?;
+        conn.expire(key, ttl.as_secs() as i64).await?;
         Ok(())
     }
 
@@ -80,7 +81,7 @@ impl RedisCache {
         let mut conn = self.manager.clone();
         let val: i64 = conn.incr(key, 1).await?;
         if val == 1 {
-            conn.expire(key, ttl.as_secs() as usize).await?;
+            conn.expire(key, ttl.as_secs() as i64).await?;
         }
         Ok(val)
     }

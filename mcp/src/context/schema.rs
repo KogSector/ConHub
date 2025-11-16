@@ -96,7 +96,7 @@ pub struct PaginatedResult<T> {
 impl<T> PaginatedResult<T> {
     pub fn new(items: Vec<T>, total: Option<u64>, page: Option<u32>, per_page: Option<u32>) -> Self {
         let has_next = if let (Some(t), Some(p), Some(pp)) = (total, page, per_page) {
-            (p * pp) < t
+            ((p * pp) as u64) < t
         } else {
             false
         };

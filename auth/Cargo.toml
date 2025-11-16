@@ -69,7 +69,7 @@ nonzero_ext = "0.3"
 actix-session = { version = "0.9", features = ["redis-rs-tls-session"] }
 
 # Redis for sessions
-redis = { version = "0.24", features = ["tokio-comp"] }
+redis = { version = "0.24", features = ["tokio-comp", "tokio-native-tls-comp"] }
 
 # Email for password reset
 lettre = { version = "0.11.19", features = ["tokio1", "tokio1-native-tls"] }

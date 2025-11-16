@@ -12,6 +12,7 @@ const SERVICES = {
   security: { port: 3014, path: 'security', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Security & Audit' },
   webhook: { port: 3015, path: 'webhook', command: 'cargo', args: ['run'], healthPath: '/health', description: 'External Webhooks' },
   client: { port: 3012, path: 'client', command: 'cargo', args: ['run'], healthPath: '/health', description: 'AI Client Service' },
+  mcp: { port: 3004, path: 'mcp', command: 'cargo', args: ['run'], healthPath: '/health', description: 'MCP Protocol Service' },
   backend: { port: 8000, path: 'backend', command: 'cargo', args: ['run'], healthPath: '/health', description: 'GraphQL Gateway' },
   embedding: { port: 8082, path: 'embedding', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Fusion Embeddings' },
   // indexers: { port: 8080, path: 'indexers', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Search & Indexing' }, // Removed - will be rewritten

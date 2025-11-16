@@ -49,7 +49,7 @@ impl McpServer {
                 Ok(resp) => resp,
                 Err(e) => {
                     error!("Error handling request: {}", e);
-                    self.error_response(None, e)
+                    self.error_response(None, McpError::Other(e))
                 }
             };
             
