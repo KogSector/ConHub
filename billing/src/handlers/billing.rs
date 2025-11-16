@@ -6,73 +6,43 @@ use tracing::error;
 
 use conhub_models::billing::*;
 use crate::services::billing::BillingService;
-use crate::services::billing_db::BillingServiceDb;
+// use crate::services::billing_db::BillingServiceDb;  // Disabled until DB tables created
 use crate::errors::ServiceError;
 use sqlx::PgPool;
 
 const DEMO_USER_ID: &str = "550e8400-e29b-41d4-a716-446655440000";
 
 pub async fn get_subscription_plans(
-    pool_opt: web::Data<Option<PgPool>>
+    _pool_opt: web::Data<Option<PgPool>>
 ) -> Result<HttpResponse, ServiceError> {
-    match pool_opt.get_ref() {
-        Some(pool) => {
-            let billing_service = BillingServiceDb::new(pool.clone());
-            match billing_service.get_subscription_plans().await {
-                Ok(plans) => Ok(HttpResponse::Ok().json(plans)),
-                Err(e) => {
-                    tracing::error!("Failed to get subscription plans from DB: {}", e);
-                    Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                        "error": "Failed to get subscription plans"
-                    })))
-                }
-            }
-        }
-        None => {
-            let billing_service = BillingService::new();
-            match billing_service.get_subscription_plans().await {
-                Ok(plans) => Ok(HttpResponse::Ok().json(plans)),
-                Err(e) => {
-                    tracing::error!("Failed to get subscription plans: {}", e);
-                    Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                        "error": "Failed to get subscription plans"
-                    })))
-                }
-            }
+    // Temporarily using mock service until database tables are created
+    let billing_service = BillingService::new();
+    match billing_service.get_subscription_plans().await {
+        Ok(plans) => Ok(HttpResponse::Ok().json(plans)),
+        Err(e) => {
+            tracing::error!("Failed to get subscription plans: {}", e);
+            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to get subscription plans"
+            })))
         }
     }
 }
 
 pub async fn get_billing_dashboard(
-    pool_opt: web::Data<Option<PgPool>>
+    _pool_opt: web::Data<Option<PgPool>>
 ) -> Result<HttpResponse, ServiceError> {
     let user_id = uuid::Uuid::parse_str(DEMO_USER_ID)
         .map_err(|e| ServiceError::ParseError(format!("Invalid UUID: {}", e)))?;
     
-    match pool_opt.get_ref() {
-        Some(pool) => {
-            let billing_service = BillingServiceDb::new(pool.clone());
-            match billing_service.get_billing_dashboard(user_id).await {
-                Ok(dashboard) => Ok(HttpResponse::Ok().json(dashboard)),
-                Err(e) => {
-                    tracing::error!("Failed to get billing dashboard from DB: {}", e);
-                    Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                        "error": "Failed to get billing dashboard"
-                    })))
-                }
-            }
-        }
-        None => {
-            let billing_service = BillingService::new();
-            match billing_service.get_billing_dashboard(user_id).await {
-                Ok(dashboard) => Ok(HttpResponse::Ok().json(dashboard)),
-                Err(e) => {
-                    tracing::error!("Failed to get billing dashboard: {}", e);
-                    Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                        "error": "Failed to get billing dashboard"
-                    })))
-                }
-            }
+    // Temporarily using mock service until database tables are created
+    let billing_service = BillingService::new();
+    match billing_service.get_billing_dashboard(user_id).await {
+        Ok(dashboard) => Ok(HttpResponse::Ok().json(dashboard)),
+        Err(e) => {
+            tracing::error!("Failed to get billing dashboard: {}", e);
+            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to get billing dashboard"
+            })))
         }
     }
 }

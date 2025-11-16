@@ -621,6 +621,7 @@ dependencies = [
  "env_logger",
  "futures",
  "log",
+ "redis",
  "rust_decimal",
  "serde",
  "serde_json",

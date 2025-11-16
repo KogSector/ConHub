@@ -3,6 +3,7 @@ use crate::errors::ServiceError;
 use uuid::Uuid;
 use sqlx::PgPool;
 use tracing::{info, error};
+use chrono::{Datelike, Timelike};
 
 pub struct BillingServiceDb {
     pool: PgPool,

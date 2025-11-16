@@ -117,14 +117,15 @@ pub async fn upload_document(mut payload: Multipart) -> Result<HttpResponse, Ser
         let user_docs = storage.entry(user_id.clone()).or_insert_with(Vec::new);
         user_docs.push(document_record.clone());
         
-        // Trigger embedding if Heavy feature is enabled
-        if is_heavy_feature_enabled().await {
-            tokio::spawn(async move {
-                if let Err(e) = trigger_document_embedding(&file_id, &filepath.to_string_lossy()).await {
-                    log::error!("Failed to trigger embedding for document {}: {}", file_id, e);
-                }
-            });
-        }
+        // Embedding disabled for now
+        // TODO: Re-enable when embedding service is configured
+        // if is_heavy_feature_enabled().await {
+        //     tokio::spawn(async move {
+        //         if let Err(e) = trigger_document_embedding(&file_id, &filepath.to_string_lossy()).await {
+        //             log::error!("Failed to trigger embedding for document {}: {}", file_id, e);
+        //         }
+        //     });
+        // }
         
         uploaded_files.push(document_record);
         log::info!("Successfully uploaded file: {} ({})", filename, format_file_size(file_size));
@@ -439,15 +440,16 @@ pub async fn import_document(req: web::Json<ImportDocumentRequest>) -> Result<Ht
     };
     user_docs.push(record.clone());
     
-    // Trigger embedding if Heavy feature is enabled
-    if is_heavy_feature_enabled().await {
-        let content_clone = document_content.clone();
-        tokio::spawn(async move {
-            if let Err(e) = trigger_content_embedding(&file_id, &content_clone).await {
-                log::error!("Failed to trigger embedding for imported document {}: {}", file_id, e);
-            }
-        });
-    }
+    // Embedding disabled for now
+    // TODO: Re-enable when embedding service is configured
+    // if is_heavy_feature_enabled().await {
+    //     let content_clone = document_content.clone();
+    //     tokio::spawn(async move {
+    //         if let Err(e) = trigger_content_embedding(&file_id, &content_clone).await {
+    //             log::error!("Failed to trigger embedding for imported document {}: {}", file_id, e);
+    //         }
+    //     });
+    // }
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "success": true,

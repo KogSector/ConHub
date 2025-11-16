@@ -53,3 +53,6 @@ anyhow = "1.0"
 # Validation
 validator = { version = "0.18", features = ["derive"] }
 thiserror = "1.0"
+
+# Redis
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }

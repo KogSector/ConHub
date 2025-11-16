@@ -19,3 +19,4 @@ async-trait = "0.1"
 oauth2 = "4.0"
 mime_guess = "2.0"
 thiserror = "1.0"
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }

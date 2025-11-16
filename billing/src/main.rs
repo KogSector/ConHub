@@ -1,6 +1,7 @@
 use actix_web::{web, App, HttpServer, middleware::Logger};
 use actix_cors::Cors;
 use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
+use redis::Client as RedisClient;
 use std::str::FromStr;
 use std::env;
 use tracing::{info, error};
@@ -78,6 +79,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
+    // Redis connection
+    let redis_client_opt: Option<RedisClient> = match env::var("REDIS_URL") {
+        Ok(redis_url) => {
+            tracing::info!("🔴 [Billing Service] Connecting to Redis...");
+            match RedisClient::open(redis_url) {
+                Ok(client) => {
+                    // Test connection
+                    match client.get_connection() {
+                        Ok(_) => {
+                            tracing::info!("✅ [Billing Service] Redis connection established");
+                            Some(client)
+                        },
+                        Err(e) => {
+                            tracing::error!("❌ [Billing Service] Failed to connect to Redis: {}", e);
+                            None
+                        }
+                    }
+                },
+                Err(e) => {
+                    tracing::error!("❌ [Billing Service] Failed to create Redis client: {}", e);
+                    None
+                }
+            }
+        },
+        Err(_) => {
+            tracing::warn!("[Billing Service] REDIS_URL not set - Redis features disabled");
+            None
+        }
+    };
+
     tracing::info!("🚀 [Billing Service] Starting on port {}", port);
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -89,6 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new()
             .app_data(web::Data::new(db_pool_opt.clone()))
             .app_data(web::Data::new(stripe_key_opt.clone()))
+            .app_data(web::Data::new(redis_client_opt.clone()))
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(auth_middleware.clone())
