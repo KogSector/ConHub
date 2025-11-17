@@ -84,25 +84,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(redis_url) => {
             tracing::info!("🔴 [Billing Service] Connecting to Redis...");
             match RedisClient::open(redis_url) {
-                Ok(client) => {
-                    // Test connection
-                    match client.get_connection() {
-                        Ok(_) => {
-                            tracing::info!("✅ [Billing Service] Redis connection established");
-                            Some(client)
-                        },
-                        Err(e) => {
-                            tracing::error!("❌ [Billing Service] Failed to connect to Redis: {}", e);
-                            None
-                        }
-                    }
+                Ok(client) => match client.get_connection() {
+                    Ok(_) => Some(client),
+                    Err(_) => None,
                 },
-                Err(e) => {
-                    tracing::error!("❌ [Billing Service] Failed to create Redis client: {}", e);
-                    None
-                }
+                Err(_) => None,
             }
-        },
+        }
         Err(_) => {
             tracing::warn!("[Billing Service] REDIS_URL not set - Redis features disabled");
             None

@@ -64,7 +64,7 @@ class ServiceManager {
 
     return new Promise((resolve) => {
       const url = `http://localhost:${service.port}${service.healthPath}`;
-      const req = http.get(url, { timeout: 5000 }, (res) => {
+      const req = http.get(url, { timeout: 10000 }, (res) => {
         resolve(res.statusCode === 200);
       });
 
@@ -289,11 +289,11 @@ class ServiceManager {
     await this.waitForService('data', 25000);
     console.log('');
 
-    const supportServices = ['billing', 'security', 'webhook', 'client'];
+    const supportServices = ['billing', 'security', 'webhook', 'client', 'mcp'];
     for (const service of supportServices) {
       await this.startService(service, toggles);
       await new Promise(resolve => setTimeout(resolve, 2000)); // Stagger starts
-      await this.waitForService(service, 15000);
+      await this.waitForService(service, 30000);
       console.log('');
     }
 
