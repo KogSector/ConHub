@@ -34,7 +34,13 @@ impl Database {
             .context("Failed to connect to database")?;
 
         let cache = if let Some(ref redis_url) = config.redis_url {
-            Some(RedisCache::new(redis_url).await?)
+            match RedisCache::new(redis_url).await {
+                Ok(c) => Some(c),
+                Err(e) => {
+                    tracing::warn!("Redis connection disabled due to error: {}", e);
+                    None
+                }
+            }
         } else {
             None
         };

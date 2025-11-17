@@ -3,6 +3,7 @@ use anyhow::Result;
 use mcp_service::{McpConfig, connectors::ConnectorManager, protocol::McpServer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use actix_web::{web, App, HttpResponse, HttpServer};
+use tokio::signal;
 
 async fn health() -> HttpResponse {
     HttpResponse::Ok().json(serde_json::json!({
@@ -29,9 +30,9 @@ async fn main() -> Result<()> {
 
     // Initialize database and Redis
     let db_config = conhub_database::DatabaseConfig::from_env();
+    tracing::info!("Initializing database");
     let database = conhub_database::Database::new(&db_config).await?;
-
-    tracing::info!("Database and Redis connected");
+    tracing::info!("Database initialized");
 
     // Initialize connector manager
     let connector_manager = ConnectorManager::new(database, &config).await?;
@@ -45,7 +46,7 @@ async fn main() -> Result<()> {
     let port = std::env::var("MCP_PORT").unwrap_or_else(|_| "3004".to_string());
     let port_num: u16 = port.parse().unwrap_or(3004);
     
-    tokio::spawn(async move {
+    let http_handle = tokio::spawn(async move {
         tracing::info!("🚀 [MCP Service] Starting HTTP health server on port {}", port_num);
         HttpServer::new(|| {
             App::new()
@@ -60,7 +61,20 @@ async fn main() -> Result<()> {
 
     // Start MCP server on stdio (main protocol)
     let server = McpServer::new(connector_manager, config);
-    server.run().await?;
+    let mcp_handle = tokio::spawn(async move {
+        match server.run().await {
+            Ok(_) => {
+                tracing::warn!("MCP server finished");
+            }
+            Err(e) => {
+                tracing::error!("MCP server error: {}", e);
+            }
+        }
+    });
 
+    tracing::info!("MCP service running");
+    futures::future::pending::<()>().await;
+    let _ = mcp_handle;
+    let _ = http_handle;
     Ok(())
 }

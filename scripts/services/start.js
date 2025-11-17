@@ -89,8 +89,13 @@ class ServiceManager {
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
-    console.log(`⚠️  ${serviceName} health check timeout, but process may still be starting...`);
-    this.updateServiceStatus(serviceName, 'RUNNING', 'Health check timeout');
+    if (this.processes.has(serviceName)) {
+      console.log(`⚠️  ${serviceName} health check timeout, but process may still be starting...`);
+      this.updateServiceStatus(serviceName, 'RUNNING', 'Health check timeout');
+    } else {
+      console.log(`🔴 ${serviceName} process is not running`);
+      this.updateServiceStatus(serviceName, 'FAILED', 'Process exited before healthy');
+    }
     return false;
   }
 
