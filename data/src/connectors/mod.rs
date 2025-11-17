@@ -3,6 +3,7 @@ pub mod types;
 pub mod manager;
 pub mod local_file;
 pub mod github;
+pub mod gitlab;
 pub mod google_drive;
 pub mod bitbucket;
 pub mod url_scraper;

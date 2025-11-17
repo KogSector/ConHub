@@ -1,6 +1,6 @@
 {
   "Auth": true,
-  "Heavy": false,
+  "Heavy": true,
   "Docker": false,
   "Prod": false,
   "Redis": true
