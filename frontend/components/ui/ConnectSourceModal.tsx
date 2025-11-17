@@ -153,6 +153,8 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
                   ref={fileInputRef}
                   type="file"
                   multiple
+                  title="Select files to upload"
+                  aria-label="Select files to upload"
                   onChange={handleFileChange}
                   className="hidden"
                 />
