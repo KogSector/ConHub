@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { dataApiClient, apiClient, ApiResponse } from '@/lib/api';
+import { dataApiClient, apiClient, ApiResponse, listConnections, unwrapResponse } from '@/lib/api';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +48,8 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [isValidated, setIsValidated] = useState(false);
   const [availableFileExtensions, setAvailableFileExtensions] = useState<string[]>([]);
+  const [needsSocialConnect, setNeedsSocialConnect] = useState<string | null>(null);
+  const [checkingConnection, setCheckingConnection] = useState(false);
   const isProviderSelected = provider === 'github' || provider === 'gitlab' || provider === 'bitbucket';
   const hasBranches = branches.length > 0;
 
@@ -72,6 +74,26 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       return false;
     }
   }, [repositoryUrl]);
+
+  const ensureProviderConnected = async (): Promise<boolean> => {
+    if (!isProviderSelected) return true;
+    setCheckingConnection(true);
+    try {
+      const resp = await listConnections();
+      const list = unwrapResponse<Array<{ platform: string; is_active: boolean }>>(resp) || [];
+      const connected = list.some((c) => c.platform === provider && c.is_active);
+      if (!connected) {
+        setNeedsSocialConnect(provider);
+      } else {
+        setNeedsSocialConnect(null);
+      }
+      return connected;
+    } catch {
+      return false;
+    } finally {
+      setCheckingConnection(false);
+    }
+  };
 
   
   const extractRepoName = (url: string): string => {
@@ -101,6 +123,11 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     }
     
     console.log('[FRONTEND] isUrlValid:', isUrlValid);
+    const connected = await ensureProviderConnected();
+    if (!connected) {
+      setFetchBranchesError(`Please connect ${provider === 'github' ? 'GitHub' : provider === 'gitlab' ? 'GitLab' : 'BitBucket'} in Social Connections first.`);
+      return;
+    }
     if (!isUrlValid) {
       setFetchBranchesError("Please enter a valid repository URL.");
       return;
@@ -235,6 +262,11 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     setError(null);
     
     try {
+      const connected = await ensureProviderConnected();
+      if (!connected) {
+        setError(`Please connect ${provider === 'github' ? 'GitHub' : provider === 'gitlab' ? 'GitLab' : 'BitBucket'} in Social Connections before connecting.`);
+        return;
+      }
       const payload = { 
         type: provider, 
         url: repositoryUrl,
@@ -462,6 +494,25 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   <div className="font-medium">Connection Failed</div>
                   <div className="whitespace-pre-line">{error}</div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {needsSocialConnect && (
+            <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800">
+                {`You need to connect ${needsSocialConnect === 'github' ? 'GitHub' : needsSocialConnect === 'gitlab' ? 'GitLab' : 'BitBucket'} before proceeding.`}
+              </p>
+              <div className="mt-2 flex gap-2">
+                <Button
+                  title="Go to Social Connections"
+                  aria-label="Go to Social Connections"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => { window.location.href = '/dashboard/social'; }}
+                  disabled={checkingConnection}
+                >
+                  Go to Social Connections
+                </Button>
               </div>
             </div>
           )}

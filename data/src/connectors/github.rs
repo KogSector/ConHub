@@ -99,6 +99,16 @@ impl GitHubConnector {
             oauth_client: None,
         }
     }
+
+    fn auth_header(token: &str) -> String {
+        if token.starts_with("github_pat_") {
+            format!("Bearer {}", token)
+        } else if token.starts_with("ghp_") || token.starts_with("gho_") || token.starts_with("ghu_") || token.starts_with("ghs_") {
+            format!("token {}", token)
+        } else {
+            format!("token {}", token)
+        }
+    }
     
     pub fn factory() -> GitHubConnectorFactory {
         GitHubConnectorFactory
@@ -151,7 +161,7 @@ impl GitHubConnector {
         
         let response = self.client
             .get(url)
-            .header("Authorization", format!("Bearer {}", access_token))
+            .header("Authorization", Self::auth_header(access_token))
             .header("User-Agent", "ConHub")
             .header("Accept", "application/vnd.github.v3+json")
             .send()
@@ -181,7 +191,7 @@ impl GitHubConnector {
         
         let response = self.client
             .get(&url)
-            .header("Authorization", format!("Bearer {}", access_token))
+            .header("Authorization", Self::auth_header(access_token))
             .header("User-Agent", "ConHub")
             .header("Accept", "application/vnd.github.v3+json")
             .send()
@@ -211,7 +221,7 @@ impl GitHubConnector {
         
         let response = self.client
             .get(&url)
-            .header("Authorization", format!("Bearer {}", access_token))
+            .header("Authorization", Self::auth_header(access_token))
             .header("User-Agent", "ConHub")
             .header("Accept", "application/vnd.github.v3+json")
             .send()
@@ -338,7 +348,7 @@ impl GitHubConnector {
         
         let response = self.client
             .get(&repo_url)
-            .header("Authorization", format!("Bearer {}", request.access_token))
+            .header("Authorization", Self::auth_header(&request.access_token))
             .header("User-Agent", "ConHub")
             .header("Accept", "application/vnd.github.v3+json")
             .send()
@@ -416,7 +426,7 @@ impl GitHubConnector {
         
         let response = self.client
             .get(&url)
-            .header("Authorization", format!("Bearer {}", access_token))
+            .header("Authorization", Self::auth_header(access_token))
             .header("User-Agent", "ConHub")
             .header("Accept", "application/vnd.github.v3+json")
             .send()
@@ -453,7 +463,7 @@ impl GitHubConnector {
         
         let response = self.client
             .get(&url)
-            .header("Authorization", format!("Bearer {}", access_token))
+            .header("Authorization", Self::auth_header(access_token))
             .header("User-Agent", "ConHub")
             .header("Accept", "application/vnd.github.v3+json")
             .send()
@@ -519,7 +529,7 @@ impl GitHubConnector {
             
             let response = self.client
                 .get(&url)
-                .header("Authorization", format!("Bearer {}", access_token))
+                .header("Authorization", Self::auth_header(access_token))
                 .header("User-Agent", "ConHub")
                 .header("Accept", "application/vnd.github.v3+json")
                 .send()
@@ -628,7 +638,7 @@ impl GitHubConnector {
         
         let response = self.client
             .get(&url)
-            .header("Authorization", format!("Bearer {}", access_token))
+            .header("Authorization", Self::auth_header(access_token))
             .header("User-Agent", "ConHub")
             .header("Accept", "application/vnd.github.v3+json")
             .send()

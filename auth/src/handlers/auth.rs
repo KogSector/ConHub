@@ -904,6 +904,8 @@ pub async fn oauth_url(
         "google" => crate::services::oauth::OAuthProvider::Google,
         "microsoft" => crate::services::oauth::OAuthProvider::Microsoft,
         "github" => crate::services::oauth::OAuthProvider::GitHub,
+        "bitbucket" => crate::services::oauth::OAuthProvider::Bitbucket,
+        "gitlab" => crate::services::oauth::OAuthProvider::GitLab,
         _ => {
             return Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Unsupported provider"
@@ -1146,6 +1148,7 @@ pub async fn oauth_exchange(
         "microsoft" => crate::services::oauth::OAuthProvider::Microsoft,
         "github" => crate::services::oauth::OAuthProvider::GitHub,
         "bitbucket" => crate::services::oauth::OAuthProvider::Bitbucket,
+        "gitlab" => crate::services::oauth::OAuthProvider::GitLab,
         _ => return Ok(HttpResponse::BadRequest().json(json!({"error": "Unsupported provider"}))),
     };
 

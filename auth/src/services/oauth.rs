@@ -15,6 +15,7 @@ pub enum OAuthProvider {
     Microsoft,
     GitHub,
     Bitbucket,
+    GitLab,
 }
 
 impl std::fmt::Display for OAuthProvider {
@@ -24,6 +25,7 @@ impl std::fmt::Display for OAuthProvider {
             OAuthProvider::Microsoft => write!(f, "microsoft"),
             OAuthProvider::GitHub => write!(f, "github"),
             OAuthProvider::Bitbucket => write!(f, "bitbucket"),
+            OAuthProvider::GitLab => write!(f, "gitlab"),
         }
     }
 }
@@ -74,6 +76,8 @@ pub struct OAuthService {
     github_client_secret: String,
     bitbucket_client_id: String,
     bitbucket_client_secret: String,
+    gitlab_client_id: String,
+    gitlab_client_secret: String,
     redirect_uri: String,
 }
 
@@ -90,6 +94,8 @@ impl OAuthService {
             github_client_secret: std::env::var("GITHUB_CLIENT_SECRET").unwrap_or_default(),
             bitbucket_client_id: std::env::var("BITBUCKET_CLIENT_ID").unwrap_or_default(),
             bitbucket_client_secret: std::env::var("BITBUCKET_CLIENT_SECRET").unwrap_or_default(),
+            gitlab_client_id: std::env::var("GITLAB_CLIENT_ID").unwrap_or_default(),
+            gitlab_client_secret: std::env::var("GITLAB_CLIENT_SECRET").unwrap_or_default(),
             redirect_uri: std::env::var("OAUTH_REDIRECT_URI")
                 .unwrap_or_else(|_| "http://localhost:3000/auth/callback".to_string()),
         }
@@ -97,6 +103,7 @@ impl OAuthService {
 
     
     pub fn get_authorization_url(&self, provider: OAuthProvider, state: &str) -> String {
+        let redirect_with_provider = format!("{}?provider={}", self.redirect_uri, provider);
         match provider {
             OAuthProvider::Google => {
                 format!(
@@ -107,7 +114,7 @@ impl OAuthService {
                     scope=openid%20email%20profile&\
                     state={}",
                     self.google_client_id,
-                    urlencoding::encode(&self.redirect_uri),
+                    urlencoding::encode(&redirect_with_provider),
                     state
                 )
             }
@@ -122,7 +129,7 @@ impl OAuthService {
                     state={}",
                     tenant,
                     self.microsoft_client_id,
-                    urlencoding::encode(&self.redirect_uri),
+                    urlencoding::encode(&redirect_with_provider),
                     state
                 )
             }
@@ -134,7 +141,7 @@ impl OAuthService {
                     scope=user:email&\
                     state={}",
                     self.github_client_id,
-                    urlencoding::encode(&self.redirect_uri),
+                    urlencoding::encode(&redirect_with_provider),
                     state
                 )
             }
@@ -148,7 +155,22 @@ impl OAuthService {
                     scope={}&\
                     state={}",
                     self.bitbucket_client_id,
-                    urlencoding::encode(&self.redirect_uri),
+                    urlencoding::encode(&redirect_with_provider),
+                    urlencoding::encode(&scopes),
+                    state
+                )
+            }
+            OAuthProvider::GitLab => {
+                let scopes = ["read_user"].join(" ");
+                format!(
+                    "https://gitlab.com/oauth/authorize?\
+                    client_id={}&\
+                    redirect_uri={}&\
+                    response_type=code&\
+                    scope={}&\
+                    state={}",
+                    self.gitlab_client_id,
+                    urlencoding::encode(&redirect_with_provider),
                     urlencoding::encode(&scopes),
                     state
                 )
@@ -167,6 +189,7 @@ impl OAuthService {
             OAuthProvider::Microsoft => self.exchange_microsoft_code(code).await,
             OAuthProvider::GitHub => self.exchange_github_code(code).await,
             OAuthProvider::Bitbucket => self.exchange_bitbucket_code(code).await,
+            OAuthProvider::GitLab => self.exchange_gitlab_code(code).await,
         }
     }
 
@@ -261,6 +284,29 @@ impl OAuthService {
         Ok(response.json().await?)
     }
 
+    async fn exchange_gitlab_code(&self, code: &str) -> Result<OAuthTokenResponse> {
+        let params = [
+            ("client_id", self.gitlab_client_id.as_str()),
+            ("client_secret", self.gitlab_client_secret.as_str()),
+            ("code", code),
+            ("grant_type", "authorization_code"),
+            ("redirect_uri", &self.redirect_uri),
+        ];
+
+        let response = self.client
+            .post("https://gitlab.com/oauth/token")
+            .form(&params)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let error_text = response.text().await?;
+            return Err(anyhow!("GitLab token exchange failed: {}", error_text));
+        }
+
+        Ok(response.json().await?)
+    }
+
     
     pub async fn get_user_info(
         &self,
@@ -343,6 +389,26 @@ impl OAuthService {
                     email,
                     user["display_name"].as_str().unwrap_or("").to_string(),
                     None,
+                ))
+            }
+            OAuthProvider::GitLab => {
+                let user: serde_json::Value = self.client
+                    .get("https://gitlab.com/api/v4/user")
+                    .bearer_auth(access_token)
+                    .send()
+                    .await?
+                    .json()
+                    .await?;
+
+                let email = user["email"].as_str().unwrap_or("").to_string();
+                let name = user["name"].as_str().unwrap_or("").to_string();
+                let avatar_url = user["avatar_url"].as_str().map(|s| s.to_string());
+
+                Ok((
+                    user["id"].to_string(),
+                    email,
+                    name,
+                    avatar_url,
                 ))
             }
         }

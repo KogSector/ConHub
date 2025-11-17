@@ -10,7 +10,7 @@ import { securityApiClient, apiClient, unwrapResponse } from '@/lib/api';
 
 interface SocialConnection {
   id: string;
-  platform: 'slack' | 'notion' | 'google_drive' | 'gmail' | 'dropbox' | 'linkedin' | 'github' | 'bitbucket';
+  platform: 'slack' | 'notion' | 'google_drive' | 'gmail' | 'dropbox' | 'linkedin' | 'github' | 'bitbucket' | 'gitlab';
   username: string;
   is_active: boolean;
   connected_at: string;
@@ -67,6 +67,13 @@ const PLATFORM_CONFIGS = {
     color: 'bg-blue-800',
     icon: '🧩'
   }
+  ,
+  gitlab: {
+    name: 'GitLab',
+    description: 'Connect your GitLab account',
+    color: 'bg-orange-600',
+    icon: '🦊'
+  }
 };
 
 export function SocialConnections() {
@@ -114,7 +121,7 @@ export function SocialConnections() {
 
   const connectPlatform = async (platform: string) => {
     try {
-      if (platform === 'github' || platform === 'bitbucket') {
+      if (platform === 'github' || platform === 'bitbucket' || platform === 'gitlab') {
         const resp = await apiClient.get<{ url: string; state: string }>(`/api/auth/oauth/url?provider=${platform}`)
         const { url: authUrl } = resp
         if (authUrl) {
@@ -294,6 +301,8 @@ export function SocialConnections() {
                   </CardHeader>
                   <CardContent className="pt-0">
                     <Button
+                      title={`Connect ${config.name}`}
+                      aria-label={`Connect ${config.name}`}
                       onClick={() => connectPlatform(platform)}
                       className="w-full"
                       variant="outline"
