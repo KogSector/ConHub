@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
-import { dataApiClient } from '@/lib/api'
+import { dataApiClient, apiClient, unwrapResponse } from '@/lib/api'
 
 type ApiResp = { success?: boolean; error?: string; data?: unknown }
 
@@ -29,6 +29,19 @@ export async function POST(request: Request) {
 
     if (!repoUrl) {
       return NextResponse.json({ error: 'Repository URL is required.' }, { status: 400 })
+    }
+
+    const authHeader = request.headers.get('Authorization') || ''
+    try {
+      const headers: Record<string, string> = authHeader ? { Authorization: authHeader } : {}
+      const resp = await apiClient.get('/api/auth/connections', headers)
+      const list = unwrapResponse<Array<{ platform: string; is_active: boolean }>>(resp) || []
+      const hasRequired = list.some(c => c.is_active && (c.platform === 'github' || c.platform === 'gitlab' || c.platform === 'bitbucket'))
+      if (!hasRequired) {
+        return NextResponse.json({ error: 'Please connect GitHub, GitLab, or Bitbucket in Social Connections first.' }, { status: 403 })
+      }
+    } catch (e) {
+      return NextResponse.json({ error: 'Authentication required or backend unavailable' }, { status: 401 })
     }
 
     const branchesData = await dataApiClient.post('/api/repositories/fetch-branches', { repoUrl, credentials })

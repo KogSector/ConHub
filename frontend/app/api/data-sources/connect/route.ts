@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { dataApiClient } from '@/lib/api'
+import { dataApiClient, apiClient, unwrapResponse } from '@/lib/api'
 
 
 function extractRepositoryName(url: string): string | null {
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!url && (type === 'github' || type === 'bitbucket')) {
+    if (!url && (type === 'github' || type === 'bitbucket' || type === 'gitlab')) {
       return NextResponse.json(
         { success: false, error: 'Repository URL is required' },
         { status: 400 }
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     let processedConfig = config
-    if ((type === 'github' || type === 'bitbucket') && url) {
+    if ((type === 'github' || type === 'bitbucket' || type === 'gitlab') && url) {
       const repoName = extractRepositoryName(url)
       if (repoName) {
         processedConfig = {
@@ -82,6 +82,28 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { success: false, error: 'Invalid repository URL format' },
           { status: 400 }
+        )
+      }
+    }
+
+    // Enforce social connections for git providers
+    if (type === 'github' || type === 'gitlab' || type === 'bitbucket') {
+      const authHeader = request.headers.get('Authorization') || ''
+      try {
+        const headers: Record<string, string> = authHeader ? { Authorization: authHeader } : {}
+        const resp = await apiClient.get('/api/auth/connections', headers)
+        const list = unwrapResponse<Array<{ platform: string; is_active: boolean }>>(resp) || []
+        const connected = list.some(c => c.is_active && c.platform === type)
+        if (!connected) {
+          return NextResponse.json(
+            { success: false, error: `Please connect ${type.charAt(0).toUpperCase() + type.slice(1)} in Social Connections first` },
+            { status: 403 }
+          )
+        }
+      } catch (e) {
+        return NextResponse.json(
+          { success: false, error: 'Authentication required or backend unavailable' },
+          { status: 401 }
         )
       }
     }

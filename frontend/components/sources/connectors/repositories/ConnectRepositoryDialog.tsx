@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { dataApiClient, apiClient, ApiResponse, listConnections, unwrapResponse } from '@/lib/api';
+import { dataApiClient, apiClient, ApiResponse, unwrapResponse } from '@/lib/api';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,7 +79,8 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     if (!isProviderSelected) return true;
     setCheckingConnection(true);
     try {
-      const resp = await listConnections();
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const resp = await apiClient.get('/api/auth/connections', headers);
       const list = unwrapResponse<Array<{ platform: string; is_active: boolean }>>(resp) || [];
       const connected = list.some((c) => c.platform === provider && c.is_active);
       if (!connected) {

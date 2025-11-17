@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, RefreshCw, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { securityApiClient, apiClient, unwrapResponse } from '@/lib/api';
+import { apiClient, securityApiClient, unwrapResponse } from '@/lib/api';
+import { useAuth } from '@/contexts/auth-context';
+import Link from 'next/link';
+import { ArrowLeft, Share2 } from 'lucide-react';
 
 interface SocialConnection {
   id: string;
@@ -81,11 +84,12 @@ export function SocialConnections() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
   const { toast } = useToast();
+  const { token } = useAuth();
 
   const fetchConnections = useCallback(async () => {
     try {
-      const resp = await securityApiClient.get('/api/security/connections');
-
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const resp = await apiClient.get('/api/auth/connections', headers);
       const data = unwrapResponse<SocialConnection[]>(resp) ?? []
       setConnections(data)
     } catch (error) {
@@ -98,7 +102,7 @@ export function SocialConnections() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, token]);
 
   useEffect(() => {
     fetchConnections();
@@ -122,7 +126,8 @@ export function SocialConnections() {
   const connectPlatform = async (platform: string) => {
     try {
       if (platform === 'github' || platform === 'bitbucket' || platform === 'gitlab') {
-        const resp = await apiClient.get<{ url: string; state: string }>(`/api/auth/oauth/url?provider=${platform}`)
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        const resp = await apiClient.get<{ url: string; state: string }>(`/api/auth/oauth/url?provider=${platform}`, headers)
         const { url: authUrl } = resp
         if (authUrl) {
           window.open(authUrl, '_blank', 'width=500,height=700')
@@ -151,7 +156,8 @@ export function SocialConnections() {
 
   const disconnectPlatform = async (connectionId: string) => {
     try {
-      await securityApiClient.delete(`/api/security/connections/${connectionId}`);
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      await apiClient.delete(`/api/auth/connections/${connectionId}`, headers);
       setConnections(prev => prev.filter(conn => conn.id !== connectionId));
       toast({
         title: "Success",
@@ -215,8 +221,23 @@ export function SocialConnections() {
 
   return (
     <div className="space-y-6">
+      <div className="border-b border-border bg-card/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-20">
+            <div className="flex items-center space-x-4">
+              <Link href="/dashboard">
+                <Button variant="ghost" size="sm">
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+              </Link>
+              <div className="h-6 w-px bg-border" />
+              <Share2 className="w-5 h-5 text-primary" />
+              <h2 className="text-2xl font-bold">Connections</h2>
+            </div>
+          </div>
+        </div>
+      </div>
       <div>
-        <h2 className="text-2xl font-bold mb-2">Connections</h2>
         <p className="text-muted-foreground">
           Connect your accounts to enhance context and collaboration across platforms
         </p>
