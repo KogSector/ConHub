@@ -1,0 +1,111 @@
+{
+  "models": [
+    {
+      "name": "code_primary",
+      "client": "qwen",
+      "model": "text-embedding-v3",
+      "dimension": 1536,
+      "strengths": ["code", "github", "gitlab", "bitbucket", "local_file"]
+    },
+    {
+      "name": "general_text",
+      "client": "openai",
+      "model": "text-embedding-3-small",
+      "dimension": 1536,
+      "strengths": ["docs", "jira", "confluence", "slack", "urls", "google_drive", "dropbox", "onedrive", "notion"]
+    },
+    {
+      "name": "design_context",
+      "client": "openai",
+      "model": "text-embedding-3-large",
+      "dimension": 3072,
+      "strengths": ["figma", "confluence", "product_docs"]
+    }
+  ],
+  "routing": [
+    {
+      "source": "github",
+      "models": ["code_primary"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "gitlab",
+      "models": ["code_primary"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "bitbucket",
+      "models": ["code_primary"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "local_file",
+      "models": ["code_primary"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "google_drive",
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "dropbox",
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "onedrive",
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "notion",
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "url_scraper",
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "confluence",
+      "models": ["general_text", "design_context"],
+      "weights": [0.7, 0.3],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "jira",
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "slack",
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "figma",
+      "models": ["design_context", "general_text"],
+      "weights": [0.7, 0.3],
+      "fusion_strategy": "weighted_average"
+    }
+  ],
+  "fallback_model": "general_text",
+  "cache_embeddings": true,
+  "normalize_embeddings": true,
+  "batch_size": 32,
+  "max_retries": 3,
+  "timeout_seconds": 30
+}

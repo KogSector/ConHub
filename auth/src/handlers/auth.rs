@@ -15,7 +15,6 @@ use crate::services::{
     security::SecurityService,
 };
 use reqwest::{Client, Url};
-use actix_web::{web};
 
 // Disabled-mode handler: responds consistently when auth is turned off
 pub async fn disabled() -> Result<HttpResponse> {

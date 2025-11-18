@@ -9,7 +9,7 @@ mod models;
 mod services;
 
 use handlers::{embed_handler, health_handler, disabled_handler, batch_embed_handler};
-use services::LlmEmbeddingService;
+use services::{LlmEmbeddingService, FusionEmbeddingService};
 use conhub_config::feature_toggles::FeatureToggles;
 
 #[actix_web::main]
@@ -33,17 +33,19 @@ async fn main() -> std::io::Result<()> {
 
     // Initialize services
     let embedding_service = if heavy_enabled {
-        log::info!("Initializing embedding and reranking models...");
-        let default_model = env::var("QWEN_EMBEDDING_MODEL").unwrap_or_else(|_| "text-embedding-v3".to_string());
-        let model = env::var("EMBEDDING_MODEL").unwrap_or_else(|_| default_model.to_string());
-
-        log::info!("Embedding provider: qwen | model: {}", model);
+        log::info!("Initializing multi-model fusion embedding service...");
+        
+        // Get fusion config path
+        let config_path = env::var("EMBEDDING_FUSION_CONFIG_PATH")
+            .unwrap_or_else(|_| "config/fusion_config.json".to_string());
+        
+        log::info!("Loading fusion config from: {}", config_path);
 
         let embedding_service = Arc::new(
-            LlmEmbeddingService::new(&model)
-                .expect("Failed to initialize embedding service")
+            FusionEmbeddingService::new(&config_path)
+                .expect("Failed to initialize fusion embedding service")
         );
-        log::info!("Embedding model initialized successfully");
+        log::info!("Fusion embedding service initialized successfully");
         Some(embedding_service)
     } else {
         log::warn!("Heavy mode disabled; skipping embedding model initialization.");

@@ -99,7 +99,7 @@ impl ZeroTrustService {
         
         let policy = AccessPolicy {
             resource_id,
-            resource_type,
+            resource_type: resource_type.clone(),
             user_id,
             permissions,
             granted_at: Utc::now(),
