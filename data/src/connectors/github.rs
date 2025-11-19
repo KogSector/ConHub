@@ -310,6 +310,9 @@ impl GitHubConnector {
                     "file_path": file_path,
                     "length": chunk_content.len(),
                 })),
+                // GitHub connector produces code chunks by default; language can be inferred later if needed
+                block_type: Some("code".to_string()),
+                language: None,
             });
             
             chunk_number += 1;
@@ -609,6 +612,9 @@ impl GitHubConnector {
                                     "repository": format!("{}/{}", owner, repo),
                                 }),
                                 chunks: Some(chunks),
+                                // Enrich with basic routing hints; detailed language detection can be added later
+                                block_type: Some("code".to_string()),
+                                language: None,
                             });
                         }
                         Err(e) => {
@@ -958,6 +964,8 @@ impl Connector for GitHubConnector {
                                     "size": doc.size,
                                 }),
                                 chunks: Some(chunks),
+                                block_type: Some("code".to_string()),
+                                language: None,
                             });
                         }
                         Err(e) => {

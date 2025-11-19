@@ -132,6 +132,8 @@ async fn process_document(
             start_offset: 0,
             end_offset: document.content.len(),
             metadata: None,
+            block_type: document.block_type.clone(),
+            language: document.language.clone(),
         }]
     };
     
