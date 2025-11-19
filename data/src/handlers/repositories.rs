@@ -1,5 +1,7 @@
 use actix_web::{web, HttpResponse, Result};
 use serde_json::json;
+use uuid::Uuid;
+use sqlx::PgPool;
 
 use conhub_config::{
     ApiResponse, ConnectRepositoryRequest,
@@ -10,6 +12,7 @@ use crate::services::data::{RepositoryService, CredentialValidator};
 use crate::services::data::vcs_connector::VcsError;
 use crate::services::data::vcs_connector::{VcsConnectorFactory, VcsConnector, RepositoryMetadata};
 use crate::services::data::vcs_detector::VcsDetector;
+use conhub_config::auth::Claims;
 
 
 pub async fn connect_repository(
@@ -678,13 +681,152 @@ pub async fn fetch_branches(
 }
 
 
+#[derive(serde::Deserialize)]
+pub struct OAuthBranchesQuery {
+    pub provider: String,
+    pub repo: String,
+}
+
+pub async fn oauth_fetch_branches(
+    claims: web::ReqData<Claims>,
+    pool: web::Data<Option<PgPool>>,
+    query: web::Query<OAuthBranchesQuery>,
+) -> Result<HttpResponse> {
+    let user_id = match Uuid::parse_str(&claims.sub) { Ok(id) => id, Err(_) => {
+        return Ok(HttpResponse::BadRequest().json(ApiResponse::<()> { success: false, message: "Invalid user ID".to_string(), data: None, error: Some("Invalid user ID".to_string()) })) } };
+    let pool = match pool.get_ref() { Some(p) => p, None => {
+        return Ok(HttpResponse::ServiceUnavailable().json(ApiResponse::<()> { success: false, message: "Database not available".to_string(), data: None, error: Some("No database pool".to_string()) })) } };
+
+    let platform = query.provider.to_lowercase();
+    let repo_slug = query.repo.clone();
+    let repo_url = if platform == "github" {
+        format!("https://github.com/{}.git", repo_slug)
+    } else if platform == "gitlab" {
+        format!("https://gitlab.com/{}.git", repo_slug)
+    } else if platform == "bitbucket" {
+        format!("https://bitbucket.org/{}", repo_slug)
+    } else {
+        return Ok(HttpResponse::BadRequest().json(ApiResponse::<()> { success: false, message: "Unsupported provider".to_string(), data: None, error: Some("provider must be github, gitlab or bitbucket".to_string()) }))
+    };
+
+    let token_row = sqlx::query_scalar::<_, String>(
+        "SELECT access_token FROM social_connections WHERE user_id = $1 AND platform = $2 AND is_active = TRUE ORDER BY updated_at DESC LIMIT 1",
+    )
+        .bind(user_id)
+        .bind(&platform)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("DB error fetching token: {}", e);
+            e
+        })?;
+
+    if token_row.is_none() {
+        return Ok(HttpResponse::Forbidden().json(ApiResponse::<()> { success: false, message: "No active connection for provider".to_string(), data: None, error: Some("Connect provider first".to_string()) }))
+    }
+    let access_token = token_row.unwrap();
+
+    let credentials = RepositoryCredentials { credential_type: CredentialType::PersonalAccessToken { token: access_token }, expires_at: None };
+    let (vcs_type, _provider) = match VcsDetector::detect_from_url(&repo_url) { Ok(r) => r, Err(e) => {
+        return Ok(HttpResponse::BadRequest().json(ApiResponse::<()> { success: false, message: "Invalid repository URL".to_string(), data: None, error: Some(e) })) } };
+    let connector = VcsConnectorFactory::create_connector(&vcs_type);
+    match connector.list_branches(&repo_url, &credentials).await {
+        Ok(branch_info) => {
+            let branches: Vec<String> = branch_info.iter().map(|b| b.name.clone()).collect();
+            let default_branch = branch_info.iter().find(|b| b.is_default).map(|b| b.name.clone()).or_else(|| {
+                if branches.contains(&"main".to_string()) { Some("main".to_string()) } else if branches.contains(&"master".to_string()) { Some("master".to_string()) } else { branches.first().cloned() }
+            });
+            Ok(HttpResponse::Ok().json(ApiResponse { success: true, message: format!("Retrieved {} branches", branches.len()), data: Some(FetchBranchesResponse { branches, default_branch }), error: None }))
+        }
+        Err(e) => {
+            let (mut status, error_msg) = match e { VcsError::AuthenticationFailed(msg) => (HttpResponse::Unauthorized(), msg), VcsError::RepositoryNotFound(msg) => (HttpResponse::NotFound(), msg), VcsError::InvalidCredentials(msg) => (HttpResponse::BadRequest(), msg), VcsError::InvalidUrl(msg) => (HttpResponse::BadRequest(), msg), VcsError::PermissionDenied(msg) => (HttpResponse::Forbidden(), msg), _ => (HttpResponse::InternalServerError(), e.to_string()) };
+            Ok(status.json(ApiResponse::<()> { success: false, message: "Failed to fetch branches".to_string(), data: None, error: Some(error_msg) }))
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct OAuthCheckRepoRequest {
+    pub provider: String,
+    pub repo_url: String,
+}
+
+pub async fn oauth_check_repository(
+    claims: web::ReqData<Claims>,
+    pool: web::Data<Option<PgPool>>,
+    req: web::Json<OAuthCheckRepoRequest>,
+) -> Result<HttpResponse> {
+    let user_id = match Uuid::parse_str(&claims.sub) { Ok(id) => id, Err(_) => {
+        return Ok(HttpResponse::BadRequest().json(ApiResponse::<()> { success: false, message: "Invalid user ID".to_string(), data: None, error: Some("Invalid user ID".to_string()) })) } };
+    let pool = match pool.get_ref() { Some(p) => p, None => {
+        return Ok(HttpResponse::ServiceUnavailable().json(ApiResponse::<()> { success: false, message: "Database not available".to_string(), data: None, error: Some("No database pool".to_string()) })) } };
+
+    let platform = req.provider.to_lowercase();
+    if platform != "github" && platform != "gitlab" && platform != "bitbucket" {
+        return Ok(HttpResponse::BadRequest().json(ApiResponse::<()> { success: false, message: "Unsupported provider".to_string(), data: None, error: Some("provider must be github, gitlab or bitbucket".to_string()) }))
+    }
+
+    let token_row = sqlx::query_scalar::<_, String>(
+        "SELECT access_token FROM social_connections WHERE user_id = $1 AND platform = $2 AND is_active = TRUE ORDER BY updated_at DESC LIMIT 1",
+    )
+        .bind(user_id)
+        .bind(&platform)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| { tracing::error!("DB error fetching token: {}", e); e })?;
+
+    if token_row.is_none() {
+        return Ok(HttpResponse::Forbidden().json(ApiResponse::<()> { success: false, message: "No active connection for provider".to_string(), data: None, error: Some("Connect provider first".to_string()) }))
+    }
+    let access_token = token_row.unwrap();
+    let credentials = RepositoryCredentials { credential_type: CredentialType::PersonalAccessToken { token: access_token }, expires_at: None };
+
+    let (vcs_type, provider) = match VcsDetector::detect_from_url(&req.repo_url) { Ok(r) => r, Err(e) => {
+        return Ok(HttpResponse::BadRequest().json(ApiResponse::<()> { success: false, message: "Invalid repository URL".to_string(), data: None, error: Some(e) })) } };
+    let connector = VcsConnectorFactory::create_connector(&vcs_type);
+
+    let metadata = match connector.get_repository_metadata(&req.repo_url, &credentials).await {
+        Ok(m) => m,
+        Err(e) => {
+            let (mut status, error_msg) = match e { VcsError::AuthenticationFailed(msg) => (HttpResponse::Unauthorized(), msg), VcsError::RepositoryNotFound(msg) => (HttpResponse::NotFound(), msg), VcsError::InvalidCredentials(msg) => (HttpResponse::BadRequest(), msg), VcsError::InvalidUrl(msg) => (HttpResponse::BadRequest(), msg), VcsError::PermissionDenied(msg) => (HttpResponse::Forbidden(), msg), _ => (HttpResponse::InternalServerError(), e.to_string()) };
+            return Ok(status.json(ApiResponse::<()> { success: false, message: "Failed to fetch repository metadata".to_string(), data: None, error: Some(error_msg) }))
+        }
+    };
+
+    let branches_info = match connector.list_branches(&req.repo_url, &credentials).await {
+        Ok(b) => b,
+        Err(e) => {
+            let (mut status, error_msg) = match e { VcsError::AuthenticationFailed(msg) => (HttpResponse::Unauthorized(), msg), VcsError::RepositoryNotFound(msg) => (HttpResponse::NotFound(), msg), VcsError::InvalidCredentials(msg) => (HttpResponse::BadRequest(), msg), VcsError::InvalidUrl(msg) => (HttpResponse::BadRequest(), msg), VcsError::PermissionDenied(msg) => (HttpResponse::Forbidden(), msg), _ => (HttpResponse::InternalServerError(), e.to_string()) };
+            return Ok(status.json(ApiResponse::<()> { success: false, message: "Failed to fetch branches".to_string(), data: None, error: Some(error_msg) }))
+        }
+    };
+    let branches: Vec<String> = branches_info.iter().map(|b| b.name.clone()).collect();
+    let default_branch = metadata.default_branch.clone();
+    let clone_urls = match VcsDetector::generate_clone_urls(&req.repo_url, &provider) { Ok(c) => c, Err(_) => crate::services::data::vcs_detector::CloneUrls { https: req.repo_url.clone(), ssh: None, original: req.repo_url.clone() } };
+
+    let result = CheckRepoResponse {
+        owner: VcsDetector::extract_repo_info(&req.repo_url).ok().map(|(o, _)| o).unwrap_or_default(),
+        repo_name: VcsDetector::extract_repo_info(&req.repo_url).ok().map(|(_, r)| r).unwrap_or_default(),
+        provider: format!("{:?}", provider),
+        vcs_type: format!("{:?}", vcs_type),
+        metadata,
+        branches,
+        default_branch,
+        clone_https: clone_urls.https,
+        clone_ssh: clone_urls.ssh,
+    };
+    Ok(HttpResponse::Ok().json(ApiResponse::success(result)))
+}
+
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/api/repositories")
             .route("/connect", web::post().to(connect_repository))
             .route("/check", web::post().to(check_repository))
+            .route("/oauth/check", web::post().to(oauth_check_repository))
             .route("/validate-url", web::post().to(validate_repository_url))
             .route("/fetch-branches", web::post().to(fetch_branches))
+            .route("/oauth/branches", web::get().to(oauth_fetch_branches))
             .route("/stats", web::get().to(get_repository_stats))
             .route("/validate-credentials", web::post().to(validate_credentials))
             .route("", web::get().to(list_repositories))

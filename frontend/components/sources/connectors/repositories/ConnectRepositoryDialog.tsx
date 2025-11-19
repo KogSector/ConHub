@@ -21,7 +21,7 @@ interface ConnectRepositoryDialogProps {
 }
 
 export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: ConnectRepositoryDialogProps) {
-  const { token } = useAuth()
+  const { token, connections } = useAuth()
   const [provider, setProvider] = useState('');
   const [name, setName] = useState('');
   const [repositoryUrl, setRepositoryUrl] = useState('');
@@ -79,6 +79,12 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     if (!isProviderSelected) return true;
     setCheckingConnection(true);
     try {
+      const cached = Array.isArray(connections) ? connections : []
+      const hasCached = cached.some((c) => c.platform === provider && c.is_active)
+      if (hasCached) {
+        setNeedsSocialConnect(null)
+        return true
+      }
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const resp = await apiClient.get('/api/auth/connections', headers);
       const list = unwrapResponse<Array<{ platform: string; is_active: boolean }>>(resp) || [];
@@ -135,30 +141,6 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     }
     
     console.log('[FRONTEND] credentials:', credentials);
-    if ((provider === 'github' || provider === 'gitlab') && !credentials.accessToken) {
-      setFetchBranchesError(`Please enter your ${provider === 'github' ? 'GitHub' : 'GitLab'} access token first.`);
-      return;
-    }
-    if (provider === 'bitbucket' && (!credentials.username || !credentials.appPassword)) {
-      setFetchBranchesError("Please enter your Bitbucket username and app password first.");
-      return;
-    }
-    
-    
-    if (provider === 'github' && credentials.accessToken) {
-      const token = credentials.accessToken.trim();
-      if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
-        setFetchBranchesError("GitHub token should start with 'ghp_' (classic) or 'github_pat_' (fine-grained).");
-        return;
-      }
-    }
-    if (provider === 'gitlab' && credentials.accessToken) {
-      const token = credentials.accessToken.trim();
-      if (!token.startsWith('glpat-')) {
-        setFetchBranchesError("GitLab token should start with 'glpat-'.");
-        return;
-      }
-    }
     
     setIsFetchingBranches(true);
     setFetchBranchesError(null);
@@ -166,23 +148,9 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     setIsValidated(false);
 
     try {
-      console.log('[FRONTEND] Building credentials payload');
-      let credentialsPayload: Record<string, string> | undefined;
-      if (provider === 'github' || provider === 'gitlab') {
-        credentialsPayload = {
-          accessToken: credentials.accessToken.trim()
-        };
-      } else if (provider === 'bitbucket') {
-        credentialsPayload = {
-          username: credentials.username.trim(),
-          appPassword: credentials.appPassword.trim()
-        };
-      }
-      
-      const repoCheck = await apiClient.post<{ provider?: string; name?: string; full_name?: string }>('/api/auth/repos/check', { 
+      const repoCheck = await dataApiClient.post<{ provider?: string; name?: string; full_name?: string }>('/api/repositories/oauth/check', { 
         provider,
-        repo_url: repositoryUrl.trim(),
-        access_token: credentialsPayload?.accessToken
+        repo_url: repositoryUrl.trim()
       }, token ? { Authorization: `Bearer ${token}` } : {})
       const repoName = repoCheck.name || repoCheck.full_name
       if (repoName) {
@@ -193,25 +161,23 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       let default_branch: string | undefined
       let file_extensions: string[] | undefined
 
-      const requestPayload = { repoUrl: repositoryUrl.trim(), credentials: credentialsPayload };
-      const response = await fetch('/api/repositories/fetch-branches', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(requestPayload)
-      })
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({})) as Record<string, unknown>
-        const message = typeof err['error'] === 'string' ? err['error'] : `HTTP error! status: ${response.status}`
-        throw new Error(message)
+      if (provider === 'github') {
+        const slug = extractRepoName(repositoryUrl.trim())
+        const gh = await dataApiClient.get<{ success?: boolean; data?: { branches?: string[] } }>(`/api/repositories/oauth/branches?provider=github&repo=${encodeURIComponent(slug)}`, token ? { Authorization: `Bearer ${token}` } : {})
+        const ghBranches = gh && (gh as any).data && Array.isArray((gh as any).data.branches) ? (gh as any).data.branches as string[] : (gh as any).branches
+        fetchedBranches = Array.isArray(ghBranches) ? ghBranches : []
+      } else if (provider === 'bitbucket') {
+        const slug = extractRepoName(repositoryUrl.trim())
+        const bb = await dataApiClient.get<{ success?: boolean; data?: { branches?: string[] } }>(`/api/repositories/oauth/branches?provider=bitbucket&repo=${encodeURIComponent(slug)}`, token ? { Authorization: `Bearer ${token}` } : {})
+        const bbBranches = bb && (bb as any).data && Array.isArray((bb as any).data.branches) ? (bb as any).data.branches as string[] : (bb as any).branches
+        fetchedBranches = Array.isArray(bbBranches) ? bbBranches : []
+      } else if (provider === 'gitlab') {
+        const slug = extractRepoName(repositoryUrl.trim())
+        const gl = await dataApiClient.get<{ success?: boolean; data?: { branches?: string[]; default_branch?: string } }>(`/api/repositories/oauth/branches?provider=gitlab&repo=${encodeURIComponent(slug)}`, token ? { Authorization: `Bearer ${token}` } : {})
+        const glData = (gl as any).data || gl
+        fetchedBranches = Array.isArray(glData?.branches) ? glData.branches : []
+        default_branch = typeof glData?.default_branch === 'string' ? glData.default_branch : undefined
       }
-      const resp = await response.json() as { branches?: string[]; defaultBranch?: string; file_extensions?: string[] }
-      fetchedBranches = Array.isArray(resp.branches) ? resp.branches : []
-      default_branch = typeof resp.defaultBranch === 'string' ? resp.defaultBranch : undefined
-      file_extensions = Array.isArray(resp.file_extensions) ? resp.file_extensions : undefined
-      console.log('[FRONTEND] Parsed response data:', { fetchedBranches, default_branch, file_extensions });
       
       if (!fetchedBranches || fetchedBranches.length === 0) {
         setFetchBranchesError("No branches found. Please check the repository URL and permissions.");
@@ -219,9 +185,10 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         setIsValidated(false);
       } else {
         setBranches(fetchedBranches);
+        const inferredDefault = default_branch || (fetchedBranches.includes('main') ? 'main' : (fetchedBranches.includes('master') ? 'master' : fetchedBranches[0]))
         setConfig(prev => ({ 
           ...prev, 
-          defaultBranch: default_branch || fetchedBranches[0],
+          defaultBranch: inferredDefault || prev.defaultBranch,
           fileExtensions: file_extensions && file_extensions.length > 0 ? file_extensions : prev.fileExtensions
         }));
         if (file_extensions && file_extensions.length > 0) {
@@ -323,153 +290,11 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
 
   const renderCredentialFields = () => {
     switch (provider) {
-      case 'github':
       case 'gitlab':
-        const isGitHub = provider === 'github';
-        return (
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="accessToken" className="text-sm font-medium">{isGitHub ? 'GitHub' : 'GitLab'} Access Token</Label>
-                <a 
-                  href={isGitHub 
-                    ? "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token"
-                    : "https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html"
-                  } 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:text-blue-800 underline"
-                >
-                  How to create a token?
-                </a>
-              </div>
-              <Input
-                id="accessToken"
-                type="password"
-                placeholder={isGitHub 
-                  ? "ghp_xxxxxxxxxxxxxxxxxxxx or github_pat_xxxxxxxxxx"
-                  : "glpat-xxxxxxxxxxxxxxxxxxxx"
-                }
-                value={credentials.accessToken || ''}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setCredentials({ ...credentials, accessToken: e.target.value })}
-                className="mt-2"
-              />
-              <div className="space-y-2 text-xs text-muted-foreground">
-                <p className="font-medium">Token Requirements:</p>
-                <ul className="space-y-1 ml-4">
-                  {isGitHub ? (
-                    <>
-                      <li>• <strong>Classic tokens (ghp_*):</strong> Need <code>repo</code> scope for private repos, <code>public_repo</code> for public repos</li>
-                      <li>• <strong>Fine-grained tokens (github_pat_*):</strong> Need repository access and Contents/Metadata permissions</li>
-                    </>
-                  ) : (
-                    <>
-                      <li>• <strong>Personal Access Tokens (glpat_*):</strong> Need <code>read_repository</code> scope minimum</li>
-                      <li>• <strong>For private repos:</strong> Also need <code>read_api</code> scope</li>
-                    </>
-                  )}
-                  <li>• <strong>Token must not be expired</strong></li>
-                  <li>• <strong>Account must have access to the repository</strong></li>
-                </ul>
-                <div className="flex gap-4 pt-2">
-                  {isGitHub ? (
-                    <>
-                      <a 
-                        href="https://github.com/settings/tokens" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 underline"
-                      >
-                        Manage Classic Tokens
-                      </a>
-                      <a 
-                        href="https://github.com/settings/personal-access-tokens/new" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 underline"
-                      >
-                        Create Fine-grained Token
-                      </a>
-                    </>
-                  ) : (
-                    <a 
-                      href="https://gitlab.com/-/profile/personal_access_tokens" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 underline"
-                    >
-                      Create GitLab Token
-                    </a>
-                  )}
-                </div>
-                <div className="mt-3 p-3 bg-muted/50 rounded-md">
-                  <p className="font-medium text-foreground">Quick Setup:</p>
-                  <ol className="mt-1 space-y-1 ml-4">
-                    {isGitHub ? (
-                      <>
-                        <li>1. Click &quot;Manage Classic Tokens&quot; above</li>
-                        <li>2. Generate new token (classic)</li>
-                        <li>3. Select <code>public_repo</code> or <code>repo</code> scope</li>
-                        <li>4. Copy the token and paste it above</li>
-                      </>
-                    ) : (
-                      <>
-                        <li>1. Click &quot;Create GitLab Token&quot; above</li>
-                        <li>2. Enter token name and expiration</li>
-                        <li>3. Select <code>read_repository</code> and <code>read_api</code> scopes</li>
-                        <li>4. Copy the token and paste it above</li>
-                      </>
-                    )}
-                  </ol>
-                </div>
-                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                  <div className="flex items-start gap-2">
-                    <div className="text-blue-600 mt-0.5">ℹ️</div>
-                    <div>
-                      <p className="font-medium text-blue-800">Organization Repositories</p>
-                      <p className="text-xs text-blue-700 mt-1">
-                        For enhanced organization access, consider using GitHub Apps instead of Personal Access Tokens. 
-                        GitHub Apps provide better security, audit trails, and fine-grained permissions for organization repositories.
-                      </p>
-                      <p className="text-xs text-blue-600 mt-2">
-                        <strong>Personal tokens work for:</strong> Personal repos, org repos with user access<br/>
-                        <strong>GitHub Apps work best for:</strong> Organization-wide access, team repositories, enterprise use
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
+        return null;
 
       case 'bitbucket':
-        return (
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <Label htmlFor="username" className="text-sm font-medium">Username</Label>
-              <Input
-                id="username"
-                value={credentials.username || ''}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setCredentials({ ...credentials, username: e.target.value })}
-                className="mt-2"
-              />
-            </div>
-            <div className="space-y-3">
-              <Label htmlFor="appPassword" className="text-sm font-medium">App Password</Label>
-              <Input
-                id="appPassword"
-                type="password"
-                value={credentials.appPassword || ''}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setCredentials({ ...credentials, appPassword: e.target.value })}
-                className="mt-2"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                Create at: Settings → Personal Bitbucket settings → App passwords
-              </p>
-            </div>
-          </div>
-        );
+        return null;
 
       default:
         return null;
@@ -719,10 +544,10 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
             </Button>
             <Button 
               onClick={handleConnect} 
-              disabled={!isValidated || !isProviderSelected || !repositoryUrl || loading || (!credentials.accessToken && !credentials.username)}
+              disabled={!isValidated || !isProviderSelected || !repositoryUrl || loading}
             >
-              {loading ? 'Connecting...' : 'Connect Repository'}
-            </Button>
+            {loading ? 'Connecting...' : 'Connect Repository'}
+          </Button>
           </div>
         </div>
       </DialogContent>
