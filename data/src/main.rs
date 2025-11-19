@@ -1,5 +1,6 @@
 
 use actix_web::{web, App, HttpServer, HttpResponse, Result};
+use conhub_middleware::auth::AuthMiddlewareFactory;
 use tracing::{info, warn};
 use std::env;
 
@@ -253,8 +254,17 @@ async fn main() -> std::io::Result<()> {
     info!("🚀 [Data Service] Starting on port {}", port);
     info!("⚠️  [Data Service] Running in minimal mode - database features disabled");
     
-    HttpServer::new(|| {
+    let auth_middleware = match AuthMiddlewareFactory::new() {
+        Ok(m) => m,
+        Err(e) => {
+            warn!("Auth middleware init failed: {}. Falling back to disabled dev claims", e);
+            AuthMiddlewareFactory::disabled()
+        }
+    };
+
+    HttpServer::new(move || {
         App::new()
+            .wrap(auth_middleware.clone())
             .route("/health", web::get().to(health_check))
             .route("/status", web::get().to(status_check))
             // GitHub repository management routes

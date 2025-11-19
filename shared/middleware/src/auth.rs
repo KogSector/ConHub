@@ -1,23 +1,134 @@
 use actix_web::{
     dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
-    Error as ActixError, HttpMessage, HttpResponse, HttpRequest,
     body::EitherBody,
+    Error as ActixError, HttpMessage, HttpRequest, HttpResponse,
 };
 use futures_util::future::LocalBoxFuture;
 use std::future::{ready, Ready};
 use std::rc::Rc;
 use std::sync::Arc;
 use conhub_models::auth::Claims;
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
-use rsa::{RsaPublicKey, pkcs8::{DecodePublicKey, EncodePublicKey}, pkcs1::DecodeRsaPublicKey};
-use base64;
+use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use serde_json::json;
 use chrono;
 use tracing;
+use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+use reqwest::Client;
+use std::time::{Duration, Instant};
+use uuid::Uuid;
+
+#[derive(Clone)]
+struct Auth0Config {
+    domain: String,
+    issuer: String,
+    audience: String,
+    jwks_uri: String,
+    leeway_secs: u64,
+}
+
+impl Auth0Config {
+    fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
+        let domain = std::env::var("AUTH0_DOMAIN")?;
+        let issuer = std::env::var("AUTH0_ISSUER")?;
+        let audience = std::env::var("AUTH0_AUDIENCE")?;
+        let jwks_uri = std::env::var("AUTH0_JWKS_URI")
+            .unwrap_or_else(|_| format!("https://{}/.well-known/jwks.json", domain));
+        Ok(Self {
+            domain,
+            issuer,
+            audience,
+            jwks_uri,
+            leeway_secs: 60,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct Jwk {
+    kid: String,
+    kty: String,
+    n: String,
+    e: String,
+    alg: Option<String>,
+    #[serde(rename = "use")]
+    use_: Option<String>,
+
+    #[serde(flatten)]
+    extra: std::collections::HashMap<String, JsonValue>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct Jwks {
+    keys: Vec<Jwk>,
+}
+
+struct Auth0JwksCache {
+    client: Client,
+    config: Auth0Config,
+    cached: Option<(Jwks, Instant)>,
+    ttl: Duration,
+}
+
+impl Auth0JwksCache {
+    fn new(config: Auth0Config) -> Self {
+        Self {
+            client: Client::new(),
+            config,
+            cached: None,
+            ttl: Duration::from_secs(600),
+        }
+    }
+
+    async fn get_jwks(&mut self) -> Result<Jwks, Box<dyn std::error::Error>> {
+        if let Some((jwks, ts)) = &self.cached {
+            if ts.elapsed() < self.ttl {
+                return Ok(jwks.clone());
+            }
+        }
+        let resp = self.client.get(&self.config.jwks_uri).send().await?;
+        if !resp.status().is_success() {
+            return Err(format!("Failed to fetch JWKS: {}", resp.status()).into());
+        }
+        let jwks: Jwks = resp.json().await?;
+        self.cached = Some((jwks.clone(), Instant::now()));
+        Ok(jwks)
+    }
+
+    async fn get_key(&mut self, kid: &str) -> Result<Jwk, Box<dyn std::error::Error>> {
+        let jwks = self.get_jwks().await?;
+        jwks
+            .keys
+            .into_iter()
+            .find(|k| k.kid == kid)
+            .ok_or_else(|| "JWK not found for kid".into())
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct RawAuth0Claims {
+    sub: String,
+    iss: String,
+    aud: JsonValue,
+    exp: usize,
+    iat: Option<usize>,
+    email: Option<String>,
+    scope: Option<String>,
+    permissions: Option<Vec<String>>, 
+    #[serde(flatten)]
+    extra: std::collections::HashMap<String, JsonValue>,
+}
+
+#[derive(Clone)]
+struct Auth0Verifier {
+    config: Auth0Config,
+    jwks_cache: Arc<tokio::sync::Mutex<Auth0JwksCache>>,
+}
 
 #[derive(Clone)]
 enum AuthMode {
-    Enabled(Arc<RsaPublicKey>),
+    Enabled(Arc<Auth0Verifier>),
     Disabled(Claims),
 }
 
@@ -50,12 +161,12 @@ where
             }
 
             match mode {
-                AuthMode::Enabled(public_key) => {
+                AuthMode::Enabled(verifier) => {
                     if let Some(auth_header) = req.headers().get("Authorization") {
                         if let Ok(auth_str) = auth_header.to_str() {
                             if auth_str.starts_with("Bearer ") {
                                 let token = &auth_str[7..];
-                                match verify_jwt_token(token, &public_key).await {
+                                match verify_auth0_jwt_token(token, &verifier).await {
                                     Ok(claims) => {
                                         req.extensions_mut().insert(claims);
                                         let res = service.call(req).await?;
@@ -101,17 +212,13 @@ pub struct AuthMiddlewareFactory {
 
 impl AuthMiddlewareFactory {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        match load_public_key() {
-            Ok(public_key) => Ok(Self { mode: AuthMode::Enabled(Arc::new(public_key)) }),
-            Err(e) => {
-                tracing::warn!("JWT public key not found or invalid ({}). Falling back to disabled auth (dev claims). Set `JWT_PUBLIC_KEY_PATH` or `JWT_PUBLIC_KEY` to enable.", e);
-                Ok(Self::disabled())
-            }
-        }
-    }
-
-    pub fn from_public_key(public_key: RsaPublicKey) -> Self {
-        Self { mode: AuthMode::Enabled(Arc::new(public_key)) }
+        let config = Auth0Config::from_env()?;
+        let cache = Auth0JwksCache::new(config.clone());
+        let verifier = Auth0Verifier {
+            config,
+            jwks_cache: Arc::new(tokio::sync::Mutex::new(cache)),
+        };
+        Ok(Self { mode: AuthMode::Enabled(Arc::new(verifier)) })
     }
 
     pub fn disabled() -> Self {
@@ -148,106 +255,352 @@ where
     }
 }
 
-// JWT verification function using RSA public key
-async fn verify_jwt_token(token: &str, public_key: &RsaPublicKey) -> Result<Claims, Box<dyn std::error::Error>> {
-    let mut validation = Validation::new(Algorithm::RS256);
-    validation.set_issuer(&["conhub"]);
-    validation.set_audience(&["conhub-users"]);
-    
-    // Convert RSA public key to PEM format for jsonwebtoken
-    let public_key_pem = rsa::pkcs8::EncodePublicKey::to_public_key_pem(public_key, rsa::pkcs8::LineEnding::LF)?;
-    let decoding_key = DecodingKey::from_rsa_pem(public_key_pem.as_bytes())?;
-    
-    let token_data = decode::<Claims>(token, &decoding_key, &validation)?;
-    
-    // Additional validation: check if token is not expired
-    let now = chrono::Utc::now().timestamp() as usize;
-    if token_data.claims.exp < now {
-        return Err("Token has expired".into());
+async fn verify_auth0_jwt_token(
+    token: &str,
+    verifier: &Auth0Verifier,
+) -> Result<conhub_models::auth::Claims, Box<dyn std::error::Error>> {
+    let header = decode_header(token)?;
+    let kid = header.kid.ok_or("Missing kid in JWT header")?;
+
+    let mut cache = verifier.jwks_cache.lock().await;
+    let jwk = cache.get_key(&kid).await?;
+
+    if jwk.kty != "RSA" {
+        return Err("Unsupported JWK kty".into());
     }
-    
-    Ok(token_data.claims)
+
+    let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)?;
+
+    let mut validation = Validation::new(Algorithm::RS256);
+    validation.iss = Some(std::collections::HashSet::from([verifier.config.issuer.clone()]));
+    // Audience can be string or array in Auth0; validate manually
+    validation.validate_aud = false;
+
+    let token_data = decode::<RawAuth0Claims>(token, &decoding_key, &validation)?;
+    let claims = token_data.claims;
+
+    let now = chrono::Utc::now().timestamp() as usize;
+    if claims.exp + (verifier.config.leeway_secs as usize) < now {
+        return Err("Token expired".into());
+    }
+
+    let aud_ok = match &claims.aud {
+        JsonValue::String(aud) => aud == &verifier.config.audience,
+        JsonValue::Array(arr) => arr.iter().any(|v| v == &JsonValue::String(verifier.config.audience.clone())),
+        _ => false,
+    };
+    if !aud_ok {
+        return Err("Invalid audience".into());
+    }
+
+    if let Ok(required_scope) = std::env::var("AUTH0_REQUIRED_SCOPE") {
+        if let Some(scope_str) = &claims.scope {
+            let scopes: std::collections::HashSet<_> =
+                scope_str.split_whitespace().map(|s| s.to_string()).collect();
+            if !scopes.contains(&required_scope) {
+                return Err("Missing required scope".into());
+            }
+        } else {
+            return Err("Missing scope claim".into());
+        }
+    }
+
+    let now = chrono::Utc::now().timestamp() as usize;
+    let iat = claims.iat.unwrap_or(now);
+    let email = claims.email.unwrap_or_default();
+
+    let mut roles: Vec<String> = Vec::new();
+    if let Some(perms) = claims.permissions.clone() {
+        for p in perms {
+            if p.starts_with("admin") && !roles.contains(&"admin".to_string()) {
+                roles.push("admin".to_string());
+            }
+        }
+    }
+    if roles.is_empty() {
+        roles.push("user".to_string());
+    }
+
+    let session_id = Uuid::new_v4().to_string();
+    let jti = Uuid::new_v4().to_string();
+
+    let internal_claims = conhub_models::auth::Claims {
+        sub: claims.sub.clone(),
+        email,
+        roles,
+        exp: claims.exp,
+        iat,
+        iss: claims.iss.clone(),
+        aud: verifier.config.audience.clone(),
+        session_id,
+        jti,
+    };
+
+    Ok(internal_claims)
 }
 
 // Load public key from environment variable or file with robust parsing
-fn load_public_key() -> Result<RsaPublicKey, Box<dyn std::error::Error>> {
-    // Prefer file path to avoid .env multiline pitfalls
-    if let Ok(public_key_path) = std::env::var("JWT_PUBLIC_KEY_PATH") {
-        let raw = std::fs::read_to_string(&public_key_path)?;
-        match parse_public_key_from_str(&raw) {
-            Ok(key) => return Ok(key),
-            Err(e) => {
-                tracing::error!("Failed parsing JWT_PUBLIC_KEY_PATH ({}): {}", public_key_path, e);
-                return Err(e);
-            }
+// RSA key loading and parsing removed; Auth0 JWKS is now the source of truth
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{web, App, HttpResponse, HttpServer};
+    use jsonwebtoken::{encode, Header, Algorithm, EncodingKey};
+    use rsa::{RsaPrivateKey, RsaPublicKey};
+    use rsa::pkcs8::EncodePrivateKey;
+    use rsa::traits::PublicKeyParts;
+    use std::net::TcpListener;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use base64::Engine;
+
+    fn make_jwk(public_key: &RsaPublicKey, kid: &str) -> Jwk {
+        let n_bytes = public_key.n().to_bytes_be();
+        let e_bytes = public_key.e().to_bytes_be();
+        Jwk {
+            kid: kid.to_string(),
+            kty: "RSA".to_string(),
+            n: URL_SAFE_NO_PAD.encode(n_bytes),
+            e: URL_SAFE_NO_PAD.encode(e_bytes),
+            alg: Some("RS256".to_string()),
+            use_: Some("sig".to_string()),
+            extra: Default::default(),
         }
     }
 
-    // Fallback to inline env var
-    if let Ok(inline) = std::env::var("JWT_PUBLIC_KEY") {
-        match parse_public_key_from_str(&inline) {
-            Ok(key) => return Ok(key),
-            Err(e) => {
-                tracing::error!("Failed parsing JWT_PUBLIC_KEY env var: {}", e);
-                return Err(e);
-            }
+    async fn start_jwks_server(jwks: Jwks) -> (String, actix_web::dev::Server) {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind");
+        let addr = listener.local_addr().unwrap();
+        let jwks_data = web::Data::new(jwks);
+        let server = HttpServer::new(move || {
+            App::new()
+                .app_data(jwks_data.clone())
+                .route("/.well-known/jwks.json", web::get().to(|data: web::Data<Jwks>| async move {
+                    HttpResponse::Ok().json(&*data)
+                }))
+        })
+        .listen(listener)
+        .unwrap()
+        .run();
+        let base = format!("http://{}:{}", addr.ip(), addr.port());
+        (format!("{}/.well-known/jwks.json", base), server)
+    }
+
+    fn make_encoding_key(private_key: &RsaPrivateKey) -> EncodingKey {
+        let pem = private_key.to_pkcs8_pem(rsa::pkcs8::LineEnding::LF).unwrap();
+        EncodingKey::from_rsa_pem(pem.as_bytes()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn valid_token_ok() {
+        let mut rng = rand::thread_rng();
+        let private_key = RsaPrivateKey::new(&mut rng, 2048).unwrap();
+        let public_key = RsaPublicKey::from(&private_key);
+        let kid = "test-kid";
+        let jwk = make_jwk(&public_key, kid);
+        let (jwks_uri, server) = start_jwks_server(Jwks { keys: vec![jwk] }).await;
+        let _ = tokio::spawn(server);
+
+        std::env::set_var("AUTH0_DOMAIN", "test.local");
+        std::env::set_var("AUTH0_ISSUER", "https://test.local/");
+        std::env::set_var("AUTH0_AUDIENCE", "https://api.conhub.dev");
+        std::env::set_var("AUTH0_JWKS_URI", jwks_uri);
+
+        let verifier = Auth0Verifier {
+            config: Auth0Config::from_env().unwrap(),
+            jwks_cache: Arc::new(tokio::sync::Mutex::new(Auth0JwksCache::new(Auth0Config::from_env().unwrap()))),
+        };
+
+        #[derive(Serialize)]
+        struct ClaimsForSign {
+            sub: String,
+            iss: String,
+            aud: String,
+            exp: usize,
+            iat: usize,
+            email: String,
+            scope: String,
         }
+
+        let now = chrono::Utc::now().timestamp() as usize;
+        let claims = ClaimsForSign {
+            sub: "user-1".to_string(),
+            iss: verifier.config.issuer.clone(),
+            aud: verifier.config.audience.clone(),
+            exp: now + 3600,
+            iat: now,
+            email: "u@example.com".to_string(),
+            scope: "read:conhub".to_string(),
+        };
+
+        let mut header = Header::new(Algorithm::RS256);
+        header.kid = Some(kid.to_string());
+        let token = encode(&header, &claims, &make_encoding_key(&private_key)).unwrap();
+
+        let res = verify_auth0_jwt_token(&token, &verifier).await;
+        assert!(res.is_ok());
+        let c = res.unwrap();
+        assert_eq!(c.sub, "user-1");
+        assert_eq!(c.aud, verifier.config.audience);
     }
 
-    Err("No public key found. Set JWT_PUBLIC_KEY_PATH or JWT_PUBLIC_KEY environment variable".into())
-}
+    #[tokio::test]
+    async fn wrong_issuer_err() {
+        let mut rng = rand::thread_rng();
+        let private_key = RsaPrivateKey::new(&mut rng, 2048).unwrap();
+        let public_key = RsaPublicKey::from(&private_key);
+        let kid = "kid2";
+        let jwk = make_jwk(&public_key, kid);
+        let (jwks_uri, server) = start_jwks_server(Jwks { keys: vec![jwk] }).await;
+        let _ = tokio::spawn(server);
 
-// Attempt to parse a public key from various formats:
-// - Proper PEM with headers
-// - PEM provided via .env with escaped newlines (\n)
-// - Raw Base64 DER (PKCS#1 or PKCS#8)
-fn parse_public_key_from_str(input: &str) -> Result<RsaPublicKey, Box<dyn std::error::Error>> {
-    // Trim and unquote if value wrapped in quotes
-    let mut s = input.trim().to_string();
-    if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')) {
-        s = s[1..s.len()-1].to_string();
-    }
-    // Replace literal \n with newline and normalize Windows CRLF
-    let s = s.replace("\\n", "\n").replace("\\r", "\r");
+        std::env::set_var("AUTH0_DOMAIN", "test.local");
+        std::env::set_var("AUTH0_ISSUER", "https://expected.local/");
+        std::env::set_var("AUTH0_AUDIENCE", "https://api.conhub.dev");
+        std::env::set_var("AUTH0_JWKS_URI", jwks_uri);
 
-    // If it looks like PEM, try PEM variants only and do not fall back to Base64 decoding
-    if s.contains("-----BEGIN") {
-        // PKCS#8 / SPKI
-        if let Ok(key) = RsaPublicKey::from_public_key_pem(&s) {
-            return Ok(key);
-        }
-        // PKCS#1
-        if let Ok(key) = RsaPublicKey::from_pkcs1_pem(&s) {
-            return Ok(key);
-        }
-        // If we only received the header line, this is likely a multiline .env issue
-        if s.trim().lines().count() == 1 {
-            return Err("PEM appears truncated (only header). Use JWT_PUBLIC_KEY_PATH or escape newlines (\\n).".into());
-        }
-        // Explicitly return an error for invalid PEM to avoid confusing Base64 errors
-        return Err("Invalid PEM public key format".into());
-    }
+        let verifier = Auth0Verifier {
+            config: Auth0Config::from_env().unwrap(),
+            jwks_cache: Arc::new(tokio::sync::Mutex::new(Auth0JwksCache::new(Auth0Config::from_env().unwrap()))),
+        };
 
-    // Otherwise, try raw Base64 DER (strip whitespace)
-    let b64 = s.lines().collect::<Vec<_>>().join("");
-    let b64 = b64.replace(' ', "");
-    // Ignore empty or obviously placeholder values
-    if b64.is_empty() || b64.contains("YOUR_PUBLIC_KEY_HERE") {
-        return Err("Public key value is empty or placeholder".into());
+        #[derive(Serialize)]
+        struct ClaimsForSign { sub: String, iss: String, aud: String, exp: usize, iat: usize }
+        let now = chrono::Utc::now().timestamp() as usize;
+        let claims = ClaimsForSign {
+            sub: "user-x".to_string(),
+            iss: "https://wrong.local/".to_string(),
+            aud: verifier.config.audience.clone(),
+            exp: now + 3600,
+            iat: now,
+        };
+
+        let mut header = Header::new(Algorithm::RS256);
+        header.kid = Some(kid.to_string());
+        let token = encode(&header, &claims, &make_encoding_key(&private_key)).unwrap();
+
+        let res = verify_auth0_jwt_token(&token, &verifier).await;
+        assert!(res.is_err());
     }
 
-    let bytes = base64::decode(b64.as_bytes())?;
+    #[tokio::test]
+    async fn wrong_audience_err() {
+        let mut rng = rand::thread_rng();
+        let private_key = RsaPrivateKey::new(&mut rng, 2048).unwrap();
+        let public_key = RsaPublicKey::from(&private_key);
+        let kid = "kid3";
+        let jwk = make_jwk(&public_key, kid);
+        let (jwks_uri, server) = start_jwks_server(Jwks { keys: vec![jwk] }).await;
+        let _ = tokio::spawn(server);
 
-    // Try PKCS#8 DER first
-    if let Ok(key) = RsaPublicKey::from_public_key_der(&bytes) {
-        return Ok(key);
-    }
-    // Fallback to PKCS#1 DER
-    if let Ok(key) = RsaPublicKey::from_pkcs1_der(&bytes) {
-        return Ok(key);
+        std::env::set_var("AUTH0_DOMAIN", "test.local");
+        std::env::set_var("AUTH0_ISSUER", "https://test.local/");
+        std::env::set_var("AUTH0_AUDIENCE", "https://api.conhub.dev");
+        std::env::set_var("AUTH0_JWKS_URI", jwks_uri);
+
+        let verifier = Auth0Verifier {
+            config: Auth0Config::from_env().unwrap(),
+            jwks_cache: Arc::new(tokio::sync::Mutex::new(Auth0JwksCache::new(Auth0Config::from_env().unwrap()))),
+        };
+
+        #[derive(Serialize)]
+        struct ClaimsForSign { sub: String, iss: String, aud: String, exp: usize, iat: usize }
+        let now = chrono::Utc::now().timestamp() as usize;
+        let claims = ClaimsForSign {
+            sub: "user-x".to_string(),
+            iss: verifier.config.issuer.clone(),
+            aud: "https://wrong-aud".to_string(),
+            exp: now + 3600,
+            iat: now,
+        };
+
+        let mut header = Header::new(Algorithm::RS256);
+        header.kid = Some(kid.to_string());
+        let token = encode(&header, &claims, &make_encoding_key(&private_key)).unwrap();
+
+        let res = verify_auth0_jwt_token(&token, &verifier).await;
+        assert!(res.is_err());
     }
 
-    Err("Unsupported public key format: expected PEM or Base64 DER".into())
+    #[tokio::test]
+    async fn expired_token_err() {
+        let mut rng = rand::thread_rng();
+        let private_key = RsaPrivateKey::new(&mut rng, 2048).unwrap();
+        let public_key = RsaPublicKey::from(&private_key);
+        let kid = "kid4";
+        let jwk = make_jwk(&public_key, kid);
+        let (jwks_uri, server) = start_jwks_server(Jwks { keys: vec![jwk] }).await;
+        let _ = tokio::spawn(server);
+
+        std::env::set_var("AUTH0_DOMAIN", "test.local");
+        std::env::set_var("AUTH0_ISSUER", "https://test.local/");
+        std::env::set_var("AUTH0_AUDIENCE", "https://api.conhub.dev");
+        std::env::set_var("AUTH0_JWKS_URI", jwks_uri);
+
+        let verifier = Auth0Verifier {
+            config: Auth0Config::from_env().unwrap(),
+            jwks_cache: Arc::new(tokio::sync::Mutex::new(Auth0JwksCache::new(Auth0Config::from_env().unwrap()))),
+        };
+
+        #[derive(Serialize)]
+        struct ClaimsForSign { sub: String, iss: String, aud: String, exp: usize, iat: usize }
+        let now = chrono::Utc::now().timestamp() as usize;
+        let claims = ClaimsForSign {
+            sub: "user-x".to_string(),
+            iss: verifier.config.issuer.clone(),
+            aud: verifier.config.audience.clone(),
+            exp: now - 10,
+            iat: now - 20,
+        };
+
+        let mut header = Header::new(Algorithm::RS256);
+        header.kid = Some(kid.to_string());
+        let token = encode(&header, &claims, &make_encoding_key(&private_key)).unwrap();
+
+        let res = verify_auth0_jwt_token(&token, &verifier).await;
+        assert!(res.is_err());
+    }
+
+    #[tokio::test]
+    async fn missing_required_scope_err() {
+        let mut rng = rand::thread_rng();
+        let private_key = RsaPrivateKey::new(&mut rng, 2048).unwrap();
+        let public_key = RsaPublicKey::from(&private_key);
+        let kid = "kid5";
+        let jwk = make_jwk(&public_key, kid);
+        let (jwks_uri, server) = start_jwks_server(Jwks { keys: vec![jwk] }).await;
+        let _ = tokio::spawn(server);
+
+        std::env::set_var("AUTH0_DOMAIN", "test.local");
+        std::env::set_var("AUTH0_ISSUER", "https://test.local/");
+        std::env::set_var("AUTH0_AUDIENCE", "https://api.conhub.dev");
+        std::env::set_var("AUTH0_JWKS_URI", jwks_uri);
+        std::env::set_var("AUTH0_REQUIRED_SCOPE", "read:conhub");
+
+        let verifier = Auth0Verifier {
+            config: Auth0Config::from_env().unwrap(),
+            jwks_cache: Arc::new(tokio::sync::Mutex::new(Auth0JwksCache::new(Auth0Config::from_env().unwrap()))),
+        };
+
+        #[derive(Serialize)]
+        struct ClaimsForSign { sub: String, iss: String, aud: String, exp: usize, iat: usize, scope: String }
+        let now = chrono::Utc::now().timestamp() as usize;
+        let claims = ClaimsForSign {
+            sub: "user-x".to_string(),
+            iss: verifier.config.issuer.clone(),
+            aud: verifier.config.audience.clone(),
+            exp: now + 3600,
+            iat: now,
+            scope: "write:conhub".to_string(),
+        };
+
+        let mut header = Header::new(Algorithm::RS256);
+        header.kid = Some(kid.to_string());
+        let token = encode(&header, &claims, &make_encoding_key(&private_key)).unwrap();
+
+        let res = verify_auth0_jwt_token(&token, &verifier).await;
+        assert!(res.is_err());
+    }
 }
 
 // Check if the endpoint is public and doesn't require authentication

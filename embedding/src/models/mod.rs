@@ -70,6 +70,12 @@ pub struct HealthResponse {
     pub model_loaded: bool,
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub struct EmbeddingStatus {
+    pub available: bool,
+    pub reason: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     pub error: String,

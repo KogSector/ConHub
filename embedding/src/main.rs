@@ -11,6 +11,7 @@ mod services;
 use handlers::{embed_handler, health_handler, disabled_handler, batch_embed_handler};
 use services::{LlmEmbeddingService, FusionEmbeddingService};
 use conhub_config::feature_toggles::FeatureToggles;
+use crate::models::EmbeddingStatus;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -35,18 +36,21 @@ async fn main() -> std::io::Result<()> {
     let embedding_service = if heavy_enabled {
         log::info!("Initializing multi-model fusion embedding service...");
         
-        // Get fusion config path
         let config_path = env::var("EMBEDDING_FUSION_CONFIG_PATH")
             .unwrap_or_else(|_| "config/fusion_config.json".to_string());
         
         log::info!("Loading fusion config from: {}", config_path);
 
-        let embedding_service = Arc::new(
-            FusionEmbeddingService::new(&config_path)
-                .expect("Failed to initialize fusion embedding service")
-        );
-        log::info!("Fusion embedding service initialized successfully");
-        Some(embedding_service)
+        match FusionEmbeddingService::new(&config_path) {
+            Ok(svc) => {
+                log::info!("Fusion embedding service initialized successfully");
+                Some(Arc::new(svc))
+            }
+            Err(e) => {
+                log::error!("Failed to initialize fusion embedding service: {}", e);
+                None
+            }
+        }
     } else {
         log::warn!("Heavy mode disabled; skipping embedding model initialization.");
         None
@@ -56,12 +60,15 @@ async fn main() -> std::io::Result<()> {
 
     // Start HTTP server
     log::info!("Starting HTTP server...");
+    let heavy_ready = embedding_service.is_some();
+    let status = EmbeddingStatus { available: heavy_ready, reason: if heavy_enabled && !heavy_ready { Some("missing_api_keys".to_string()) } else { None } };
+
     HttpServer::new(move || {
         let mut app = App::new()
-            .app_data(web::Data::new(toggles.clone()))
+            .app_data(web::Data::new(status.clone()))
             .route("/health", web::get().to(health_handler));
 
-        if heavy_enabled {
+        if heavy_ready {
             app = app
                 .app_data(web::Data::new(embedding_service.clone().unwrap()))
                 .route("/embed", web::post().to(embed_handler))
@@ -69,6 +76,7 @@ async fn main() -> std::io::Result<()> {
                 ;
         } else {
             app = app
+                .app_data(web::Data::new(status.clone()))
                 .route("/embed", web::post().to(disabled_handler))
                 .route("/batch/embed", web::post().to(disabled_handler))
                 ;

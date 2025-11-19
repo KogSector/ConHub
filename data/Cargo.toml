@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 # Database ORM
 conhub-database = { path = "../database" }
+conhub-middleware = { path = "../shared/middleware" }
 
 actix-web = "4.0"
 tokio = { version = "1.0", features = ["full"] }
