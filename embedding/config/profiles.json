@@ -1,0 +1,247 @@
+{
+  "profiles": [
+    {
+      "id": "github_code_rust",
+      "match": {
+        "connector_type": "github",
+        "block_type": "code",
+        "language": "rust"
+      },
+      "models": ["code_primary"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "code_functions",
+      "description": "Optimized for Rust code in GitHub repositories"
+    },
+    {
+      "id": "github_code_python",
+      "match": {
+        "connector_type": "github",
+        "block_type": "code",
+        "language": "python"
+      },
+      "models": ["code_primary"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "code_functions",
+      "description": "Optimized for Python code in GitHub repositories"
+    },
+    {
+      "id": "github_code_typescript",
+      "match": {
+        "connector_type": "github",
+        "block_type": "code",
+        "language": ["typescript", "javascript"]
+      },
+      "models": ["code_primary"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "code_functions",
+      "description": "Optimized for TypeScript/JavaScript code"
+    },
+    {
+      "id": "github_code_generic",
+      "match": {
+        "connector_type": "github",
+        "block_type": "code"
+      },
+      "models": ["code_primary"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "code_functions",
+      "description": "Generic code embedding for GitHub"
+    },
+    {
+      "id": "github_docs_markdown",
+      "match": {
+        "connector_type": "github",
+        "block_type": "text",
+        "content_type": ["text/markdown", "text/x-markdown"]
+      },
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "markdown_sections",
+      "description": "Markdown documentation in GitHub"
+    },
+    {
+      "id": "github_docs_generic",
+      "match": {
+        "connector_type": "github",
+        "block_type": "text"
+      },
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "generic_paragraphs",
+      "description": "Generic text documentation in GitHub"
+    },
+    {
+      "id": "slack_messages",
+      "match": {
+        "connector_type": "slack",
+        "block_type": "text"
+      },
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "message_threads",
+      "description": "Slack messages and threads"
+    },
+    {
+      "id": "slack_code_snippets",
+      "match": {
+        "connector_type": "slack",
+        "block_type": "code"
+      },
+      "models": ["code_primary", "general_text"],
+      "weights": [0.7, 0.3],
+      "fusion_strategy": "weighted_average",
+      "chunker": "code_snippets",
+      "description": "Code snippets shared in Slack"
+    },
+    {
+      "id": "google_drive_docs",
+      "match": {
+        "connector_type": "google_drive",
+        "block_type": "text"
+      },
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "document_sections",
+      "description": "Google Docs and text files"
+    },
+    {
+      "id": "confluence_pages",
+      "match": {
+        "connector_type": "confluence",
+        "block_type": "text"
+      },
+      "models": ["general_text", "design_context"],
+      "weights": [0.7, 0.3],
+      "fusion_strategy": "weighted_average",
+      "chunker": "wiki_sections",
+      "description": "Confluence wiki pages"
+    },
+    {
+      "id": "jira_issues",
+      "match": {
+        "connector_type": "jira",
+        "block_type": "text"
+      },
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "issue_fields",
+      "description": "JIRA issue descriptions and comments"
+    },
+    {
+      "id": "url_scraper_content",
+      "match": {
+        "connector_type": "url_scraper",
+        "block_type": "text"
+      },
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "html_sections",
+      "description": "Web pages from URL crawler"
+    },
+    {
+      "id": "url_scraper_code",
+      "match": {
+        "connector_type": "url_scraper",
+        "block_type": "code"
+      },
+      "models": ["code_primary"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "code_blocks",
+      "description": "Code blocks from web pages"
+    },
+    {
+      "id": "dropbox_docs",
+      "match": {
+        "connector_type": "dropbox",
+        "block_type": "text"
+      },
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "document_sections",
+      "description": "Dropbox documents and text files"
+    },
+    {
+      "id": "notion_pages",
+      "match": {
+        "connector_type": "notion",
+        "block_type": "text"
+      },
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "notion_blocks",
+      "description": "Notion pages and databases"
+    },
+    {
+      "id": "local_file_code",
+      "match": {
+        "connector_type": "local_file",
+        "block_type": "code"
+      },
+      "models": ["code_primary"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "code_functions",
+      "description": "Code files from local file system"
+    },
+    {
+      "id": "local_file_docs",
+      "match": {
+        "connector_type": "local_file",
+        "block_type": "text"
+      },
+      "models": ["general_text"],
+      "weights": [1.0],
+      "fusion_strategy": "weighted_average",
+      "chunker": "document_sections",
+      "description": "Documentation from local file system"
+    }
+  ],
+  "fallback_profile": {
+    "id": "default_fallback",
+    "models": ["general_text"],
+    "weights": [1.0],
+    "fusion_strategy": "weighted_average",
+    "chunker": "generic_paragraphs",
+    "description": "Default fallback for unmatched content"
+  },
+  "content_type_detection": {
+    "code_extensions": [".rs", ".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".java", ".c", ".cpp", ".h", ".hpp", ".cs", ".rb", ".php", ".swift", ".kt", ".scala", ".sh", ".sql", ".r"],
+    "text_extensions": [".md", ".txt", ".rst", ".adoc", ".tex", ".rtf"],
+    "language_mapping": {
+      ".rs": "rust",
+      ".py": "python",
+      ".js": "javascript",
+      ".ts": "typescript",
+      ".tsx": "typescript",
+      ".jsx": "javascript",
+      ".go": "go",
+      ".java": "java",
+      ".c": "c",
+      ".cpp": "cpp",
+      ".h": "c",
+      ".hpp": "cpp",
+      ".cs": "csharp",
+      ".rb": "ruby",
+      ".php": "php",
+      ".swift": "swift",
+      ".kt": "kotlin",
+      ".scala": "scala",
+      ".sh": "shell",
+      ".sql": "sql",
+      ".r": "r"
+    }
+  }
+}
