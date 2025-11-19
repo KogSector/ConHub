@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::Utc;
 use serde_json::Value;
 use reqwest::Client;
-use conhub_models::social::{SocialPlatform, SocialData};
+use conhub_config::social::{SocialPlatform, SocialData};
 
 pub struct PlatformDataFetcher {
     client: Client,

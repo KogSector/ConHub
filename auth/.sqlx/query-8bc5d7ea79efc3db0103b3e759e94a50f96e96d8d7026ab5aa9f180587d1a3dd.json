@@ -1,0 +1,86 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE connected_accounts\n            SET account_name = $1, credentials = $2, status = $3, metadata = $4, updated_at = CURRENT_TIMESTAMP\n            WHERE id = $5\n            RETURNING *\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "connector_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "account_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "account_identifier",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "credentials",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 6,
+        "name": "status",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 7,
+        "name": "last_sync_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "metadata",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Jsonb",
+        "Jsonb",
+        "Jsonb",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "8bc5d7ea79efc3db0103b3e759e94a50f96e96d8d7026ab5aa9f180587d1a3dd"
+}

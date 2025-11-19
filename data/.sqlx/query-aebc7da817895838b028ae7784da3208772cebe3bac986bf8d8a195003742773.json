@@ -1,0 +1,101 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO sync_runs (job_id, run_number, status)\n            VALUES ($1, $2, 'running')\n            RETURNING *\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "job_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "run_number",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "status",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "started_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "completed_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "documents_discovered",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "documents_processed",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "documents_failed",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "documents_skipped",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "bytes_processed",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 11,
+        "name": "error_details",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 12,
+        "name": "performance_metrics",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "aebc7da817895838b028ae7784da3208772cebe3bac986bf8d8a195003742773"
+}

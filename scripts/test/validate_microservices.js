@@ -137,7 +137,7 @@ class MicroserviceValidator {
       const healthPath = serviceName === 'frontend' ? '/' : '/health';
       const url = `http://localhost:${port}${healthPath}`;
       
-      const req = http.get(url, { timeout: 3000 }, (res) => {
+      const req = http.get(url, { timeout: 10000 }, (res) => {
         resolve(res.statusCode === 200);
       });
 

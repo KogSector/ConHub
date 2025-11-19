@@ -874,6 +874,8 @@ pub fn configure_auth_routes(cfg: &mut web::ServiceConfig) {
             .route("/oauth/callback", web::post().to(oauth_callback))
             .route("/oauth/url", web::get().to(oauth_url))
             .route("/oauth/exchange", web::post().to(oauth_exchange))
+            .route("/connections", web::get().to(list_auth_connections))
+            .route("/connections/{id}", web::delete().to(disconnect_auth_connection))
             .route("/repos/github", web::get().to(list_github_repos))
             .route("/repos/github/branches", web::get().to(list_github_branches))
             .route("/repos/bitbucket", web::get().to(list_bitbucket_repos))
@@ -881,6 +883,82 @@ pub fn configure_auth_routes(cfg: &mut web::ServiceConfig) {
             .route("/repos/check", web::post().to(check_repo))
             .route("/dev/reset", web::post().to(dev_reset))
     );
+}
+
+#[derive(serde::Serialize)]
+struct SocialConnectionDto {
+    id: uuid::Uuid,
+    platform: String,
+    username: String,
+    is_active: bool,
+    connected_at: chrono::DateTime<chrono::Utc>,
+    last_sync: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+pub async fn list_auth_connections(
+    req: HttpRequest,
+    pool_opt: web::Data<Option<PgPool>>,
+) -> Result<HttpResponse> {
+    let pool = match pool_opt.get_ref() { Some(p) => p, None => return Ok(HttpResponse::ServiceUnavailable().json(json!({"error": "Database service unavailable"}))) };
+    use crate::services::middleware::extract_claims_from_request;
+    let claims = match extract_claims_from_request(&req) { Some(c) => c, None => return Ok(HttpResponse::Unauthorized().json(json!({"error": "Authentication required"}))) };
+    let user_id: uuid::Uuid = claims.sub.parse().map_err(|_| actix_web::error::ErrorBadRequest("Invalid user id"))?;
+
+    let rows = sqlx::query(
+        r#"
+        SELECT id, platform, username, is_active, created_at AS connected_at, last_sync
+        FROM social_connections
+        WHERE user_id = $1
+        ORDER BY updated_at DESC
+        "#
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await;
+
+    match rows {
+        Ok(list) => {
+            let data: Vec<SocialConnectionDto> = list.into_iter().map(|row| SocialConnectionDto {
+                id: row.get("id"),
+                platform: row.get("platform"),
+                username: row.get("username"),
+                is_active: row.get("is_active"),
+                connected_at: row.get("connected_at"),
+                last_sync: row.get("last_sync"),
+            }).collect();
+            Ok(HttpResponse::Ok().json(json!({"success": true, "data": data})))
+        },
+        Err(e) => Ok(HttpResponse::InternalServerError().json(json!({"error": format!("Failed to list connections: {}", e)})))
+    }
+}
+
+pub async fn disconnect_auth_connection(
+    req: HttpRequest,
+    path: web::Path<String>,
+    pool_opt: web::Data<Option<PgPool>>,
+) -> Result<HttpResponse> {
+    let pool = match pool_opt.get_ref() { Some(p) => p, None => return Ok(HttpResponse::ServiceUnavailable().json(json!({"error": "Database service unavailable"}))) };
+    use crate::services::middleware::extract_claims_from_request;
+    let claims = match extract_claims_from_request(&req) { Some(c) => c, None => return Ok(HttpResponse::Unauthorized().json(json!({"error": "Authentication required"}))) };
+    let user_id: uuid::Uuid = claims.sub.parse().map_err(|_| actix_web::error::ErrorBadRequest("Invalid user id"))?;
+    let conn_id_str = path.into_inner();
+    let conn_id = uuid::Uuid::parse_str(&conn_id_str).map_err(|_| actix_web::error::ErrorBadRequest("Invalid connection id"))?;
+
+    let res = sqlx::query(
+        r#"
+        UPDATE social_connections SET is_active = false, updated_at = NOW()
+        WHERE id = $1 AND user_id = $2
+        "#
+    )
+    .bind(conn_id)
+    .bind(user_id)
+    .execute(pool)
+    .await;
+
+    match res {
+        Ok(_) => Ok(HttpResponse::Ok().json(json!({"success": true}))),
+        Err(e) => Ok(HttpResponse::InternalServerError().json(json!({"error": format!("Failed to disconnect: {}", e)})))
+    }
 }
 
 pub async fn oauth_url(
@@ -904,6 +982,8 @@ pub async fn oauth_url(
         "google" => crate::services::oauth::OAuthProvider::Google,
         "microsoft" => crate::services::oauth::OAuthProvider::Microsoft,
         "github" => crate::services::oauth::OAuthProvider::GitHub,
+        "bitbucket" => crate::services::oauth::OAuthProvider::Bitbucket,
+        "gitlab" => crate::services::oauth::OAuthProvider::GitLab,
         _ => {
             return Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Unsupported provider"
@@ -1146,6 +1226,7 @@ pub async fn oauth_exchange(
         "microsoft" => crate::services::oauth::OAuthProvider::Microsoft,
         "github" => crate::services::oauth::OAuthProvider::GitHub,
         "bitbucket" => crate::services::oauth::OAuthProvider::Bitbucket,
+        "gitlab" => crate::services::oauth::OAuthProvider::GitLab,
         _ => return Ok(HttpResponse::BadRequest().json(json!({"error": "Unsupported provider"}))),
     };
 

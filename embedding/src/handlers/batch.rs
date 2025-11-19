@@ -6,7 +6,7 @@ use crate::models::{
     BatchEmbedRequest, BatchEmbedResponse, DocumentEmbedResult, 
     EmbedStatus, ErrorResponse, EmbeddedChunk
 };
-use crate::services::{LlmEmbeddingService, vector_store::VectorStoreService};
+use crate::services::{LlmEmbeddingService, FusionEmbeddingService, vector_store::VectorStoreService};
 use std::env;
 
 const MAX_BATCH_DOCUMENTS: usize = 100;
@@ -15,7 +15,7 @@ const MAX_CHUNK_LENGTH: usize = 8192;
 /// Handler for batch embedding of documents from connectors
 pub async fn batch_embed_handler(
     req: web::Json<BatchEmbedRequest>,
-    service: web::Data<Arc<LlmEmbeddingService>>,
+    service: web::Data<Arc<FusionEmbeddingService>>,
 ) -> HttpResponse {
     let start_time = Instant::now();
     
@@ -77,7 +77,10 @@ pub async fn batch_embed_handler(
     if req.store_in_vector_db && !all_embedded_chunks.is_empty() {
         let qdrant_url = env::var("QDRANT_URL").unwrap_or_else(|_| "http://localhost:6333".to_string());
         let collection = env::var("QDRANT_COLLECTION").unwrap_or_else(|_| "conhub_embeddings".to_string());
-        let dimension = service.get_dimension().unwrap_or(1536) as usize;
+        // Get dimension from fusion config (use first model's dimension as reference)
+        let dimension = service.get_config().models.first()
+            .map(|m| m.dimension)
+            .unwrap_or(1536);
         match VectorStoreService::new(&qdrant_url, 5).await {
             Ok(store) => {
                 let _ = store.ensure_collection(&collection, dimension).await;
@@ -113,7 +116,7 @@ pub async fn batch_embed_handler(
 /// Process a single document and generate embeddings for its chunks
 async fn process_document(
     document: &crate::models::DocumentForEmbedding,
-    service: &Arc<LlmEmbeddingService>,
+    service: &Arc<FusionEmbeddingService>,
     normalize: bool,
 ) -> Result<(DocumentEmbedResult, Vec<EmbeddedChunk>), anyhow::Error> {
     log::debug!("Processing document: {} ({})", document.name, document.id);
@@ -163,8 +166,9 @@ async fn process_document(
             })
             .collect();
         
-        // Generate embeddings
-        match service.generate_embeddings(&texts).await {
+        // Generate embeddings using fusion service with source type routing
+        let source_type = document.connector_type.as_str();
+        match service.generate_embeddings(&texts, source_type).await {
             Ok(embeddings) => {
                 // Create embedded chunks
                 for (idx, chunk) in chunk_batch.iter().enumerate() {
@@ -173,6 +177,7 @@ async fn process_document(
                         if let Some(ref chunk_meta) = chunk.metadata {
                             metadata["chunk_metadata"] = chunk_meta.clone();
                         }
+                        // Core relational metadata
                         metadata["connector_type"] = serde_json::json!(document.connector_type);
                         metadata["source_id"] = serde_json::json!(document.source_id);
                         metadata["external_id"] = serde_json::json!(document.external_id);
@@ -180,6 +185,11 @@ async fn process_document(
                         metadata["chunk_number"] = serde_json::json!(chunk.chunk_number);
                         metadata["start_offset"] = serde_json::json!(chunk.start_offset);
                         metadata["end_offset"] = serde_json::json!(chunk.end_offset);
+                        
+                        // Embedding metadata for versioning and tracking
+                        metadata["embedding_profile"] = serde_json::json!(source_type);
+                        metadata["embedding_strategy"] = serde_json::json!("fusion");
+                        metadata["normalize_embeddings"] = serde_json::json!(service.get_config().normalize_embeddings);
                         
                         embedded_chunks.push(EmbeddedChunk {
                             document_id: document.id,

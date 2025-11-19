@@ -1,0 +1,86 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO connected_accounts (user_id, connector_type, account_name, account_identifier, credentials)\n            VALUES ($1, $2, $3, $4, $5)\n            RETURNING *\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "connector_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "account_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "account_identifier",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "credentials",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 6,
+        "name": "status",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 7,
+        "name": "last_sync_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "metadata",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "017dec4e9109b0e61020a2cf478163b5da5cd94d0dc5e114c5e2037a7cab5f9e"
+}

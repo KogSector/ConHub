@@ -1,7 +1,7 @@
 use actix_web::{web, HttpResponse, Result};
 use serde_json::json;
 
-use conhub_models::{
+use conhub_config::{
     ApiResponse, ConnectRepositoryRequest,
     RepositoryConfig, RepositoryCredentials,
     VcsType, VcsProvider, RepositorySyncStatus, CredentialType

@@ -39,11 +39,7 @@ pub enum ConnectorError {
     Unknown(String),
 }
 
-impl From<sqlx::Error> for ConnectorError {
-    fn from(err: sqlx::Error) -> Self {
-        ConnectorError::DatabaseError(err.to_string())
-    }
-}
+// Removed sqlx dependency - not needed for GitHub connector
 
 impl From<reqwest::Error> for ConnectorError {
     fn from(err: reqwest::Error) -> Self {

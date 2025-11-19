@@ -6,7 +6,7 @@ use tracing::{error, info, warn};
 
 use crate::sources::DataSourceFactory;
 use crate::errors::ServiceError;
-use conhub_models::{RepositoryCredentials, CredentialType};
+use conhub_config::{RepositoryCredentials, CredentialType};
 use crate::services::data::vcs_connector::{VcsConnectorFactory, VcsConnector};
 use crate::services::data::vcs_detector::VcsDetector;
 

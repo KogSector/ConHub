@@ -6,11 +6,16 @@ use tracing::error;
 
 use conhub_models::billing::*;
 use crate::services::billing::BillingService;
+use crate::services::billing_db::BillingServiceDb;
 use crate::errors::ServiceError;
+use sqlx::PgPool;
 
 const DEMO_USER_ID: &str = "550e8400-e29b-41d4-a716-446655440000";
 
-pub async fn get_subscription_plans() -> Result<HttpResponse, ServiceError> {
+pub async fn get_subscription_plans(
+    _pool_opt: web::Data<Option<PgPool>>
+) -> Result<HttpResponse, ServiceError> {
+    // Temporarily using mock service until database tables are created
     let billing_service = BillingService::new();
     match billing_service.get_subscription_plans().await {
         Ok(plans) => Ok(HttpResponse::Ok().json(plans)),
@@ -23,12 +28,14 @@ pub async fn get_subscription_plans() -> Result<HttpResponse, ServiceError> {
     }
 }
 
-pub async fn get_billing_dashboard() -> Result<HttpResponse, ServiceError> {
-    let billing_service = BillingService::new();
-    
+pub async fn get_billing_dashboard(
+    _pool_opt: web::Data<Option<PgPool>>
+) -> Result<HttpResponse, ServiceError> {
     let user_id = uuid::Uuid::parse_str(DEMO_USER_ID)
         .map_err(|e| ServiceError::ParseError(format!("Invalid UUID: {}", e)))?;
     
+    // Temporarily using mock service until database tables are created
+    let billing_service = BillingService::new();
     match billing_service.get_billing_dashboard(user_id).await {
         Ok(dashboard) => Ok(HttpResponse::Ok().json(dashboard)),
         Err(e) => {

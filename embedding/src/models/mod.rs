@@ -2,8 +2,17 @@ use serde::{Deserialize, Serialize};
 
 pub mod document;
 pub mod qwen;
+pub mod openai;
+pub mod cohere;
+pub mod voyage;
+pub mod jina;
+
 pub use document::*;
 pub use qwen::*;
+pub use openai::*;
+pub use cohere::*;
+pub use voyage::*;
+pub use jina::*;
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]

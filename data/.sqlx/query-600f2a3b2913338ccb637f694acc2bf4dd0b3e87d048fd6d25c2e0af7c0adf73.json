@@ -1,0 +1,154 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, email, password_hash, name, avatar_url, organization,\n                      role::text as \"role!\", subscription_tier::text as \"subscription_tier!\",\n                      is_verified, is_active, is_locked, failed_login_attempts, locked_until,\n                      password_changed_at, email_verified_at, two_factor_enabled, two_factor_secret,\n                      backup_codes, created_at, updated_at, last_login_at, last_login_ip, last_password_reset\n               FROM users WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "email",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "password_hash",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "avatar_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "organization",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "role!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "subscription_tier!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "is_verified",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 9,
+        "name": "is_active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 10,
+        "name": "is_locked",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 11,
+        "name": "failed_login_attempts",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 12,
+        "name": "locked_until",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 13,
+        "name": "password_changed_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "email_verified_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 15,
+        "name": "two_factor_enabled",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 16,
+        "name": "two_factor_secret",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 17,
+        "name": "backup_codes",
+        "type_info": "TextArray"
+      },
+      {
+        "ordinal": 18,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 19,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 20,
+        "name": "last_login_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 21,
+        "name": "last_login_ip",
+        "type_info": "Inet"
+      },
+      {
+        "ordinal": 22,
+        "name": "last_password_reset",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      null,
+      null,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "600f2a3b2913338ccb637f694acc2bf4dd0b3e87d048fd6d25c2e0af7c0adf73"
+}

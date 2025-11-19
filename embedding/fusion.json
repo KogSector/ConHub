@@ -1,0 +1,116 @@
+{
+  "models": [
+    {
+      "name": "qwen",
+      "client": "qwen",
+      "model": "text-embedding-v3",
+      "dimension": 1536,
+      "strengths": ["general", "multilingual", "code"]
+    },
+    {
+      "name": "openai-large",
+      "client": "openai",
+      "model": "text-embedding-3-large",
+      "dimension": 3072,
+      "strengths": ["general", "semantic", "long-context"]
+    },
+    {
+      "name": "openai-small",
+      "client": "openai",
+      "model": "text-embedding-3-small",
+      "dimension": 1536,
+      "strengths": ["general", "fast", "cost-effective"]
+    },
+    {
+      "name": "cohere-english",
+      "client": "cohere",
+      "model": "embed-english-v3.0",
+      "dimension": 1024,
+      "strengths": ["english", "semantic-search", "clustering"]
+    },
+    {
+      "name": "cohere-multilingual",
+      "client": "cohere",
+      "model": "embed-multilingual-v3.0",
+      "dimension": 1024,
+      "strengths": ["multilingual", "semantic-search"]
+    },
+    {
+      "name": "voyage-code",
+      "client": "voyage",
+      "model": "voyage-code-2",
+      "dimension": 1536,
+      "strengths": ["code", "technical-docs", "programming"]
+    },
+    {
+      "name": "voyage-large",
+      "client": "voyage",
+      "model": "voyage-large-2",
+      "dimension": 1536,
+      "strengths": ["general", "long-context", "high-accuracy"]
+    },
+    {
+      "name": "jina-v2",
+      "client": "jina",
+      "model": "jina-embeddings-v2-base-en",
+      "dimension": 768,
+      "strengths": ["english", "long-context", "8k-tokens"]
+    }
+  ],
+  "routing": [
+    {
+      "source": "github",
+      "models": ["voyage-code", "qwen", "openai-small"],
+      "weights": [0.5, 0.3, 0.2],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "gitlab",
+      "models": ["voyage-code", "qwen"],
+      "weights": [0.6, 0.4],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "bitbucket",
+      "models": ["voyage-code", "openai-small"],
+      "weights": [0.6, 0.4],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "google_drive",
+      "models": ["openai-large", "cohere-multilingual"],
+      "weights": [0.6, 0.4],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "dropbox",
+      "models": ["openai-large", "cohere-multilingual"],
+      "weights": [0.6, 0.4],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "slack",
+      "models": ["cohere-english", "openai-small"],
+      "weights": [0.5, 0.5],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "url_scraper",
+      "models": ["openai-small", "jina-v2"],
+      "weights": [0.6, 0.4],
+      "fusion_strategy": "weighted_average"
+    },
+    {
+      "source": "local_file",
+      "models": ["qwen", "openai-small"],
+      "weights": [0.5, 0.5],
+      "fusion_strategy": "weighted_average"
+    }
+  ],
+  "fallback_model": "qwen",
+  "cache_embeddings": true,
+  "normalize_embeddings": true,
+  "batch_size": 32,
+  "max_retries": 3,
+  "timeout_seconds": 30
+}

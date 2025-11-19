@@ -44,7 +44,7 @@ uuid = { version = "1.6", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # Redis for distributed rate limiting
-redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager", "tokio-native-tls-comp"] }
 
 # Regex for CORS wildcard matching
 regex = "1.10"

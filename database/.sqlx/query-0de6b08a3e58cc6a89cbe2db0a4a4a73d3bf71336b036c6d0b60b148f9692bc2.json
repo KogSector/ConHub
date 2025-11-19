@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE sync_jobs \n            SET status = 'failed', \n                error_message = $1, \n                retry_count = retry_count + 1,\n                completed_at = CURRENT_TIMESTAMP \n            WHERE id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0de6b08a3e58cc6a89cbe2db0a4a4a73d3bf71336b036c6d0b60b148f9692bc2"
+}

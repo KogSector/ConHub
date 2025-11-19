@@ -125,7 +125,7 @@ impl UserService {
                    is_verified, is_active, is_locked, failed_login_attempts, locked_until,
                    password_changed_at, email_verified_at, two_factor_enabled,
                    two_factor_secret, backup_codes, created_at, updated_at,
-                   last_login_at, last_login_ip, last_password_reset
+                   last_login_at, last_login_ip::text as last_login_ip, last_password_reset
             FROM users
             WHERE email = $1 AND is_active = true
             "#
@@ -266,7 +266,7 @@ impl UserService {
                       is_verified, is_active, is_locked, failed_login_attempts, locked_until,
                       password_changed_at, email_verified_at, two_factor_enabled,
                       two_factor_secret, backup_codes, created_at, updated_at,
-                      last_login_at, last_login_ip, last_password_reset
+                      last_login_at, last_login_ip::text as last_login_ip, last_password_reset
             "#
         )
         .bind(user_id)
@@ -334,7 +334,7 @@ impl UserService {
                    is_verified, is_active, is_locked, failed_login_attempts, locked_until,
                    password_changed_at, email_verified_at, two_factor_enabled,
                    two_factor_secret, backup_codes, created_at, updated_at,
-                   last_login_at, last_login_ip, last_password_reset
+                   last_login_at, last_login_ip::text as last_login_ip, last_password_reset
             FROM users
             WHERE id = $1 AND is_active = true
             "#
@@ -393,7 +393,7 @@ impl UserService {
                    is_verified, is_active, is_locked, failed_login_attempts, locked_until,
                    password_changed_at, email_verified_at, two_factor_enabled,
                    two_factor_secret, backup_codes, created_at, updated_at,
-                   last_login_at, last_login_ip, last_password_reset
+                   last_login_at, last_login_ip::text as last_login_ip, last_password_reset
             FROM users
             WHERE id = $1 AND is_active = true
             "#
@@ -457,7 +457,7 @@ impl UserService {
                    is_verified, is_active, is_locked, failed_login_attempts, locked_until,
                    password_changed_at, email_verified_at, two_factor_enabled,
                    two_factor_secret, backup_codes, created_at, updated_at,
-                   last_login_at, last_login_ip, last_password_reset
+                   last_login_at, last_login_ip::text as last_login_ip, last_password_reset
             FROM users
             ORDER BY created_at DESC
             LIMIT $1 OFFSET $2

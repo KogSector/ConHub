@@ -76,6 +76,16 @@ impl GitHubConnector {
         }
     }
 
+    fn auth_header(&self, token: &str) -> String {
+        if token.starts_with("github_pat_") {
+            format!("Bearer {}", token)
+        } else if token.starts_with("ghp_") || token.starts_with("gho_") || token.starts_with("ghu_") || token.starts_with("ghs_") {
+            format!("token {}", token)
+        } else {
+            format!("token {}", token)
+        }
+    }
+
     fn get_error_message(&self, status: u16, message: &str) -> String {
         match status {
             401 => "GitHub token is invalid or expired. Please check your access token.".to_string(),
@@ -98,8 +108,9 @@ impl GitHubConnector {
 
         let response = self.client
             .get(&url)
-            .header("Authorization", format!("Bearer {}", token))
+            .header("Authorization", self.auth_header(token))
             .header("User-Agent", "ConHub/1.0")
+            .header("Accept", "application/vnd.github.v3+json")
             .send()
             .await?;
 
@@ -123,8 +134,9 @@ impl DataSourceConnector for GitHubConnector {
 
         let response = self.client
             .get("https://api.github.com/user")
-            .header("Authorization", format!("Bearer {}", token))
+            .header("Authorization", self.auth_header(token))
             .header("User-Agent", "ConHub/1.0")
+            .header("Accept", "application/vnd.github.v3+json")
             .send()
             .await?;
 
@@ -182,8 +194,9 @@ impl DataSourceConnector for GitHubConnector {
                 let repo_url = format!("https://api.github.com/repos/{}/{}", owner, repo);
                 let response = self.client
                     .get(&repo_url)
-                    .header("Authorization", format!("Bearer {}", token))
+                    .header("Authorization", self.auth_header(token))
                     .header("User-Agent", "ConHub/1.0")
+                    .header("Accept", "application/vnd.github.v3+json")
                     .send()
                     .await?;
 
@@ -209,8 +222,9 @@ impl DataSourceConnector for GitHubConnector {
                         let readme_url = format!("https://api.github.com/repos/{}/{}/readme", owner, repo);
                         if let Ok(readme_response) = self.client
                             .get(&readme_url)
-                            .header("Authorization", format!("Bearer {}", token))
+                            .header("Authorization", self.auth_header(token))
                             .header("User-Agent", "ConHub/1.0")
+                            .header("Accept", "application/vnd.github.v3+json")
                             .send()
                             .await
                         {
@@ -265,8 +279,9 @@ impl DataSourceConnector for GitHubConnector {
 
         let response = self.client
             .get(&url)
-            .header("Authorization", format!("Bearer {}", token))
+            .header("Authorization", self.auth_header(token))
             .header("User-Agent", "ConHub/1.0")
+            .header("Accept", "application/vnd.github.v3+json")
             .send()
             .await?;
 

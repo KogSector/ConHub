@@ -307,6 +307,27 @@ impl GoogleDriveConnector {
         
         chunks
     }
+    
+    /// Validate user has read access to a specific file
+    pub async fn validate_file_access(&self, access_token: &str, file_id: &str) -> Result<bool, ConnectorError> {
+        let url = format!(
+            "https://www.googleapis.com/drive/v3/files/{}?fields=id,name,capabilities",
+            file_id
+        );
+        
+        let response = self.client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", access_token))
+            .send()
+            .await?;
+        
+        if !response.status().is_success() {
+            return Ok(false);
+        }
+        
+        // If we can fetch the file, user has at least read access
+        Ok(true)
+    }
 }
 
 #[async_trait]

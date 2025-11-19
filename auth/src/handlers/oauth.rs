@@ -37,10 +37,12 @@ pub async fn oauth_init(
         "google" => OAuthProvider::Google,
         "microsoft" => OAuthProvider::Microsoft,
         "github" => OAuthProvider::GitHub,
+        "bitbucket" => OAuthProvider::Bitbucket,
+        "gitlab" => OAuthProvider::GitLab,
         _ => {
             return Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Invalid provider",
-                "message": "Supported providers: google, microsoft, github"
+                "message": "Supported providers: google, microsoft, github, bitbucket, gitlab"
             })));
         }
     };
@@ -68,10 +70,12 @@ pub async fn oauth_login(
         "google" => OAuthProvider::Google,
         "microsoft" => OAuthProvider::Microsoft,
         "github" => OAuthProvider::GitHub,
+        "bitbucket" => OAuthProvider::Bitbucket,
+        "gitlab" => OAuthProvider::GitLab,
         _ => {
             return Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Invalid provider",
-                "message": "Supported providers: google, microsoft, github"
+                "message": "Supported providers: google, microsoft, github, bitbucket, gitlab"
             })));
         }
     };
@@ -113,6 +117,8 @@ pub async fn oauth_callback(
         "google" => OAuthProvider::Google,
         "microsoft" => OAuthProvider::Microsoft,
         "github" => OAuthProvider::GitHub,
+        "bitbucket" => OAuthProvider::Bitbucket,
+        "gitlab" => OAuthProvider::GitLab,
         _ => {
             return Ok(HttpResponse::BadRequest().json(json!({
                 "error": "Invalid provider"

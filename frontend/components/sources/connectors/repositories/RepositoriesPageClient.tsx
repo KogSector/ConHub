@@ -109,11 +109,18 @@ export function RepositoriesPageClient() {
 
   const fetchRepositories = async () => {
     try {
-      
-      
-      setRepositories(sampleRepositories);
+      // Fetch real repository data from the API
+      const resp = await apiClient.get<ApiResponse<{ repositories: Repository[] }>>('/api/repositories');
+      if (resp.success && resp.data?.repositories) {
+        setRepositories(resp.data.repositories);
+      } else {
+        // If no repositories found, show empty state
+        setRepositories([]);
+      }
     } catch (error) {
       console.error('Error fetching repositories:', error);
+      // Fallback to empty array on error
+      setRepositories([]);
     } finally {
       setLoading(false);
     }

@@ -15,6 +15,7 @@ use super::traits::{Connector, ConnectorFactory, WebhookConnector};
 use super::types::*;
 use std::env;
 use super::error::ConnectorError;
+use regex::Regex;
 
 /// GitHub API connector
 pub struct GitHubConnector {
@@ -55,12 +56,57 @@ struct GitHubFileContent {
     encoding: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct GitHubBranchResponse {
+    name: String,
+    commit: GitHubCommitResponse,
+    protected: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct GitHubCommitResponse {
+    sha: String,
+    url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct GitHubRepoResponse {
+    id: i64,
+    name: String,
+    full_name: String,
+    description: Option<String>,
+    html_url: String,
+    clone_url: String,
+    private: bool,
+    default_branch: String,
+    permissions: Option<GitHubRepoPermissionsResponse>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct GitHubRepoPermissionsResponse {
+    admin: bool,
+    maintain: Option<bool>,
+    push: bool,
+    triage: Option<bool>,
+    pull: bool,
+}
+
 impl GitHubConnector {
     pub fn new() -> Self {
         Self {
             name: "GitHub".to_string(),
             client: Client::new(),
             oauth_client: None,
+        }
+    }
+
+    fn auth_header(token: &str) -> String {
+        if token.starts_with("github_pat_") {
+            format!("Bearer {}", token)
+        } else if token.starts_with("ghp_") || token.starts_with("gho_") || token.starts_with("ghu_") || token.starts_with("ghs_") {
+            format!("token {}", token)
+        } else {
+            format!("token {}", token)
         }
     }
     
@@ -115,7 +161,7 @@ impl GitHubConnector {
         
         let response = self.client
             .get(url)
-            .header("Authorization", format!("Bearer {}", access_token))
+            .header("Authorization", Self::auth_header(access_token))
             .header("User-Agent", "ConHub")
             .header("Accept", "application/vnd.github.v3+json")
             .send()
@@ -145,7 +191,7 @@ impl GitHubConnector {
         
         let response = self.client
             .get(&url)
-            .header("Authorization", format!("Bearer {}", access_token))
+            .header("Authorization", Self::auth_header(access_token))
             .header("User-Agent", "ConHub")
             .header("Accept", "application/vnd.github.v3+json")
             .send()
@@ -175,7 +221,7 @@ impl GitHubConnector {
         
         let response = self.client
             .get(&url)
-            .header("Authorization", format!("Bearer {}", access_token))
+            .header("Authorization", Self::auth_header(access_token))
             .header("User-Agent", "ConHub")
             .header("Accept", "application/vnd.github.v3+json")
             .send()
@@ -275,6 +321,374 @@ impl GitHubConnector {
         }
         
         chunks
+    }
+    
+    /// Parse repository URL to extract owner and repo name
+    fn parse_repo_url(&self, repo_url: &str) -> Result<(String, String), ConnectorError> {
+        let re = Regex::new(r"https://github\.com/([^/]+)/([^/]+)(?:\.git)?/?$")
+            .map_err(|e| ConnectorError::InvalidConfiguration(format!("Regex error: {}", e)))?;
+        
+        if let Some(captures) = re.captures(repo_url) {
+            let owner = captures.get(1).unwrap().as_str().to_string();
+            let repo = captures.get(2).unwrap().as_str().to_string();
+            Ok((owner, repo))
+        } else {
+            Err(ConnectorError::InvalidConfiguration(
+                "Invalid GitHub repository URL format".to_string()
+            ))
+        }
+    }
+    
+    /// Validate repository access with GitHub token
+    pub async fn validate_repo_access(&self, request: &GitHubRepoAccessRequest) -> Result<GitHubRepoAccessResponse, ConnectorError> {
+        let (owner, repo) = self.parse_repo_url(&request.repo_url)?;
+        
+        // Check repository access
+        let repo_url = format!("https://api.github.com/repos/{}/{}", owner, repo);
+        
+        let response = self.client
+            .get(&repo_url)
+            .header("Authorization", Self::auth_header(&request.access_token))
+            .header("User-Agent", "ConHub")
+            .header("Accept", "application/vnd.github.v3+json")
+            .send()
+            .await?;
+        
+        match response.status().as_u16() {
+            200 => {
+                let repo_data: GitHubRepoResponse = response.json().await?;
+                
+                // Fetch branches
+                let branches = self.get_repository_branches(&request.access_token, &owner, &repo).await?;
+                
+                // Fetch languages
+                let languages = self.get_repository_languages(&request.access_token, &owner, &repo).await?;
+                
+                let repo_info = GitHubRepoInfo {
+                    id: repo_data.id,
+                    name: repo_data.name,
+                    full_name: repo_data.full_name,
+                    description: repo_data.description,
+                    html_url: repo_data.html_url,
+                    clone_url: repo_data.clone_url,
+                    private: repo_data.private,
+                    default_branch: repo_data.default_branch,
+                    branches,
+                    languages,
+                    permissions: GitHubRepoPermissions {
+                        admin: repo_data.permissions.as_ref().map(|p| p.admin).unwrap_or(false),
+                        maintain: repo_data.permissions.as_ref().and_then(|p| p.maintain).unwrap_or(false),
+                        push: repo_data.permissions.as_ref().map(|p| p.push).unwrap_or(false),
+                        triage: repo_data.permissions.as_ref().and_then(|p| p.triage).unwrap_or(false),
+                        pull: repo_data.permissions.as_ref().map(|p| p.pull).unwrap_or(false),
+                    },
+                };
+                
+                Ok(GitHubRepoAccessResponse {
+                    has_access: true,
+                    repo_info: Some(repo_info),
+                    error_message: None,
+                })
+            },
+            404 => {
+                Ok(GitHubRepoAccessResponse {
+                    has_access: false,
+                    repo_info: None,
+                    error_message: Some("Repository not found or access denied".to_string()),
+                })
+            },
+            403 => {
+                Ok(GitHubRepoAccessResponse {
+                    has_access: false,
+                    repo_info: None,
+                    error_message: Some("Access forbidden - insufficient permissions".to_string()),
+                })
+            },
+            _ => {
+                let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                Ok(GitHubRepoAccessResponse {
+                    has_access: false,
+                    repo_info: None,
+                    error_message: Some(format!("GitHub API error: {}", error_text)),
+                })
+            }
+        }
+    }
+    
+    /// Get repository branches
+    async fn get_repository_branches(
+        &self,
+        access_token: &str,
+        owner: &str,
+        repo: &str,
+    ) -> Result<Vec<GitHubBranch>, ConnectorError> {
+        let url = format!("https://api.github.com/repos/{}/{}/branches", owner, repo);
+        
+        let response = self.client
+            .get(&url)
+            .header("Authorization", Self::auth_header(access_token))
+            .header("User-Agent", "ConHub")
+            .header("Accept", "application/vnd.github.v3+json")
+            .send()
+            .await?;
+        
+        if !response.status().is_success() {
+            return Err(ConnectorError::HttpError(
+                format!("Failed to fetch branches: {}", response.status())
+            ));
+        }
+        
+        let branches_data: Vec<GitHubBranchResponse> = response.json().await?;
+        
+        let branches = branches_data.into_iter().map(|branch| GitHubBranch {
+            name: branch.name,
+            commit: GitHubCommit {
+                sha: branch.commit.sha,
+                url: branch.commit.url,
+            },
+            protected: branch.protected,
+        }).collect();
+        
+        Ok(branches)
+    }
+    
+    /// Get repository languages
+    async fn get_repository_languages(
+        &self,
+        access_token: &str,
+        owner: &str,
+        repo: &str,
+    ) -> Result<Vec<String>, ConnectorError> {
+        let url = format!("https://api.github.com/repos/{}/{}/languages", owner, repo);
+        
+        let response = self.client
+            .get(&url)
+            .header("Authorization", Self::auth_header(access_token))
+            .header("User-Agent", "ConHub")
+            .header("Accept", "application/vnd.github.v3+json")
+            .send()
+            .await?;
+        
+        if !response.status().is_success() {
+            return Err(ConnectorError::HttpError(
+                format!("Failed to fetch languages: {}", response.status())
+            ));
+        }
+        
+        let languages_data: HashMap<String, i64> = response.json().await?;
+        let languages: Vec<String> = languages_data.keys().cloned().collect();
+        
+        Ok(languages)
+    }
+    
+    /// Sync repository with specific branch and configuration
+    pub async fn sync_repository_branch(
+        &self,
+        access_token: &str,
+        config: &GitHubSyncConfig,
+    ) -> Result<Vec<DocumentForEmbedding>, ConnectorError> {
+        let (owner, repo) = self.parse_repo_url(&config.repo_url)?;
+        
+        info!("🔄 Syncing repository {}/{} branch: {}", owner, repo, config.branch);
+        
+        let mut documents_for_embedding = Vec::new();
+        
+        // Get all files from the specified branch
+        self.recursively_list_files_branch(
+            access_token,
+            &owner,
+            &repo,
+            &config.branch,
+            "",
+            &mut documents_for_embedding,
+            config,
+        ).await?;
+        
+        info!("✅ Repository sync completed. Found {} documents", documents_for_embedding.len());
+        
+        Ok(documents_for_embedding)
+    }
+    
+    /// Recursively list files from a specific branch
+    fn recursively_list_files_branch<'a>(
+        &'a self,
+        access_token: &'a str,
+        owner: &'a str,
+        repo: &'a str,
+        branch: &'a str,
+        path: &'a str,
+        documents: &'a mut Vec<DocumentForEmbedding>,
+        config: &'a GitHubSyncConfig,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), ConnectorError>> + Send + 'a>> {
+        Box::pin(async move {
+            let url = if path.is_empty() {
+                format!("https://api.github.com/repos/{}/{}/contents?ref={}", owner, repo, branch)
+            } else {
+                format!("https://api.github.com/repos/{}/{}/contents/{}?ref={}", owner, repo, path, branch)
+            };
+            
+            let response = self.client
+                .get(&url)
+                .header("Authorization", Self::auth_header(access_token))
+                .header("User-Agent", "ConHub")
+                .header("Accept", "application/vnd.github.v3+json")
+                .send()
+                .await?;
+            
+            if !response.status().is_success() {
+                return Err(ConnectorError::HttpError(
+                    format!("GitHub API error: {}", response.status())
+                ));
+            }
+            
+            let files: Vec<GitHubFile> = response.json().await?;
+            
+            for file in files {
+                // Check exclude paths
+                if let Some(ref exclude_paths) = config.exclude_paths {
+                    if exclude_paths.iter().any(|exclude| file.path.contains(exclude)) {
+                        continue;
+                    }
+                }
+                
+                if file.file_type == "dir" {
+                    // Recursively list directory
+                    self.recursively_list_files_branch(
+                        access_token,
+                        owner,
+                        repo,
+                        branch,
+                        &file.path,
+                        documents,
+                        config,
+                    ).await?;
+                } else if file.file_type == "file" {
+                    // Check file size limit
+                    if let Some(max_size_mb) = config.max_file_size_mb {
+                        let max_size_bytes = max_size_mb * 1024 * 1024;
+                        if file.size > max_size_bytes {
+                            continue;
+                        }
+                    }
+                    
+                    // Check language filter
+                    if let Some(ref include_languages) = config.include_languages {
+                        let file_extension = std::path::Path::new(&file.name)
+                            .extension()
+                            .and_then(|ext| ext.to_str())
+                            .unwrap_or("");
+                        
+                        let language_matches = include_languages.iter().any(|lang| {
+                            self.matches_language(lang, file_extension, &file.name)
+                        });
+                        
+                        if !language_matches {
+                            continue;
+                        }
+                    }
+                    
+                    // Get file content
+                    match self.get_file_content_branch(access_token, owner, repo, &file.path, branch).await {
+                        Ok(content) => {
+                            let content_str = String::from_utf8_lossy(&content).to_string();
+                            let chunks = self.chunk_content(&content_str, &file.path);
+                            
+                            documents.push(DocumentForEmbedding {
+                                id: Uuid::new_v4(),
+                                source_id: Uuid::new_v4(), // This should be the account ID
+                                connector_type: ConnectorType::GitHub,
+                                external_id: file.sha.clone(),
+                                name: file.name.clone(),
+                                path: Some(file.path.clone()),
+                                content: content_str,
+                                content_type: ContentType::Code,
+                                metadata: serde_json::json!({
+                                    "url": file.html_url,
+                                    "size": file.size,
+                                    "branch": branch,
+                                    "repository": format!("{}/{}", owner, repo),
+                                }),
+                                chunks: Some(chunks),
+                            });
+                        }
+                        Err(e) => {
+                            error!("Failed to get content for {}: {}", file.name, e);
+                        }
+                    }
+                }
+            }
+            
+            Ok(())
+        })
+    }
+    
+    /// Get file content from specific branch
+    async fn get_file_content_branch(
+        &self,
+        access_token: &str,
+        owner: &str,
+        repo: &str,
+        path: &str,
+        branch: &str,
+    ) -> Result<Vec<u8>, ConnectorError> {
+        let url = format!(
+            "https://api.github.com/repos/{}/{}/contents/{}?ref={}",
+            owner, repo, path, branch
+        );
+        
+        let response = self.client
+            .get(&url)
+            .header("Authorization", Self::auth_header(access_token))
+            .header("User-Agent", "ConHub")
+            .header("Accept", "application/vnd.github.v3+json")
+            .send()
+            .await?;
+        
+        if !response.status().is_success() {
+            return Err(ConnectorError::HttpError(
+                format!("GitHub API error: {}", response.status())
+            ));
+        }
+        
+        let file: GitHubFileContent = response.json().await?;
+        
+        // Decode base64 content
+        let decoded = base64::decode(&file.content.replace("\n", ""))
+            .map_err(|e| ConnectorError::SerializationError(e.to_string()))?;
+        
+        Ok(decoded)
+    }
+    
+    /// Check if file matches language filter
+    fn matches_language(&self, language: &str, file_extension: &str, file_name: &str) -> bool {
+        match language.to_lowercase().as_str() {
+            "rust" => file_extension == "rs",
+            "python" => file_extension == "py" || file_extension == "pyx" || file_extension == "pyi",
+            "javascript" => file_extension == "js" || file_extension == "mjs",
+            "typescript" => file_extension == "ts" || file_extension == "tsx",
+            "java" => file_extension == "java",
+            "c" => file_extension == "c" || file_extension == "h",
+            "c++" | "cpp" => file_extension == "cpp" || file_extension == "cxx" || file_extension == "cc" || file_extension == "hpp",
+            "go" => file_extension == "go",
+            "php" => file_extension == "php",
+            "ruby" => file_extension == "rb",
+            "swift" => file_extension == "swift",
+            "kotlin" => file_extension == "kt" || file_extension == "kts",
+            "scala" => file_extension == "scala",
+            "html" => file_extension == "html" || file_extension == "htm",
+            "css" => file_extension == "css",
+            "scss" => file_extension == "scss",
+            "sass" => file_extension == "sass",
+            "json" => file_extension == "json",
+            "yaml" | "yml" => file_extension == "yaml" || file_extension == "yml",
+            "xml" => file_extension == "xml",
+            "markdown" => file_extension == "md" || file_extension == "markdown",
+            "dockerfile" => file_name.to_lowercase().contains("dockerfile"),
+            "makefile" => file_name.to_lowercase().contains("makefile"),
+            "shell" | "bash" => file_extension == "sh" || file_extension == "bash",
+            "sql" => file_extension == "sql",
+            _ => false,
+        }
     }
 }
 

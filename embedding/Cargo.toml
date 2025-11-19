@@ -28,8 +28,8 @@ sha2 = "0.10"
 conhub-config = { path = "../shared/config" }
 reqwest = { version = "0.11", features = ["json"] }
 qdrant-client = "1.7"
-
-
+[dependencies.tracing]
+version = "0.1"
 
 [dev-dependencies]
 tempfile = "3.8"

@@ -3,7 +3,7 @@ use tokio::sync::Mutex;
 use chrono::Utc;
 use uuid::Uuid;
 
-use conhub_models::{
+use conhub_config::{
     ConnectRepositoryRequest, RepositoryInfo, RepositoryCredentials, 
     RepositoryConfig, RepositorySyncStatus, VcsType, VcsProvider
 };

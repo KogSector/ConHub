@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { dataApiClient, apiClient, ApiResponse } from '@/lib/api';
+import { dataApiClient, apiClient, ApiResponse, unwrapResponse } from '@/lib/api';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,10 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   const [isFetchingBranches, setIsFetchingBranches] = useState(false);
   const [fetchBranchesError, setFetchBranchesError] = useState<string | null>(null);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [isValidated, setIsValidated] = useState(false);
+  const [availableFileExtensions, setAvailableFileExtensions] = useState<string[]>([]);
+  const [needsSocialConnect, setNeedsSocialConnect] = useState<string | null>(null);
+  const [checkingConnection, setCheckingConnection] = useState(false);
   const isProviderSelected = provider === 'github' || provider === 'gitlab' || provider === 'bitbucket';
   const hasBranches = branches.length > 0;
 
@@ -70,6 +74,27 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       return false;
     }
   }, [repositoryUrl]);
+
+  const ensureProviderConnected = async (): Promise<boolean> => {
+    if (!isProviderSelected) return true;
+    setCheckingConnection(true);
+    try {
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const resp = await apiClient.get('/api/auth/connections', headers);
+      const list = unwrapResponse<Array<{ platform: string; is_active: boolean }>>(resp) || [];
+      const connected = list.some((c) => c.platform === provider && c.is_active);
+      if (!connected) {
+        setNeedsSocialConnect(provider);
+      } else {
+        setNeedsSocialConnect(null);
+      }
+      return connected;
+    } catch {
+      return false;
+    } finally {
+      setCheckingConnection(false);
+    }
+  };
 
   
   const extractRepoName = (url: string): string => {
@@ -99,6 +124,11 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     }
     
     console.log('[FRONTEND] isUrlValid:', isUrlValid);
+    const connected = await ensureProviderConnected();
+    if (!connected) {
+      setFetchBranchesError(`Please connect ${provider === 'github' ? 'GitHub' : provider === 'gitlab' ? 'GitLab' : 'BitBucket'} in Social Connections first.`);
+      return;
+    }
     if (!isUrlValid) {
       setFetchBranchesError("Please enter a valid repository URL.");
       return;
@@ -133,6 +163,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     setIsFetchingBranches(true);
     setFetchBranchesError(null);
     setBranches([]);
+    setIsValidated(false);
 
     try {
       console.log('[FRONTEND] Building credentials payload');
@@ -161,35 +192,31 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       let fetchedBranches: string[] = []
       let default_branch: string | undefined
       let file_extensions: string[] | undefined
-      if (provider === 'github') {
-        const urlObj = new URL(repositoryUrl.trim())
-        const parts = urlObj.pathname.split('/').filter(Boolean)
-        const owner = parts[0]
-        const repo = parts[1]?.replace('.git','')
-        const res = await apiClient.get<{ branches: string[] }>(`/api/auth/repos/github/branches?repo=${owner}/${repo}`, token ? { Authorization: `Bearer ${token}` } : {})
-        fetchedBranches = res.branches || []
-      } else if (provider === 'bitbucket') {
-        const urlObj = new URL(repositoryUrl.trim())
-        const parts = urlObj.pathname.split('/').filter(Boolean)
-        const workspace = parts[0]
-        const repo = parts[1]?.replace('.git','')
-        const res = await apiClient.get<{ branches: string[] }>(`/api/auth/repos/bitbucket/branches?repo=${workspace}/${repo}`, token ? { Authorization: `Bearer ${token}` } : {})
-        fetchedBranches = res.branches || []
-      } else {
-        const requestPayload = { repoUrl: repositoryUrl.trim(), credentials: credentialsPayload };
-        const resp = await dataApiClient.post<ApiResponse<{ branches: string[]; default_branch?: string; file_extensions?: string[] }>>('/api/data/sources/branches', requestPayload);
-        if (!resp.success) throw new Error(resp.error || 'Failed to fetch branches.')
-        const payload: { branches: string[]; default_branch?: string; file_extensions?: string[] } = resp.data ?? { branches: [], default_branch: undefined, file_extensions: undefined }
-        fetchedBranches = payload.branches
-        default_branch = payload.default_branch
-        file_extensions = payload.file_extensions
+
+      const requestPayload = { repoUrl: repositoryUrl.trim(), credentials: credentialsPayload };
+      const response = await fetch('/api/repositories/fetch-branches', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(requestPayload)
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({})) as Record<string, unknown>
+        const message = typeof err['error'] === 'string' ? err['error'] : `HTTP error! status: ${response.status}`
+        throw new Error(message)
       }
+      const resp = await response.json() as { branches?: string[]; defaultBranch?: string; file_extensions?: string[] }
+      fetchedBranches = Array.isArray(resp.branches) ? resp.branches : []
+      default_branch = typeof resp.defaultBranch === 'string' ? resp.defaultBranch : undefined
+      file_extensions = Array.isArray(resp.file_extensions) ? resp.file_extensions : undefined
       console.log('[FRONTEND] Parsed response data:', { fetchedBranches, default_branch, file_extensions });
       
       if (!fetchedBranches || fetchedBranches.length === 0) {
         setFetchBranchesError("No branches found. Please check the repository URL and permissions.");
-        setBranches(['main', 'master']); 
-        setConfig(prev => ({ ...prev, defaultBranch: 'main' }));
+        setBranches([]);
+        setIsValidated(false);
       } else {
         setBranches(fetchedBranches);
         setConfig(prev => ({ 
@@ -197,11 +224,10 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
           defaultBranch: default_branch || fetchedBranches[0],
           fileExtensions: file_extensions && file_extensions.length > 0 ? file_extensions : prev.fileExtensions
         }));
-        
-        console.log(`Successfully fetched ${fetchedBranches.length} branches from ${repositoryUrl}`);
         if (file_extensions && file_extensions.length > 0) {
-          console.log(`Found ${file_extensions.length} file types: ${file_extensions.join(', ')}`);
+          setAvailableFileExtensions(file_extensions);
         }
+        setIsValidated(true);
       }
     } catch (err: unknown) {
       console.error('[FRONTEND] Branch fetching error:', err);
@@ -220,8 +246,8 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       }
       
       setFetchBranchesError(errorMessage);
-      setBranches(['main', 'master']); 
-      setConfig(prev => ({ ...prev, defaultBranch: 'main' }));
+      setBranches([]);
+      setIsValidated(false);
     } finally {
       setIsFetchingBranches(false);
     }
@@ -237,6 +263,11 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     setError(null);
     
     try {
+      const connected = await ensureProviderConnected();
+      if (!connected) {
+        setError(`Please connect ${provider === 'github' ? 'GitHub' : provider === 'gitlab' ? 'GitLab' : 'BitBucket'} in Social Connections before connecting.`);
+        return;
+      }
       const payload = { 
         type: provider, 
         url: repositoryUrl,
@@ -468,19 +499,40 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
             </div>
           )}
 
-          <div className="space-y-3">
-            <Label htmlFor="name" className="text-sm font-medium">Connection Name (Optional)</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-              placeholder={repositoryUrl ? extractRepoName(repositoryUrl) : "Auto-generated from repository URL"}
-              className="mt-2"
-            />
-            <p className="text-xs text-muted-foreground mt-2">
-              Leave empty to automatically use the repository name from the URL
-            </p>
-          </div>
+          {needsSocialConnect && (
+            <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800">
+                {`You need to connect ${needsSocialConnect === 'github' ? 'GitHub' : needsSocialConnect === 'gitlab' ? 'GitLab' : 'BitBucket'} before proceeding.`}
+              </p>
+              <div className="mt-2 flex gap-2">
+                <Button
+                  title="Go to Social Connections"
+                  aria-label="Go to Social Connections"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => { window.location.href = '/dashboard/social'; }}
+                  disabled={checkingConnection}
+                >
+                  Go to Social Connections
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {isValidated && (
+            <div className="space-y-3">
+              <Label htmlFor="name" className="text-sm font-medium">Connection Name (Optional)</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                placeholder={repositoryUrl ? extractRepoName(repositoryUrl) : "Auto-generated from repository URL"}
+                className="mt-2"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Leave empty to automatically use the repository name from the URL
+              </p>
+            </div>
+          )}
 
           <div className="space-y-3">
             <Label htmlFor="provider" className="text-sm font-medium">Repository Provider</Label>
@@ -534,7 +586,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   <p className="text-sm text-red-700">{fetchBranchesError}</p>
                 </div>
               )}
-              {branches.length > 0 && !fetchBranchesError && (
+              {isValidated && branches.length > 0 && !fetchBranchesError && (
                 <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
                   <p className="text-sm text-green-700">✓ Successfully found {branches.length} branches</p>
                   {config.fileExtensions && config.fileExtensions.length > 0 && (
@@ -550,7 +602,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
 
           {isProviderSelected && renderCredentialFields()}
 
-          {isProviderSelected && (
+          {isValidated && (
             <div className="space-y-6 border-t pt-6">
               <h4 className="font-medium text-base">Configuration Options</h4>
               
@@ -633,7 +685,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                       <div className="space-y-3">
                         <Label className="text-sm font-medium">File Extensions to Index</Label>
                         <div className="flex flex-wrap gap-2 mt-3">
-                          {['.js', '.ts', '.jsx', '.tsx', '.py', '.rs', '.go', '.java', '.md', '.txt', '.json', '.yml', '.yaml'].map((ext) => (
+                          {(availableFileExtensions.length > 0 ? availableFileExtensions : []).map((ext) => (
                             <Badge
                               key={ext}
                               variant={config.fileExtensions?.includes(ext) ? "default" : "outline"}
@@ -667,7 +719,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
             </Button>
             <Button 
               onClick={handleConnect} 
-              disabled={!isProviderSelected || !repositoryUrl || loading || (!credentials.accessToken && !credentials.username)}
+              disabled={!isValidated || !isProviderSelected || !repositoryUrl || loading || (!credentials.accessToken && !credentials.username)}
             >
               {loading ? 'Connecting...' : 'Connect Repository'}
             </Button>

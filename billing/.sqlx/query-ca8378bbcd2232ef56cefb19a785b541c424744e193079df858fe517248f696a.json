@@ -1,0 +1,94 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                id,\n                user_id,\n                type as \"type!: PaymentMethodType\",\n                is_default as \"is_default!\",\n                stripe_payment_method_id,\n                last_four,\n                brand,\n                exp_month,\n                exp_year,\n                billing_details,\n                is_active as \"is_active!\",\n                created_at,\n                updated_at\n            FROM payment_methods \n            WHERE user_id = $1 AND is_active = true\n            ORDER BY is_default DESC, created_at DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "type!: PaymentMethodType",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "is_default!",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 4,
+        "name": "stripe_payment_method_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "last_four",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "brand",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "exp_month",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "exp_year",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "billing_details",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 10,
+        "name": "is_active!",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 11,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "ca8378bbcd2232ef56cefb19a785b541c424744e193079df858fe517248f696a"
+}

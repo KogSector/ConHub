@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { dataApiClient } from "@/lib/api";
+import { dataApiClient, listConnections, unwrapResponse } from "@/lib/api";
 import { Upload, Cloud, Loader2, CheckCircle2, XCircle, FolderOpen, FileText, HardDrive, Droplets, BookOpen } from "lucide-react";
 
 interface ConnectSourceModalProps {
@@ -33,6 +33,8 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<ConnectorType>("local_files");
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({ status: "idle" });
+  const [needsSocialConnect, setNeedsSocialConnect] = useState<string | null>(null);
+  const [checkingConnection, setCheckingConnection] = useState(false);
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -73,9 +75,35 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
 
   
 
+  const ensureProviderConnected = async (platform: string): Promise<boolean> => {
+    setCheckingConnection(true);
+    try {
+      const resp = await listConnections();
+      const list = unwrapResponse<Array<{ platform: string; is_active: boolean }>>(resp) || [];
+      const connected = list.some((c) => c.platform === platform && c.is_active);
+      if (!connected) {
+        setNeedsSocialConnect(platform);
+      } else {
+        setNeedsSocialConnect(null);
+      }
+      return connected;
+    } catch {
+      return false;
+    } finally {
+      setCheckingConnection(false);
+    }
+  };
+
   const handleThirdPartyConnect = async (service: string) => {
     setConnectionStatus({ status: "connecting" });
     try {
+      if (service === 'google_drive' || service === 'dropbox') {
+        const connected = await ensureProviderConnected(service);
+        if (!connected) {
+          setConnectionStatus({ status: "error", message: `Please connect ${service === 'google_drive' ? 'Google Drive' : 'Dropbox'} in Social Connections first` });
+          return;
+        }
+      }
       await new Promise((resolve) => setTimeout(resolve, 1000));
       setConnectionStatus({ status: "success", message: `Successfully connected to ${service}` });
       toast({ title: "Success", description: `Connected to ${service} successfully` });
@@ -125,6 +153,8 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
                   ref={fileInputRef}
                   type="file"
                   multiple
+                  title="Select files to upload"
+                  aria-label="Select files to upload"
                   onChange={handleFileChange}
                   className="hidden"
                 />
@@ -153,27 +183,45 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
 
           <TabsContent value="third_party" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <Button variant="outline" className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent" onClick={() => handleThirdPartyConnect('google_drive')}>
+              <Button variant="outline" title="Connect Google Drive" aria-label="Connect Google Drive" className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent" onClick={() => handleThirdPartyConnect('google_drive')}>
                 <Cloud className="w-8 h-8 text-blue-500" />
                 <span className="text-sm font-medium">Google Drive</span>
               </Button>
-              <Button variant="outline" className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent" onClick={() => handleThirdPartyConnect('dropbox')}>
+              <Button variant="outline" title="Connect Dropbox" aria-label="Connect Dropbox" className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent" onClick={() => handleThirdPartyConnect('dropbox')}>
                 <Droplets className="w-8 h-8 text-blue-600" />
                 <span className="text-sm font-medium">Dropbox</span>
               </Button>
-              <Button variant="outline" className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent" onClick={() => handleThirdPartyConnect('onedrive')}>
+              <Button variant="outline" title="Connect OneDrive" aria-label="Connect OneDrive" className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent" onClick={() => handleThirdPartyConnect('onedrive')}>
                 <Cloud className="w-8 h-8 text-blue-700" />
                 <span className="text-sm font-medium">OneDrive</span>
               </Button>
-              <Button variant="outline" className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent" onClick={() => handleThirdPartyConnect('notion')}>
+              <Button variant="outline" title="Connect Notion" aria-label="Connect Notion" className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent" onClick={() => handleThirdPartyConnect('notion')}>
                 <BookOpen className="w-8 h-8 text-gray-700" />
                 <span className="text-sm font-medium">Notion</span>
               </Button>
-              <Button variant="outline" className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent col-span-2" onClick={() => handleThirdPartyConnect('confluence')}>
+              <Button variant="outline" title="Connect Confluence" aria-label="Connect Confluence" className="h-24 flex flex-col items-center justify-center space-y-2 hover:bg-accent col-span-2" onClick={() => handleThirdPartyConnect('confluence')}>
                 <FileText className="w-8 h-8 text-blue-800" />
                 <span className="text-sm font-medium">Confluence</span>
               </Button>
             </div>
+            {needsSocialConnect && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                <p className="text-sm text-yellow-800">
+                  {`You need to connect ${needsSocialConnect === 'google_drive' ? 'Google Drive' : 'Dropbox'} before proceeding.`}
+                </p>
+                <div className="mt-2">
+                  <Button
+                    title="Go to Social Connections"
+                    aria-label="Go to Social Connections"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => { window.location.href = '/dashboard/social'; }}
+                    disabled={checkingConnection}
+                  >
+                    Go to Social Connections
+                  </Button>
+                </div>
+              </div>
+            )}
             {connectionStatus.status !== "idle" && (
               <div className="flex items-center gap-2 p-3 bg-muted rounded-md">{renderStatusIcon()}<span className="text-sm">{connectionStatus.message}</span></div>
             )}

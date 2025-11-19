@@ -12,9 +12,10 @@ const SERVICES = {
   security: { port: 3014, path: 'security', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Security & Audit' },
   webhook: { port: 3015, path: 'webhook', command: 'cargo', args: ['run'], healthPath: '/health', description: 'External Webhooks' },
   client: { port: 3012, path: 'client', command: 'cargo', args: ['run'], healthPath: '/health', description: 'AI Client Service' },
+  mcp: { port: 3004, path: 'mcp', command: 'cargo', args: ['run'], healthPath: '/health', description: 'MCP Protocol Service' },
   backend: { port: 8000, path: 'backend', command: 'cargo', args: ['run'], healthPath: '/health', description: 'GraphQL Gateway' },
   embedding: { port: 8082, path: 'embedding', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Fusion Embeddings' },
-  indexers: { port: 8080, path: 'indexers', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Search & Indexing' },
+  // indexers: { port: 8080, path: 'indexers', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Search & Indexing' }, // Removed - will be rewritten
   frontend: { port: 3000, path: 'frontend', command: 'npm.cmd', args: ['run', 'dev'], healthPath: '/', description: 'Next.js UI' }
 };
 
@@ -63,7 +64,7 @@ class ServiceManager {
 
     return new Promise((resolve) => {
       const url = `http://localhost:${service.port}${service.healthPath}`;
-      const req = http.get(url, { timeout: 5000 }, (res) => {
+      const req = http.get(url, { timeout: 10000 }, (res) => {
         resolve(res.statusCode === 200);
       });
 
@@ -88,8 +89,13 @@ class ServiceManager {
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
-    console.log(`⚠️  ${serviceName} health check timeout, but process may still be starting...`);
-    this.updateServiceStatus(serviceName, 'RUNNING', 'Health check timeout');
+    if (this.processes.has(serviceName)) {
+      console.log(`⚠️  ${serviceName} health check timeout, but process may still be starting...`);
+      this.updateServiceStatus(serviceName, 'RUNNING', 'Health check timeout');
+    } else {
+      console.log(`🔴 ${serviceName} process is not running`);
+      this.updateServiceStatus(serviceName, 'FAILED', 'Process exited before healthy');
+    }
     return false;
   }
 
@@ -275,6 +281,8 @@ class ServiceManager {
 
     // Start services in optimal order based on dependencies
     console.log('\n🚀 Starting services... ');
+    console.log(''); // First empty line
+    console.log(''); // Second empty line
     if (toggles.Auth) {
       await this.startService('auth', toggles);
       await this.waitForService('auth', 30000);
@@ -286,16 +294,16 @@ class ServiceManager {
     await this.waitForService('data', 25000);
     console.log('');
 
-    const supportServices = ['billing', 'security', 'webhook', 'client'];
+    const supportServices = ['billing', 'security', 'webhook', 'client', 'mcp'];
     for (const service of supportServices) {
       await this.startService(service, toggles);
       await new Promise(resolve => setTimeout(resolve, 2000)); // Stagger starts
-      await this.waitForService(service, 15000);
+      await this.waitForService(service, 30000);
       console.log('');
     }
 
     if (toggles.Heavy) {
-      const heavyServices = ['embedding', 'indexers'];
+      const heavyServices = ['embedding']; // indexers removed - will be rewritten later
       for (const service of heavyServices) {
         await this.startService(service, toggles);
         await this.waitForService(service, 20000);

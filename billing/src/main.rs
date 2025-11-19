@@ -1,6 +1,7 @@
 use actix_web::{web, App, HttpServer, middleware::Logger};
 use actix_cors::Cors;
 use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
+use redis::Client as RedisClient;
 use std::str::FromStr;
 use std::env;
 use tracing::{info, error};
@@ -42,48 +43,58 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("🔐 [Billing Service] Authentication middleware initialized");
 
-    // Database connection (gated by Auth toggle)
-    let db_pool_opt: Option<PgPool> = if auth_enabled {
-        // Prefer Neon if provided, otherwise require DATABASE_URL
-        let database_url = env::var("DATABASE_URL_NEON")
-            .ok()
-            .filter(|v| !v.trim().is_empty())
-            .or_else(|| env::var("DATABASE_URL").ok())
-            .ok_or_else(|| "DATABASE_URL or DATABASE_URL_NEON must be set when Auth is enabled")?;
+    // Database connection - always required
+    let database_url = env::var("DATABASE_URL_NEON")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| env::var("DATABASE_URL").ok())
+        .ok_or_else(|| "DATABASE_URL or DATABASE_URL_NEON must be set")?;
 
-        if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
-            tracing::info!("📊 [Billing Service] Connecting to Neon DB...");
-        } else {
-            tracing::info!("📊 [Billing Service] Connecting to database...");
-        }
-
-        // Disable server-side prepared statements for pgbouncer/Neon
-        let connect_options = PgConnectOptions::from_str(&database_url)?
-            .statement_cache_capacity(0);
-
-        let pool = PgPoolOptions::new()
-            .max_connections(10)
-            .connect_with(connect_options)
-            .await?;
-        tracing::info!("✅ [Billing Service] Database connection established");
-        Some(pool)
+    if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
+        tracing::info!("📊 [Billing Service] Connecting to Neon DB...");
     } else {
-        tracing::warn!("[Billing Service] Auth disabled; skipping database connection.");
-        None
+        tracing::info!("📊 [Billing Service] Connecting to database...");
+    }
+
+    // Disable server-side prepared statements for pgbouncer/Neon
+    let connect_options = PgConnectOptions::from_str(&database_url)?
+        .statement_cache_capacity(0);
+
+    let pool = PgPoolOptions::new()
+        .max_connections(10)
+        .connect_with(connect_options)
+        .await?;
+    tracing::info!("✅ [Billing Service] Database connection established");
+    let db_pool_opt = Some(pool);
+
+    // Stripe API key (optional in development)
+    let stripe_key_opt: Option<String> = match env::var("STRIPE_SECRET_KEY") {
+        Ok(key) => {
+            tracing::info!("💳 [Billing Service] Stripe configuration loaded");
+            Some(key)
+        },
+        Err(_) => {
+            tracing::warn!("[Billing Service] STRIPE_SECRET_KEY not set - Stripe features disabled");
+            None
+        }
     };
 
-    // Stripe API key (optional in local dev when Auth is disabled)
-    let stripe_key_opt: Option<String> = if auth_enabled {
-        match env::var("STRIPE_SECRET_KEY") {
-            Ok(key) => Some(key),
-            Err(_) => {
-                tracing::error!("[Billing Service] STRIPE_SECRET_KEY must be set when Auth is enabled");
-                return Err("Missing STRIPE_SECRET_KEY".into());
+    // Redis connection
+    let redis_client_opt: Option<RedisClient> = match env::var("REDIS_URL") {
+        Ok(redis_url) => {
+            tracing::info!("🔴 [Billing Service] Connecting to Redis...");
+            match RedisClient::open(redis_url) {
+                Ok(client) => match client.get_connection() {
+                    Ok(_) => Some(client),
+                    Err(_) => None,
+                },
+                Err(_) => None,
             }
         }
-    } else {
-        tracing::warn!("[Billing Service] Auth disabled; skipping Stripe configuration.");
-        None
+        Err(_) => {
+            tracing::warn!("[Billing Service] REDIS_URL not set - Redis features disabled");
+            None
+        }
     };
 
     tracing::info!("🚀 [Billing Service] Starting on port {}", port);
@@ -97,6 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut app = App::new()
             .app_data(web::Data::new(db_pool_opt.clone()))
             .app_data(web::Data::new(stripe_key_opt.clone()))
+            .app_data(web::Data::new(redis_client_opt.clone()))
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(auth_middleware.clone())

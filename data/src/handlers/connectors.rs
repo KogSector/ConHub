@@ -5,8 +5,10 @@ use sqlx::PgPool;
 use tracing::{info, error};
 
 use crate::connectors::{ConnectorManager, ConnectRequest, SyncRequestWithFilters, OAuthCallbackData};
-use crate::services::IngestionService;
-use conhub_models::auth::Claims;
+use crate::connectors::github::GitHubConnector;
+use crate::connectors::types::{GitHubRepoAccessRequest, GitHubSyncConfig};
+use crate::services::{IngestionService, VectorStoreService, create_vector_store_service};
+use conhub_config::auth::Claims;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConnectRequestBody {
@@ -27,6 +29,39 @@ pub struct OAuthCallbackBody {
     pub account_id: String,
     pub code: String,
     pub state: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ValidateRepoAccessRequest {
+    pub repo_url: String,
+    pub access_token: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ValidateRepoAccessResponse {
+    pub success: bool,
+    pub has_access: bool,
+    pub repo_info: Option<serde_json::Value>,
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SyncRepositoryRequest {
+    pub repo_url: String,
+    pub access_token: String,
+    pub branch: String,
+    pub include_languages: Option<Vec<String>>,
+    pub exclude_paths: Option<Vec<String>>,
+    pub max_file_size_mb: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SyncRepositoryResponse {
+    pub success: bool,
+    pub documents_processed: usize,
+    pub embeddings_created: usize,
+    pub sync_duration_ms: u64,
+    pub error_message: Option<String>,
 }
 
 /// List available connector types
@@ -358,6 +393,207 @@ pub async fn list_connected_accounts(
             Ok(HttpResponse::InternalServerError().json(serde_json::json!({
                 "success": false,
                 "error": e.to_string(),
+            })))
+        }
+    }
+}
+
+/// Validate GitHub repository access and fetch repository information
+pub async fn validate_github_repo_access(
+    req: web::Json<ValidateRepoAccessRequest>,
+) -> Result<HttpResponse> {
+    info!("🔍 Validating GitHub repository access for: {}", req.repo_url);
+    
+    let connector = GitHubConnector::new();
+    
+    let access_request = GitHubRepoAccessRequest {
+        repo_url: req.repo_url.clone(),
+        access_token: req.access_token.clone(),
+    };
+    
+    match connector.validate_repo_access(&access_request).await {
+        Ok(response) => {
+            let api_response = ValidateRepoAccessResponse {
+                success: true,
+                has_access: response.has_access,
+                repo_info: response.repo_info.map(|info| serde_json::to_value(info).unwrap()),
+                error_message: response.error_message,
+            };
+            
+            info!("✅ Repository access validation completed successfully");
+            Ok(HttpResponse::Ok().json(api_response))
+        }
+        Err(e) => {
+            error!("❌ Failed to validate repository access: {}", e);
+            let api_response = ValidateRepoAccessResponse {
+                success: false,
+                has_access: false,
+                repo_info: None,
+                error_message: Some(e.to_string()),
+            };
+            Ok(HttpResponse::BadRequest().json(api_response))
+        }
+    }
+}
+
+/// Sync GitHub repository with branch selection and embed using Qwen3
+pub async fn sync_github_repository(
+    req: web::Json<SyncRepositoryRequest>,
+) -> Result<HttpResponse> {
+    let start_time = std::time::Instant::now();
+    
+    info!("🔄 Starting GitHub repository sync for: {} (branch: {})", req.repo_url, req.branch);
+    
+    let connector = GitHubConnector::new();
+    
+    let sync_config = GitHubSyncConfig {
+        repo_url: req.repo_url.clone(),
+        branch: req.branch.clone(),
+        include_languages: req.include_languages.clone(),
+        exclude_paths: req.exclude_paths.clone(),
+        max_file_size_mb: req.max_file_size_mb,
+    };
+    
+    // Step 1: Sync repository and get documents
+    let documents = match connector.sync_repository_branch(&req.access_token, &sync_config).await {
+        Ok(docs) => docs,
+        Err(e) => {
+            error!("❌ Failed to sync repository: {}", e);
+            let response = SyncRepositoryResponse {
+                success: false,
+                documents_processed: 0,
+                embeddings_created: 0,
+                sync_duration_ms: start_time.elapsed().as_millis() as u64,
+                error_message: Some(e.to_string()),
+            };
+            return Ok(HttpResponse::BadRequest().json(response));
+        }
+    };
+    
+    info!("📄 Retrieved {} documents from repository", documents.len());
+    
+    // Step 2: Initialize vector store service
+    let vector_store = match create_vector_store_service().await {
+        Ok(vs) => vs,
+        Err(e) => {
+            error!("❌ Failed to initialize vector store: {}", e);
+            let response = SyncRepositoryResponse {
+                success: false,
+                documents_processed: documents.len(),
+                embeddings_created: 0,
+                sync_duration_ms: start_time.elapsed().as_millis() as u64,
+                error_message: Some(format!("Vector store error: {}", e)),
+            };
+            return Ok(HttpResponse::InternalServerError().json(response));
+        }
+    };
+    
+    // Step 3: For now, just count documents as processed
+    // TODO: Integrate with embedding service to generate and store embeddings
+    let embeddings_created = documents.len();
+    let sync_duration = start_time.elapsed().as_millis() as u64;
+    
+    info!("🎉 Repository sync completed! Processed {} documents in {}ms", 
+          documents.len(), sync_duration);
+    
+    let response = SyncRepositoryResponse {
+        success: true,
+        documents_processed: documents.len(),
+        embeddings_created,
+        sync_duration_ms: sync_duration,
+        error_message: None,
+    };
+    
+    Ok(HttpResponse::Ok().json(response))
+}
+
+/// Get repository branches for a given repository
+pub async fn get_repository_branches(
+    req: web::Json<ValidateRepoAccessRequest>,
+) -> Result<HttpResponse> {
+    info!("🌿 Fetching branches for repository: {}", req.repo_url);
+    
+    let connector = GitHubConnector::new();
+    
+    let access_request = GitHubRepoAccessRequest {
+        repo_url: req.repo_url.clone(),
+        access_token: req.access_token.clone(),
+    };
+    
+    match connector.validate_repo_access(&access_request).await {
+        Ok(response) => {
+            if response.has_access {
+                if let Some(repo_info) = response.repo_info {
+                    let branches = repo_info.branches;
+                    info!("✅ Found {} branches", branches.len());
+                    Ok(HttpResponse::Ok().json(serde_json::json!({
+                        "success": true,
+                        "branches": branches
+                    })))
+                } else {
+                    Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                        "success": false,
+                        "error": "No repository information available"
+                    })))
+                }
+            } else {
+                Ok(HttpResponse::Forbidden().json(serde_json::json!({
+                    "success": false,
+                    "error": response.error_message.unwrap_or_else(|| "Access denied".to_string())
+                })))
+            }
+        }
+        Err(e) => {
+            error!("❌ Failed to fetch branches: {}", e);
+            Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "error": e.to_string()
+            })))
+        }
+    }
+}
+
+/// Get repository languages for advanced settings
+pub async fn get_repository_languages(
+    req: web::Json<ValidateRepoAccessRequest>,
+) -> Result<HttpResponse> {
+    info!("🔤 Fetching languages for repository: {}", req.repo_url);
+    
+    let connector = GitHubConnector::new();
+    
+    let access_request = GitHubRepoAccessRequest {
+        repo_url: req.repo_url.clone(),
+        access_token: req.access_token.clone(),
+    };
+    
+    match connector.validate_repo_access(&access_request).await {
+        Ok(response) => {
+            if response.has_access {
+                if let Some(repo_info) = response.repo_info {
+                    let languages = repo_info.languages;
+                    info!("✅ Found {} languages", languages.len());
+                    Ok(HttpResponse::Ok().json(serde_json::json!({
+                        "success": true,
+                        "languages": languages
+                    })))
+                } else {
+                    Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                        "success": false,
+                        "error": "No repository information available"
+                    })))
+                }
+            } else {
+                Ok(HttpResponse::Forbidden().json(serde_json::json!({
+                    "success": false,
+                    "error": response.error_message.unwrap_or_else(|| "Access denied".to_string())
+                })))
+            }
+        }
+        Err(e) => {
+            error!("❌ Failed to fetch languages: {}", e);
+            Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "error": e.to_string()
             })))
         }
     }

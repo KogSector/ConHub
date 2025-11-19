@@ -1,0 +1,71 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                id,\n                user_id,\n                resource_type,\n                usage_count,\n                period_start,\n                period_end,\n                metadata,\n                created_at,\n                updated_at\n            FROM usage_tracking \n            WHERE user_id = $1 AND period_start >= $2\n            ORDER BY resource_type, period_start DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "resource_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "usage_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "period_start",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "period_end",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "metadata",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "4dd81fe29f5400130dab2365ad3e2d5a14fd56d39ed63aedc3238ae1558a78b8"
+}

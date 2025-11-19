@@ -1,170 +1,80 @@
-use actix_web::{web, App, HttpServer, middleware::Logger};
-use actix_cors::Cors;
-use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
-use std::env;
-use std::str::FromStr;
-use tracing::{info, error};
-use tracing_subscriber;
-use conhub_middleware::auth::AuthMiddlewareFactory;
-use conhub_config::feature_toggles::FeatureToggles;
+// MCP Service Main Entry Point
+use anyhow::Result;
+use mcp_service::{McpConfig, connectors::ConnectorManager, protocol::McpServer};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use actix_web::{web, App, HttpResponse, HttpServer};
+use tokio::signal;
 
-mod server;
-mod protocol;
-mod handlers;
-mod services;
-mod types;
-mod context;
-mod error;
-
-use server::MCPServer;
-use context::ContextManager;
-
-#[actix_web::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging
-    tracing_subscriber::fmt::init();
-
-    // Load environment variables
-    dotenv::dotenv().ok();
-
-    // Service port
-    let port = env::var("MCP_SERVICE_PORT")
-        .unwrap_or_else(|_| "3030".to_string())
-        .parse::<u16>()
-        .unwrap_or(3030);
-
-    // Initialize authentication middleware with feature toggle
-    let toggles = FeatureToggles::from_env_path();
-    let auth_enabled = toggles.is_enabled_or("Auth", true);
-    let auth_middleware = if auth_enabled {
-        AuthMiddlewareFactory::new()
-            .map_err(|e| {
-                tracing::error!("Failed to initialize auth middleware: {}", e);
-                e
-            })?
-    } else {
-        tracing::warn!("Auth feature disabled via feature toggles; injecting default claims.");
-        AuthMiddlewareFactory::disabled()
-    };
-
-    tracing::info!("🔐 [MCP Service] Authentication middleware initialized");
-
-    // Database connection (gated by Auth toggle)
-    let db_pool_opt: Option<PgPool> = if auth_enabled {
-        // Prefer Neon URL if present, fall back to DATABASE_URL, then local default
-        let database_url = env::var("DATABASE_URL_NEON")
-            .ok()
-            .filter(|v| !v.trim().is_empty())
-            .or_else(|| env::var("DATABASE_URL").ok())
-            .unwrap_or_else(|| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
-
-        if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
-            tracing::info!("📊 [MCP Service] Connecting to Neon DB...");
-        } else {
-            tracing::info!("📊 [MCP Service] Connecting to database...");
-        }
-        
-        // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
-        let connect_options = PgConnectOptions::from_str(&database_url)?
-            .statement_cache_capacity(0);
-        
-        let pool = PgPoolOptions::new()
-            .max_connections(10)
-            .connect_with(connect_options)
-            .await?;
-        tracing::info!("✅ [MCP Service] Database connection established");
-        Some(pool)
-    } else {
-        tracing::warn!("[MCP Service] Auth disabled; skipping database connection.");
-        None
-    };
-
-    // Data Service URL for GraphQL queries
-    let data_service_url = env::var("DATA_SERVICE_URL")
-        .unwrap_or_else(|_| "http://localhost:3013".to_string());
-    
-    // Initialize Context Manager
-    let context_manager = std::sync::Arc::new(ContextManager::new(
-        db_pool_opt.clone(),
-        data_service_url.clone()
-    ));
-    tracing::info!("📊 [MCP Service] Context Manager initialized");
-    
-    // Initialize MCP Server
-    let mcp_server = MCPServer::new(
-        db_pool_opt.clone(),
-        context_manager.clone()
-    );
-    tracing::info!("🔌 [MCP Service] MCP Server initialized");
-
-    tracing::info!("🚀 [MCP Service] Starting on port {}", port);
-
-    HttpServer::new(move || {
-        let cors = Cors::default()
-            .allow_any_origin()
-            .allow_any_method()
-            .allow_any_header()
-            .supports_credentials();
-
-        App::new()
-            .app_data(web::Data::new(db_pool_opt.clone()))
-            .app_data(web::Data::new(toggles.clone()))
-            .app_data(web::Data::new(mcp_server.clone()))
-            .app_data(web::Data::new(context_manager.clone()))
-            .wrap(cors)
-            .wrap(Logger::default())
-            .wrap(auth_middleware.clone())
-            .configure(configure_routes)
-            .route("/health", web::get().to(health_check))
-            // MCP Protocol WebSocket endpoint
-            .route("/mcp", web::get().to(handlers::mcp_websocket))
-    })
-    .bind(("0.0.0.0", port))?
-    .run()
-    .await?;
-
-    Ok(())
-}
-
-fn configure_routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        web::scope("/api/mcp")
-            // MCP Server routes
-            .route("/resources", web::get().to(handlers::list_resources))
-            .route("/resources/{uri}", web::get().to(handlers::read_resource))
-            .route("/tools", web::get().to(handlers::list_tools))
-            .route("/tools/execute", web::post().to(handlers::execute_tool))
-            .route("/prompts", web::get().to(handlers::list_prompts))
-            .route("/prompts/{name}", web::get().to(handlers::get_prompt))
-            
-            // Agent management routes
-            .route("/agents", web::get().to(handlers::list_agents))
-            .route("/agents", web::post().to(handlers::register_agent))
-            .route("/agents/{id}", web::delete().to(handlers::unregister_agent))
-            .route("/agents/{id}/context", web::get().to(handlers::get_agent_context))
-            
-            // Context synchronization routes
-            .route("/sync", web::post().to(handlers::sync_context))
-            .route("/broadcast", web::post().to(handlers::broadcast_to_agents))
-    );
-}
-
-async fn health_check(pool_opt: web::Data<Option<PgPool>>) -> actix_web::Result<web::Json<serde_json::Value>> {
-    let db_status = match pool_opt.get_ref() {
-        Some(pool) => match sqlx::query("SELECT 1 as test").fetch_one(pool).await {
-            Ok(_) => "connected",
-            Err(e) => {
-                tracing::error!("[MCP Service] Database health check failed: {}", e);
-                "disconnected"
-            }
-        },
-        None => "disabled",
-    };
-
-    Ok(web::Json(serde_json::json!({
+async fn health() -> HttpResponse {
+    HttpResponse::Ok().json(serde_json::json!({
         "status": "healthy",
-        "service": "mcp-service",
-        "database": db_status,
-        "timestamp": chrono::Utc::now()
-    })))
+        "service": "mcp-service"
+    }))
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Initialize logging
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
+        ))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    tracing::info!("Starting ConHub MCP Service");
+
+    // Load configuration
+    dotenv::dotenv().ok();
+    let config = McpConfig::from_env()?;
+
+    // Initialize database and Redis
+    let db_config = conhub_database::DatabaseConfig::from_env();
+    tracing::info!("Initializing database");
+    let database = conhub_database::Database::new(&db_config).await?;
+    tracing::info!("Database initialized");
+
+    // Initialize connector manager
+    let connector_manager = ConnectorManager::new(database, &config).await?;
+
+    tracing::info!(
+        "Initialized {} connectors",
+        connector_manager.connector_count()
+    );
+
+    // Start HTTP server for health checks in background
+    let port = std::env::var("MCP_PORT").unwrap_or_else(|_| "3004".to_string());
+    let port_num: u16 = port.parse().unwrap_or(3004);
+    
+    let http_handle = tokio::spawn(async move {
+        tracing::info!("🚀 [MCP Service] Starting HTTP health server on port {}", port_num);
+        HttpServer::new(|| {
+            App::new()
+                .route("/health", web::get().to(health))
+        })
+        .bind(("0.0.0.0", port_num))
+        .expect("Failed to bind MCP HTTP server")
+        .run()
+        .await
+        .expect("MCP HTTP server failed");
+    });
+
+    // Start MCP server on stdio (main protocol)
+    let server = McpServer::new(connector_manager, config);
+    let mcp_handle = tokio::spawn(async move {
+        match server.run().await {
+            Ok(_) => {
+                tracing::warn!("MCP server finished");
+            }
+            Err(e) => {
+                tracing::error!("MCP server error: {}", e);
+            }
+        }
+    });
+
+    tracing::info!("MCP service running");
+    futures::future::pending::<()>().await;
+    let _ = mcp_handle;
+    let _ = http_handle;
+    Ok(())
 }

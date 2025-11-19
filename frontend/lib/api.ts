@@ -359,6 +359,10 @@ export async function listConnections(): Promise<ApiResponse> {
   return securityApiClient.get('/api/security/connections');
 }
 
+export async function listAuthConnections(): Promise<ApiResponse> {
+  return apiClient.get('/api/auth/connections');
+}
+
 export async function connectProvider(platform: string): Promise<ApiResponse<{ account?: { status: string; credentials?: { auth_url?: string }}}>> {
   return securityApiClient.post('/api/security/connections/connect', { platform });
 }

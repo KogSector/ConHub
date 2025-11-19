@@ -95,29 +95,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 match client.get_async_connection().await {
                     Ok(mut conn) => {
                         match redis::cmd("PING").query_async::<_, String>(&mut conn).await {
-                            Ok(_) => {
-                                println!("✅ [Auth Service] Connected to Redis");
-                                Some(client)
-                            }
-                            Err(e) => {
-                                eprintln!("⚠️  [Auth Service] Failed to connect to Redis: {}", e);
-                                eprintln!("⚠️  [Auth Service] Service will continue without Redis");
-                                None
-                            }
+                                    Ok(_) => Some(client),
+                                    Err(_) => None,
                         }
                     }
-                    Err(e) => {
-                        eprintln!("⚠️  [Auth Service] Failed to connect to Redis: {}", e);
-                        eprintln!("⚠️  [Auth Service] Service will continue without Redis");
-                        None
-                    }
+                    Err(_) => None,
                 }
             }
-            Err(e) => {
-                eprintln!("⚠️  [Auth Service] Failed to create Redis client: {}", e);
-                eprintln!("⚠️  [Auth Service] Service will continue without Redis");
-                None
-            }
+            Err(_) => None,
         }
     } else {
         if !auth_enabled {

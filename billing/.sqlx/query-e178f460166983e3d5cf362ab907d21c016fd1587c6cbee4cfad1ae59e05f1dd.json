@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO embedding_queue (document_id, status)\n            VALUES ($1, 'pending')\n            ON CONFLICT (document_id) DO NOTHING\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e178f460166983e3d5cf362ab907d21c016fd1587c6cbee4cfad1ae59e05f1dd"
+}
