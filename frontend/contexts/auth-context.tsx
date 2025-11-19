@@ -29,6 +29,8 @@ export interface AuthContextType {
   updateProfile: (data: Partial<User>) => Promise<void>
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>
   token: string | null
+  connections: Array<{ id: string; platform: string; username?: string; is_active: boolean }> | null
+  refreshConnections: () => Promise<void>
 }
 
 export interface RegisterData {
@@ -61,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [connections, setConnections] = useState<Array<{ id: string; platform: string; username?: string; is_active: boolean }> | null>(null)
   const router = useRouter()
   const loginEnabled = isLoginEnabled()
 
@@ -140,6 +143,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const refreshConnections = useCallback(async () => {
+    if (!token) {
+      setConnections(null)
+      return
+    }
+    try {
+      const resp = await apiClient.get<ApiResponse<Array<{ id: string; platform: string; username?: string; is_active: boolean }>>>('/api/auth/connections', { Authorization: `Bearer ${token}` })
+      if (resp?.success) {
+        setConnections(resp.data ?? [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch connections:', err)
+    }
+  }, [token])
+
   // Verify the token with the backend and update session/user state accordingly
   const verifyToken = useCallback(async (tokenToVerify: string) => {
     // Skip verification entirely when login is disabled
@@ -167,6 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await response.json()
         if (data.valid) {
           await fetchUserProfile(tokenToVerify)
+          await refreshConnections()
         } else {
           clearSession()
         }
@@ -248,6 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user)
         setToken(data.token)
         saveSession(data.token, data.expires_at)
+        await refreshConnections()
         router.push('/dashboard')
       } else {
         throw new Error('Login failed')
@@ -277,6 +297,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(authData.user)
         setToken(authData.token)
         saveSession(authData.token, authData.expires_at)
+        await refreshConnections()
         router.push('/dashboard')
       } else {
         throw new Error('Registration failed')
@@ -339,6 +360,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateProfile,
     changePassword,
     token,
+    connections,
+    refreshConnections,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

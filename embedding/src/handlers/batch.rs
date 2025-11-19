@@ -83,7 +83,7 @@ pub async fn batch_embed_handler(
             .unwrap_or(1536);
         match VectorStoreService::new(&qdrant_url, 5).await {
             Ok(store) => {
-                let _ = store.ensure_collection(&collection, dimension).await;
+                let _ = store.ensure_collection(&collection, dimension as usize).await;
                 let mut points: Vec<(String, Vec<f32>, serde_json::Map<String, serde_json::Value>)> = Vec::with_capacity(all_embedded_chunks.len());
                 for ch in all_embedded_chunks.into_iter() {
                     let id = format!("{}-{}", ch.document_id, ch.chunk_number);

@@ -1,12 +1,10 @@
 use actix_web::{HttpResponse, web};
 
-use crate::models::HealthResponse;
-use conhub_config::feature_toggles::FeatureToggles;
+use crate::models::{HealthResponse, EmbeddingStatus};
 
-pub async fn health_handler(toggles: web::Data<FeatureToggles>) -> HttpResponse {
-    let heavy_enabled = toggles.is_enabled("Heavy");
+pub async fn health_handler(status: web::Data<EmbeddingStatus>) -> HttpResponse {
     HttpResponse::Ok().json(HealthResponse {
         status: "healthy".to_string(),
-        model_loaded: heavy_enabled,
+        model_loaded: status.available,
     })
 }

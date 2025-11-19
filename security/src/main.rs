@@ -1,4 +1,5 @@
 use actix_web::{web, App, HttpServer, middleware::Logger};
+use conhub_middleware::auth::AuthMiddlewareFactory;
 use actix_cors::Cors;
 use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
 use std::env;
@@ -57,6 +58,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("🚀 [Security Service] Starting on port {}", port);
 
+    let auth_middleware = match AuthMiddlewareFactory::new() {
+        Ok(m) => m,
+        Err(e) => {
+            println!("[Security Service] Auth middleware init failed: {}. Using dev claims.", e);
+            AuthMiddlewareFactory::disabled()
+        }
+    };
+
     HttpServer::new(move || {
         let cors = Cors::default()
             .allow_any_origin()
@@ -68,6 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .app_data(web::Data::new(db_pool_opt.clone()))
             .wrap(cors)
             .wrap(Logger::default())
+            .wrap(auth_middleware.clone())
             .configure(configure_routes)
             .configure(handlers::connections::configure_routes)
             .route("/health", web::get().to(health_check))
