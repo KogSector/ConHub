@@ -1,4 +1,4 @@
-{
+{ 
   "name": "conhub",
   "version": "1.0.0",
   "description": "ConHub - Unified development environment orchestration",
@@ -24,7 +24,6 @@
     "dev:security": "cd security && cargo run",
     "dev:webhook": "cd webhook && cargo run",
     "dev:embedding": "cd embedding && cargo run",
-    "dev:mcp-service": "cd mcp/service && npm start",
     "test": "cd tests && python -m pytest -v",
     "validate": "node scripts/validate_microservices.js"
   },

@@ -183,6 +183,10 @@ pub struct DocumentForEmbedding {
     pub content_type: ContentType,
     pub metadata: serde_json::Value,
     pub chunks: Option<Vec<DocumentChunk>>,
+    /// Type of content block: "code", "text", "table", etc.
+    pub block_type: Option<String>,
+    /// Programming language for code blocks: "rust", "python", "typescript", etc.
+    pub language: Option<String>,
 }
 
 /// A chunk of a document
@@ -193,6 +197,10 @@ pub struct DocumentChunk {
     pub start_offset: usize,
     pub end_offset: usize,
     pub metadata: Option<serde_json::Value>,
+    /// Type of content block: "code", "text", "table", etc.
+    pub block_type: Option<String>,
+    /// Programming language for code blocks
+    pub language: Option<String>,
 }
 
 /// OAuth callback data

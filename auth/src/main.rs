@@ -162,6 +162,7 @@ fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewar
                     .wrap(auth_middleware)
                     .route("/logout", web::post().to(handlers::auth::logout))
                     .route("/me", web::get().to(handlers::auth::get_current_user))
+                    .route("/verify", web::post().to(handlers::auth::verify_token))
                     .route("/refresh", web::post().to(handlers::auth::refresh_token))
                     .route("/profile", web::get().to(handlers::auth::get_profile))
                     .service(

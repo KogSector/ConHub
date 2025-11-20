@@ -132,6 +132,8 @@ async fn process_document(
             start_offset: 0,
             end_offset: document.content.len(),
             metadata: None,
+            block_type: document.block_type.clone(),
+            language: document.language.clone(),
         }]
     };
     
@@ -166,9 +168,23 @@ async fn process_document(
             })
             .collect();
         
-        // Generate embeddings using fusion service with source type routing
+        // Generate embeddings using fusion service with profile-based routing
         let source_type = document.connector_type.as_str();
-        match service.generate_embeddings(&texts, source_type).await {
+        
+        // Extract block_type and language from document or first chunk
+        let block_type = document.block_type.as_deref()
+            .or_else(|| chunk_batch.first().and_then(|c| c.block_type.as_deref()));
+        let language = document.language.as_deref()
+            .or_else(|| chunk_batch.first().and_then(|c| c.language.as_deref()));
+        
+        // Use profile-based routing for better embedding quality
+        match service.generate_embeddings_with_profile(
+            &texts,
+            source_type,
+            block_type,
+            language,
+            None, // content_type can be derived from document.content_type if needed
+        ).await {
             Ok(embeddings) => {
                 // Create embedded chunks
                 for (idx, chunk) in chunk_batch.iter().enumerate() {

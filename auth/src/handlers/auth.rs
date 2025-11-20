@@ -15,6 +15,7 @@ use crate::services::{
     security::SecurityService,
 };
 use reqwest::{Client, Url};
+use conhub_middleware::auth::extract_claims_from_http_request;
 
 // Disabled-mode handler: responds consistently when auth is turned off
 pub async fn disabled() -> Result<HttpResponse> {
@@ -406,10 +407,21 @@ pub async fn register(
     Ok(HttpResponse::Created().json(auth_response))
 }
 
-pub async fn verify_token() -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok().json(json!({
-        "valid": true
-    })))
+pub async fn verify_token(req: HttpRequest) -> Result<HttpResponse> {
+    if let Some(claims) = extract_claims_from_http_request(&req) {
+        Ok(HttpResponse::Ok().json(json!({
+            "valid": true,
+            "sub": claims.sub,
+            "email": claims.email,
+            "roles": claims.roles,
+            "exp": claims.exp,
+        })))
+    } else {
+        Ok(HttpResponse::Unauthorized().json(json!({
+            "valid": false,
+            "error": "Invalid or missing token"
+        })))
+    }
 }
 
 pub async fn dev_reset(pool_opt: web::Data<Option<PgPool>>) -> Result<HttpResponse> {

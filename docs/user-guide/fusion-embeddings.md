@@ -393,6 +393,5 @@ A: We update to latest model versions automatically. Check changelog for updates
 
 ## Next Steps
 
-- [Optimizing Embedding Performance](./embedding-optimization.md)
-- [Custom Model Configuration](./custom-models.md)
-- [Embedding API Reference](../api/embeddings.md)
+- [Embedding Pipeline Architecture](../architecture/embedding-pipeline.md)
+- [API Documentation](../api-documentation.md)

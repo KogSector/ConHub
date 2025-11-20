@@ -207,4 +207,4 @@ Need assistance?
 - [Connect Your First Repository](./connecting-repositories.md)
 - [Configure AI Agent Integration](./ai-agent-setup.md)
 - [Understanding Fusion Embeddings](./fusion-embeddings.md)
-- [Security and Privacy](./security-guide.md)
+- [Security and Privacy](./security-and-privacy.md)

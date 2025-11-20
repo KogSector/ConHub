@@ -16,7 +16,7 @@ Welcome to the ConHub user documentation! This guide will help you get the most 
 ### Advanced Topics
 - **[Custom Model Configuration](./custom-models.md)** - Configure embedding models
 - **[Webhook Integration](./webhooks.md)** - Real-time sync with webhooks
-- **[API Reference](../api/README.md)** - Complete API documentation
+- **[API Reference](../api-documentation.md)** - Complete API documentation
 
 ## What is ConHub?
 

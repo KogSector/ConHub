@@ -534,9 +534,8 @@ A: All MCP-compatible agents work well. Choice depends on your editor preference
 
 ## Next Steps
 
-- [Search Query Syntax](./search-syntax.md)
-- [MCP Command Reference](../api/mcp-commands.md)
-- [Optimizing Search Results](./search-optimization.md)
+- [Fusion Embeddings Overview](./fusion-embeddings.md)
+- [API Documentation](../api-documentation.md)
 
 ## Support
 
