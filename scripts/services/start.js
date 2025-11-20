@@ -116,19 +116,19 @@ class ServiceManager {
     
     for (const [serviceName, service] of Object.entries(SERVICES)) {
       const status = this.serviceStatus.get(serviceName) || { status: 'NOT_STARTED', details: '' };
+      const normalizedStatus = (status.status === 'RUNNING') ? 'HEALTHY' : status.status;
       const statusIcon = {
         'STARTING': '🟡',
-        'RUNNING': '🟢',
+        'RUNNING': '✅',
         'HEALTHY': '✅',
         'FAILED': '🔴',
         'STOPPED': '⚫',
         'NOT_STARTED': '⚪'
       }[status.status] || '❓';
-      
       console.log(
-        serviceName.padEnd(12) + 
-        service.port.toString().padEnd(8) + 
-        `${statusIcon} ${status.status}`
+        serviceName.padEnd(12) +
+        service.port.toString().padEnd(8) +
+        `${statusIcon} ${normalizedStatus}`
       );
     }
     console.log('='.repeat(60));
@@ -255,7 +255,7 @@ class ServiceManager {
         
       }
     }
-    return { Auth: true, Heavy: false, Docker: false, Redis: true };
+    return { Auth: true, Heavy: true, Docker: false, Redis: true };
   }
 
   async smartStart() {

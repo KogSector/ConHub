@@ -144,7 +144,7 @@ export default function Dashboard() {
                   </div>
                 </Link>
                 
-                <div className="group cursor-pointer">
+                <Link href="/agents/rules" className="group">
                   <div className="relative transform transition-all duration-300 hover:scale-105 hover:-translate-y-2">
                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl blur-xl opacity-25 group-hover:opacity-40 transition-opacity duration-300"></div>
                     <div className="relative bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-blue-600 text-white rounded-2xl p-6 shadow-2xl border border-cyan-400/20 backdrop-blur-sm transition-all duration-300">
@@ -152,13 +152,13 @@ export default function Dashboard() {
                         <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
                           <Network className="w-7 h-7" />
                         </div>
-                        <span className="font-semibold text-center leading-tight">Configure RAG</span>
+                        <span className="font-semibold text-center leading-tight">Agent Rules</span>
                       </div>
                       <div className="absolute top-2 right-2 w-2 h-2 bg-white/30 rounded-full"></div>
                       <div className="absolute bottom-2 left-2 w-1 h-1 bg-white/20 rounded-full"></div>
                     </div>
                   </div>
-                </div>
+                </Link>
                 
                 <Link href="/docs" className="group">
                   <div className="relative transform transition-all duration-300 hover:scale-105 hover:-translate-y-2">

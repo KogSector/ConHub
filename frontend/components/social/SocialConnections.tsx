@@ -10,6 +10,15 @@ import { apiClient, securityApiClient, unwrapResponse } from '@/lib/api';
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
 import { ArrowLeft, Share2 } from 'lucide-react';
+import GitHubIcon from '@/components/icons/GitHubIcon'
+import GitLabIcon from '@/components/icons/GitLabIcon'
+import BitbucketIcon from '@/components/icons/BitbucketIcon'
+import SlackIcon from '@/components/icons/SlackIcon'
+import GoogleDriveIcon from '@/components/icons/GoogleDriveIcon'
+import GmailIcon from '@/components/icons/GmailIcon'
+import DropboxIcon from '@/components/icons/DropboxIcon'
+import LinkedInIcon from '@/components/icons/LinkedInIcon'
+import NotionIcon from '@/components/icons/NotionIcon'
 
 interface SocialConnection {
   id: string;
@@ -21,63 +30,16 @@ interface SocialConnection {
 }
 
 const PLATFORM_CONFIGS = {
-  slack: {
-    name: 'Slack',
-    description: 'Connect to sync messages and channels',
-    color: 'bg-purple-500',
-    icon: '💬'
-  },
-  notion: {
-    name: 'Notion',
-    description: 'Sync pages and databases',
-    color: 'bg-gray-800',
-    icon: '📝'
-  },
-  google_drive: {
-    name: 'Google Drive',
-    description: 'Access files and documents',
-    color: 'bg-blue-500',
-    icon: '💾'
-  },
-  gmail: {
-    name: 'Gmail',
-    description: 'Sync email conversations',
-    color: 'bg-red-500',
-    icon: '📧'
-  },
-  dropbox: {
-    name: 'Dropbox',
-    description: 'Sync files and folders',
-    color: 'bg-blue-600',
-    icon: '📁'
-  },
-  linkedin: {
-    name: 'LinkedIn',
-    description: 'Connect professional network',
-    color: 'bg-blue-700',
-    icon: '👔'
-  }
-  ,
-  github: {
-    name: 'GitHub',
-    description: 'Connect your GitHub account',
-    color: 'bg-gray-900',
-    icon: '🐙'
-  },
-  bitbucket: {
-    name: 'Bitbucket',
-    description: 'Connect your Bitbucket account',
-    color: 'bg-blue-800',
-    icon: '🧩'
-  }
-  ,
-  gitlab: {
-    name: 'GitLab',
-    description: 'Connect your GitLab account',
-    color: 'bg-orange-600',
-    icon: '🦊'
-  }
-};
+  slack: { name: 'Slack', description: 'Connect to sync messages and channels', icon: (cls: string) => <SlackIcon className={cls} /> },
+  notion: { name: 'Notion', description: 'Sync pages and databases', icon: (cls: string) => <NotionIcon className={cls} /> },
+  google_drive: { name: 'Google Drive', description: 'Access files and documents', icon: (cls: string) => <GoogleDriveIcon className={cls} /> },
+  gmail: { name: 'Gmail', description: 'Sync email conversations', icon: (cls: string) => <GmailIcon className={cls} /> },
+  dropbox: { name: 'Dropbox', description: 'Sync files and folders', icon: (cls: string) => <DropboxIcon className={cls} /> },
+  linkedin: { name: 'LinkedIn', description: 'Connect professional network', icon: (cls: string) => <LinkedInIcon className={cls} /> },
+  github: { name: 'GitHub', description: 'Connect your GitHub account', icon: (cls: string) => <GitHubIcon className={cls} /> },
+  bitbucket: { name: 'Bitbucket', description: 'Connect your Bitbucket account', icon: (cls: string) => <BitbucketIcon className={cls} /> },
+  gitlab: { name: 'GitLab', description: 'Connect your GitLab account', icon: (cls: string) => <GitLabIcon className={cls} /> }
+} as const;
 
 export function SocialConnections() {
   const [connections, setConnections] = useState<SocialConnection[]>([]);
@@ -244,26 +206,26 @@ export function SocialConnections() {
       </div>
 
       {}
-      {connections.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Connected Accounts</h3>
-          {connections.map((connection) => {
-            const config = PLATFORM_CONFIGS[connection.platform];
-            return (
-              <Card key={connection.id}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-10 h-10 ${config.color} rounded-lg flex items-center justify-center text-white text-lg`}>
-                        {config.icon}
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <h4 className="font-semibold">{config.name}</h4>
-                          <Badge variant={connection.is_active ? "default" : "secondary"}>
-                            {connection.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                        </div>
+          {connections.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Connected Accounts</h3>
+              {connections.map((connection) => {
+                const config = PLATFORM_CONFIGS[connection.platform];
+                return (
+                  <Card key={connection.id}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 rounded-lg flex items-center justify-center">
+                            {config.icon('w-10 h-10')}
+                          </div>
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <h4 className="font-semibold">{config.name}</h4>
+                              <Badge variant={connection.is_active ? "default" : "secondary"}>
+                                {connection.is_active ? "Active" : "Inactive"}
+                              </Badge>
+                            </div>
                         <p className="text-sm text-muted-foreground">
                           {connection.username}
                         </p>
@@ -313,8 +275,8 @@ export function SocialConnections() {
                 <Card key={platform} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
                     <div className="flex items-center space-x-3">
-                      <div className={`w-8 h-8 ${config.color} rounded-lg flex items-center justify-center text-white`}>
-                        {config.icon}
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+                        {config.icon('w-8 h-8')}
                       </div>
                       <CardTitle className="text-lg">{config.name}</CardTitle>
                     </div>

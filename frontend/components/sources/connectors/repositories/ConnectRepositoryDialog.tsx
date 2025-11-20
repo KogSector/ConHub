@@ -334,7 +334,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   title="Go to Social Connections"
                   aria-label="Go to Social Connections"
                   className="bg-blue-600 hover:bg-blue-700 text-white"
-                  onClick={() => { window.location.href = '/dashboard/social'; }}
+                  onClick={() => { window.location.href = '/dashboard/connections'; }}
                   disabled={checkingConnection}
                 >
                   Go to Social Connections
@@ -394,7 +394,11 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
               <div className="flex items-center gap-2">
                 <Input
                   id="repositoryUrl"
-                  placeholder="https://github.com/user/repo.git"
+                  placeholder={
+                    provider === 'gitlab' ? 'https://gitlab.com/user/repo.git' :
+                    provider === 'bitbucket' ? 'https://bitbucket.org/user/repo.git' :
+                    'https://github.com/user/repo.git'
+                  }
                   value={repositoryUrl}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setRepositoryUrl(e.target.value)}
                 />
@@ -408,7 +412,18 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
               </div>
               {fetchBranchesError && (
                 <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
-                  <p className="text-sm text-red-700">{fetchBranchesError}</p>
+                  <p className="text-sm text-red-700 flex items-center gap-2">
+                    <span>{fetchBranchesError}</span>
+                    {fetchBranchesError.toLowerCase().includes('please connect') && (
+                      <Button
+                        variant="link"
+                        className="text-blue-700 px-0"
+                        onClick={() => { window.location.href = '/dashboard/connections'; }}
+                      >
+                        Open Connections
+                      </Button>
+                    )}
+                  </p>
                 </div>
               )}
               {isValidated && branches.length > 0 && !fetchBranchesError && (

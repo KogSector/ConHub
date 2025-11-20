@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { apiClient } from '@/lib/api';
+import { getRulesForAgent } from '@/lib/agent-rules'
 
 type Agent = { id: string; agent_type: string }
 
@@ -31,7 +32,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Amazon Q agent not found' }, { status: 404 })
     }
 
-    const resp = await apiClient.post(`/api/agents/query/${amazonQAgent.id}`, { prompt, context })
+    const rules = getRulesForAgent(amazonQAgent.id)
+    const resp = await apiClient.post(`/api/agents/query/${amazonQAgent.id}`, { prompt, context, rules })
     const data = (typeof resp === 'object' && resp !== null && 'data' in resp) ? (resp as Record<string, unknown>)['data'] : resp
     return NextResponse.json({ response: data })
   } catch (error) {

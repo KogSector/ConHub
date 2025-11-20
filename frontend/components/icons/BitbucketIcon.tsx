@@ -1,21 +1,11 @@
-'use client';
+'use client'
 
-import React from 'react';
+import React from 'react'
 
-interface BitbucketIconProps extends React.SVGProps<SVGSVGElement> {}
-
-export function BitbucketIcon(props: BitbucketIconProps) {
+export default function BitbucketIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true"
-      {...props}
-    >
-      {/* Simplified Bitbucket-like mark used in LoginForm for consistency */}
-      <path d="M2 3.5a.5.5 0 0 0-.5.5v.5L4 20.5l.5.5h15l.5-.5L22.5 4.5V4a.5.5 0 0 0-.5-.5H2zm13.5 10.5h-7L7 8h10l-1.5 6z" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
+      <path fill="#0052CC" d="M1.5 3A1.5 1.5 0 000 4.5L3.66 20.3c.17.75.85 1.3 1.62 1.3h13.44c.74 0 1.39-.5 1.58-1.21L24 4.5A1.5 1.5 0 0022.5 3H1.5zm14.7 12H7.77l-1.65-7h11.76l-1.68 7z"/>
     </svg>
-  );
+  )
 }
-
-export default BitbucketIcon;
