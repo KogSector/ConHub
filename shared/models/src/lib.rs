@@ -11,6 +11,7 @@ pub mod billing;
 pub mod social;
 pub mod mcp;
 pub mod graphql;
+pub mod chunking;
 
 // Advanced data structures for performance optimization
 

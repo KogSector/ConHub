@@ -2,6 +2,7 @@ pub mod github;
 pub mod slack;
 pub mod notion;
 pub mod document;
+pub mod code_entities;
 
 use crate::models::{Entity, Relationship};
 use crate::errors::GraphResult;

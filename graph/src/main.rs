@@ -28,7 +28,16 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(pool.clone()))
-            .service(web::scope("/api/graph"))
+            .service(
+                web::scope("/api/graph")
+            )
+            .route("/graph/chunks", web::post().to(handlers::ingest_chunks))
+            .route("/health", web::get().to(|| async { 
+                actix_web::HttpResponse::Ok().json(serde_json::json!({
+                    "status": "healthy",
+                    "service": "graph"
+                }))
+            }))
     })
     .bind(("0.0.0.0", 8006))?
     .run()

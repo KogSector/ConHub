@@ -8,7 +8,7 @@ mod llm;
 mod models;
 mod services;
 
-use handlers::{embed_handler, health_handler, disabled_handler, batch_embed_handler};
+use handlers::{embed_handler, health_handler, disabled_handler, batch_embed_handler, batch_embed_chunks_handler};
 use services::{LlmEmbeddingService, FusionEmbeddingService};
 use conhub_config::feature_toggles::FeatureToggles;
 use crate::models::EmbeddingStatus;
@@ -73,12 +73,14 @@ async fn main() -> std::io::Result<()> {
                 .app_data(web::Data::new(embedding_service.clone().unwrap()))
                 .route("/embed", web::post().to(embed_handler))
                 .route("/batch/embed", web::post().to(batch_embed_handler))
+                .route("/batch/embed/chunks", web::post().to(batch_embed_chunks_handler))
                 ;
         } else {
             app = app
                 .app_data(web::Data::new(status.clone()))
                 .route("/embed", web::post().to(disabled_handler))
                 .route("/batch/embed", web::post().to(disabled_handler))
+                .route("/batch/embed/chunks", web::post().to(disabled_handler))
                 ;
         }
 
