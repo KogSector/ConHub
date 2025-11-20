@@ -50,10 +50,18 @@ services:
       - REDIS_URL=redis://redis:6379
       - QDRANT_URL=http://qdrant:6333
       - JWT_SECRET=${JWT_SECRET}
+      # Microservice URLs
+      - AUTH_SERVICE_URL=http://auth:3010
+      - BILLING_SERVICE_URL=http://billing:3011
+      - DATA_SERVICE_URL=http://data:3013
+      - EMBEDDING_SERVICE_URL=http://embedding:8082
     depends_on:
       - postgres
       - redis
       - qdrant
+      - auth
+      - data
+      - embedding
     networks:
       - conhub-network
 
@@ -136,12 +144,14 @@ services:
       - RUST_LOG=info
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
       - QDRANT_URL=http://qdrant:6333
+      - EMBEDDING_SERVICE_URL=http://embedding:8082
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - GITLAB_TOKEN=${GITLAB_TOKEN}
       - NOTION_TOKEN=${NOTION_TOKEN}
     depends_on:
       - postgres
       - qdrant
+      - embedding
     networks:
       - conhub-network
 
@@ -178,11 +188,65 @@ services:
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
       - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
       - GITLAB_WEBHOOK_SECRET=${GITLAB_WEBHOOK_SECRET}
+      - DATA_SERVICE_URL=http://data:3013
+      - BACKEND_SERVICE_URL=http://backend:8000
+    depends_on:
+      - postgres
+      - data
+    networks:
+      - conhub-network
+
+  # Embedding Service
+  embedding:
+    build:
+      context: .
+      dockerfile: embedding/Dockerfile
+    container_name: conhub-embedding
+    ports:
+      - "8082:8082"
+    environment:
+      - ENV_MODE=docker
+      - RUST_LOG=info
+      - EMBEDDING_PORT=8082
+      - EMBEDDING_HOST=0.0.0.0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - COHERE_API_KEY=${COHERE_API_KEY}
+      - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+    networks:
+      - conhub-network
+
+  # MCP Service
+  mcp-service:
+    build:
+      context: .
+      dockerfile: mcp/Dockerfile
+    container_name: conhub-mcp-service
+    ports:
+      - "3016:3016"
+    environment:
+      - ENV_MODE=docker
+      - RUST_LOG=info
+      - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
+      - MCP_SERVICE_PORT=3016
+      - HOST=0.0.0.0
+      # Connector configuration
+      - ENABLE_FS=true
+      - ENABLE_GITHUB=true
+      - ENABLE_GITLAB=true
+      - ENABLE_BITBUCKET=true
+      - ENABLE_GDRIVE=false
+      - ENABLE_DROPBOX=false
+      - ENABLE_NOTION=true
+      # API tokens
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITLAB_TOKEN=${GITLAB_TOKEN}
+      - BITBUCKET_TOKEN=${BITBUCKET_TOKEN}
+      - NOTION_TOKEN=${NOTION_TOKEN}
     depends_on:
       - postgres
     networks:
       - conhub-network
-
 
   # Nginx API Gateway
   nginx:

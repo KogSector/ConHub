@@ -1,26 +1,10 @@
 # Security Guide
 
-This guide provides an overview of the security features implemented in the ConHub platform, as well as recommendations for future enhancements.
+This guide summarizes the planned and recommended security enhancements for the ConHub platform.
 
-## Existing Security Features
-
-### Authentication & Authorization
-- **JWT RS256 Tokens**: Secure, stateless authentication for service-to-service communication.
-- **OAuth 2.0**: Integration with third-party providers like Google, GitHub, and Microsoft for secure sign-on.
-- **Role-Based Access Control (RBAC)**: Granular permissions with roles such as Admin, User, and Guest to restrict access to resources.
-- **Webhook Signature Verification**: Ensures that incoming webhooks are from trusted sources.
-
-### Infrastructure Security
-- **Non-Root Containers**: All services run as unprivileged users to minimize the impact of a potential container breakout.
-- **TLS/SSL Encryption**: All external traffic is encrypted using HTTPS to protect data in transit.
-- **Network Isolation**: Services communicate over an internal network, and only the API gateway is exposed to the public internet.
-- **Rate Limiting**: Protects against brute-force attacks and denial-of-service attempts.
-- **SQL Injection Protection**: Parameterized queries are used to prevent SQL injection attacks.
-
-### Data Security
-- **Encryption at Rest**: Data in PostgreSQL and Redis is encrypted at rest.
-- **Encryption in Transit**: All data is transmitted over TLS 1.3.
-- **Secret Management**: Secrets are managed using environment variables and can be integrated with services like Azure Key Vault.
+> For a detailed description of the current security implementation, see:
+> - [Security Architecture](./security/README.md)
+> - [Security and Privacy (User Guide)](./user-guide/security-and-privacy.md)
 
 ## Proposed Security Enhancements
 

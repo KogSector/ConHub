@@ -69,3 +69,10 @@ impl ToolCallResult {
         }
     }
 }
+
+/// Client information provided during initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClientInfo {
+    pub name: String,
+    pub version: String,
+}
