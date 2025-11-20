@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { GitBranch, Github, GitlabIcon, AlertCircle } from 'lucide-react';
-import { BitbucketIcon } from '@/components/icons/BitbucketIcon';
+import BitbucketIcon from '@/components/icons/BitbucketIcon';
 
 interface ConnectRepositoryDialogProps {
   open: boolean;
