@@ -20,6 +20,8 @@ mod services {
     pub use vector_store::*;
 }
 
+mod graph;
+
 // Simplified handlers inline
 use serde::{Deserialize, Serialize};
 use tracing::error;

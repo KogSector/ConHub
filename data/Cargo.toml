@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 # Database ORM
-conhub-database = { path = "../database" }
+conhub-database = { path = "../database", features = [] }
 conhub-middleware = { path = "../shared/middleware" }
 
 actix-web = "4.0"
@@ -25,3 +25,6 @@ mime_guess = "2.0"
 thiserror = "1.0"
 anyhow = "1.0"
 redis = { version = "0.24", features = ["tokio-comp", "connection-manager", "tokio-native-tls-comp"] }
+strsim = "0.11"
+fuzzy-matcher = "0.3"
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "json"] }

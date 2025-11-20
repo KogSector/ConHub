@@ -6,6 +6,7 @@ pub mod repositories;
 pub mod config;
 pub mod cache;
 pub mod utils;
+pub mod graph;
 
 // Re-export commonly used items
 pub use sqlx;
