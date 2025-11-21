@@ -151,7 +151,9 @@ fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewar
         .route("/reset-password", web::post().to(handlers::auth::reset_password))
         // OAuth routes (public)
         .route("/oauth/{provider}", web::get().to(handlers::oauth::oauth_login))
-        .route("/oauth/{provider}/callback", web::get().to(handlers::oauth::oauth_callback));
+        .route("/oauth/{provider}/callback", web::get().to(handlers::oauth::oauth_callback))
+        // Auth0 exchange endpoint (public)
+        .route("/auth0/exchange", web::post().to(handlers::auth0::auth0_exchange));
 
     if auth_enabled {
         scope = scope
