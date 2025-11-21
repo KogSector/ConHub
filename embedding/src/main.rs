@@ -8,7 +8,7 @@ mod llm;
 mod models;
 mod services;
 
-use handlers::{embed_handler, health_handler, disabled_handler, batch_embed_handler, batch_embed_chunks_handler};
+use handlers::{embed_handler, health_handler, disabled_handler, batch_embed_handler, batch_embed_chunks_handler, vector_search, search_by_ids, search_by_entity};
 use services::{LlmEmbeddingService, FusionEmbeddingService};
 use conhub_config::feature_toggles::FeatureToggles;
 use crate::models::EmbeddingStatus;
@@ -74,6 +74,10 @@ async fn main() -> std::io::Result<()> {
                 .route("/embed", web::post().to(embed_handler))
                 .route("/batch/embed", web::post().to(batch_embed_handler))
                 .route("/batch/embed/chunks", web::post().to(batch_embed_chunks_handler))
+                // Vector search endpoints
+                .route("/vector/search", web::post().to(vector_search))
+                .route("/vector/search_by_ids", web::post().to(search_by_ids))
+                .route("/vector/search_by_entity/{entity_id}", web::get().to(search_by_entity))
                 ;
         } else {
             app = app

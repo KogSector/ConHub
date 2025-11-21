@@ -1,4 +1,6 @@
 // MCP Service Main Entry Point
+// This service implements the Model Context Protocol (MCP) for AI agents
+// It provides tools and resources that agents can use to query ConHub data
 use anyhow::Result;
 use mcp_service::{McpConfig, connectors::ConnectorManager, protocol::McpServer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -42,13 +44,13 @@ async fn main() -> Result<()> {
         connector_manager.connector_count()
     );
 
-    // Start HTTP server for health checks in background
+    // Start minimal HTTP server for health checks only
     let port = std::env::var("MCP_PORT").unwrap_or_else(|_| "3004".to_string());
     let port_num: u16 = port.parse().unwrap_or(3004);
     
     let http_handle = tokio::spawn(async move {
-        tracing::info!("🚀 [MCP Service] Starting HTTP health server on port {}", port_num);
-        HttpServer::new(|| {
+        tracing::info!("🚀 [MCP Service] Starting health check server on port {}", port_num);
+        HttpServer::new(move || {
             App::new()
                 .route("/health", web::get().to(health))
         })
@@ -72,9 +74,20 @@ async fn main() -> Result<()> {
         }
     });
 
-    tracing::info!("MCP service running");
-    futures::future::pending::<()>().await;
-    let _ = mcp_handle;
-    let _ = http_handle;
+    tracing::info!("✅ MCP service running");
+    tracing::info!("   MCP Protocol: stdio");
+    tracing::info!("   Health Check: http://0.0.0.0:{}", port_num);
+    tracing::info!("   Tools: vector_search, graph_query, data_fetch");
+    
+    // Wait for both tasks
+    tokio::select! {
+        _ = mcp_handle => {
+            tracing::warn!("MCP server task finished");
+        }
+        _ = http_handle => {
+            tracing::warn!("HTTP server task finished");
+        }
+    }
+    
     Ok(())
 }
