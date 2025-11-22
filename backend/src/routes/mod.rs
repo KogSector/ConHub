@@ -1,9 +1,11 @@
 pub mod auth;
 pub mod billing;
 pub mod data;
+pub mod health;
 pub mod indexing;
 pub mod security;
 pub mod webhooks;
+pub mod rag;
 pub mod health;
 
 use actix_web::web;
@@ -17,6 +19,7 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
         .configure(indexing::configure_indexing_routes)
         .configure(security::configure_security_routes)
         .configure(webhooks::configure_webhook_routes)
+        .configure(rag::configure_rag_routes)
         .configure(crate::graphql::configure_graphql_routes);
 
     api_scope = api_scope.configure(billing::configure_billing_routes);

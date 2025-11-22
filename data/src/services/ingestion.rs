@@ -7,7 +7,8 @@ use tokio::sync::RwLock;
 use std::collections::HashMap;
 
 use crate::connectors::{ConnectorManager, types::*};
-use super::EmbeddingClient;
+use super::{EmbeddingClient, GraphRagIngestionService};
+use conhub_models::chunking::SourceKind;
 
 /// Ingestion service that orchestrates document processing pipeline
 pub struct IngestionService {
@@ -15,6 +16,7 @@ pub struct IngestionService {
     embedding_client: Arc<EmbeddingClient>,
     db_pool: Option<PgPool>,
     active_jobs: Arc<RwLock<HashMap<Uuid, SyncJobHandle>>>,
+    graph_rag_ingestion: Option<Arc<GraphRagIngestionService>>,
 }
 
 /// Handle for tracking active sync jobs
@@ -47,7 +49,14 @@ impl IngestionService {
             embedding_client,
             db_pool,
             active_jobs: Arc::new(RwLock::new(HashMap::new())),
+            graph_rag_ingestion: None,
         }
+    }
+
+    /// Add GraphRAG ingestion service (builder pattern)
+    pub fn with_graph_rag(mut self, graph_rag: Arc<GraphRagIngestionService>) -> Self {
+        self.graph_rag_ingestion = Some(graph_rag);
+        self
     }
 
     /// Start a sync job for a connected account
@@ -136,6 +145,36 @@ impl IngestionService {
             sync_summary.total_documents,
             documents_for_embedding.len()
         );
+
+        // Trigger GraphRAG ingestion pipeline (chunker → embedding → graph)
+        if let Some(graph_rag) = &self.graph_rag_ingestion {
+            if !documents_for_embedding.is_empty() {
+                // Determine source kind based on connector type
+                let source_kind = documents_for_embedding
+                    .first()
+                    .map(|d| match d.connector_type {
+                        crate::connectors::ConnectorType::GitHub
+                        | crate::connectors::ConnectorType::Bitbucket
+                        | crate::connectors::ConnectorType::GitLab => SourceKind::CodeRepo,
+                        crate::connectors::ConnectorType::Slack => SourceKind::Chat,
+                        _ => SourceKind::Document,
+                    })
+                    .unwrap_or(SourceKind::Document);
+
+                info!("🧩 Starting GraphRAG ingestion for {} documents (source_kind: {:?})", 
+                     documents_for_embedding.len(), source_kind);
+
+                let docs_for_graph = documents_for_embedding.clone();
+                match graph_rag.ingest_documents(account_id, source_kind, docs_for_graph).await {
+                    Ok(chunk_job_id) => {
+                        info!("✅ GraphRAG chunking job started: {}", chunk_job_id);
+                    }
+                    Err(e) => {
+                        warn!("⚠️  GraphRAG ingestion failed for job {}: {}", job_id, e);
+                    }
+                }
+            }
+        }
 
         // Update sync run with results
         self.update_sync_run(
@@ -514,6 +553,7 @@ impl Clone for IngestionService {
             embedding_client: Arc::clone(&self.embedding_client),
             db_pool: self.db_pool.clone(),
             active_jobs: Arc::clone(&self.active_jobs),
+            graph_rag_ingestion: self.graph_rag_ingestion.clone(),
         }
     }
 }

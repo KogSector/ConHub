@@ -1,5 +1,6 @@
 pub mod local_auth;
 pub mod oauth;
+pub mod auth0;
 pub mod users;
 pub mod password_reset;
 pub mod sessions;
@@ -15,4 +16,5 @@ pub use middleware::*;
 
 pub use local_auth::LocalAuthService;
 pub use oauth::OAuthService;
+pub use auth0::{Auth0Service, Auth0Config, Auth0Claims};
 pub use auth_service_orm::AuthServiceOrm;

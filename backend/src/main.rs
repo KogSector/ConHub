@@ -5,6 +5,7 @@ mod services;
 mod middleware;
 mod models;
 mod graphql;
+mod handlers;
 
 use actix_web::{web, App, HttpServer};
 use actix_cors::Cors;
@@ -119,6 +120,24 @@ async fn main() -> io::Result<()> {
         None
     };
 
+    // Initialize RAG service
+    let embedding_url = std::env::var("EMBEDDING_SERVICE_URL")
+        .unwrap_or_else(|_| "http://localhost:8082".to_string());
+    let graph_url = std::env::var("GRAPH_SERVICE_URL")
+        .unwrap_or_else(|_| "http://localhost:8006".to_string());
+    let agentic_url = std::env::var("AGENTIC_SERVICE_URL")
+        .unwrap_or_else(|_| "http://localhost:3005".to_string());
+    
+    let rag_service = std::sync::Arc::new(services::rag_service::RagService::new(
+        embedding_url.clone(),
+        graph_url.clone(),
+        agentic_url.clone(),
+    ));
+    log::info!("🤖 [Backend Service] RAG service initialized");
+    log::info!("   Embedding: {}", embedding_url);
+    log::info!("   Graph: {}", graph_url);
+    log::info!("   Agentic: {}", agentic_url);
+
     // Initialize application state
     log::info!("Initializing application state...");
     let app_state = AppState::new(db_pool_opt, redis_client, config.clone())
@@ -126,6 +145,7 @@ async fn main() -> io::Result<()> {
         .expect("Failed to initialize application state");
 
     let state_data = web::Data::new(app_state);
+    let rag_data = web::Data::new(rag_service);
 
     log::info!("Application state initialized");
 
@@ -137,6 +157,7 @@ async fn main() -> io::Result<()> {
 
         App::new()
             .app_data(state_data.clone())
+            .app_data(rag_data.clone())
             .app_data(web::Data::new(toggles.clone()))
             .app_data(web::Data::new(schema))
             // CORS middleware
