@@ -21,7 +21,7 @@ pub enum RagMode {
     Auto, // Automatically choose based on query
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RagFilters {
     pub connector_types: Option<Vec<String>>,
     pub repositories: Option<Vec<String>>,
@@ -29,7 +29,7 @@ pub struct RagFilters {
     pub authors: Option<Vec<String>>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DateRange {
     pub start: String,
     pub end: String,
@@ -89,12 +89,13 @@ impl RagService {
         };
 
         let query_time_ms = start.elapsed().as_millis() as u64;
+        let confidence = self.calculate_confidence(&sources);
 
         Ok(RagQueryResponse {
             answer,
             mode_used: format!("{:?}", actual_mode),
             sources,
-            confidence: self.calculate_confidence(&sources),
+            confidence,
             query_time_ms,
             metadata: serde_json::json!({
                 "query": request.query,

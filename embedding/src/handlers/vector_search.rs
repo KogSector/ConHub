@@ -75,8 +75,9 @@ pub async fn vector_search(
               req.tenant_id, req.query_text);
     
     // Generate embedding for query text
-    let query_embedding = match embedding_service.embed_text(&req.query_text).await {
-        Ok(embedding) => embedding,
+    let texts = vec![req.query_text.clone()];
+    let embeddings = match embedding_service.generate_embeddings(&texts, "code_query").await {
+        Ok(embeddings) => embeddings,
         Err(e) => {
             log::error!("Failed to generate embedding: {}", e);
             return HttpResponse::InternalServerError().json(serde_json::json!({
@@ -85,6 +86,7 @@ pub async fn vector_search(
             }));
         }
     };
+    let query_embedding = embeddings.get(0).cloned().unwrap_or_default();
     
     // Determine collection name
     let collection_type = req.collection_type.as_deref().unwrap_or("code");

@@ -41,7 +41,7 @@ pub async fn batch_embed_chunks_handler(
         .collect();
     
     // Generate embeddings
-    match service.generate_embeddings(&texts).await {
+    match service.generate_embeddings(&texts, "graph_chunks").await {
         Ok(embeddings) => {
             successful = embeddings.len();
             

@@ -885,6 +885,7 @@ version = "1.0.0"
 dependencies = [
  "actix-cors",
  "actix-web",
+ "anyhow",
  "async-graphql",
  "async-graphql-actix-web",
  "bcrypt",

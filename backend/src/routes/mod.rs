@@ -6,7 +6,6 @@ pub mod indexing;
 pub mod security;
 pub mod webhooks;
 pub mod rag;
-pub mod health;
 
 use actix_web::web;
 use conhub_config::feature_toggles::get_cached_toggles;

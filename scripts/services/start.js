@@ -64,7 +64,8 @@ class ServiceManager {
 
     return new Promise((resolve) => {
       const url = `http://localhost:${service.port}${service.healthPath}`;
-      const req = http.get(url, { timeout: 10000 }, (res) => {
+      // Increase HTTP health-check timeout by +60s (from 10s to 70s)
+      const req = http.get(url, { timeout: 70000 }, (res) => {
         resolve(res.statusCode === 200);
       });
 
@@ -76,7 +77,7 @@ class ServiceManager {
     });
   }
 
-  async waitForService(serviceName, timeout = 30000) {
+  async waitForService(serviceName, timeout = 90000) {
     console.log(`⏳ Waiting for ${serviceName}...`);
 
     const startTime = Date.now();
@@ -285,20 +286,23 @@ class ServiceManager {
     console.log(''); // Second empty line
     if (toggles.Auth) {
       await this.startService('auth', toggles);
-      await this.waitForService('auth', 30000);
+      // Increase auth wait timeout by +60s (30s -> 90s)
+      await this.waitForService('auth', 90000);
       console.log('');
     }
 
 
     await this.startService('data', toggles);
-    await this.waitForService('data', 25000);
+    // Increase data wait timeout by +60s (25s -> 85s)
+    await this.waitForService('data', 85000);
     console.log('');
 
     const supportServices = ['billing', 'security', 'webhook', 'client', 'mcp'];
     for (const service of supportServices) {
       await this.startService(service, toggles);
       await new Promise(resolve => setTimeout(resolve, 2000)); // Stagger starts
-      await this.waitForService(service, 30000);
+      // Increase support-service wait timeout by +60s (30s -> 90s)
+      await this.waitForService(service, 90000);
       console.log('');
     }
 
@@ -306,19 +310,22 @@ class ServiceManager {
       const heavyServices = ['embedding']; // indexers removed - will be rewritten later
       for (const service of heavyServices) {
         await this.startService(service, toggles);
-        await this.waitForService(service, 20000);
+        // Increase embedding wait timeout by +60s (20s -> 80s)
+        await this.waitForService(service, 80000);
         console.log('');
       }
     }
 
 
     await this.startService('backend', toggles);
-    await this.waitForService('backend', 25000);
+    // Increase backend wait timeout by +60s (25s -> 85s)
+    await this.waitForService('backend', 85000);
     console.log('');
 
 
     await this.startService('frontend', toggles);
-    await this.waitForService('frontend', 60000);
+    // Increase frontend wait timeout by +60s (60s -> 120s)
+    await this.waitForService('frontend', 120000);
     console.log('');
 
     // Print final comprehensive status
