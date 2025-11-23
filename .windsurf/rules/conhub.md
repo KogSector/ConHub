@@ -5,209 +5,182 @@ trigger: always_on
 ConHub – Knowledge Layer & Context Engine
 ConHub is a knowledge layer and context engine that sits between a user’s data sources and their AI agents.
 
-It connects to many different systems (code hosts, cloud docs, SaaS tools, URLs, etc.), ingests and normalizes their content, and then embeds, indexes, and organizes that content so AI agents can use it safely, accurately, and efficiently.
+It connects to many different systems (code hosts, cloud docs, SaaS tools, URLs, chat, etc.), ingests and normalizes their content, and then embeds, indexes, and organizes that content so AI agents can use it safely, accurately, and efficiently.
 
 ConHub exposes this unified knowledge layer to AI agents (via MCP and other interfaces) and provides a shared rules system so that all agents follow the same security, governance, and behavior policies.
+
+---
 
 ## 1. What This File Is
 
 - **Purpose**  
-  Explain what ConHub is (a knowledge layer and context engine between user data and AI agents) and define ground rules for AI assistants and agentic tools working in this repository.
+  Describe what ConHub is, how the end‑to‑end architecture works (ingestion → indexing → retrieval), and what users expect from the system.  
+  Detailed per‑service rules live in `docs/architecture/microservices.md` and [.windsurf/rules/microservice-guide.md](cci:7://file:///c:/Users/risha/Desktop/Work/ConHub/.windsurf/rules/microservice-guide.md:0:0-0:0).
 
 - **Audience**  
-  AI coding assistants (Copilot, Windsurf, Cursor, Cline, Trae, MCP tools, etc.) and human contributors who want a quick orientation.
+  AI coding assistants and human contributors who need a mental model of ConHub’s overall architecture and data flows.
 
 ---
 
 ## 2. Product Vision – What ConHub Is
 
 - **Knowledge layer and context engine**  
-  ConHub connects many data sources (repositories, documents, SaaS tools, URLs, chat, etc.), normalizes, chunks, embeds, and indexes their content, and exposes this unified knowledge layer to AI agents via MCP and other APIs.
+  ConHub unifies code, docs, tickets, chat, and web content into a single, permission‑aware knowledge layer optimized for LLMs.
 
 - **Connect data sources and agents**  
-  Upstream, ConHub integrates GitHub, Bitbucket, Google Drive, Dropbox, OneDrive (planned), Notion (planned), Confluence (planned), JIRA (planned), Slack, local files, direct URLs, and more.  
-  Downstream, ConHub serves GitHub Copilot, Cline, Trae, Windsurf, Cursor, and other MCP-compatible agents.
+  Upstream, ConHub integrates GitHub, Bitbucket, Google Drive, Dropbox, Slack, URLs, local files, and more.  
+  Downstream, it serves GitHub Copilot, Windsurf, Cursor, Cline, Trae, and any MCP‑compatible agent or HTTP client.
 
 - **Shared rules and governance**  
-  ConHub provides a central rule system for permissions, safety, and behavior. Rules are agent-agnostic: defined once in ConHub and enforced across all agents and automations.
+  All access, safety, and behavior rules are defined once in ConHub and enforced consistently across agents and automations.
 
 ---
 
-## 3. High-Level Product Goals
+## 3. High‑Level Product Goals
 
 - **Unify fragmented knowledge**  
-  Bring code, documents, tickets, chat, and web content into a single, queryable knowledge layer.
+  Pull repositories, documents, tickets, and chat into a single, queryable knowledge layer per tenant.
 
-- **Make content LLM-ready**  
-  Structure and chunk content intelligently (functions, classes, sections, paragraphs, message threads) and create high-quality embeddings and indexes for accurate semantic retrieval.
+- **Make content LLM‑ready**  
+  Normalize and chunk content into semantically meaningful, token‑bounded units and index them in both vector and graph form.
 
 - **Serve many agents consistently**  
-  Provide consistent, permission-aware context to any assistant, regardless of vendor, IDE, or model.
+  Provide stable, permission‑aware APIs and MCP tools so different agents see the same truth and follow the same rules.
 
 - **Centralize rules and security**  
-  Enforce access control, safety, compliance, and behavior policies from one place, with strong auditing and governance.
+  Enforce RBAC, data residency, PII controls, and safety policies at ingestion, indexing, and retrieval time.
 
 ---
 
-## 4. Architecture Overview – Microservices
+## 4. Core Architecture Overview
 
-ConHub is a **microservices monorepo**. Each top-level service folder is an independent microservice with a clear domain. Cross-service behavior must use APIs, events, or shared crates, never ad‑hoc internal imports.
+ConHub is a **microservices monorepo**. Each top‑level service is independently deployable; cross‑service behavior goes through APIs, events, or shared crates.
 
-### 4.1 Core Services
+At a high level:
 
-- **auth/**  
-  Owns users, identities, sessions, JWTs, OAuth flows, and RBAC.  
-  Does not own connectors, documents, billing, or embeddings.  
-  Use this service for identity, tokens, and permission checks only.
+- **auth/** – Authentication, users, tokens, RBAC.  
+- **data/** – Connectors + ingestion orchestration + document/chunk metadata.  
+- **chunker/** – Advanced chunking for code, docs, HTML, and chat.  
+- **vector_rag/** – Embeddings, vector search, semantic retrieval.  
+- **graph_rag/** – Knowledge graph construction and graph‑based retrieval.  
+- **decision_engine/** – Strategy selection (vector / graph / hybrid / auto) and context orchestration.  
+- **backend/** – Public HTTP/GraphQL API and BFF for the UI.  
+- **mcp/** – MCP server exposing ConHub as tools/resources to AI agents.  
+- **frontend/** – Next.js UI for configuration, connections, and insights.  
+- **billing/**, **security/**, **indexers/** – Plans/usage, security/audit, and background jobs.
 
-- **data/**  
-  Owns connectors, connected accounts, documents, document chunks, sync jobs and sync runs, and the ingestion pipeline.  
-  Responsibilities: fetching raw content from sources (GitHub, local files, Google Drive, Bitbucket, URL crawler, Slack, Dropbox, etc.), normalizing and chunking documents, deciding what to (re)sync and when, and calling `embedding/` for embeddings and indexing.  
-  Do not implement embedding internals or billing logic here, and do not bypass `embedding/` to talk directly to the vector database.
-
-- **embedding/**  
-  Owns embedding generation, vector orchestration, similarity search, and ranking.  
-  Responsibilities: managing collections and index structures in the vector database, upserting and deleting points, tuning indexes, and performing semantic retrieval.  
-  Do not put connector or ingestion business logic here; treat this as a stateless service that consumes chunked content.
-
-- **billing/**  
-  Owns plans, subscriptions, invoices, payment methods, usage tracking, and Stripe integration.  
-  Any limits, plan-based gating, or paid features live here.  
-  Do not mix in embedding or connector-specific logic.
-
-- **mcp/**  
-  Owns the MCP protocol implementation and mapping ConHub’s data into MCP tools and resources.  
-  Add new MCP tools/resources here when exposing new capabilities to AI agents.  
-  Do not move ingestion, embedding, or billing logic into `mcp/`; call the relevant service instead.
-
-- **backend/**  
-  Owns public HTTP/GraphQL APIs and the BFF layer for `frontend/`.  
-  Aggregates and orchestrates calls to other services.  
-  Avoid embedding domain logic that should live in underlying microservices.
-
-- **frontend/**  
-  Owns the Next.js UI (dashboards, connection management, billing UI, settings, etc.).  
-  Talks to `backend/` (and auth endpoints when appropriate), never directly to databases.
-
-- **security/**  
-  Owns audit events, security policies, threat detection, and rate limiting.  
-  Used for enforcement and auditing, not business workflows.
-
-- **indexers/**  
-  Owns offline and batch jobs, reindexing, and scheduled sync orchestration.  
-  Used for long-running or scheduled operations that call into `data/` and `embedding/`.
-
-### 4.2 Shared Layers and Infrastructure
-
-- **shared/** (`config/`, `models/`, `middleware/`, `plugins/`)  
-  Owns cross-service models, configuration, middleware, and utilities.  
-  Only move types/helpers here if used by multiple services.  
-  `shared/` must not depend on any specific service.
-
-- **database/**  
-  Owns migrations and database infrastructure (NeonDB, SQLx helpers).  
-  Migrations belong in the crate that conceptually owns the data (auth, data, billing, etc.), using this as infrastructure.
+For detailed per‑service responsibilities, see `docs/architecture/microservices.md` and [.windsurf/rules/microservice-guide.md](cci:7://file:///c:/Users/risha/Desktop/Work/ConHub/.windsurf/rules/microservice-guide.md:0:0-0:0).
 
 ---
 
-## 5. Ingestion & Indexing – How the Engine Works
+## 5. Ingestion & Indexing – End‑to‑End Flow
 
-- **Connector layer (data/)**  
-  Fetches raw content from external systems using OAuth or tokens.  
-  Handles pagination, rate limits, and change detection (incremental sync).
+### 5.1 Ingestion Pipeline
 
-- **Normalization and chunking (data/)**  
-  Converts raw items (files, PRs, wiki pages, tickets, messages, web pages) into a common document model.  
-  Splits documents into chunks appropriate for LLM retrieval:  
-  code (functions, classes, logical blocks),  
-  docs (headings, sections, paragraphs),  
-  chat (message windows or threads).
+1. **Connectors (data/)**  
+   - Users connect sources (GitHub, Google Drive, Dropbox, URLs, Slack, etc.).  
+   - `data/` manages connected accounts, schedules sync jobs, and tracks runs.
 
-- **Embedding and vector indexing (embedding/)**  
-  Generates embeddings per chunk using configured models.  
-  Stores vectors with metadata for filtering (source, repo, path, user, tags, timestamps, etc.).
+2. **Fetch & Normalize (data/)**  
+   - For each job, `data/` fetches raw items (files, PRs, wiki pages, tickets, messages, web pages).  
+   - Converts them into a **normalized document model** with metadata (tenant, source, repo, path, tags, timestamps).
 
-- **Sync jobs and runs (data/ + indexers/)**  
-  Track progress and failures at job/run level.  
-  Enable resuming, retries, and observability into ingestion health.
+3. **Chunking (chunker/)**  
+   - `data/` sends normalized documents to `chunker/`.  
+   - `chunker/` applies content‑specific strategies:
+     - Code: AST‑based splitting by functions/classes/methods.
+     - Docs/Markdown/HTML: heading‑based, section‑aware chunking.
+     - Chat: message‑window chunking that preserves conversation context.
+   - Chunks are sized using token limits so they fit into LLM contexts.
 
-- **Retrieval (embedding/ + mcp/ + backend/)**  
-  Query the vector store with filters and ranking.  
-  Package results into context responses optimized for AI agents.
+4. **Vector Indexing (vector_rag/)**  
+   - `chunker/` (or `data/`) sends chunks to `vector_rag/`.  
+   - `vector_rag/` generates embeddings and upserts them into the vector DB (e.g. Qdrant) with rich metadata and filters.
 
----
+5. **Graph Indexing (graph_rag/)**  
+   - From chunks and document metadata, `graph_rag/` builds a knowledge graph (files, functions, services, tickets, people, etc.).  
+   - Creates nodes/edges representing ownership, references, mentions, dependencies, and temporal relationships.
 
-## 6. Rule System – Shared Policies for All Agents
-
-- **Central rule engine**  
-  Provides one place to define access control, safety rules, and behavioral guidelines.
-
-- **Scope of rules**  
-  Access and permissions (who can see which documents, repos, tickets, chats).  
-  Safety and compliance (redaction, PII handling, allowed/blocked domains).  
-  Behavior (how agents should act, which operations require confirmation, what may not be done).
-
-- **Enforcement points**  
-  During ingestion (what gets stored and how).  
-  During retrieval (what context can be returned).  
-  At MCP/API boundaries (what tools and resources agents can see and call).
+6. **Sync Jobs & Observability (data/ + indexers/)**  
+   - `data/` and `indexers/` track job and run status, failures, retries, and provide visibility into ingestion health.
 
 ---
 
-## 7. Rules for AI Assistants Editing This Repo
+## 6. Retrieval & Decision Engine
 
-- **Respect microservice boundaries**  
-  Keep logic inside the service that owns that domain.  
-  Do not import internal modules from another service; use HTTP, GraphQL, queues, or shared crates.
+### 6.1 Retrieval Components
 
-- **Choose the right home for new logic**  
-  Auth concerns go to `auth/`.  
-  Connector and ingestion logic goes to `data/`.  
-  Embedding and vector search logic goes to `embedding/`.  
-  Pricing, plans, and limits go to `billing/`.  
-  MCP tools and AI-facing resources go to `mcp/`.  
-  UI/UX changes go to `frontend/`.  
-  Cross-cutting models/config/middleware go to `shared/` only if used by multiple services.
+- **vector_rag/** – Fast semantic search over chunks using embeddings.  
+- **graph_rag/** – Graph traversal and relationship‑aware retrieval.  
+- **decision_engine/** – Orchestrates both to produce the best context for a query.
 
-- **Database and migrations**  
-  Put migrations in the crate that owns the data’s domain.  
-  Avoid cross-service table mutations unless clearly documented and justified.  
-  Assume NeonDB via `DATABASE_URL_NEON` is the primary database.
+### 6.2 Query Flow
 
-- **APIs over backdoors**  
-  Prefer HTTP/GraphQL APIs or events when one service needs another’s data or functionality.  
-  Do not rely on reading another service’s tables directly unless explicitly allowed.
+1. **Client request**  
+   - A client (frontend, backend API consumer, or MCP tool) sends a natural language query plus optional filters (sources, repos, time range, tags).
 
-- **Testing strategy**  
-  Unit tests live inside each service crate.  
-  Cross-service and integration tests go under `tests/`, using services over HTTP/MCP instead of internal imports.
+2. **Decision Engine (decision_engine/)**  
+   - Receives the query and filters.  
+   - Chooses a strategy:
+     - **Vector** – for direct “find docs/code about X” questions.
+     - **Graph** – for “who/what depends on/related to” questions.
+     - **Hybrid** – for complex “explain how X works / how things connect” queries.
+     - **Auto** – rule‑based choice based on query patterns and filters.
+   - Calls `vector_rag/` and/or `graph_rag/` in parallel as needed.
 
-- **Security and privacy**  
-  Always consider tenant boundaries, RBAC, and rule system impact when exposing new features.  
-  Include necessary metadata to enable rule-based filtering and auditing.
+3. **Fusion & Ranking**  
+   - `decision_engine/` merges vector and graph results, de‑duplicates them, and re‑ranks based on relevance, diversity, and provenance.  
+   - It returns **context blocks** (chunks + metadata + provenance) to the caller.
 
-- **Assistant behavior style**  
-  Be concise, use Markdown, and avoid unnecessary chatter.  
-  Prefer concrete changes or tool-based proposals over vague advice.  
-  When unsure, read relevant files or ask for clarification instead of guessing.
+4. **Delivery to Agents**  
+   - **backend/** exposes HTTP/GraphQL endpoints for frontend and external clients.  
+   - **mcp/** exposes MCP tools/resources so IDE‑embedded agents can call the same retrieval stack.  
+   - Agents receive structured, filtered, tenant‑safe context ready to stuff into prompts.
+
+5. **Caching**  
+   - Redis caches:
+     - Connector responses (to reduce upstream API calls).
+     - Chunking/processing results (for incremental sync).  
+     - Query results (for repeated queries at retrieval time).
 
 ---
 
-## 8. Roadmap & Priorities (High-Level)
+## 7. What Users Expect
 
-- **Connectors**  
-  Harden existing connectors (GitHub, local files, Google Drive, Bitbucket, URL crawler, Slack, Dropbox).  
-  Add connectors for Notion, Confluence, JIRA, OneDrive, and additional SaaS tools.
+From a **user/tenant** perspective, ConHub should provide:
 
-- **Retrieval quality**  
-  Improve chunking strategies per content type.  
-  Enhance hybrid retrieval (semantic + keyword + metadata filtering).  
-  Optimize context packaging for different agent types and tasks.
+- **Easy connections**  
+  - Connect GitHub, cloud docs, Slack, and URLs through a UI.  
+  - Choose repos, folders, or channels to index.
 
-- **Rules and governance**  
-  Expand the rule language for per-tenant and per-agent policies.  
-  Improve auditing and explainability of why specific context was returned or blocked.
+- **Robust ingestion**  
+  - Initial full sync of selected sources.  
+  - Automatic incremental syncs that keep the knowledge layer up to date.  
+  - Clear status and error reporting for sync jobs.
 
-- **Knowledge graph and multi-agent workflows**  
-  Model relationships between entities (files, issues, PRs, people, systems).  
-  Enable coordinated workflows across multiple agents over the same knowledge layer.
+- **High‑quality retrieval**  
+  - Ask natural language questions like:
+    - “How does authentication work?”  
+    - “Who worked on the billing module and what did they change?”  
+    - “Show me all Slack conversations related to this incident.”  
+  - Receive **small, targeted, explainable context snippets** from code, docs, and chat.
+
+- **Consistency across agents**  
+  - The same tenant‑filtered context regardless of whether the query comes from the web UI, an IDE, MCP, or a CLI agent.
+
+- **Safety and governance**  
+  - No cross‑tenant leakage.  
+  - Respect repo/space/channel permissions.  
+  - Central rules that can block/allow sources, domains, or data types.
+
+---
+
+## 8. How This Relates to Other Docs
+
+- Use **this file** for a **mental model of the product and end‑to‑end architecture**.  
+- Use [.windsurf/rules/microservice-guide.md](cci:7://file:///c:/Users/risha/Desktop/Work/ConHub/.windsurf/rules/microservice-guide.md:0:0-0:0) and `docs/architecture/microservices.md` for:
+  - Precise per‑service boundaries and responsibilities.
+  - Rules for where new code should live.
+  - Detailed dependency and communication patterns.
+
+Together, these documents should keep all AI assistants and human contributors aligned on **what ConHub is**, **how the data flows**, and **where new logic belongs**.

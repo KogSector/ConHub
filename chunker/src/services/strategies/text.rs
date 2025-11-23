@@ -120,7 +120,7 @@ impl TextChunker {
                     chunks.push(Chunk {
                         chunk_id,
                         source_item_id: source_item.id,
-                        chunk_index,
+                        chunk_index: chunk_index as u32,
                         content: chunk_str,
                         start_offset: Some(start as u32),
                         end_offset: Some(chunk_end as u32),

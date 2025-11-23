@@ -10,7 +10,7 @@ use conhub_models::chunking::{
 use crate::models::AppState;
 use crate::services::embedding_client::EmbeddingClient;
 use crate::services::graph_client::GraphClient;
-use crate::services::strategies::{CodeChunker, TextChunker, ChatChunker};
+use crate::services::strategies::{CodeChunker, TextChunker, ChatChunker, AstCodeChunker, MarkdownChunker};
 
 pub struct ChunkerService {
     embedding_client: EmbeddingClient,
@@ -57,20 +57,54 @@ impl ChunkerService {
                 source_item.source_kind
             );
 
-            // Chunk the item based on its type
-            let chunks = match source_item.source_kind {
-                SourceKind::CodeRepo => {
-                    CodeChunker::chunk(source_item)?
-                }
-                SourceKind::Document => {
-                    TextChunker::chunk(source_item)?
-                }
-                SourceKind::Chat => {
-                    ChatChunker::chunk(source_item)?
-                }
-                _ => {
-                    // Default to text chunker for other types
-                    TextChunker::chunk(source_item)?
+            // Try cache first
+            let cache_key_strategy = match source_item.source_kind {
+                SourceKind::CodeRepo => "ast_code",
+                SourceKind::Document => "markdown",
+                SourceKind::Chat => "chat",
+                _ => "text",
+            };
+
+            let chunks = {
+                let mut cache = state.cache.write().await;
+                if let Ok(Some(cached_chunks)) = cache.get_chunks(&source_item.content, cache_key_strategy).await {
+                    info!("🎯 Using cached chunks for item {}", source_item.id);
+                    cached_chunks
+                } else {
+                    // Chunk the item based on its type with enhanced strategies
+                    let chunks = match source_item.source_kind {
+                        SourceKind::CodeRepo => {
+                            // Try AST-based chunking first, fallback to regex if unsupported language
+                            AstCodeChunker::chunk(source_item)
+                                .or_else(|_| CodeChunker::chunk(source_item))?
+                        }
+                        SourceKind::Document => {
+                            // Check if markdown
+                            if source_item.content_type.contains("markdown") || 
+                               source_item.metadata.get("path")
+                                   .and_then(|v| v.as_str())
+                                   .map(|p| p.ends_with(".md"))
+                                   .unwrap_or(false) {
+                                MarkdownChunker::chunk(source_item)?
+                            } else {
+                                TextChunker::chunk(source_item)?
+                            }
+                        }
+                        SourceKind::Chat => {
+                            ChatChunker::chunk(source_item)?
+                        }
+                        _ => {
+                            // Default to text chunker for other types
+                            TextChunker::chunk(source_item)?
+                        }
+                    };
+
+                    // Cache the chunks
+                    if let Err(e) = cache.set_chunks(&source_item.content, cache_key_strategy, &chunks).await {
+                        warn!("⚠️  Failed to cache chunks: {}", e);
+                    }
+
+                    chunks
                 }
             };
 

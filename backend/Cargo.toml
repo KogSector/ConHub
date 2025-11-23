@@ -46,6 +46,9 @@ anyhow = "1.0"
 # UUID generation
 uuid = { version = "1.6", features = ["v4", "serde"] }
 
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
 # Module dependencies (local workspace members)
 conhub-models = { path = "../shared/models" }
 conhub-utils = { path = "../shared/utils" }

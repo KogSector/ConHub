@@ -13,11 +13,11 @@ WORKDIR /app
 # Copy shared dependencies first
 COPY shared /app/shared
 
-# Copy graph service
-COPY graph /app/graph
+# Copy graph_rag service
+COPY graph_rag /app/graph_rag
 
 # Build the service
-WORKDIR /app/graph
+WORKDIR /app/graph_rag
 RUN cargo build --release
 
 # Production image
@@ -35,13 +35,13 @@ RUN useradd -m -u 1001 conhub
 WORKDIR /app
 
 # Copy binary
-COPY --from=builder /app/graph/target/release/graph /app/graph
+COPY --from=builder /app/graph_rag/target/release/graph_rag /app/graph_rag
 
 # Set ownership
 RUN chown -R conhub:conhub /app
 
 USER conhub
 
-EXPOSE 8006
+EXPOSE 3019
 
-CMD ["./graph"]
+CMD ["./graph_rag"]
