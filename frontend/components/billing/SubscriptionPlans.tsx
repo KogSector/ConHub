@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Check, Star, Zap, Building } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { billingApiClient } from '@/lib/api'
 
 interface SubscriptionPlan {
   id: string
@@ -35,11 +36,8 @@ export function SubscriptionPlans() {
 
   const fetchPlans = async () => {
     try {
-      const response = await fetch('/api/billing/plans')
-      if (response.ok) {
-        const plansData = await response.json()
-        setPlans(plansData)
-      }
+      const plansData = await billingApiClient.get<SubscriptionPlan[]>('/api/billing/plans')
+      setPlans(plansData)
     } catch (error) {
       console.error('Failed to fetch plans:', error)
     }
@@ -47,11 +45,9 @@ export function SubscriptionPlans() {
 
   const fetchCurrentSubscription = async () => {
     try {
-      const response = await fetch('/api/billing/subscription', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+      const headers: Record<string, string> = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const response = await fetch('/api/billing/subscription', { headers })
       if (response.ok) {
         const subscription = await response.json()
         setCurrentSubscription(subscription)
@@ -153,6 +149,52 @@ export function SubscriptionPlans() {
       featureList.push('Custom integrations')
     }
 
+    if (features.context_routing) {
+      featureList.push('Advanced context routing')
+    }
+    if (features.priority_support) {
+      featureList.push('Priority support')
+    }
+    if (features.analytics_dashboard) {
+      featureList.push('Analytics dashboard')
+    }
+    if (features.team_members) {
+      featureList.push(`Up to ${features.team_members} team members`)
+    }
+    if (features.team_permissions) {
+      featureList.push('Advanced team permissions')
+    }
+    if (features.analytics_insights) {
+      featureList.push('Team analytics & insights')
+    }
+    if (features.phone_support) {
+      featureList.push('Priority phone support')
+    }
+    if (features.api_access) {
+      featureList.push('API access')
+    }
+    if (features.custom_workflows) {
+      featureList.push('Custom workflows')
+    }
+    if (features.advanced_integrations) {
+      featureList.push('Advanced integrations')
+    }
+    if (features.compliance) {
+      featureList.push('Advanced compliance')
+    }
+    if (features.dedicated_support) {
+      featureList.push('Dedicated support')
+    }
+    if (features.custom_deployment) {
+      featureList.push('Custom deployment')
+    }
+    if (features.sla) {
+      featureList.push('SLA guarantees')
+    }
+    if (features.white_label) {
+      featureList.push('White-label options')
+    }
+
     return featureList
   }
 
@@ -194,7 +236,7 @@ export function SubscriptionPlans() {
               plan.tier === 'team' ? 'border-primary shadow-lg' : ''
             } ${isCurrentPlan(plan.id) ? 'ring-2 ring-primary' : ''}`}
           >
-            {plan.tier === 'team' && (
+            {plan.tier === 'pro' && (
               <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2">
                 Most Popular
               </Badge>
@@ -253,20 +295,20 @@ export function SubscriptionPlans() {
           <CardHeader>
             <CardTitle>Current Subscription</CardTitle>
             <CardDescription>
-              You are currently on the {currentSubscription.plan.name}
+              You are currently on the {currentSubscription?.plan?.name ?? 'N/A'}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">
-                  Next billing: {new Date(currentSubscription.subscription.current_period_end).toLocaleDateString()}
+                  Next billing: {currentSubscription?.subscription?.current_period_end ? new Date(currentSubscription.subscription.current_period_end).toLocaleDateString() : 'N/A'}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Status: {currentSubscription.subscription.status}
+                  Status: {currentSubscription?.subscription?.status ?? 'N/A'}
                 </p>
               </div>
-              {currentSubscription.subscription.status === 'active' && (
+              {currentSubscription?.subscription?.status === 'active' && (
                 <Button variant="outline" size="sm">
                   Manage Subscription
                 </Button>

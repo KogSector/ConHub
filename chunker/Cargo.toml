@@ -40,3 +40,32 @@ lazy_static = "1.4"
 
 # Async traits
 async-trait = "0.1"
+
+# Advanced chunking dependencies
+# Tree-sitter for AST-based code parsing
+tree-sitter = "0.20"
+tree-sitter-rust = "0.20"
+tree-sitter-python = "0.20"
+tree-sitter-typescript = "0.20"
+tree-sitter-javascript = "0.20"
+tree-sitter-go = "0.20"
+tree-sitter-java = "0.20"
+tree-sitter-c = "0.20"
+tree-sitter-cpp = "0.20"
+
+# Token counting for LLM context limits
+tiktoken-rs = "0.5"
+
+# Markdown parsing
+comrak = { version = "0.18", default-features = false }
+pulldown-cmark = "0.9"
+
+# HTML parsing
+html5ever = "0.26"
+markup5ever_rcdom = "0.2"
+
+# Redis for caching
+redis = { version = "0.23", features = ["tokio-comp", "connection-manager"] }
+
+# SHA256 for cache keys
+sha2 = "0.10"

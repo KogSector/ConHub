@@ -6,11 +6,13 @@ use conhub_models::chunking::ChunkJobStatus;
 
 use crate::services::embedding_client::EmbeddingClient;
 use crate::services::graph_client::GraphClient;
+use crate::services::cache::ChunkCache;
 
 /// Application state shared across handlers
 pub struct AppState {
     pub embedding_client: EmbeddingClient,
     pub graph_client: GraphClient,
+    pub cache: RwLock<ChunkCache>,
     pub max_concurrent_jobs: usize,
     pub jobs: RwLock<HashMap<Uuid, JobHandle>>,
 }

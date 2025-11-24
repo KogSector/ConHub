@@ -3,17 +3,21 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth0 } from '@/contexts/auth0-context'
+import { apiClient } from '@/lib/api'
+import { useAuth } from '@/contexts/auth-context'
 
 export default function AuthCallbackPage() {
   const params = useSearchParams()
   const router = useRouter()
   const { handleAuth0Callback } = useAuth0()
+  const { token } = useAuth()
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(true)
 
   useEffect(() => {
     const code = params.get('code')
     const state = params.get('state')
+    const provider = params.get('provider')
     const errorParam = params.get('error')
     const errorDescription = params.get('error_description')
 
@@ -24,9 +28,9 @@ export default function AuthCallbackPage() {
       return
     }
 
-    // Validate state for CSRF protection
-    const savedState = localStorage.getItem('auth0_state')
-    if (state !== savedState) {
+    // Validate state for CSRF protection (Auth0 and provider flows)
+    const savedState = localStorage.getItem('auth0_state') || localStorage.getItem('oauth_state')
+    if (savedState && state !== savedState) {
       setError('Invalid state parameter - possible CSRF attack')
       setProcessing(false)
       return
@@ -38,7 +42,26 @@ export default function AuthCallbackPage() {
       return
     }
 
-    // Exchange authorization code for tokens
+    // Provider OAuth exchange
+    if (provider) {
+      const exchangeProvider = async () => {
+        try {
+          const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+          await apiClient.post('/api/auth/oauth/exchange', { provider, code }, headers)
+          try { window.opener?.postMessage({ type: 'oauth-connected', provider }, '*') } catch {}
+          setProcessing(false)
+          router.replace('/dashboard/connections')
+        } catch (e: any) {
+          console.error('OAuth exchange error:', e)
+          setError(e?.message || 'OAuth exchange failed')
+          setProcessing(false)
+        }
+      }
+      exchangeProvider()
+      return
+    }
+
+    // Exchange authorization code for tokens (Auth0)
     const exchangeCodeForTokens = async () => {
       try {
         const auth0Domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN

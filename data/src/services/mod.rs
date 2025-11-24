@@ -4,6 +4,7 @@ pub mod embedding_client;
 pub mod ingestion;
 pub mod chunker_client;
 pub mod graph_rag_ingestion;
+pub mod connector_cache;
 
 // Legacy modules (will be deprecated/removed in Graph RAG migration)
 #[deprecated(note = "Use chunker service instead")]

@@ -79,14 +79,10 @@ async fn main() -> Result<()> {
     tracing::info!("   Health Check: http://0.0.0.0:{}", port_num);
     tracing::info!("   Tools: vector_search, graph_query, data_fetch");
     
-    // Wait for both tasks
-    tokio::select! {
-        _ = mcp_handle => {
-            tracing::warn!("MCP server task finished");
-        }
-        _ = http_handle => {
-            tracing::warn!("HTTP server task finished");
-        }
+    // Keep service running as long as HTTP health server is alive
+    // Continue even if MCP stdio server exits (e.g., no attached client)
+    if let Err(e) = http_handle.await {
+        tracing::error!("HTTP server task error: {}", e);
     }
     
     Ok(())

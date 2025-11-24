@@ -159,6 +159,7 @@ fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewar
         scope = scope
             .route("/login", web::post().to(handlers::auth::login))
             .route("/register", web::post().to(handlers::auth::register))
+            .route("/connections/current", web::get().to(handlers::auth::list_auth_connections_current))
             .service(
                 web::scope("")
                     .wrap(auth_middleware)
@@ -167,6 +168,15 @@ fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewar
                     .route("/verify", web::post().to(handlers::auth::verify_token))
                     .route("/refresh", web::post().to(handlers::auth::refresh_token))
                     .route("/profile", web::get().to(handlers::auth::get_profile))
+                    .route("/connections", web::get().to(handlers::auth::list_auth_connections))
+                    .route("/connections/{id}", web::delete().to(handlers::auth::disconnect_auth_connection))
+                    .route("/oauth/url", web::get().to(handlers::auth::oauth_url))
+                    .route("/oauth/exchange", web::post().to(handlers::auth::oauth_exchange))
+                    .route("/repos/github", web::get().to(handlers::auth::list_github_repos))
+                    .route("/repos/github/branches", web::get().to(handlers::auth::list_github_branches))
+                    .route("/repos/bitbucket", web::get().to(handlers::auth::list_bitbucket_repos))
+                    .route("/repos/bitbucket/branches", web::get().to(handlers::auth::list_bitbucket_branches))
+                    .route("/repos/check", web::post().to(handlers::auth::check_repo))
                     .service(
                         web::scope("/admin")
                             .wrap(role_auth_middleware(vec![UserRole::Admin]))
@@ -182,6 +192,7 @@ fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewar
             .route("/me", web::get().to(handlers::auth::disabled))
             .route("/refresh", web::post().to(handlers::auth::disabled))
             .route("/profile", web::get().to(handlers::auth::disabled))
+            .route("/connections", web::get().to(handlers::auth::list_auth_connections_current))
             .service(
                 web::scope("/admin")
                     .route("/users", web::get().to(handlers::auth::disabled))

@@ -19,10 +19,13 @@ import GmailIcon from '@/components/icons/GmailIcon'
 import DropboxIcon from '@/components/icons/DropboxIcon'
 import LinkedInIcon from '@/components/icons/LinkedInIcon'
 import NotionIcon from '@/components/icons/NotionIcon'
+import JiraIcon from '@/components/icons/JiraIcon'
+import ConfluenceIcon from '@/components/icons/ConfluenceIcon'
+import CustomAppsIcon from '@/components/icons/CustomAppsIcon'
 
 interface SocialConnection {
   id: string;
-  platform: 'slack' | 'notion' | 'google_drive' | 'gmail' | 'dropbox' | 'linkedin' | 'github' | 'bitbucket' | 'gitlab';
+  platform: 'slack' | 'notion' | 'google_drive' | 'gmail' | 'dropbox' | 'linkedin' | 'github' | 'bitbucket' | 'gitlab' | 'jira' | 'confluence' | 'custom_apps';
   username: string;
   is_active: boolean;
   connected_at: string;
@@ -38,7 +41,10 @@ const PLATFORM_CONFIGS = {
   linkedin: { name: 'LinkedIn', description: 'Connect professional network', icon: (cls: string) => <LinkedInIcon className={cls} /> },
   github: { name: 'GitHub', description: 'Connect your GitHub account', icon: (cls: string) => <GitHubIcon className={cls} /> },
   bitbucket: { name: 'Bitbucket', description: 'Connect your Bitbucket account', icon: (cls: string) => <BitbucketIcon className={cls} /> },
-  gitlab: { name: 'GitLab', description: 'Connect your GitLab account', icon: (cls: string) => <GitLabIcon className={cls} /> }
+  gitlab: { name: 'GitLab', description: 'Connect your GitLab account', icon: (cls: string) => <GitLabIcon className={cls} /> },
+  jira: { name: 'Jira', description: 'Sync issues and projects', icon: (cls: string) => <JiraIcon className={cls} /> },
+  confluence: { name: 'Confluence', description: 'Sync pages and spaces', icon: (cls: string) => <ConfluenceIcon className={cls} /> },
+  custom_apps: { name: 'Custom Apps', description: 'Integrate third party apps', icon: (cls: string) => <CustomAppsIcon className={cls} /> },
 } as const;
 
 export function SocialConnections() {

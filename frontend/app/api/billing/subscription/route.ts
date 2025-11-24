@@ -5,10 +5,9 @@ import { billingApiClient } from '@/lib/api'
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) return NextResponse.json({ error: 'Authorization required' }, { status: 401 })
-
-    const resp = await billingApiClient.get('/api/billing/subscription', { Authorization: authHeader })
+    let authHeader = request.headers.get('authorization') || undefined
+    if (authHeader && /null|undefined/i.test(authHeader)) authHeader = undefined
+    const resp = await billingApiClient.get('/api/billing/subscription', authHeader ? { Authorization: authHeader } : undefined)
     return NextResponse.json(resp)
   } catch (error) {
     console.error('Error fetching subscription:', error)
@@ -18,11 +17,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) return NextResponse.json({ error: 'Authorization required' }, { status: 401 })
-
     const body = await request.json()
-    const resp = await billingApiClient.post('/api/billing/subscription', body, { Authorization: authHeader })
+    let authHeader = request.headers.get('authorization') || undefined
+    if (authHeader && /null|undefined/i.test(authHeader)) authHeader = undefined
+    const resp = await billingApiClient.post('/api/billing/subscription', body, authHeader ? { Authorization: authHeader } : undefined)
     return NextResponse.json(resp)
   } catch (error) {
     console.error('Error creating subscription:', error)
@@ -32,11 +30,10 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) return NextResponse.json({ error: 'Authorization required' }, { status: 401 })
-
     const body = await request.json()
-    const resp = await billingApiClient.put('/api/billing/subscription', body, { Authorization: authHeader })
+    let authHeader = request.headers.get('authorization') || undefined
+    if (authHeader && /null|undefined/i.test(authHeader)) authHeader = undefined
+    const resp = await billingApiClient.put('/api/billing/subscription', body, authHeader ? { Authorization: authHeader } : undefined)
     return NextResponse.json(resp)
   } catch (error) {
     console.error('Error updating subscription:', error)

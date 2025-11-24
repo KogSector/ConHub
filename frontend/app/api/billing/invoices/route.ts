@@ -5,16 +5,14 @@ import { billingApiClient } from '@/lib/api'
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Authorization required' }, { status: 401 })
-    }
+    let authHeader = request.headers.get('authorization') || undefined
+    if (authHeader && /null|undefined/i.test(authHeader)) authHeader = undefined
 
     const url = new URL(request.url)
     const query = url.searchParams.toString()
     const endpoint = `/api/billing/invoices${query ? `?${query}` : ''}`
 
-    const resp = await billingApiClient.get(endpoint, { Authorization: authHeader })
+    const resp = await billingApiClient.get(endpoint, authHeader ? { Authorization: authHeader } : undefined)
 
     // Unwrap common response shapes to return a plain array as the UI expects
     let data: unknown = resp as unknown

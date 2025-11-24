@@ -23,7 +23,7 @@
     "db:reset": "dotenv -e .env.example -- node scripts/database/reset-database.js",
     "dev:security": "cd security && cargo run",
     "dev:webhook": "cd webhook && cargo run",
-    "dev:embedding": "cd embedding && cargo run",
+    "dev:embedding": "cd vector_rag && cargo run",
     "test": "cd tests && python -m pytest -v",
     "validate": "node scripts/validate_microservices.js"
   },

@@ -39,6 +39,8 @@ async fn main() -> std::io::Result<()> {
     let graph_url = env::var("GRAPH_SERVICE_URL")
         .unwrap_or_else(|_| "http://localhost:3015".to_string());
 
+    let redis_url = env::var("REDIS_URL").ok();
+
     let max_concurrent_jobs = env::var("MAX_CONCURRENT_JOBS")
         .unwrap_or_else(|_| "10".to_string())
         .parse::<usize>()
@@ -46,12 +48,21 @@ async fn main() -> std::io::Result<()> {
 
     info!("📡 Embedding service: {}", embedding_url);
     info!("🔗 Graph service: {}", graph_url);
+    if let Some(ref redis) = redis_url {
+        info!("💾 Redis cache: {}", redis);
+    } else {
+        info!("💾 Redis cache: disabled (no REDIS_URL)");
+    }
     info!("⚙️  Max concurrent jobs: {}", max_concurrent_jobs);
+
+    // Initialize cache
+    let cache = services::cache::ChunkCache::new(redis_url).await;
 
     // Create app state
     let state = Arc::new(AppState {
         embedding_client: services::embedding_client::EmbeddingClient::new(embedding_url),
         graph_client: services::graph_client::GraphClient::new(graph_url),
+        cache: RwLock::new(cache),
         max_concurrent_jobs,
         jobs: RwLock::new(HashMap::new()),
     });

@@ -1308,3 +1308,36 @@ pub async fn oauth_exchange(
         "connection_id": final_connection_id
     })))
 }
+
+pub async fn list_auth_connections_current(
+    pool_opt: web::Data<Option<PgPool>>,
+) -> Result<HttpResponse> {
+    let pool = match pool_opt.get_ref() { Some(p) => p, None => return Ok(HttpResponse::ServiceUnavailable().json(json!({"error": "Database service unavailable"}))) };
+    let demo_user_id = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").map_err(|_| actix_web::error::ErrorBadRequest("Invalid demo user id"))?;
+    let rows = sqlx::query(
+        r#"
+        SELECT id, platform, username, is_active, created_at AS connected_at, last_sync
+        FROM social_connections
+        WHERE user_id = $1
+        ORDER BY updated_at DESC
+        "#
+    )
+    .bind(demo_user_id)
+    .fetch_all(pool)
+    .await;
+
+    match rows {
+        Ok(list) => {
+            let data: Vec<SocialConnectionDto> = list.into_iter().map(|row| SocialConnectionDto {
+                id: row.get("id"),
+                platform: row.get("platform"),
+                username: row.get("username"),
+                is_active: row.get("is_active"),
+                connected_at: row.get("connected_at"),
+                last_sync: row.get("last_sync"),
+            }).collect();
+            Ok(HttpResponse::Ok().json(json!({"success": true, "data": data})))
+        },
+        Err(e) => Ok(HttpResponse::InternalServerError().json(json!({"error": format!("Failed to list connections: {}", e)})))
+    }
+}

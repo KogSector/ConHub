@@ -54,14 +54,14 @@ services:
       - AUTH_SERVICE_URL=http://auth:3010
       - BILLING_SERVICE_URL=http://billing:3011
       - DATA_SERVICE_URL=http://data:3013
-      - EMBEDDING_SERVICE_URL=http://embedding:8082
+      - VECTOR_RAG_SERVICE_URL=http://vector_rag:8082
     depends_on:
       - postgres
       - redis
       - qdrant
       - auth
       - data
-      - embedding
+      - vector_rag
     networks:
       - conhub-network
 
@@ -143,19 +143,25 @@ services:
       - ENV_MODE=docker
       - RUST_LOG=info
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
+      - REDIS_URL=redis://redis:6379
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_USER=neo4j
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:-graphpassword}
       - QDRANT_URL=http://qdrant:6333
-      - EMBEDDING_SERVICE_URL=http://embedding:8082
+      - VECTOR_RAG_SERVICE_URL=http://vector_rag:8082
+      - CHUNKER_SERVICE_URL=http://chunker:3017
+      - GRAPH_SERVICE_URL=http://graph_rag:3019
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - GITLAB_TOKEN=${GITLAB_TOKEN}
       - NOTION_TOKEN=${NOTION_TOKEN}
     depends_on:
       - postgres
+      - redis
       - neo4j
       - qdrant
-      - embedding
+      - vector_rag
+      - chunker
+      - graph_rag
     networks:
       - conhub-network
 
@@ -200,19 +206,19 @@ services:
     networks:
       - conhub-network
 
-  # Embedding Service
-  embedding:
+  # Vector RAG Service
+  vector_rag:
     build:
       context: .
-      dockerfile: embedding/Dockerfile
-    container_name: conhub-embedding
+      dockerfile: vector_rag/Dockerfile
+    container_name: conhub-vector-rag
     ports:
       - "8082:8082"
     environment:
       - ENV_MODE=docker
       - RUST_LOG=info
-      - EMBEDDING_PORT=8082
-      - EMBEDDING_HOST=0.0.0.0
+      - VECTOR_RAG_PORT=8082
+      - VECTOR_RAG_HOST=0.0.0.0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - COHERE_API_KEY=${COHERE_API_KEY}
@@ -249,6 +255,74 @@ services:
       - NOTION_TOKEN=${NOTION_TOKEN}
     depends_on:
       - postgres
+    networks:
+      - conhub-network
+
+  # Chunker Service
+  chunker:
+    build:
+      context: .
+      dockerfile: chunker/Dockerfile
+    container_name: conhub-chunker
+    ports:
+      - "3017:3017"
+    environment:
+      - ENV_MODE=docker
+      - RUST_LOG=info
+      - CHUNKER_PORT=3017
+      - CHUNKER_HOST=0.0.0.0
+      - REDIS_URL=redis://redis:6379
+      - VECTOR_RAG_SERVICE_URL=http://vector_rag:8082
+      - GRAPH_SERVICE_URL=http://graph_rag:3019
+      - MAX_CONCURRENT_JOBS=10
+    depends_on:
+      - redis
+      - vector_rag
+      - graph_rag
+    networks:
+      - conhub-network
+
+  # Graph RAG Service
+  graph_rag:
+    build:
+      context: .
+      dockerfile: graph_rag/Dockerfile
+    container_name: conhub-graph-rag
+    ports:
+      - "3019:3019"
+    environment:
+      - ENV_MODE=docker
+      - RUST_LOG=info
+      - GRAPH_SERVICE_PORT=3019
+      - GRAPH_SERVICE_HOST=0.0.0.0
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-graphpassword}
+    depends_on:
+      - neo4j
+    networks:
+      - conhub-network
+
+  # Decision Engine Service
+  decision-engine:
+    build:
+      context: .
+      dockerfile: decision_engine/Dockerfile
+    container_name: conhub-decision-engine
+    ports:
+      - "3018:3018"
+    environment:
+      - ENV_MODE=docker
+      - RUST_LOG=info
+      - DECISION_ENGINE_PORT=3018
+      - DECISION_ENGINE_HOST=0.0.0.0
+      - REDIS_URL=redis://redis:6379
+      - VECTOR_RAG_URL=http://vector_rag:8082
+      - GRAPH_RAG_URL=http://graph_rag:3019
+    depends_on:
+      - redis
+      - vector_rag
+      - graph_rag
     networks:
       - conhub-network
 

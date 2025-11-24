@@ -37,11 +37,9 @@ export function PaymentMethods() {
 
   const fetchPaymentMethods = async () => {
     try {
-      const response = await fetch('/api/billing/payment-methods', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+      const headers: Record<string, string> = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const response = await fetch('/api/billing/payment-methods', { headers })
       if (response.ok) {
         const methods = await response.json()
         setPaymentMethods(methods)
@@ -56,12 +54,11 @@ export function PaymentMethods() {
   const handleAddPaymentMethod = async (formData: FormData) => {
     setAdding(true)
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
       const response = await fetch('/api/billing/payment-methods', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           type: formData.get('type'),
           is_default: formData.get('is_default') === 'true',

@@ -14,7 +14,7 @@ const SERVICES = {
   client: { port: 3012, path: 'client', command: 'cargo', args: ['run'], healthPath: '/health', description: 'AI Client Service' },
   mcp: { port: 3004, path: 'mcp', command: 'cargo', args: ['run'], healthPath: '/health', description: 'MCP Protocol Service' },
   backend: { port: 8000, path: 'backend', command: 'cargo', args: ['run'], healthPath: '/health', description: 'GraphQL Gateway' },
-  embedding: { port: 8082, path: 'embedding', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Fusion Embeddings' },
+  embedding: { port: 8082, path: 'vector_rag', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Fusion Embeddings' },
   // indexers: { port: 8080, path: 'indexers', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Search & Indexing' }, // Removed - will be rewritten
   frontend: { port: 3000, path: 'frontend', command: 'npm.cmd', args: ['run', 'dev'], healthPath: '/', description: 'Next.js UI' }
 };
