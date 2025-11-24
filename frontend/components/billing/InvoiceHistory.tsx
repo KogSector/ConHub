@@ -33,11 +33,9 @@ export function InvoiceHistory() {
 
   const fetchInvoices = async () => {
     try {
-      const response = await fetch('/api/billing/invoices?limit=20', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+      const headers: Record<string, string> = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const response = await fetch('/api/billing/invoices?limit=20', { headers })
       if (response.ok) {
         const invoicesData = await response.json()
         setInvoices(invoicesData)

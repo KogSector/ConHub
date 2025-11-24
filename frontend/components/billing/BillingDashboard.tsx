@@ -59,12 +59,9 @@ export function BillingDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await fetch('/api/billing/dashboard', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const response = await fetch('/api/billing/dashboard', { headers })
 
       if (response.ok) {
         const dashboardData = await response.json()
@@ -217,15 +214,7 @@ export function BillingDashboard() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span>Repositories</span>
-              <span>{getUsageCount('repositories')} / {getUsageLimit('repositories')}</span>
-            </div>
-            <Progress value={getUsagePercentage('repositories')} className="h-2" />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>AI Queries</span>
+              <span>Requests</span>
               <span>{getUsageCount('ai_queries')} / {getUsageLimit('ai_queries')}</span>
             </div>
             <Progress value={getUsagePercentage('ai_queries')} className="h-2" />

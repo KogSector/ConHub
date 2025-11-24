@@ -5,12 +5,9 @@ import { billingApiClient } from '@/lib/api'
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Authorization required' }, { status: 401 })
-    }
-
-    const resp = await billingApiClient.get('/api/billing/dashboard', { Authorization: authHeader })
+    let authHeader = request.headers.get('authorization') || undefined
+    if (authHeader && /null|undefined/i.test(authHeader)) authHeader = undefined
+    const resp = await billingApiClient.get('/api/billing/dashboard', authHeader ? { Authorization: authHeader } : undefined)
     return NextResponse.json(resp)
   } catch (error) {
     console.error('Error fetching billing dashboard:', error)

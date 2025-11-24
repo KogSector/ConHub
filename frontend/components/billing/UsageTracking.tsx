@@ -38,11 +38,9 @@ export function UsageTracking() {
   const fetchUsageData = async () => {
     try {
       const periodStart = getPeriodStart(selectedPeriod)
-      const response = await fetch(`/api/billing/dashboard`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+      const headers: Record<string, string> = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const response = await fetch(`/api/billing/dashboard`, { headers })
       if (response.ok) {
         const data = await response.json()
         setUsageData(data.usage || [])
@@ -56,11 +54,9 @@ export function UsageTracking() {
 
   const fetchCurrentSubscription = async () => {
     try {
-      const response = await fetch('/api/billing/subscription', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+      const headers: Record<string, string> = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const response = await fetch('/api/billing/subscription', { headers })
       if (response.ok) {
         const subscription = await response.json()
         setCurrentSubscription(subscription)
@@ -110,8 +106,6 @@ export function UsageTracking() {
 
   const getResourceIcon = (resourceType: string) => {
     switch (resourceType) {
-      case 'repositories':
-        return <FolderOpen className="h-5 w-5" />
       case 'ai_queries':
         return <Zap className="h-5 w-5" />
       case 'storage_gb':
@@ -123,10 +117,8 @@ export function UsageTracking() {
 
   const getResourceLabel = (resourceType: string) => {
     switch (resourceType) {
-      case 'repositories':
-        return 'Repositories'
       case 'ai_queries':
-        return 'AI Queries'
+        return 'Requests'
       case 'storage_gb':
         return 'Storage (GB)'
       default:
@@ -182,8 +174,8 @@ export function UsageTracking() {
       </div>
 
       {}
-      <div className="grid gap-6 md:grid-cols-3">
-        {['repositories', 'ai_queries', 'storage_gb'].map((resourceType) => (
+      <div className="grid gap-6 md:grid-cols-2">
+        {['ai_queries', 'storage_gb'].map((resourceType) => (
           <Card key={resourceType}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">

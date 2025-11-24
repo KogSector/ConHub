@@ -11,7 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { GitBranch, Github, GitlabIcon, AlertCircle } from 'lucide-react';
+import { GitBranch, AlertCircle } from 'lucide-react';
+import GitHubIcon from '@/components/icons/GitHubIcon';
+import GitLabIcon from '@/components/icons/GitLabIcon';
 import BitbucketIcon from '@/components/icons/BitbucketIcon';
 
 interface ConnectRepositoryDialogProps {
@@ -368,13 +370,13 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
               <SelectContent>
                 <SelectItem value="github">
                   <div className="flex items-center gap-2">
-                    <Github className="w-4 h-4" />
+                    <GitHubIcon className="w-4 h-4" />
                     GitHub
                   </div>
                 </SelectItem>
                 <SelectItem value="gitlab">
                   <div className="flex items-center gap-2">
-                    <GitlabIcon className="w-4 h-4" />
+                    <GitLabIcon className="w-4 h-4" />
                     GitLab
                   </div>
                 </SelectItem>

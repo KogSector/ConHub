@@ -13,38 +13,122 @@ impl BillingService {
     }
 
     pub async fn get_subscription_plans(&self) -> Result<Vec<SubscriptionPlan>, ServiceError> {
-        // Mock implementation - in real app, this would fetch from database
+        // Plans aligned with product pricing: Free, Pro, Team, Enterprise
         let plans = vec![
             SubscriptionPlan {
                 id: Uuid::new_v4(),
-                name: "Basic".to_string(),
-                description: Some("Basic plan with essential features".to_string()),
-                tier: "basic".to_string(),
-                price_monthly: rust_decimal::Decimal::new(999, 2), // $9.99
-                price_yearly: Some(rust_decimal::Decimal::new(9999, 2)), // $99.99
-                features: serde_json::json!({"support": "basic", "projects": 5}),
-                limits: serde_json::json!({"max_projects": 5}),
+                name: "Free".to_string(),
+                description: Some("Perfect for individual developers and small projects".to_string()),
+                tier: "free".to_string(),
+                price_monthly: rust_decimal::Decimal::new(0, 2),
+                price_yearly: None,
+                features: serde_json::json!({
+                    "repositories": 3,
+                    "ai_queries": 200,
+                    "storage_gb": 1,
+                    "support": "community",
+                    "advanced_search": false,
+                    "team_collaboration": false,
+                    "github_apps": false,
+                    "sso": false,
+                    "audit_logs": false,
+                    "custom_integrations": false
+                }),
+                limits: serde_json::json!({
+                    "max_repositories_per_month": 3,
+                    "max_ai_queries_per_month": 200,
+                    "max_storage_gb_per_month": 1
+                }),
                 is_active: true,
-                stripe_price_id: Some("price_basic_monthly".to_string()),
+                stripe_price_id: None,
                 created_at: chrono::Utc::now(),
                 updated_at: chrono::Utc::now(),
             },
             SubscriptionPlan {
                 id: Uuid::new_v4(),
                 name: "Pro".to_string(),
-                description: Some("Professional plan with advanced features".to_string()),
+                description: Some("Ideal for growing teams and multiple projects".to_string()),
                 tier: "pro".to_string(),
-                price_monthly: rust_decimal::Decimal::new(1999, 2), // $19.99
-                price_yearly: Some(rust_decimal::Decimal::new(19999, 2)), // $199.99
-                features: serde_json::json!({"support": "priority", "projects": "unlimited", "analytics": true}),
-                limits: serde_json::json!({"max_projects": null}),
+                price_monthly: rust_decimal::Decimal::new(2900, 2), // $29.00
+                price_yearly: Some(rust_decimal::Decimal::new(29000, 2)),
+                features: serde_json::json!({
+                    "repositories": "unlimited",
+                    "ai_queries": "unlimited",
+                    "advanced_search": true,
+                    "context_routing": true,
+                    "priority_support": true,
+                    "security": "enhanced",
+                    "team_collaboration": true,
+                    "custom_integrations": true,
+                    "analytics_dashboard": true
+                }),
+                limits: serde_json::json!({
+                    "max_repositories_per_month": null,
+                    "max_ai_queries_per_month": null,
+                    "max_storage_gb_per_month": 100
+                }),
                 is_active: true,
                 stripe_price_id: Some("price_pro_monthly".to_string()),
                 created_at: chrono::Utc::now(),
                 updated_at: chrono::Utc::now(),
             },
+            SubscriptionPlan {
+                id: Uuid::new_v4(),
+                name: "Team".to_string(),
+                description: Some("Perfect for established teams with advanced collaboration needs".to_string()),
+                tier: "team".to_string(),
+                price_monthly: rust_decimal::Decimal::new(9900, 2), // $99.00
+                price_yearly: Some(rust_decimal::Decimal::new(99000, 2)),
+                features: serde_json::json!({
+                    "repositories": "unlimited",
+                    "ai_queries": "unlimited",
+                    "team_members": 25,
+                    "team_permissions": true,
+                    "analytics_insights": true,
+                    "phone_support": true,
+                    "api_access": true,
+                    "custom_workflows": true,
+                    "advanced_integrations": true
+                }),
+                limits: serde_json::json!({
+                    "max_repositories_per_month": null,
+                    "max_ai_queries_per_month": null,
+                    "max_storage_gb_per_month": 500
+                }),
+                is_active: true,
+                stripe_price_id: Some("price_team_monthly".to_string()),
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            },
+            SubscriptionPlan {
+                id: Uuid::new_v4(),
+                name: "Enterprise".to_string(),
+                description: Some("For large organizations with specific requirements".to_string()),
+                tier: "enterprise".to_string(),
+                price_monthly: rust_decimal::Decimal::new(0, 2), // Custom pricing
+                price_yearly: None,
+                features: serde_json::json!({
+                    "repositories": "unlimited",
+                    "ai_queries": "unlimited",
+                    "team_members": "unlimited",
+                    "sso": true,
+                    "compliance": true,
+                    "dedicated_support": true,
+                    "custom_deployment": true,
+                    "sla": true,
+                    "white_label": true
+                }),
+                limits: serde_json::json!({
+                    "max_repositories_per_month": null,
+                    "max_ai_queries_per_month": null,
+                    "max_storage_gb_per_month": null
+                }),
+                is_active: true,
+                stripe_price_id: None,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            },
         ];
-        
         Ok(plans)
     }
 
