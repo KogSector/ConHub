@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
@@ -265,12 +265,14 @@ export function UsageTracking() {
               <div>
                 <h4 className="font-semibold mb-2">Plan Features</h4>
                 <div className="flex flex-wrap gap-1">
-                  {Object.entries(currentSubscription.plan.features).map(([key, value]) => (
-                    value && (
-                      <Badge key={key} variant="secondary" className="text-xs">
-                        {key.replace('_', ' ')}
-                      </Badge>
-                    )
+                  {Object.entries(currentSubscription.plan.features as Record<string, boolean>).map(([key, value]) => (
+                    value
+                      ? (
+                          <Badge key={key} variant="secondary" className="text-xs">
+                            {key.replace('_', ' ')}
+                          </Badge>
+                        )
+                      : null
                   ))}
                 </div>
               </div>

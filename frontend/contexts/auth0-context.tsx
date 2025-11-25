@@ -58,7 +58,7 @@ export function Auth0Provider({ children }: { children: ReactNode }) {
   const auth0Domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN
   const auth0ClientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID
   const auth0Audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE
-  const auth0RedirectUri = process.env.NEXT_PUBLIC_AUTH0_REDIRECT_URI || 'http://localhost:3000/auth/callback'
+  const auth0RedirectUri = 'http://localhost:3000';
   const auth0LogoutRedirectUri = process.env.NEXT_PUBLIC_AUTH0_LOGOUT_REDIRECT_URI || 'http://localhost:3000/'
 
   // Save session to localStorage

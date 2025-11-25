@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth0 } from '@/contexts/auth0-context'
 import { apiClient } from '@/lib/api'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function AuthCallbackPage() {
   const params = useSearchParams()
