@@ -7,22 +7,19 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/hooks/use-auth'
+import { useAuth0 } from '@auth0/auth0-react'
 import { User, Building, Mail, Eye, EyeOff, Lock } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 export function ProfileManagement() {
-  const { user, updateProfile, changePassword } = useAuth()
+  const { user, updateProfile } = useAuth()
+  const { loginWithRedirect } = useAuth0()
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [profileData, setProfileData] = useState({
     name: '',
     organization: '',
     avatar_url: ''
-  })
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
   })
   const [showPasswords, setShowPasswords] = useState({
     current: false,
@@ -62,34 +59,12 @@ export function ProfileManagement() {
     }
   }
 
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!changePassword) return
-
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setError('New passwords do not match')
-      return
-    }
-
-    if (passwordData.newPassword.length < 8) {
-      setError('New password must be at least 8 characters long')
-      return
-    }
-
-    setIsLoading(true)
-    setError('')
-    setMessage('')
-
-    try {
-      await changePassword(passwordData.currentPassword, passwordData.newPassword)
-      setMessage('Password changed successfully!')
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
-      setIsChangingPassword(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to change password')
-    } finally {
-      setIsLoading(false)
-    }
+  const handlePasswordReset = () => {
+    loginWithRedirect({
+      authorizationParams: {
+        screen_hint: 'forgot_password',
+      }
+    })
   }
 
   if (!user) {
@@ -102,7 +77,7 @@ export function ProfileManagement() {
 
   const userInitials = user.name
     .split(' ')
-    .map(n => n[0])
+    .map((n: string) => n[0])
     .join('')
     .toUpperCase()
     .slice(0, 2)
@@ -119,7 +94,6 @@ export function ProfileManagement() {
         </div>
       )}
 
-      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -131,7 +105,6 @@ export function ProfileManagement() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {}
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16">
               <AvatarImage src={user.avatar_url} alt={user.name} />
@@ -227,7 +200,6 @@ export function ProfileManagement() {
         </CardContent>
       </Card>
 
-      {}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -240,90 +212,20 @@ export function ProfileManagement() {
         </CardHeader>
         <CardContent>
           {isChangingPassword ? (
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="current-password">Current Password</Label>
-                <div className="relative">
-                  <Input
-                    id="current-password"
-                    type={showPasswords.current ? 'text' : 'password'}
-                    value={passwordData.currentPassword}
-                    onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
-                  >
-                    {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="new-password">New Password</Label>
-                <div className="relative">
-                  <Input
-                    id="new-password"
-                    type={showPasswords.new ? 'text' : 'password'}
-                    value={passwordData.newPassword}
-                    onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                    placeholder="At least 8 characters"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
-                  >
-                    {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">Confirm New Password</Label>
-                <div className="relative">
-                  <Input
-                    id="confirm-password"
-                    type={showPasswords.confirm ? 'text' : 'password'}
-                    value={passwordData.confirmPassword}
-                    onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
-                  >
-                    {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? 'Changing...' : 'Change Password'}
-                </Button>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Click the button below to reset your password. You'll be redirected to a secure page to complete the process.
+              </p>
+              <div className="flex justify-end">
                 <Button 
                   type="button" 
-                  variant="outline" 
-                  onClick={() => {
-                    setIsChangingPassword(false)
-                    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
-                  }}
+                  onClick={handlePasswordReset}
+                  variant="outline"
                 >
-                  Cancel
+                  Reset Password
                 </Button>
               </div>
-            </form>
+            </div>
           ) : (
             <Button onClick={() => setIsChangingPassword(true)}>
               Change Password

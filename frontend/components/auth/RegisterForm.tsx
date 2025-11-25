@@ -5,10 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 import { Eye, EyeOff, Mail, Lock, User, Building, ArrowRight, Sparkles } from 'lucide-react'
 import Link from 'next/link'
-import { signIn } from 'next-auth/react'
 import { SocialLoginButtons } from './social-login-buttons'
 
 
@@ -84,13 +83,13 @@ export function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [socialLoading, setSocialLoading] = useState<string | null>(null)
 
-  const { register } = useAuth()
+  const { register, loginWithRedirect } = useAuth()
 
   const handleSocialLogin = async (provider: string) => {
     setSocialLoading(provider)
     setError('')
     try {
-      await signIn(provider, { callbackUrl: '/dashboard' })
+      await loginWithRedirect()
     } catch (err) {
       setError(`Failed to sign in with ${provider}`)
       setSocialLoading(null)
