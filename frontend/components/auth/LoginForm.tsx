@@ -1,21 +1,16 @@
 'use client'
 
 import React, { useState } from 'react'
-
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth0 } from '@auth0/auth0-react'
-import auth0 from 'auth0-js'
 
-
+// Restore your actual project UI components
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 // ----------------------------------------------------------------------
-// BRAND LOGOS (Permanent - Do Not Delete)
-// These SVGs are hardcoded to ensure you get the exact brand colors.
+// BRAND LOGOS
 // ----------------------------------------------------------------------
 
 const GoogleLogo = ({ className }: { className?: string }) => (
@@ -85,55 +80,19 @@ function SocialLoginButtons({ mode, onSocialLogin, disabled }: SocialLoginButton
   )
 }
 
+// Named Export (helps if you import as { LoginForm })
 export function LoginForm() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  // 👇 3. Get the login function from the React SDK
+  // Use the REAL Auth0 hook
   const { loginWithRedirect } = useAuth0()
-
-  // Helper for Email/Password Login (Custom UI)
-  const getAuthClient = () => {
-    return new auth0.WebAuth({
-      domain: process.env.NEXT_PUBLIC_AUTH0_DOMAIN || '',
-      clientID: process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID || '',
-      redirectUri: typeof window !== 'undefined' ? window.location.origin : '', 
-      responseType: 'token id_token',
-      scope: 'openid profile email'
-    })
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    const webAuth = getAuthClient();
-
-    // Custom Form Logic (Legacy Method)
-    webAuth.login({
-      realm: 'Username-Password-Authentication', 
-      username: email,
-      password: password,
-    }, (err: any) => {
-      setIsLoading(false);
-      if (err) {
-        console.error("Auth0 Login Error:", err);
-        setError(err.description || 'Invalid email or password.');
-      }
-    });
-  };
 
   const handleSocialLogin = async (provider: string) => {
     setError('')
     setIsLoading(true)
     
     try {
-      // 👇 4. Use the React SDK for Social Login
-      // This allows specific providers (like 'github') but keeps the Navbar synced.
       await loginWithRedirect({
         authorizationParams: {
           connection: provider, // 'github' or 'google-oauth2'
@@ -146,7 +105,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden font-sans">
       {/* Background Elements */}
       <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
@@ -168,117 +127,31 @@ export function LoginForm() {
           <CardHeader className="space-y-1 text-center pb-6">
             <CardTitle className="text-3xl font-bold text-white">Welcome back</CardTitle>
             <CardDescription className="text-gray-300">
-              Sign in to continue your journey
+              Sign in with your preferred provider
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {error && (
-                <div className="p-4 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg backdrop-blur-sm">
-                  {error}
-                </div>
-              )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-200 font-medium">Email Address</Label>
-                <div className="relative group">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5 group-focus-within:text-purple-400 transition-colors" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-11 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-purple-400 focus:ring-purple-400/20 h-12"
-                    required
-                  />
-                </div>
+            
+            {error && (
+              <div className="p-4 text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg backdrop-blur-sm">
+                {error}
               </div>
+            )}
+            
+            {/* Loading State Spinner */}
+            {isLoading && (
+               <div className="flex justify-center mb-4">
+                  <div className="w-6 h-6 border-2 border-white/30 border-t-purple-400 rounded-full animate-spin"></div>
+               </div>
+            )}
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-gray-200 font-medium">Password</Label>
-                <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5 group-focus-within:text-purple-400 transition-colors" />
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-11 pr-12 bg-white/5 border-white/10 text-white placeholder:text-gray-400 focus:border-purple-400 focus:ring-purple-400/20 h-12"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 text-gray-400 hover:text-purple-400 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Main Submit Button (Standard height for form balance) */}
-              <Button
-                type="submit"
-                className="w-full h-12 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-purple-500/25 group mt-8"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span>Signing in...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center space-x-2">
-                    <span>Sign in</span>
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                )}
-              </Button>
-
-              <div className="text-center">
-                <p className="text-gray-300">
-                  Don&apos;t have an account?{' '}
-                  <Link 
-                    href="/auth/register" 
-                    className="font-semibold text-purple-400 hover:text-purple-300 transition-colors hover:underline"
-                  >
-                    Sign up
-                  </Link>
-                </p>
-                <p className="text-gray-400 text-sm mt-2">
-                  <Link 
-                    href="/auth/forgot-password" 
-                    className="hover:text-purple-400 transition-colors hover:underline"
-                  >
-                    Forgot your password?
-                  </Link>
-                </p>
-              </div>
-            </form>
-
-            {/* Social Login Section */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-slate-900/50 text-gray-400">Or</span>
-              </div>
-            </div>
-
+            {/* Social Login Buttons - Now the main focus */}
             <SocialLoginButtons 
               mode="login" 
               onSocialLogin={handleSocialLogin}
               disabled={isLoading}
             />
+
           </CardContent>
         </Card>
 
@@ -292,5 +165,5 @@ export function LoginForm() {
   )
 }
 
-// Add default export for the preview environment
+// Default Export (helps if you import as LoginForm)
 export default LoginForm
