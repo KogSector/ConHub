@@ -80,7 +80,7 @@ export const Navbar = () => {
               // STATE B: LOGGED OUT (Show Sign In)
               // This button now triggers the new handleLogin which goes to /login
               <Button variant="outline" size="sm" onClick={handleLogin}>
-                Sign In
+                Get Started -->
               </Button>
             )}
           </div>
