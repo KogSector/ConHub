@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { User, Mail, Building, Calendar, Upload } from 'lucide-react'
+import { User, Mail, Building, Calendar } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 export function ProfileSettings() {
@@ -19,7 +19,6 @@ export function ProfileSettings() {
     name: user?.name || '',
     email: user?.email || '',
     organization: user?.organization || '',
-    avatar_url: user?.avatar_url || '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,13 +46,9 @@ export function ProfileSettings() {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
+  const getInitial = (name: string) => {
+    const trimmed = name?.trim()
+    return trimmed ? trimmed.charAt(0).toUpperCase() : 'U'
   }
 
   const getSubscriptionColor = (tier: string) => {
@@ -88,15 +83,10 @@ export function ProfileSettings() {
           <div className="flex items-start gap-6">
             <div className="flex flex-col items-center gap-4">
               <Avatar className="h-20 w-20">
-                <AvatarImage src={user?.avatar_url} alt={user?.name} />
                 <AvatarFallback className="text-lg">
-                  {user?.name ? getInitials(user.name) : 'U'}
+                  {user?.name ? getInitial(user.name) : 'U'}
                 </AvatarFallback>
               </Avatar>
-              <Button variant="outline" size="sm">
-                <Upload className="h-4 w-4 mr-2" />
-                Change Photo
-              </Button>
             </div>
             
             <div className="flex-1 space-y-4">
@@ -197,16 +187,7 @@ export function ProfileSettings() {
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="avatar_url">Avatar URL</Label>
-              <Input
-                id="avatar_url"
-                type="url"
-                value={formData.avatar_url}
-                onChange={(e) => handleInputChange('avatar_url', e.target.value)}
-                placeholder="Enter avatar image URL (optional)"
-              />
-            </div>
+            
             
             <div className="flex justify-end">
               <Button type="submit" disabled={loading}>

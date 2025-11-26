@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,13 +15,9 @@ import { useAuth } from "@/hooks/use-auth";
 export function ProfileAvatar() {
   const { user, logout, isAuthenticated } = useAuth()
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
+  const getInitial = (name: string) => {
+    const trimmed = name?.trim()
+    return trimmed ? trimmed.charAt(0).toUpperCase() : 'U'
   }
 
   if (!isAuthenticated || !user) {
@@ -33,8 +29,7 @@ export function ProfileAvatar() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={user.avatar_url || "/placeholder.svg"} alt="Profile" />
-            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+            <AvatarFallback>{getInitial(user.name)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>

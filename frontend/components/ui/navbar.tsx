@@ -19,6 +19,11 @@ export const Navbar = () => {
   // We keep loginWithRedirect here just in case, but we won't use it in handleLogin anymore
   const { isAuthenticated, isLoading, loginWithRedirect, logout, user } = useAuth0();
 
+  const getInitial = (s?: string) => {
+    const v = (s || '').trim()
+    return v ? v.charAt(0).toUpperCase() : 'U'
+  }
+
   const handleLogin = () => {
     // 🆕 3. CHANGED: Navigate to your custom login page instead of Auth0 default
     router.push("/login");
@@ -59,29 +64,17 @@ export const Navbar = () => {
                 <span className="text-sm font-medium text-foreground/80">
                   {user.name || user.email}
                 </span>
-                
                 <div className="flex items-center gap-2">
-                  {user.picture ? (
-                    <img 
-                      src={user.picture} 
-                      alt="Profile" 
-                      className="h-8 w-8 rounded-full border border-border" 
-                    />
-                  ) : (
-                    <User className="h-8 w-8 p-1 rounded-full border border-border" />
-                  )}
-                  
+                  <div className="h-8 w-8 rounded-full border border-border bg-muted flex items-center justify-center">
+                    <span className="text-sm font-semibold">{getInitial(user.name || user.email)}</span>
+                  </div>
                   <Button variant="ghost" size="sm" onClick={handleLogout} title="Log Out">
                     <LogOut className="w-4 h-4 text-muted-foreground hover:text-destructive" />
                   </Button>
                 </div>
               </div>
             ) : (
-              // STATE B: LOGGED OUT (Show Sign In)
-              // This button now triggers the new handleLogin which goes to /login
-              <Button variant="outline" size="sm" onClick={handleLogin}>
-                Get Started -->
-              </Button>
+              null
             )}
           </div>
 
@@ -120,10 +113,10 @@ export const Navbar = () => {
                   // MOBILE LOGGED IN STATE
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-3 px-2">
-                      {user.picture && (
-                        <img src={user.picture} alt="Profile" className="h-8 w-8 rounded-full" />
-                      )}
-                      <span className="text-sm font-medium">{user.name}</span>
+                      <div className="h-8 w-8 rounded-full border border-border bg-muted flex items-center justify-center">
+                        <span className="text-sm font-semibold">{getInitial(user.name || user.email)}</span>
+                      </div>
+                      <span className="text-sm font-medium">{user.name || user.email}</span>
                     </div>
                     <Button variant="ghost" size="sm" className="w-full justify-start text-destructive" onClick={handleLogout}>
                       <LogOut className="w-4 h-4 mr-2" /> Log Out
