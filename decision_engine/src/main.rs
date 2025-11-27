@@ -13,6 +13,7 @@ mod services;
 
 use models::AppState;
 use services::{VectorRagClient, GraphRagClient, QueryCache};
+use handlers::{memory, context};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -65,9 +66,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Build router
     let app = Router::new()
+        // Health checks
         .route("/health", get(health_check))
-        .route("/context/query", post(handlers::context::query_context))
-        .route("/context/stats", get(handlers::context::get_stats))
+        .route("/api/memory/health", get(memory::memory_health))
+        
+        // Legacy context endpoints
+        .route("/context/query", post(context::query_context))
+        .route("/context/stats", get(context::get_stats))
+        
+        // New memory search endpoints (for AI agents)
+        .route("/api/memory/search", post(memory::memory_search))
+        
+        // Robot memory endpoints
+        .route("/api/robots/:robot_id/memory/search", post(memory::robot_memory_search))
+        .route("/api/robots/:robot_id/context/latest", get(memory::robot_context_latest))
+        
         .with_state(state)
         .layer(
             tower_http::cors::CorsLayer::permissive()
@@ -89,6 +102,21 @@ async fn health_check() -> axum::Json<serde_json::Value> {
     axum::Json(serde_json::json!({
         "status": "healthy",
         "service": "decision_engine",
-        "version": "0.1.0"
+        "version": "0.1.0",
+        "features": {
+            "memory_search": true,
+            "robot_memory": true,
+            "query_analysis": true,
+            "strategy_selection": true,
+            "context_building": true,
+            "vector_rag": true,
+            "graph_rag": true,
+            "hybrid_retrieval": true
+        },
+        "endpoints": {
+            "general": ["/api/memory/search"],
+            "robot": ["/api/robots/:robot_id/memory/search", "/api/robots/:robot_id/context/latest"],
+            "legacy": ["/context/query", "/context/stats"]
+        }
     }))
 }

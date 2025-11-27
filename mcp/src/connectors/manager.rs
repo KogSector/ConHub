@@ -88,6 +88,12 @@ impl ConnectorManager {
             connectors.insert("notion".to_string(), Arc::new(notion));
         }
         
+        // Initialize Memory connector (always enabled - this is core functionality)
+        let decision_engine_url = std::env::var("DECISION_ENGINE_URL")
+            .unwrap_or_else(|_| "http://localhost:3016".to_string());
+        let memory_connector = memory::MemoryConnector::new(decision_engine_url);
+        connectors.insert("memory".to_string(), Arc::new(memory_connector));
+        
         Ok(Self { connectors })
     }
     

@@ -8,6 +8,8 @@ pub mod local_fs;
 pub mod google_drive;
 pub mod dropbox;
 pub mod notion;
+pub mod memory;
 
 pub use trait_def::Connector;
 pub use manager::ConnectorManager;
+pub use memory::MemoryConnector;

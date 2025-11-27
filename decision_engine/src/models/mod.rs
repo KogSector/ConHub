@@ -1,3 +1,15 @@
+//! Models for the decision engine
+
+pub mod query;
+
+// Re-export query types selectively (not ContextBlock which conflicts with legacy)
+pub use query::{
+    QueryKind, ModalityHint, RetrievalStrategy, RetrievalPlan, GraphQuerySpec, RerankStrategy,
+    MemoryQuery, RobotMemoryQuery, TimeRange as QueryTimeRange,
+    ContextBlock as NewContextBlock, ContextMetadata,
+    MemorySearchResponse, DebugInfo, QueryAnalysisResult, ExtractedEntity,
+};
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -13,7 +25,7 @@ pub struct AppState {
     pub cache: RwLock<QueryCache>,
 }
 
-/// Retrieval strategy
+/// Retrieval strategy (legacy, kept for backward compatibility)
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum Strategy {
@@ -29,7 +41,7 @@ impl Default for Strategy {
     }
 }
 
-/// Context query request
+/// Context query request (legacy)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextQueryRequest {
     pub tenant_id: Uuid,
@@ -50,7 +62,14 @@ fn default_top_k() -> usize {
     20
 }
 
-/// Query filters
+/// Time range for filtering
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimeRange {
+    pub from: chrono::DateTime<chrono::Utc>,
+    pub to: chrono::DateTime<chrono::Utc>,
+}
+
+/// Query filters (legacy)
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct QueryFilters {
     #[serde(default)]
@@ -69,13 +88,7 @@ pub struct QueryFilters {
     pub tags: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TimeRange {
-    pub from: chrono::DateTime<chrono::Utc>,
-    pub to: chrono::DateTime<chrono::Utc>,
-}
-
-/// Context query response
+/// Context query response (legacy)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextQueryResponse {
     pub strategy_used: Strategy,
@@ -84,7 +97,7 @@ pub struct ContextQueryResponse {
     pub processing_time_ms: u64,
 }
 
-/// A single context block (chunk + metadata)
+/// A single context block (used by vector_client and graph_client)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextBlock {
     pub chunk_id: Uuid,
