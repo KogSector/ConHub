@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Trash2, RefreshCw, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient, securityApiClient, unwrapResponse } from '@/lib/api';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuth } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { ArrowLeft, Share2 } from 'lucide-react';
 import GitHubIcon from '@/components/icons/GitHubIcon'

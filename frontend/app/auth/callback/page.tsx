@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth0 } from '@/contexts/auth0-context'
 import { apiClient } from '@/lib/api'
-import { useAuth } from '@/contexts/auth-context'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function AuthCallbackPage() {
   const params = useSearchParams()
@@ -122,15 +122,7 @@ export default function AuthCallbackPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md">
         {processing && !error && (
-          <>
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
-              Completing Sign In...
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Please wait while we set up your account
-            </p>
-          </>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
         )}
         
         {error && (

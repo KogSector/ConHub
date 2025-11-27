@@ -1,10 +1,10 @@
 "use client"
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { RegisterForm } from '@/components/auth/RegisterForm'
+import { LoginForm } from '@/components/auth/LoginForm'
 import { isLoginEnabled } from '@/lib/feature-toggles'
 
-export default function RegisterPage() {
+export default function LoginPage() {
   const router = useRouter()
 
   useEffect(() => {
@@ -13,5 +13,5 @@ export default function RegisterPage() {
     }
   }, [router])
 
-  return <RegisterForm />
+  return <LoginForm />
 }
