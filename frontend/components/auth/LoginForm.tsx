@@ -113,22 +113,9 @@ export function LoginForm() {
       <div className="absolute bottom-8 left-1/3 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
       
       <div className="relative z-10 w-full max-w-md mx-4">
-        {/* Logo */}
-        <div className="text-center mb-8 mt-10">
-          <Link href="/" className="inline-flex items-center space-x-2 group">
-            <Sparkles className="w-8 h-8 text-purple-400 group-hover:text-purple-300 transition-colors" />
-            <span className="text-4xl font-bold font-orbitron bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-              ConHub
-            </span>
-          </Link>
-        </div>
-
         <Card className="backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl">
-          <CardHeader className="space-y-1 text-center pb-6">
-            <CardTitle className="text-3xl font-bold text-white">Welcome back</CardTitle>
-            <CardDescription className="text-gray-300">
-              Sign in with your preferred provider
-            </CardDescription>
+          <CardHeader className="space-y-1 text-center pb-12">
+            <CardTitle className="text-3xl font-bold text-white">Welcome</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             
@@ -154,11 +141,11 @@ export function LoginForm() {
 
           </CardContent>
         </Card>
-
-        <div className="text-center mt-8">
-          <p className="text-gray-400 text-sm">
-            Secure authentication powered by ConHub
-          </p>
+        
+        <div className="mt-4 flex justify-center">
+          <Button asChild className="bg-purple-600 text-white hover:bg-purple-500 px-8">
+            <Link href="/">Back</Link>
+          </Button>
         </div>
       </div>
     </div>
