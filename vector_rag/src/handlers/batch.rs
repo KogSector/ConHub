@@ -75,15 +75,18 @@ pub async fn batch_embed_handler(
     );
     
     if req.store_in_vector_db && !all_embedded_chunks.is_empty() {
-        let qdrant_url = env::var("QDRANT_URL").unwrap_or_else(|_| "http://localhost:6333".to_string());
-        let collection = env::var("QDRANT_COLLECTION").unwrap_or_else(|_| "conhub_embeddings".to_string());
+        let zilliz_url = env::var("ZILLIZ_PUBLIC_ENDPOINT")
+            .unwrap_or_else(|_| env::var("ZILLIZ_ENDPOINT").unwrap_or_else(|_| "https://localhost:19530".to_string()));
+        let collection = env::var("ZILLIZ_COLLECTION").unwrap_or_else(|_| "conhub_embeddings".to_string());
         // Get dimension from fusion config (use first model's dimension as reference)
         let dimension = service.get_config().models.first()
             .map(|m| m.dimension)
             .unwrap_or(1536);
-        match VectorStoreService::new(&qdrant_url, 5).await {
+        match VectorStoreService::new(&zilliz_url, 30).await {
             Ok(store) => {
-                let _ = store.ensure_collection(&collection, dimension as usize).await;
+                if let Err(e) = store.ensure_collection(&collection, dimension as usize).await {
+                    log::error!("Failed to ensure Zilliz collection: {}", e);
+                }
                 let mut points: Vec<(String, Vec<f32>, serde_json::Map<String, serde_json::Value>)> = Vec::with_capacity(all_embedded_chunks.len());
                 for ch in all_embedded_chunks.into_iter() {
                     let id = format!("{}-{}", ch.document_id, ch.chunk_number);
@@ -96,10 +99,13 @@ pub async fn batch_embed_handler(
                     map.insert("content".to_string(), serde_json::json!(ch.content));
                     points.push((id, ch.embedding.clone(), map));
                 }
-                let _ = store.upsert(&collection, points).await;
+                match store.upsert(&collection, points).await {
+                    Ok(count) => log::info!("💾 Stored {} embeddings in Zilliz collection '{}'", count, collection),
+                    Err(e) => log::error!("Failed to store embeddings in Zilliz: {}", e),
+                }
             }
             Err(e) => {
-                log::error!("Vector store initialization failed: {}", e);
+                log::error!("Zilliz Cloud initialization failed: {}", e);
             }
         }
     }

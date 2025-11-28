@@ -4,14 +4,12 @@ use parking_lot::RwLock;
 use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
 use std::str::FromStr;
 use redis::Client as RedisClient;
-use qdrant_client::client::QdrantClient;
 use std::time::{Duration, Instant};
 
 /// Optimized connection pool manager with intelligent resource management
 pub struct ConnectionPoolManager {
     pg_pools: Arc<DashMap<String, PoolEntry<PgPool>>>,
     redis_clients: Arc<DashMap<String, RedisClient>>,
-    qdrant_clients: Arc<DashMap<String, Arc<QdrantClient>>>,
     config: PoolConfig,
 }
 
@@ -47,7 +45,6 @@ impl ConnectionPoolManager {
         Self {
             pg_pools: Arc::new(DashMap::new()),
             redis_clients: Arc::new(DashMap::new()),
-            qdrant_clients: Arc::new(DashMap::new()),
             config,
         }
     }
@@ -98,19 +95,6 @@ impl ConnectionPoolManager {
         Ok(client)
     }
 
-    /// Get or create Qdrant client with caching
-    pub fn get_qdrant_client(&self, qdrant_url: &str) -> Result<Arc<QdrantClient>, anyhow::Error> {
-        // Check cache first
-        if let Some(client) = self.qdrant_clients.get(qdrant_url) {
-            return Ok(client.clone());
-        }
-
-        // Create new client
-        let client = Arc::new(QdrantClient::from_url(qdrant_url).build()?);
-        self.qdrant_clients.insert(qdrant_url.to_string(), client.clone());
-        Ok(client)
-    }
-
     /// Cleanup stale connections (call periodically)
     pub fn cleanup_stale(&self) {
         let now = Instant::now();
@@ -127,7 +111,6 @@ impl ConnectionPoolManager {
         PoolStats {
             pg_pools: self.pg_pools.len(),
             redis_clients: self.redis_clients.len(),
-            qdrant_clients: self.qdrant_clients.len(),
         }
     }
 }
@@ -136,7 +119,6 @@ impl ConnectionPoolManager {
 pub struct PoolStats {
     pub pg_pools: usize,
     pub redis_clients: usize,
-    pub qdrant_clients: usize,
 }
 
 /// Global connection pool manager instance

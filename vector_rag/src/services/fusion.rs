@@ -10,6 +10,7 @@ use crate::models::openai::OpenAIEmbeddingClient;
 use crate::models::cohere::CohereEmbeddingClient;
 use crate::models::voyage::VoyageEmbeddingClient;
 use crate::models::jina::JinaEmbeddingClient;
+use crate::models::huggingface::HuggingFaceEmbeddingClient;
 use crate::config::fusion_config::{FusionConfig, RoutingRule};
 use crate::config::profile_config::ProfileConfig;
 use crate::services::embedding::EmbeddingCache;
@@ -44,6 +45,27 @@ impl EmbeddingClientFactory {
                 let api_key = std::env::var("JINA_API_KEY")
                     .map_err(|_| anyhow!("JINA_API_KEY environment variable not set"))?;
                 Ok(Box::new(JinaEmbeddingClient::new(api_key)))
+            }
+            "huggingface" => {
+                let api_token = std::env::var("HUGGINGFACE_API_TOKEN")
+                    .map_err(|_| anyhow!("HUGGINGFACE_API_TOKEN environment variable not set"))?;
+                
+                // Check for dedicated endpoint URL (optional)
+                let dedicated_endpoint = std::env::var("HUGGINGFACE_ENDPOINT_URL").ok();
+                let base_url = std::env::var("HUGGINGFACE_API_BASE_URL").ok();
+                
+                let client = if let Some(endpoint) = dedicated_endpoint {
+                    // Use dedicated Inference Endpoint
+                    HuggingFaceEmbeddingClient::with_endpoint(api_token, endpoint)
+                } else if let Some(base) = base_url {
+                    // Use custom base URL for Inference API
+                    HuggingFaceEmbeddingClient::with_base_url(api_token, base)
+                } else {
+                    // Use default HuggingFace Inference API
+                    HuggingFaceEmbeddingClient::new(api_token)
+                };
+                
+                Ok(Box::new(client))
             }
             _ => Err(anyhow!("Unknown client type: {}", client_type)),
         }

@@ -22,12 +22,11 @@ thiserror = "1.0"
 uuid = { version = "1.6", features = ["v4", "serde"] }
 retryable = "0.1.1"
 phf = { version = "0.11", features = ["macros"] }
-urlencoding = "2.1"
 async-trait = "0.1"
 sha2 = "0.10"
 conhub-config = { path = "../shared/config" }
-reqwest = { version = "0.11", features = ["json"] }
-qdrant-client = "1.7"
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+urlencoding = "2.1"
 conhub-models = { path = "../shared/models" }
 [dependencies.tracing]
 version = "0.1"

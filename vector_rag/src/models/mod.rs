@@ -6,6 +6,7 @@ pub mod openai;
 pub mod cohere;
 pub mod voyage;
 pub mod jina;
+pub mod huggingface;
 
 pub use document::*;
 pub use qwen::*;
@@ -13,6 +14,7 @@ pub use openai::*;
 pub use cohere::*;
 pub use voyage::*;
 pub use jina::*;
+pub use huggingface::*;
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
