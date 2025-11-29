@@ -9,6 +9,7 @@ pub mod rag;
 
 use actix_web::web;
 use conhub_config::feature_toggles::get_cached_toggles;
+use crate::handlers::get_dashboard_stats;
 
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     let toggles = get_cached_toggles();
@@ -19,7 +20,8 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
         .configure(security::configure_security_routes)
         .configure(webhooks::configure_webhook_routes)
         .configure(rag::configure_rag_routes)
-        .configure(crate::graphql::configure_graphql_routes);
+        .configure(crate::graphql::configure_graphql_routes)
+        .route("/dashboard/stats", web::get().to(get_dashboard_stats));
 
     api_scope = api_scope.configure(billing::configure_billing_routes);
 

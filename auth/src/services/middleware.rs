@@ -247,11 +247,42 @@ pub fn extract_claims_from_request(req: &actix_web::HttpRequest) -> Option<Claim
     req.extensions().get::<Claims>().cloned()
 }
 
+/// Extract user_id from request - tries UUID parse first, then falls back to Auth0 sub lookup
+/// For Auth0 tokens, the `sub` is like "auth0|123..." which isn't a UUID
 pub fn extract_user_id_from_request(req: &actix_web::HttpRequest) -> Option<uuid::Uuid> {
-    extract_claims_from_request(req)?
-        .sub
-        .parse()
+    let claims = extract_claims_from_request(req)?;
+    
+    // First try direct UUID parse (for legacy ConHub tokens)
+    if let Ok(uuid) = claims.sub.parse() {
+        return Some(uuid);
+    }
+    
+    // Auth0 sub format - can't resolve synchronously, return None
+    // Handlers should use extract_user_id_from_request_async instead
+    None
+}
+
+/// Async version that resolves Auth0 sub to local user_id via database lookup
+pub async fn extract_user_id_from_request_async(
+    req: &actix_web::HttpRequest,
+    pool: &sqlx::PgPool,
+) -> Option<uuid::Uuid> {
+    let claims = extract_claims_from_request(req)?;
+    
+    // First try direct UUID parse (for legacy ConHub tokens)
+    if let Ok(uuid) = claims.sub.parse() {
+        return Some(uuid);
+    }
+    
+    // Auth0 sub format - look up in database
+    crate::services::users::get_user_id_from_auth0_sub(pool, &claims.sub)
+        .await
         .ok()
+}
+
+/// Get Auth0 sub directly from claims (useful for user provisioning)
+pub fn extract_auth0_sub_from_request(req: &actix_web::HttpRequest) -> Option<String> {
+    extract_claims_from_request(req).map(|c| c.sub)
 }
 
 pub fn extract_session_id_from_request(req: &actix_web::HttpRequest) -> Option<uuid::Uuid> {

@@ -554,4 +554,178 @@ impl UserService {
 
         Ok(())
     }
+
+    /// Find user by Auth0 subject identifier
+    pub async fn find_by_auth0_sub(&self, auth0_sub: &str) -> Result<Option<User>> {
+        let row = sqlx::query(
+            r#"
+            SELECT id, email, password_hash, name, avatar_url, organization,
+                   role::text as role, subscription_tier::text as subscription_tier,
+                   is_verified, is_active, is_locked, failed_login_attempts, locked_until,
+                   password_changed_at, email_verified_at, two_factor_enabled,
+                   two_factor_secret, backup_codes, created_at, updated_at,
+                   last_login_at, last_login_ip::text as last_login_ip, last_password_reset
+            FROM users
+            WHERE auth0_sub = $1 AND is_active = true
+            "#
+        )
+        .bind(auth0_sub)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| {
+            log::error!("Database error finding user by auth0_sub {}: {:?}", auth0_sub, e);
+            anyhow!("Database error: {}", e)
+        })?;
+
+        match row {
+            Some(row) => {
+                let role_str: Option<String> = row.get("role");
+                let subscription_tier_str: Option<String> = row.get("subscription_tier");
+
+                Ok(Some(User {
+                    id: row.get("id"),
+                    email: row.get("email"),
+                    password_hash: row.get("password_hash"),
+                    name: row.get("name"),
+                    avatar_url: row.get("avatar_url"),
+                    organization: row.get("organization"),
+                    role: match role_str.as_deref() {
+                        Some("admin") => UserRole::Admin,
+                        _ => UserRole::User,
+                    },
+                    subscription_tier: match subscription_tier_str.as_deref() {
+                        Some("personal") => SubscriptionTier::Personal,
+                        Some("team") => SubscriptionTier::Team,
+                        Some("enterprise") => SubscriptionTier::Enterprise,
+                        _ => SubscriptionTier::Free,
+                    },
+                    is_verified: row.get("is_verified"),
+                    is_active: row.get("is_active"),
+                    is_locked: row.get("is_locked"),
+                    failed_login_attempts: row.get("failed_login_attempts"),
+                    locked_until: row.get("locked_until"),
+                    password_changed_at: row.get("password_changed_at"),
+                    email_verified_at: row.get("email_verified_at"),
+                    two_factor_enabled: row.get("two_factor_enabled"),
+                    two_factor_secret: row.get("two_factor_secret"),
+                    backup_codes: row.get("backup_codes"),
+                    created_at: row.get("created_at"),
+                    updated_at: row.get("updated_at"),
+                    last_login_at: row.get("last_login_at"),
+                    last_login_ip: row.get("last_login_ip"),
+                    last_password_reset: row.get("last_password_reset"),
+                }))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Link an Auth0 subject to an existing user
+    pub async fn link_auth0_sub(&self, user_id: Uuid, auth0_sub: &str) -> Result<()> {
+        sqlx::query(
+            r#"UPDATE users SET auth0_sub = $1, updated_at = NOW() WHERE id = $2"#
+        )
+        .bind(auth0_sub)
+        .bind(user_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| anyhow!("Failed to link Auth0 identity: {}", e))?;
+
+        log::info!("Linked Auth0 sub {} to user {}", auth0_sub, user_id);
+        Ok(())
+    }
+
+    /// Find or create user by Auth0 subject and email
+    /// If user exists by auth0_sub, return them
+    /// If user exists by email but not linked, link and return them
+    /// Otherwise create new user
+    pub async fn find_or_create_by_auth0(
+        &self,
+        auth0_sub: &str,
+        email: &str,
+        name: Option<&str>,
+        avatar_url: Option<&str>,
+    ) -> Result<User> {
+        // First try to find by auth0_sub
+        if let Some(user) = self.find_by_auth0_sub(auth0_sub).await? {
+            return Ok(user);
+        }
+
+        // Try to find by email and link
+        if let Ok(user) = self.find_by_email(email).await {
+            self.link_auth0_sub(user.id, auth0_sub).await?;
+            return Ok(user);
+        }
+
+        // Create new user
+        let user_id = Uuid::new_v4();
+        let now = Utc::now();
+        let display_name = name.unwrap_or_else(|| email.split('@').next().unwrap_or("User"));
+
+        sqlx::query(
+            r#"
+            INSERT INTO users (
+                id, email, password_hash, name, avatar_url, organization,
+                role, subscription_tier, is_verified, is_active, auth0_sub,
+                created_at, updated_at
+            ) VALUES (
+                $1, $2, '', $3, $4, NULL,
+                'user'::user_role, 'free'::subscription_tier, true, true, $5,
+                $6, $7
+            )
+            "#
+        )
+        .bind(user_id)
+        .bind(email)
+        .bind(display_name)
+        .bind(avatar_url)
+        .bind(auth0_sub)
+        .bind(now)
+        .bind(now)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| anyhow!("Failed to create Auth0 user: {}", e))?;
+
+        log::info!("Created new user {} from Auth0 sub {}", user_id, auth0_sub);
+
+        Ok(User {
+            id: user_id,
+            email: email.to_string(),
+            password_hash: String::new(),
+            name: display_name.to_string(),
+            avatar_url: avatar_url.map(String::from),
+            organization: None,
+            role: UserRole::User,
+            subscription_tier: SubscriptionTier::Free,
+            is_verified: true,
+            is_active: true,
+            is_locked: false,
+            failed_login_attempts: 0,
+            locked_until: None,
+            password_changed_at: now,
+            email_verified_at: Some(now),
+            two_factor_enabled: false,
+            two_factor_secret: None,
+            backup_codes: None,
+            created_at: now,
+            updated_at: now,
+            last_login_at: None,
+            last_login_ip: None,
+            last_password_reset: None,
+        })
+    }
+}
+
+/// Standalone helper to get user_id from Auth0 claims
+/// This can be called from handlers without instantiating full UserService
+pub async fn get_user_id_from_auth0_sub(pool: &PgPool, auth0_sub: &str) -> Result<Uuid> {
+    let row = sqlx::query_scalar::<_, Uuid>(
+        r#"SELECT id FROM users WHERE auth0_sub = $1 AND is_active = true"#
+    )
+    .bind(auth0_sub)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| anyhow!("Database error: {}", e))?;
+
+    row.ok_or_else(|| anyhow!("User not found for Auth0 sub: {}", auth0_sub))
 }

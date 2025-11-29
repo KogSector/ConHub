@@ -1,11 +1,13 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { Footer } from "@/components/ui/footer";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { apiClient } from "@/lib/api";
 import Link from "next/link";
 import { 
   Bot, 
@@ -23,7 +25,42 @@ import {
   MessageSquare
 } from "lucide-react";
 
+interface DashboardStats {
+  repositories: number;
+  documents: number;
+  urls: number;
+  agents: number;
+  connections: number;
+  context_requests: number;
+  security_score: number;
+}
+
 export default function Dashboard() {
+  const [stats, setStats] = useState<DashboardStats>({
+    repositories: 0,
+    documents: 0,
+    urls: 0,
+    agents: 0,
+    connections: 0,
+    context_requests: 0,
+    security_score: 98,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await apiClient.get<DashboardStats>('/api/dashboard/stats');
+        setStats(data);
+      } catch (error) {
+        console.error('Failed to fetch dashboard stats:', error);
+        // Keep default values on error
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
   return (
     <AuthGuard>
       <div className="min-h-screen bg-background">
@@ -190,9 +227,9 @@ export default function Dashboard() {
                     <GitBranch className="w-4 h-4 text-primary" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-foreground">12</div>
+                    <div className="text-2xl font-bold text-foreground">{loading ? '...' : stats.repositories}</div>
                     <p className="text-xs text-muted-foreground">
-                      +2 from last week
+                      Connected repos
                     </p>
                   </CardContent>
                 </Card>
@@ -205,9 +242,9 @@ export default function Dashboard() {
                     <FileText className="w-4 h-4 text-primary" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-foreground">47</div>
+                    <div className="text-2xl font-bold text-foreground">{loading ? '...' : stats.documents}</div>
                     <p className="text-xs text-muted-foreground">
-                      +8 from last week
+                      Indexed documents
                     </p>
                   </CardContent>
                 </Card>
@@ -220,9 +257,9 @@ export default function Dashboard() {
                     <LinkIcon className="w-4 h-4 text-primary" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-foreground">23</div>
+                    <div className="text-2xl font-bold text-foreground">{loading ? '...' : stats.urls}</div>
                     <p className="text-xs text-muted-foreground">
-                      +5 from last week
+                      Connected URLs
                     </p>
                   </CardContent>
                 </Card>
@@ -235,9 +272,9 @@ export default function Dashboard() {
                     <Bot className="w-4 h-4 text-accent" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-foreground">5</div>
+                    <div className="text-2xl font-bold text-foreground">{loading ? '...' : stats.agents}</div>
                     <p className="text-xs text-muted-foreground">
-                      All active
+                      Active agents
                     </p>
                   </CardContent>
                 </Card>
@@ -250,9 +287,9 @@ export default function Dashboard() {
                     <Activity className="w-4 h-4 text-primary-glow" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-foreground">1,247</div>
+                    <div className="text-2xl font-bold text-foreground">{loading ? '...' : stats.context_requests.toLocaleString()}</div>
                     <p className="text-xs text-muted-foreground">
-                      +12% from yesterday
+                      Last 24 hours
                     </p>
                   </CardContent>
                 </Card>
@@ -265,7 +302,7 @@ export default function Dashboard() {
                     <Shield className="w-4 h-4 text-accent" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-foreground">98%</div>
+                    <div className="text-2xl font-bold text-foreground">{loading ? '...' : `${stats.security_score}%`}</div>
                     <p className="text-xs text-muted-foreground">
                       Excellent
                     </p>

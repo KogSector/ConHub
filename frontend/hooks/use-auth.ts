@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { isLoginEnabled } from '@/lib/feature-toggles'
 import { fetchCurrentUserViaGraphQL } from '@/lib/api'
@@ -8,6 +8,10 @@ import { fetchCurrentUserViaGraphQL } from '@/lib/api'
 export const useAuth = () => {
   const loginEnabled = isLoginEnabled()
   const auth0 = useAuth0()
+  
+  // Auth0 access token state
+  const [accessToken, setAccessToken] = useState<string | null>(null)
+  const [tokenLoading, setTokenLoading] = useState(false)
   
   const [mockUser, setMockUser] = useState({
     id: 'dev-user',
@@ -21,6 +25,24 @@ export const useAuth = () => {
     created_at: new Date().toISOString(),
     last_login_at: new Date().toISOString(),
   })
+
+  // Fetch and cache Auth0 access token when authenticated
+  useEffect(() => {
+    if (loginEnabled && auth0.isAuthenticated && !auth0.isLoading && !accessToken && !tokenLoading) {
+      setTokenLoading(true)
+      auth0.getAccessTokenSilently()
+        .then((token) => {
+          setAccessToken(token)
+        })
+        .catch((err) => {
+          console.error('Failed to get Auth0 access token:', err)
+          setAccessToken(null)
+        })
+        .finally(() => {
+          setTokenLoading(false)
+        })
+    }
+  }, [loginEnabled, auth0.isAuthenticated, auth0.isLoading, accessToken, tokenLoading, auth0])
 
   useEffect(() => {
     if (!loginEnabled) {
@@ -69,19 +91,33 @@ export const useAuth = () => {
     }
   }
 
-  const getAccessTokenSilently = async () => {
+  const getAccessTokenSilently = useCallback(async () => {
     if (loginEnabled) {
+      // Return cached token if available
+      if (accessToken) {
+        return accessToken
+      }
+      // Otherwise fetch fresh
       try {
         if (auth0.getAccessTokenSilently) {
-          return await auth0.getAccessTokenSilently()
+          const token = await auth0.getAccessTokenSilently()
+          setAccessToken(token)
+          return token
         }
-      } catch {
-        // fall through to mock token
+      } catch (err) {
+        console.error('getAccessTokenSilently failed:', err)
       }
-      return 'mock-token'
+      return null
     }
     return 'mock-token'
-  }
+  }, [loginEnabled, accessToken, auth0])
+
+  // Clear token on logout
+  useEffect(() => {
+    if (loginEnabled && !auth0.isAuthenticated && accessToken) {
+      setAccessToken(null)
+    }
+  }, [loginEnabled, auth0.isAuthenticated, accessToken])
 
   const effectiveUser = loginEnabled
     ? (auth0.user as any) ?? mockUser
@@ -90,14 +126,13 @@ export const useAuth = () => {
   return {
     user: effectiveUser,
     isAuthenticated: loginEnabled ? auth0.isAuthenticated : true,
-    isLoading: loginEnabled ? auth0.isLoading : false,
+    isLoading: loginEnabled ? (auth0.isLoading || tokenLoading) : false,
     login,
     loginWithRedirect,
     logout: logoutUser,
     getAccessTokenSilently,
-    // Placeholder token and connections fields to satisfy existing callers.
-    // For real backend calls, use getAccessTokenSilently instead.
-    token: null as string | null,
+    // Auth0 access token (use this for API calls)
+    token: loginEnabled ? accessToken : 'mock-token',
     connections: null as any,
 
     // Stubbed methods for now; callers may override these with real implementations

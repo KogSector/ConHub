@@ -22,8 +22,8 @@ const Auth0ProviderWithNavigate = ({ children }: { children: React.ReactNode }) 
       domain={domain}
       clientId={clientId}
       authorizationParams={{
-        redirect_uri: redirectUri, // This forces ALL buttons to use localhost:3000
-        //audience: audience,
+        redirect_uri: redirectUri, 
+        audience: audience,
       }}
     >
       {children}

@@ -912,9 +912,11 @@ pub async fn list_auth_connections(
     pool_opt: web::Data<Option<PgPool>>,
 ) -> Result<HttpResponse> {
     let pool = match pool_opt.get_ref() { Some(p) => p, None => return Ok(HttpResponse::ServiceUnavailable().json(json!({"error": "Database service unavailable"}))) };
-    use crate::services::middleware::extract_claims_from_request;
-    let claims = match extract_claims_from_request(&req) { Some(c) => c, None => return Ok(HttpResponse::Unauthorized().json(json!({"error": "Authentication required"}))) };
-    let user_id: uuid::Uuid = claims.sub.parse().map_err(|_| actix_web::error::ErrorBadRequest("Invalid user id"))?;
+    use crate::services::middleware::extract_user_id_from_request_async;
+    let user_id = match extract_user_id_from_request_async(&req, pool).await {
+        Some(id) => id,
+        None => return Ok(HttpResponse::Unauthorized().json(json!({"error": "Authentication required or user not found"})))
+    };
 
     let rows = sqlx::query(
         r#"
@@ -950,9 +952,11 @@ pub async fn disconnect_auth_connection(
     pool_opt: web::Data<Option<PgPool>>,
 ) -> Result<HttpResponse> {
     let pool = match pool_opt.get_ref() { Some(p) => p, None => return Ok(HttpResponse::ServiceUnavailable().json(json!({"error": "Database service unavailable"}))) };
-    use crate::services::middleware::extract_claims_from_request;
-    let claims = match extract_claims_from_request(&req) { Some(c) => c, None => return Ok(HttpResponse::Unauthorized().json(json!({"error": "Authentication required"}))) };
-    let user_id: uuid::Uuid = claims.sub.parse().map_err(|_| actix_web::error::ErrorBadRequest("Invalid user id"))?;
+    use crate::services::middleware::extract_user_id_from_request_async;
+    let user_id = match extract_user_id_from_request_async(&req, pool).await {
+        Some(id) => id,
+        None => return Ok(HttpResponse::Unauthorized().json(json!({"error": "Authentication required or user not found"})))
+    };
     let conn_id_str = path.into_inner();
     let conn_id = uuid::Uuid::parse_str(&conn_id_str).map_err(|_| actix_web::error::ErrorBadRequest("Invalid connection id"))?;
 
@@ -1309,11 +1313,40 @@ pub async fn oauth_exchange(
     })))
 }
 
+/// Public endpoint that returns connections for the current user (if authenticated)
+/// or an empty list (if not authenticated). Used as a fallback when auth middleware
+/// is not applied to this route.
 pub async fn list_auth_connections_current(
+    req: HttpRequest,
     pool_opt: web::Data<Option<PgPool>>,
 ) -> Result<HttpResponse> {
-    let pool = match pool_opt.get_ref() { Some(p) => p, None => return Ok(HttpResponse::ServiceUnavailable().json(json!({"error": "Database service unavailable"}))) };
-    let demo_user_id = uuid::Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").map_err(|_| actix_web::error::ErrorBadRequest("Invalid demo user id"))?;
+    let pool = match pool_opt.get_ref() {
+        Some(p) => p,
+        None => return Ok(HttpResponse::Ok().json(json!({"success": true, "data": []}))),
+    };
+
+    // Try to extract user_id from claims if present
+    use crate::services::middleware::{extract_claims_from_request, extract_user_id_from_request_async};
+    
+    let user_id = if let Some(claims) = extract_claims_from_request(&req) {
+        // Try UUID parse first, then async lookup
+        if let Ok(uuid) = claims.sub.parse::<uuid::Uuid>() {
+            Some(uuid)
+        } else {
+            extract_user_id_from_request_async(&req, pool).await
+        }
+    } else {
+        None
+    };
+
+    let user_id = match user_id {
+        Some(id) => id,
+        None => {
+            // No authenticated user - return empty list
+            return Ok(HttpResponse::Ok().json(json!({"success": true, "data": []})));
+        }
+    };
+
     let rows = sqlx::query(
         r#"
         SELECT id, platform, username, is_active, created_at AS connected_at, last_sync
@@ -1322,7 +1355,7 @@ pub async fn list_auth_connections_current(
         ORDER BY updated_at DESC
         "#
     )
-    .bind(demo_user_id)
+    .bind(user_id)
     .fetch_all(pool)
     .await;
 
