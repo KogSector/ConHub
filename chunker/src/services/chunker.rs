@@ -10,7 +10,7 @@ use conhub_models::chunking::{
 use crate::models::AppState;
 use crate::services::embedding_client::EmbeddingClient;
 use crate::services::graph_client::GraphClient;
-use crate::services::strategies::{CodeChunker, TextChunker, ChatChunker, AstCodeChunker, MarkdownChunker};
+use crate::services::strategies::{CodeChunker, TextChunker, ChatChunker, AstCodeChunker, MarkdownChunker, TicketingChunker};
 
 pub struct ChunkerService {
     embedding_client: EmbeddingClient,
@@ -62,6 +62,7 @@ impl ChunkerService {
                 SourceKind::CodeRepo => "ast_code",
                 SourceKind::Document => "markdown",
                 SourceKind::Chat => "chat",
+                SourceKind::Ticketing => "ticketing",
                 _ => "text",
             };
 
@@ -92,6 +93,10 @@ impl ChunkerService {
                         }
                         SourceKind::Chat => {
                             ChatChunker::chunk(source_item)?
+                        }
+                        SourceKind::Ticketing => {
+                            // Issues and PRs use the ticketing chunker
+                            TicketingChunker::chunk(source_item)?
                         }
                         _ => {
                             // Default to text chunker for other types
