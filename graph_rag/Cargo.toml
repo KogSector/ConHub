@@ -17,10 +17,7 @@ serde_json = "1.0"
 
 # Database
 sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono", "json"] }
-neo4rs = "0.7"
-
-# Vector database
-qdrant-client = { version = "1.7", features = ["serde"] }
+neo4rs = "0.8"
 
 # Error handling
 anyhow = "1.0"
@@ -40,8 +37,8 @@ chrono = { version = "0.4", features = ["serde"] }
 dotenv = "0.15"
 
 # Shared libraries
-shared-models = { path = "../shared/models" }
-shared-config = { path = "../shared/config" }
+conhub-models = { path = "../shared/models" }
+conhub-config = { path = "../shared/config" }
 
 # String similarity
 strsim = "0.11"

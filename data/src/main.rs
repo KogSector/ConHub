@@ -1,8 +1,12 @@
 
 use actix_web::{web, App, HttpServer, HttpResponse, Result};
 use conhub_middleware::auth::AuthMiddlewareFactory;
-use tracing::{info, warn};
+use tracing::{info, warn, error};
 use std::env;
+use std::sync::Arc;
+
+use services::kafka_client::KafkaProducer;
+use handlers::{robots, robot_ingestion};
 
 // Only include the modules we actually need
 mod connectors {
@@ -13,20 +17,35 @@ mod connectors {
 }
 
 mod services {
+    pub mod zilliz_client;
     pub mod qdrant_client;
     pub mod vector_store;
+    pub mod kafka_client;
+    pub mod github_app_client;
+    pub mod github_ingestion;
     
+    pub use zilliz_client::*;
+    #[allow(deprecated)]
     pub use qdrant_client::*;
     pub use vector_store::*;
+    pub use kafka_client::*;
+    pub use github_app_client::*;
+    pub use github_ingestion::*;
+}
+
+mod handlers {
+    pub mod robots;
+    pub mod robot_ingestion;
+    pub mod github_app;
 }
 
 // Simplified handlers inline
 use serde::{Deserialize, Serialize};
-use tracing::error;
 
 use connectors::github::GitHubConnector;
 use connectors::types::{GitHubRepoAccessRequest, GitHubSyncConfig};
-use services::{create_vector_store_service};
+use services::{create_vector_store_service, GitHubAppClient, GitHubAppConfig};
+use handlers::github_app::{GitHubAppState, configure_github_app_routes};
 
 #[derive(Debug, Deserialize)]
 pub struct ValidateRepoAccessRequest {
@@ -254,6 +273,23 @@ async fn main() -> std::io::Result<()> {
     info!("🚀 [Data Service] Starting on port {}", port);
     info!("⚠️  [Data Service] Running in minimal mode - database features disabled");
     
+    // Initialize Kafka producer
+    let kafka_producer = Arc::new(KafkaProducer::from_env());
+    info!("📡 Kafka producer initialized (enabled: {})", kafka_producer.is_enabled());
+    
+    // Initialize GitHub App client (optional - only if configured)
+    let github_app_state: Option<Arc<GitHubAppState>> = match GitHubAppConfig::from_env() {
+        Ok(config) => {
+            info!("🐙 GitHub App configured (app_id: {})", config.app_id);
+            let client = GitHubAppClient::new(config);
+            Some(Arc::new(GitHubAppState::new(client)))
+        }
+        Err(e) => {
+            warn!("⚠️  GitHub App not configured: {}. GitHub App endpoints will return errors.", e);
+            None
+        }
+    };
+    
     let auth_middleware = match AuthMiddlewareFactory::new() {
         Ok(m) => m,
         Err(e) => {
@@ -263,15 +299,38 @@ async fn main() -> std::io::Result<()> {
     };
 
     HttpServer::new(move || {
-        App::new()
+        let mut app = App::new()
             .wrap(auth_middleware.clone())
+            .app_data(web::Data::new(kafka_producer.clone()))
             .route("/health", web::get().to(health_check))
             .route("/status", web::get().to(status_check))
-            // GitHub repository management routes
+            // GitHub repository management routes (legacy PAT-based)
             .route("/api/github/validate-access", web::post().to(validate_github_repo_access))
             .route("/api/github/sync-repository", web::post().to(sync_github_repository))
             .route("/api/github/branches", web::post().to(get_repository_branches))
             .route("/api/github/languages", web::post().to(get_repository_languages))
+            // Robot management routes
+            .route("/api/robots/register", web::post().to(robots::register_robot))
+            .route("/api/robots", web::get().to(robots::list_robots))
+            .route("/api/robots/{robot_id}", web::get().to(robots::get_robot))
+            .route("/api/robots/{robot_id}", web::delete().to(robots::delete_robot))
+            .route("/api/robots/{robot_id}/streams", web::post().to(robots::declare_stream))
+            .route("/api/robots/{robot_id}/heartbeat", web::post().to(robots::robot_heartbeat))
+            // Robot ingestion routes (HTTP → Kafka bridge)
+            .route("/api/ingestion/robots/{robot_id}/events", web::post().to(robot_ingestion::ingest_events))
+            .route("/api/ingestion/robots/{robot_id}/events/batch", web::post().to(robot_ingestion::ingest_events_batch))
+            .route("/api/ingestion/robots/{robot_id}/cv_events", web::post().to(robot_ingestion::ingest_cv_events))
+            .route("/api/ingestion/robots/{robot_id}/cv_events/batch", web::post().to(robot_ingestion::ingest_cv_events_batch))
+            .route("/api/ingestion/robots/{robot_id}/frames", web::post().to(robot_ingestion::ingest_frames));
+        
+        // Add GitHub App routes if configured
+        if let Some(ref state) = github_app_state {
+            app = app
+                .app_data(web::Data::new(state.clone()))
+                .configure(configure_github_app_routes);
+        }
+        
+        app
     })
     .bind(&bind_addr)?
     .run()
@@ -288,6 +347,12 @@ async fn health_check() -> Result<HttpResponse> {
 }
 
 async fn status_check() -> Result<HttpResponse> {
+    let kafka_enabled = std::env::var("KAFKA_ENABLED")
+        .map(|v| v.to_lowercase() == "true")
+        .unwrap_or(false);
+    
+    let github_app_enabled = std::env::var("GITHUB_APP_ID").is_ok();
+    
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "service": "data-service",
         "version": "0.1.0",
@@ -295,10 +360,17 @@ async fn status_check() -> Result<HttpResponse> {
         "features": {
             "database": false,
             "github_connector": true,
+            "github_app_connector": github_app_enabled,
             "repository_sync": true,
             "branch_selection": true,
             "language_detection": true,
-            "embedding": false
+            "embedding": false,
+            "robot_connector": true,
+            "robot_memory": true,
+            "kafka_integration": kafka_enabled,
+            "http_ingestion": true,
+            "issues_sync": github_app_enabled,
+            "prs_sync": github_app_enabled
         }
     })))
 }

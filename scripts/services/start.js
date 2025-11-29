@@ -13,7 +13,7 @@ const SERVICES = {
   webhook: { port: 3015, path: 'webhook', command: 'cargo', args: ['run'], healthPath: '/health', description: 'External Webhooks' },
   client: { port: 3012, path: 'client', command: 'cargo', args: ['run'], healthPath: '/health', description: 'AI Client Service' },
   mcp: { port: 3004, path: 'mcp', command: 'cargo', args: ['run'], healthPath: '/health', description: 'MCP Protocol Service' },
-  backend: { port: 8000, path: 'backend', command: 'cargo', args: ['run'], healthPath: '/health', description: 'GraphQL Gateway' },
+  backend: { port: 8010, path: 'backend', command: 'cargo', args: ['run'], healthPath: '/health', description: 'GraphQL Gateway' },
   embedding: { port: 8082, path: 'vector_rag', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Fusion Embeddings' },
   // indexers: { port: 8080, path: 'indexers', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Search & Indexing' }, // Removed - will be rewritten
   frontend: { port: 3000, path: 'frontend', command: 'npm.cmd', args: ['run', 'dev'], healthPath: '/', description: 'Next.js UI' }
@@ -335,7 +335,7 @@ class ServiceManager {
     console.log('\n🎉 ConHub startup sequence complete!');
     console.log('\n🌐 ACCESS POINTS:');
     console.log('   🌐 Frontend:     http://localhost:3000');
-    console.log('   🔗 GraphQL API:  http://localhost:8000/api/graphql');
+    console.log('   🔗 GraphQL API:  http://localhost:8010/api/graphql');
     console.log('   🔐 Auth API:     http://localhost:3010/health');
     console.log('   📊 Data API:     http://localhost:3013/health');
     console.log('   🤖 AI Service:   http://localhost:3012/health');

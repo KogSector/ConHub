@@ -23,7 +23,7 @@ async fn main() -> std::io::Result<()> {
         .init();
 
     let port = env::var("CHUNKER_PORT")
-        .unwrap_or_else(|_| "3014".to_string())
+        .unwrap_or_else(|_| "3017".to_string())
         .parse::<u16>()
         .expect("Invalid port number");
 

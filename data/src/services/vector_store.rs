@@ -3,26 +3,25 @@ use serde_json::Value;
 use tracing::{info, error};
 use uuid::Uuid;
 
-use crate::services::qdrant_client::{QdrantClient, QdrantSearchResult};
-use crate::connectors::types::QdrantConfig;
+use super::zilliz_client::{ZillizClient, ZillizSearchResult, ZillizConfig, build_zilliz_filter};
 
-/// Vector store service that wraps Qdrant client for embedding storage and retrieval
+/// Vector store service that wraps Zilliz client for embedding storage and retrieval
 #[derive(Clone)]
 pub struct VectorStoreService {
-    qdrant_client: Arc<QdrantClient>,
+    zilliz_client: Arc<ZillizClient>,
     vector_dimension: usize,
 }
 
 impl VectorStoreService {
     /// Create a new vector store service
-    pub async fn new(config: QdrantConfig, vector_dimension: usize) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        let qdrant_client = Arc::new(QdrantClient::new(config));
+    pub async fn new(config: ZillizConfig, vector_dimension: usize) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let zilliz_client = Arc::new(ZillizClient::new(config));
         
         // Ensure collection exists
-        qdrant_client.ensure_collection(vector_dimension).await?;
+        zilliz_client.ensure_collection(vector_dimension).await?;
         
         Ok(Self {
-            qdrant_client,
+            zilliz_client,
             vector_dimension,
         })
     }
@@ -42,7 +41,7 @@ impl VectorStoreService {
             ).into());
         }
 
-        self.qdrant_client.store_vector(id, vector, metadata).await
+        self.zilliz_client.store_vector(id, vector, metadata).await
     }
 
     /// Store multiple vectors in batch for better performance
@@ -62,7 +61,7 @@ impl VectorStoreService {
             }
         }
 
-        self.qdrant_client.store_vectors_batch(vectors).await
+        self.zilliz_client.store_vectors_batch(vectors).await
     }
 
     /// Search for similar vectors
@@ -71,7 +70,7 @@ impl VectorStoreService {
         query_vector: &[f32],
         limit: usize,
         with_payload: bool,
-    ) -> Result<Vec<QdrantSearchResult>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<ZillizSearchResult>, Box<dyn std::error::Error + Send + Sync>> {
         if query_vector.len() != self.vector_dimension {
             return Err(format!(
                 "Query vector dimension mismatch: expected {}, got {}",
@@ -80,7 +79,7 @@ impl VectorStoreService {
             ).into());
         }
 
-        self.qdrant_client.search_vectors(query_vector, limit, with_payload).await
+        self.zilliz_client.search_vectors(query_vector, limit, with_payload).await
     }
 
     /// Search for similar vectors with filtering
@@ -89,7 +88,7 @@ impl VectorStoreService {
         query_vector: &[f32],
         limit: usize,
         filter: Value,
-    ) -> Result<Vec<QdrantSearchResult>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<ZillizSearchResult>, Box<dyn std::error::Error + Send + Sync>> {
         if query_vector.len() != self.vector_dimension {
             return Err(format!(
                 "Query vector dimension mismatch: expected {}, got {}",
@@ -98,34 +97,20 @@ impl VectorStoreService {
             ).into());
         }
 
-        // For now, we'll do a simple search and filter results
-        // In a production system, you'd want to use Qdrant's native filtering
-        let results = self.qdrant_client.search_vectors(query_vector, limit * 2, true).await?;
-        
-        // Apply basic filtering (this is a simplified implementation)
-        let filtered_results: Vec<QdrantSearchResult> = results
-            .into_iter()
-            .filter(|result| {
-                if let Some(ref payload) = result.payload {
-                    // Simple filter matching - in production, use proper filter logic
-                    if let Value::Object(filter_map) = &filter {
-                        for (key, expected_value) in filter_map {
-                            if let Some(actual_value) = payload.get(key) {
-                                if actual_value != expected_value {
-                                    return false;
-                                }
-                            } else {
-                                return false;
-                            }
-                        }
-                    }
+        // Build Zilliz filter from the filter Value
+        let filter_str = if let Value::Object(filter_map) = &filter {
+            let mut conditions = Vec::new();
+            for (key, value) in filter_map {
+                if let Some(v) = value.as_str() {
+                    conditions.push(format!("{} == \"{}\"", key, v));
                 }
-                true
-            })
-            .take(limit)
-            .collect();
+            }
+            if conditions.is_empty() { None } else { Some(conditions.join(" && ")) }
+        } else {
+            None
+        };
 
-        Ok(filtered_results)
+        self.zilliz_client.search_vectors_with_filter(query_vector, limit, filter_str, true).await
     }
 
     /// Delete vectors by repository (useful for re-syncing)
@@ -133,16 +118,8 @@ impl VectorStoreService {
         &self,
         repository: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let filter = serde_json::json!({
-            "must": [{
-                "key": "repository",
-                "match": {
-                    "value": repository
-                }
-            }]
-        });
-
-        self.qdrant_client.delete_vectors_by_filter(filter).await
+        let filter = format!("repository == \"{}\"", repository);
+        self.zilliz_client.delete_vectors_by_filter(filter).await
     }
 
     /// Delete vectors by branch (useful for branch-specific cleanup)
@@ -151,24 +128,8 @@ impl VectorStoreService {
         repository: &str,
         branch: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let filter = serde_json::json!({
-            "must": [
-                {
-                    "key": "repository",
-                    "match": {
-                        "value": repository
-                    }
-                },
-                {
-                    "key": "branch",
-                    "match": {
-                        "value": branch
-                    }
-                }
-            ]
-        });
-
-        self.qdrant_client.delete_vectors_by_filter(filter).await
+        let filter = format!("repository == \"{}\" && branch == \"{}\"", repository, branch);
+        self.zilliz_client.delete_vectors_by_filter(filter).await
     }
 
     /// Delete a specific vector by ID
@@ -176,17 +137,16 @@ impl VectorStoreService {
         &self,
         id: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.qdrant_client.delete_vector(id).await
+        self.zilliz_client.delete_vector(id).await
     }
 
     /// Get collection statistics
     pub async fn get_stats(&self) -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
-        let info = self.qdrant_client.get_collection_info().await?;
+        let info = self.zilliz_client.get_collection_info().await?;
         
         Ok(serde_json::json!({
             "status": info.status,
             "vectors_count": info.vectors_count,
-            "indexed_vectors_count": info.indexed_vectors_count,
             "vector_dimension": self.vector_dimension
         }))
     }
@@ -200,47 +160,10 @@ impl VectorStoreService {
         languages: Option<&[String]>,
         limit: usize,
     ) -> Result<Vec<CodeSearchResult>, Box<dyn std::error::Error + Send + Sync>> {
-        let mut filter_conditions = Vec::new();
+        // Build Zilliz filter
+        let filter = build_zilliz_filter(repository, branch, languages);
 
-        if let Some(repo) = repository {
-            filter_conditions.push(serde_json::json!({
-                "key": "repository",
-                "match": {
-                    "value": repo
-                }
-            }));
-        }
-
-        if let Some(branch_name) = branch {
-            filter_conditions.push(serde_json::json!({
-                "key": "branch",
-                "match": {
-                    "value": branch_name
-                }
-            }));
-        }
-
-        if let Some(langs) = languages {
-            if !langs.is_empty() {
-                let language_filter = serde_json::json!({
-                    "key": "content_type",
-                    "match": {
-                        "any": langs
-                    }
-                });
-                filter_conditions.push(language_filter);
-            }
-        }
-
-        let filter = if filter_conditions.is_empty() {
-            serde_json::json!({})
-        } else {
-            serde_json::json!({
-                "must": filter_conditions
-            })
-        };
-
-        let results = self.search_similar_with_filter(query_vector, limit, filter).await?;
+        let results = self.zilliz_client.search_vectors_with_filter(query_vector, limit, filter, true).await?;
         
         let code_results: Vec<CodeSearchResult> = results
             .into_iter()
@@ -300,16 +223,9 @@ pub struct CodeSearchResult {
 
 /// Create vector store service from environment variables
 pub async fn create_vector_store_service() -> Result<VectorStoreService, Box<dyn std::error::Error + Send + Sync>> {
-    let config = QdrantConfig {
-        url: std::env::var("QDRANT_URL")
-            .unwrap_or_else(|_| "https://your-cluster-host:6333".to_string()),
-        api_key: std::env::var("QDRANT_API_KEY")
-            .unwrap_or_else(|_| "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.uIPbGMwsHdiQlzUd5ad4Yx1HWPhg1hfbu3fiHRkGr6M".to_string()),
-        collection_name: std::env::var("QDRANT_COLLECTION")
-            .unwrap_or_else(|_| "conhub_embeddings".to_string()),
-    };
+    let config = ZillizConfig::from_env();
 
-    // Default Qwen3 embedding dimension (this should match your model)
+    // Default embedding dimension (this should match your model)
     let vector_dimension: usize = std::env::var("EMBEDDING_DIMENSION")
         .unwrap_or_else(|_| "1536".to_string())
         .parse()

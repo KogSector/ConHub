@@ -85,10 +85,10 @@ async fn store_chunks_in_vector_db(
     embeddings: &[Vec<f32>],
     service: &Arc<FusionEmbeddingService>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let qdrant_url = env::var("QDRANT_URL")
-        .unwrap_or_else(|_| "http://localhost:6333".to_string());
+    let zilliz_url = env::var("ZILLIZ_PUBLIC_ENDPOINT")
+        .unwrap_or_else(|_| env::var("ZILLIZ_ENDPOINT").unwrap_or_else(|_| "https://localhost:19530".to_string()));
     
-    let collection = env::var("QDRANT_COLLECTION")
+    let collection = env::var("ZILLIZ_COLLECTION")
         .unwrap_or_else(|_| "conhub_chunks".to_string());
     
     // Get dimension from fusion config
@@ -96,9 +96,9 @@ async fn store_chunks_in_vector_db(
         .map(|m| m.dimension)
         .unwrap_or(1536);
     
-    log::info!("💾 Storing {} chunks in Qdrant collection '{}'", chunks.len(), collection);
+    log::info!("💾 Storing {} chunks in Zilliz collection '{}'", chunks.len(), collection);
     
-    let store = VectorStoreService::new(&qdrant_url, 5).await?;
+    let store = VectorStoreService::new(&zilliz_url, 30).await?;
     store.ensure_collection(&collection, dimension as usize).await?;
     
     // Prepare points for upsert
@@ -133,6 +133,6 @@ async fn store_chunks_in_vector_db(
     
     store.upsert(&collection, points).await?;
     
-    log::info!("✅ Successfully stored {} chunks in vector DB", chunks.len());
+    log::info!("✅ Successfully stored {} chunks in Zilliz Cloud", chunks.len());
     Ok(())
 }

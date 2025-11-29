@@ -12,6 +12,7 @@ pub mod social;
 pub mod mcp;
 pub mod graphql;
 pub mod chunking;
+pub mod robot;
 
 // Advanced data structures for performance optimization
 
