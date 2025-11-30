@@ -4,7 +4,8 @@ import { Auth0Provider } from '@auth0/auth0-react';
 import React from 'react';
 
 const Auth0ProviderWithNavigate = ({ children }: { children: React.ReactNode }) => {
-  const redirectUri = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+  const redirectUri = `${origin}/auth/callback`;
   const domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN;
   const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID;
   const audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE;
