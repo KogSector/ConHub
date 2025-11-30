@@ -27,7 +27,7 @@ openssl rsa -in private.pem -pubout -out public.pem
 Copy the contents of `private.pem` and `public.pem` into `JWT_PRIVATE_KEY` and `JWT_PUBLIC_KEY` in the auth service `.env`.
 
 4. **Configure auth service env** (`auth/.env`)  
-- Based on `auth/.env.example`, set at minimum:  
+- In `auth/.env`, set at minimum:  
   - `AUTH0_DOMAIN`  
   - `AUTH0_AUDIENCE`  
   - `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY`  
@@ -36,7 +36,7 @@ Copy the contents of `private.pem` and `public.pem` into `JWT_PRIVATE_KEY` and `
   - `AUTH_SERVICE_PORT=3010`.
 
 5. **Configure frontend env** (`frontend/.env.local`)  
-- Based on `frontend/.env.example`, set:  
+- In `frontend/.env.local`, set:  
   - `NEXT_PUBLIC_AUTH0_DOMAIN`  
   - `NEXT_PUBLIC_AUTH0_CLIENT_ID`  
   - `NEXT_PUBLIC_AUTH0_AUDIENCE`  
@@ -260,8 +260,7 @@ Enable social login providers (Google, GitHub, Bitbucket).
 
 ### Auth Service (`auth/.env`)
 
-Create `auth/.env` from `auth/.env.example`:
-
+Create `auth/.env` with at least the following settings:
 ```bash
 # Auth0 Configuration
 AUTH0_DOMAIN=your-tenant.us.auth0.com
@@ -301,8 +300,7 @@ cat public.pem
 
 ### Frontend (`frontend/.env.local`)
 
-Create `frontend/.env.local` from `frontend/.env.example`:
-
+Create `frontend/.env.local` with at least the following settings:
 ```bash
 # Auth0 SPA Configuration
 NEXT_PUBLIC_AUTH0_DOMAIN=your-tenant.us.auth0.com

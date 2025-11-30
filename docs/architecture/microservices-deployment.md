@@ -165,7 +165,7 @@ Each service requires:
 - `DATABASE_URL_NEON` - PostgreSQL connection string
 - `REDIS_URL` - Redis connection string (rediss:// for TLS)
 - `JWT_PUBLIC_KEY_PATH` or `JWT_PRIVATE_KEY_PATH` - JWT keys
-- Service-specific variables (see `.env.example` in each service directory)
+- Service-specific variables (see the `.env` file and documentation in each service directory)
 
 ## Health Checks
 

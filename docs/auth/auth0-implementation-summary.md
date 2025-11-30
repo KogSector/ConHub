@@ -27,11 +27,11 @@ Successfully implemented Auth0-centric authentication system for ConHub followin
   - Automatic email verification for Auth0 users
   - Integration with existing SecurityService for ConHub JWT generation
 
-- **`auth/.env.example`** - Environment variable template
-  - Auth0 configuration (domain, audience)
+- **Auth service env configuration** (`auth/.env`) - Environment variable settings for the auth microservice
+  - Includes Auth0 configuration (domain, audience)
   - JWT keys configuration
   - OAuth provider settings (for connectors, not login)
-  - Complete documentation of all required variables
+  - See `docs/auth/auth0-setup.md` for the list of required variables
 
 #### Modified Files:
 - **`auth/src/services/mod.rs`** - Added Auth0 service exports
@@ -56,7 +56,7 @@ Successfully implemented Auth0-centric authentication system for ConHub followin
   - Token refresh logic
   - Automatic Auth0 token → ConHub token exchange
 
-- **`frontend/.env.example`** - Frontend environment template
+- **Frontend env configuration** (`frontend/.env.local`) - Frontend environment configuration
   - Auth0 SPA configuration
   - ConHub service URLs
   - Feature flags
