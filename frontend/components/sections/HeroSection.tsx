@@ -4,11 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Code, Brain, Database, RefreshCw, GitBranch, Sparkles, Zap, Rocket, Star, ArrowRight, Play } from "lucide-react";
 import { Globe } from "@/components/ui/globe";
-import { isHeavyModeEnabled } from "@/lib/feature-toggles";
 import { useAuth } from "@/hooks/use-auth";
 
-const heavyMode = isHeavyModeEnabled();
-const anim = (cls: string) => (heavyMode ? cls : "");
+// Animation helper - animations are always enabled for better UX
+const anim = (cls: string) => cls;
 
 export function HeroSection() {
   const { isAuthenticated } = useAuth();
@@ -111,7 +110,7 @@ export function HeroSection() {
                 className="h-11 px-8 bg-gradient-to-r from-primary to-primary-glow hover:from-primary/90 hover:to-primary-glow/90 transition-all duration-300 shadow-lg hover:shadow-xl group" 
                 onClick={handleGetStarted}
               >
-                <Rocket className={`w-4 h-4 mr-2 ${heavyMode ? 'group-hover:animate-bounce' : ''}`} />
+                <Rocket className="w-4 h-4 mr-2 group-hover:animate-bounce" />
                 Get Started
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
@@ -164,7 +163,7 @@ export function HeroSection() {
             
             <div className={`absolute -bottom-6 -left-6 bg-gradient-to-r from-card to-card/90 backdrop-blur-sm border border-border/50 rounded-xl p-4 shadow-xl ${anim('animate-fade-in-up')} ${anim('anim-delay-1700')}`}>
               <div className="flex items-center gap-3">
-                <RefreshCw className={`w-5 h-5 text-primary ${heavyMode ? 'animate-spin anim-duration-3s' : ''}`} />
+                <RefreshCw className="w-5 h-5 text-primary animate-spin anim-duration-3s" />
                 <div>
                   <div className="text-sm font-semibold text-foreground">12 Sources</div>
                   <div className="text-xs text-muted-foreground">Syncing in real-time</div>

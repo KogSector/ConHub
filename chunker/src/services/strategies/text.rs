@@ -3,11 +3,18 @@ use anyhow::Result;
 
 use conhub_models::chunking::{SourceItem, Chunk};
 
+/// Semantic-aware text chunker with modern techniques
+/// - Respects sentence boundaries
+/// - Paragraph-aware chunking
+/// - Overlap for context preservation
+/// - Intelligent break point detection
 pub struct TextChunker;
 
 impl TextChunker {
     const MAX_CHUNK_SIZE: usize = 1000; // characters
-    const CHUNK_OVERLAP: usize = 200;
+    const MIN_CHUNK_SIZE: usize = 100;  // minimum chunk size
+    const CHUNK_OVERLAP: usize = 200;   // overlap for context
+    const TARGET_CHUNK_SIZE: usize = 800; // target size before looking for breaks
 
     /// Chunk text documents by paragraphs and sliding windows
     pub fn chunk(source_item: &SourceItem) -> Result<Vec<Chunk>> {

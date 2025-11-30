@@ -41,26 +41,19 @@ impl FeatureToggles {
         self.is_enabled_or("Auth", false)
     }
 
-    // Convenience: read Heavy features enablement
-    // Controls heavy frontend animations and backend tasks (embedding, indexing)
-    pub fn heavy_enabled(&self) -> bool {
-        // Default to false to optimize for development performance
-        self.is_enabled_or("Heavy", false)
-    }
-
     // Check if database connections should be established
     pub fn should_connect_databases(&self) -> bool {
         self.auth_enabled()
     }
 
-    // Check if embedding service should be active
+    // Check if embedding service should be active (always enabled now)
     pub fn should_enable_embedding(&self) -> bool {
-        self.heavy_enabled()
+        true
     }
 
-    // Check if indexing should be active
+    // Check if indexing should be active (always enabled now)
     pub fn should_enable_indexing(&self) -> bool {
-        self.heavy_enabled()
+        true
     }
 
     // Convenience: read Docker enablement

@@ -4,17 +4,17 @@ import { Auth0Provider } from '@auth0/auth0-react';
 import React from 'react';
 
 const Auth0ProviderWithNavigate = ({ children }: { children: React.ReactNode }) => {
-  const redirectUri = 'http://localhost:3000'; 
+  const redirectUri = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
   const domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN;
   const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID;
   const audience = process.env.NEXT_PUBLIC_AUTH0_AUDIENCE;
 
-  console.log("Auth0 Debug:", { domain, clientId, redirectUri });
-
-  // Safety check
+  // Safety check - render children anyway to avoid blocking the app
   if (!(domain && clientId)) {
-    console.error("❌ Auth0 Config Missing! Check .env.local");
-    return null;
+    if (process.env.NODE_ENV === 'development') {
+      console.warn("⚠️ Auth0 Config Missing - running in unauthenticated mode");
+    }
+    return <>{children}</>;
   }
 
   return (
@@ -25,6 +25,8 @@ const Auth0ProviderWithNavigate = ({ children }: { children: React.ReactNode }) 
         redirect_uri: redirectUri, 
         audience: audience,
       }}
+      cacheLocation="localstorage"
+      useRefreshTokens={true}
     >
       {children}
     </Auth0Provider>

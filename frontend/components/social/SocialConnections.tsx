@@ -93,21 +93,32 @@ export function SocialConnections() {
 
   const connectPlatform = async (platform: string) => {
     try {
-      if (platform === 'github' || platform === 'bitbucket' || platform === 'gitlab') {
+      // OAuth providers handled through auth service
+      const oauthProviders = ['github', 'bitbucket', 'gitlab', 'google', 'google_drive'];
+      const providerForAuth = platform === 'google_drive' ? 'google' : platform;
+      
+      if (oauthProviders.includes(platform)) {
         const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-        const resp = await apiClient.get<{ url: string; state: string }>(`/api/auth/oauth/url?provider=${platform}`, headers)
+        const resp = await apiClient.get<{ url: string; state: string }>(`/api/auth/oauth/url?provider=${providerForAuth}`, headers)
         const { url: authUrl } = resp
         if (authUrl) {
           window.open(authUrl, '_blank', 'width=500,height=700')
-          setTimeout(() => { fetchConnections(); }, 5000)
+          // Listen for OAuth completion and refresh connections
+          const checkInterval = setInterval(() => {
+            fetchConnections();
+          }, 3000);
+          // Clear interval after 60 seconds
+          setTimeout(() => clearInterval(checkInterval), 60000);
         } else {
-          toast({ title: 'Error', description: `Failed to get ${platform} auth URL`, variant: 'destructive' })
+          toast({ title: 'Error', description: `Failed to get ${platform} auth URL. Please check OAuth configuration.`, variant: 'destructive' })
         }
         return
       }
+      
+      // Other platforms via security service
       const resp = await securityApiClient.post('/api/security/connections/connect', { platform });
-      const payload = unwrapResponse<{ account?: { credentials?: { auth_url?: string } } }>(resp) ?? {}
-      const authUrl = payload?.account?.credentials?.auth_url
+      const payload = unwrapResponse<{ credentials?: { auth_url?: string }; account?: { credentials?: { auth_url?: string } } }>(resp) ?? {}
+      const authUrl = payload?.credentials?.auth_url || payload?.account?.credentials?.auth_url
       if (authUrl) {
         window.open(authUrl, '_blank', 'width=500,height=600')
         setTimeout(() => {
@@ -118,7 +129,8 @@ export function SocialConnections() {
       }
     } catch (error) {
       console.error('Error connecting platform:', error);
-      toast({ title: 'Error', description: `Failed to connect to ${platform}`, variant: 'destructive' });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast({ title: 'Error', description: `Failed to connect to ${platform}: ${errorMessage}`, variant: 'destructive' });
     }
   };
 

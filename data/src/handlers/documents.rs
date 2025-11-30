@@ -117,15 +117,17 @@ pub async fn upload_document(mut payload: Multipart) -> Result<HttpResponse, Ser
         let user_docs = storage.entry(user_id.clone()).or_insert_with(Vec::new);
         user_docs.push(document_record.clone());
         
-        // Embedding disabled for now
-        // TODO: Re-enable when embedding service is configured
-        // if is_heavy_feature_enabled().await {
-        //     tokio::spawn(async move {
-        //         if let Err(e) = trigger_document_embedding(&file_id, &filepath.to_string_lossy()).await {
-        //             log::error!("Failed to trigger embedding for document {}: {}", file_id, e);
-        //         }
-        //     });
-        // }
+        // Trigger chunking in background
+        let file_id_clone = file_id.clone();
+        let filepath_clone = filepath.clone();
+        let filename_clone = filename.to_string();
+        let mime_type_clone = mime_type.clone();
+        
+        tokio::spawn(async move {
+            if let Err(e) = trigger_document_chunking(&file_id_clone, &filepath_clone.to_string_lossy(), &filename_clone, &mime_type_clone).await {
+                log::error!("Failed to trigger chunking for document {}: {}", file_id_clone, e);
+            }
+        });
         
         uploaded_files.push(document_record);
         log::info!("Successfully uploaded file: {} ({})", filename, format_file_size(file_size));
@@ -151,39 +153,36 @@ fn format_file_size(size: u64) -> String {
     format!("{:.1} {}", size, UNITS[unit_index])
 }
 
-async fn is_heavy_feature_enabled() -> bool {
-    // Read feature toggles from file
-    match tokio::fs::read_to_string("feature-toggles.json").await {
-        Ok(content) => {
-            if let Ok(toggles) = serde_json::from_str::<serde_json::Value>(&content) {
-                toggles.get("Heavy").and_then(|v| v.as_bool()).unwrap_or(false)
-            } else {
-                false
-            }
-        }
-        Err(_) => false,
-    }
-}
-
-async fn trigger_document_embedding(file_id: &str, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-    log::info!("Triggering embedding for document: {}", file_id);
+/// Trigger document chunking via the chunker service
+/// This sends the document to the chunker for processing with modern chunking strategies
+async fn trigger_document_chunking(file_id: &str, file_path: &str, filename: &str, mime_type: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    log::info!("Triggering chunking for document: {} ({})", file_id, filename);
     
     // Read file content
     let content = tokio::fs::read_to_string(file_path).await?;
     
-    // Call embedding service
+    // Determine source kind based on file type
+    let source_kind = determine_source_kind(filename, mime_type);
+    
+    // Call chunker service
     let client = reqwest::Client::new();
-    let embedding_url = std::env::var("EMBEDDING_SERVICE_URL")
-        .unwrap_or_else(|_| "http://localhost:8082".to_string());
+    let chunker_url = std::env::var("CHUNKER_SERVICE_URL")
+        .unwrap_or_else(|_| "http://localhost:3017".to_string());
+    
+    let source_id = Uuid::parse_str(file_id).unwrap_or_else(|_| Uuid::new_v4());
     
     let response = client
-        .post(&format!("{}/embed/documents", embedding_url))
+        .post(&format!("{}/chunk/jobs", chunker_url))
         .json(&serde_json::json!({
-            "documents": [{
+            "source_id": source_id,
+            "source_kind": source_kind,
+            "items": [{
                 "id": file_id,
                 "content": content,
+                "content_type": mime_type,
                 "metadata": {
-                    "file_path": file_path,
+                    "path": file_path,
+                    "filename": filename,
                     "timestamp": Utc::now().to_rfc3339()
                 }
             }]
@@ -192,15 +191,55 @@ async fn trigger_document_embedding(file_id: &str, file_path: &str) -> Result<()
         .await?;
     
     if response.status().is_success() {
-        log::info!("Successfully triggered embedding for document: {}", file_id);
-        
+        log::info!("Successfully triggered chunking for document: {}", file_id);
         // Update document status to processed
         update_document_status(file_id, "processed").await;
     } else {
-        log::error!("Failed to trigger embedding for document: {} - Status: {}", file_id, response.status());
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_default();
+        log::warn!("Chunker service returned {}: {} - document saved but not chunked", status, error_text);
+        // Still mark as uploaded even if chunking fails
+        update_document_status(file_id, "uploaded").await;
     }
     
     Ok(())
+}
+
+/// Determine the source kind based on file extension and MIME type
+fn determine_source_kind(filename: &str, mime_type: &str) -> &'static str {
+    let extension = std::path::Path::new(filename)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    
+    // Code files
+    let code_extensions = ["rs", "py", "js", "ts", "tsx", "jsx", "go", "java", "c", "cpp", "h", "hpp", "cs", "rb", "php", "swift", "kt", "scala"];
+    if code_extensions.contains(&extension.as_str()) {
+        return "CodeRepo";
+    }
+    
+    // Markdown/documentation
+    if extension == "md" || extension == "markdown" || extension == "mdx" {
+        return "Document";
+    }
+    
+    // Chat/conversation logs
+    if extension == "json" && (filename.contains("chat") || filename.contains("conversation") || filename.contains("message")) {
+        return "Chat";
+    }
+    
+    // Check MIME types
+    if mime_type.contains("text/markdown") {
+        return "Document";
+    }
+    
+    if mime_type.contains("text/") || mime_type.contains("application/json") {
+        return "Document";
+    }
+    
+    // Default to document for other types
+    "Document"
 }
 
 async fn update_document_status(file_id: &str, status: &str) {
