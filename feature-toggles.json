@@ -1,5 +1,5 @@
 {
-  "Auth": true,
+  "Auth": false,
   "Docker": false,
   "Prod": false,
   "Redis": true
