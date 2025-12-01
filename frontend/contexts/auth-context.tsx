@@ -68,8 +68,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginEnabled = isLoginEnabled()
 
   // Default dev user when auth is disabled
+  // This UUID MUST match the backend default_dev_user_id() in shared/models/src/auth.rs
+  // to ensure consistent identity across frontend and backend services
+  const DEV_USER_ID = '8f565516-5c3e-4d63-bc6f-1e049d4152ac'
   const devUser: User = useMemo(() => ({
-    id: 'dev-user-00000000',
+    id: DEV_USER_ID,
     email: 'dev@conhub.local',
     name: 'Development User',
     avatar_url: undefined,

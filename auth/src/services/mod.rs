@@ -7,12 +7,14 @@ pub mod sessions;
 pub mod security;
 pub mod middleware;
 pub mod auth_service_orm;
+pub mod dev_user;
 
 pub use users::*;
 pub use password_reset::*;
 pub use sessions::*;
 pub use security::*;
 pub use middleware::*;
+pub use dev_user::{ensure_dev_user_exists, get_dev_user, DEV_AUTH0_SUB};
 
 pub use local_auth::LocalAuthService;
 pub use oauth::OAuthService;

@@ -13,6 +13,7 @@ use crate::services::{
     users::UserService,
     sessions::SessionService,
     security::SecurityService,
+    dev_user::get_dev_user,
 };
 use reqwest::{Client, Url};
 use conhub_middleware::auth::extract_claims_from_http_request;
@@ -23,6 +24,36 @@ pub async fn disabled() -> Result<HttpResponse> {
         "success": true,
         "disabled": true,
         "message": "Authentication is disabled via feature toggles."
+    })))
+}
+
+/// Get current user in dev mode (Auth disabled)
+/// Returns the dev user profile, either from DB or in-memory fallback
+pub async fn get_dev_current_user(
+    pool_opt: web::Data<Option<PgPool>>,
+) -> Result<HttpResponse> {
+    let pool_ref = pool_opt.get_ref().as_ref();
+    let profile = get_dev_user(pool_ref).await;
+    
+    Ok(HttpResponse::Ok().json(json!({
+        "success": true,
+        "data": profile,
+        "dev_mode": true
+    })))
+}
+
+/// Get profile in dev mode (Auth disabled)
+/// Returns the dev user profile, either from DB or in-memory fallback
+pub async fn get_dev_profile(
+    pool_opt: web::Data<Option<PgPool>>,
+) -> Result<HttpResponse> {
+    let pool_ref = pool_opt.get_ref().as_ref();
+    let profile = get_dev_user(pool_ref).await;
+    
+    Ok(HttpResponse::Ok().json(json!({
+        "success": true,
+        "data": profile,
+        "dev_mode": true
     })))
 }
 
