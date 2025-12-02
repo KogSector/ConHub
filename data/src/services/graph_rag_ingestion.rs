@@ -9,6 +9,7 @@ use crate::connectors::types::*;
 use crate::services::chunker_client::ChunkerClient;
 
 /// Graph RAG ingestion service that uses the new chunker → embedding → graph pipeline
+#[derive(Clone)]
 pub struct GraphRagIngestionService {
     chunker_client: Arc<ChunkerClient>,
 }
@@ -97,7 +98,7 @@ impl GraphRagIngestionService {
             id: doc.id,
             source_id,
             source_kind,
-            content_type: doc.content_type,
+            content_type: doc.content_type.to_string(),
             content: doc.content,
             metadata,
             created_at: Some(chrono::Utc::now()),

@@ -266,6 +266,13 @@ fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewar
     }
 
     cfg.service(scope);
+
+    // Internal service-to-service endpoints (no auth middleware - protected by network/service mesh)
+    cfg.service(
+        web::scope("/internal")
+            .route("/oauth/{provider}/token", web::get().to(handlers::auth::internal_get_oauth_token))
+            .route("/oauth/{provider}/status", web::get().to(handlers::auth::internal_check_oauth_status))
+    );
 }
 
 async fn health_check(pool_opt: web::Data<Option<PgPool>>) -> actix_web::Result<web::Json<serde_json::Value>> {

@@ -6,6 +6,7 @@ pub mod chunker_client;
 pub mod graph_rag_ingestion;
 pub mod connector_cache;
 pub mod kafka_client;
+pub mod auth_client;
 
 // Zilliz Cloud vector store client (replaces Qdrant)
 pub mod zilliz_client;
@@ -26,6 +27,7 @@ pub use graph_rag_ingestion::GraphRagIngestionService;
 pub use zilliz_client::{ZillizClient, ZillizConfig, ZillizSearchResult};
 pub use vector_store::{VectorStoreService, CodeSearchResult, create_vector_store_service};
 pub use kafka_client::KafkaClient;
+pub use auth_client::{AuthClient, AuthClientError, OAuthTokenResponse, OAuthStatusResponse};
 
 // Legacy exports (deprecated)
 #[allow(deprecated)]
