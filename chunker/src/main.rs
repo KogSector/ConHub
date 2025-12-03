@@ -2,9 +2,9 @@ use actix_web::{web, App, HttpServer, HttpResponse};
 use std::env;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn};
 use std::collections::HashMap;
 use uuid::Uuid;
+use conhub_observability::{init_tracing, TracingConfig, observability, info, warn};
 
 mod handlers;
 mod services;
@@ -14,13 +14,8 @@ use models::AppState;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive(tracing::Level::INFO.into())
-        )
-        .init();
+    // Initialize observability with structured logging
+    init_tracing(TracingConfig::for_service("chunker-service"));
 
     let port = env::var("CHUNKER_PORT")
         .unwrap_or_else(|_| "3017".to_string())
@@ -69,6 +64,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            .wrap(observability("chunker-service"))
             .app_data(web::Data::new(state.clone()))
             .route("/health", web::get().to(health_check))
             .route("/chunk/jobs", web::post().to(handlers::jobs::start_chunk_job))

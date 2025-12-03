@@ -1,9 +1,9 @@
-use actix_web::{web, App, HttpServer, middleware::Logger};
+use actix_web::{web, App, HttpServer};
 use actix_cors::Cors;
 use sqlx::postgres::PgPoolOptions;
-use tracing_subscriber;
 use std::env;
 use std::sync::Arc;
+use conhub_observability::{init_tracing, TracingConfig, observability, info, warn, error};
 
 mod models;
 mod services;
@@ -18,7 +18,8 @@ use graph_db::Neo4jClient;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    tracing_subscriber::fmt::init();
+    // Initialize observability with structured logging
+    init_tracing(TracingConfig::for_service("graph-rag"));
     dotenv::dotenv().ok();
 
     let db_url = env::var("DATABASE_URL_NEON")
@@ -35,15 +36,15 @@ async fn main() -> std::io::Result<()> {
     let neo4j_user = env::var("NEO4J_USER").unwrap_or_else(|_| "neo4j".to_string());
     let neo4j_password = env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "password".to_string());
     
-    tracing::info!("🔷 [Graph Service] Connecting to Neo4j at {}...", neo4j_uri);
+    info!("🔷 [Graph Service] Connecting to Neo4j at {}...", neo4j_uri);
     let neo4j_client = match Neo4jClient::new(&neo4j_uri, &neo4j_user, &neo4j_password).await {
         Ok(client) => {
-            tracing::info!("✅ [Graph Service] Neo4j connection established");
+            info!("✅ [Graph Service] Neo4j connection established");
             Some(Arc::new(client))
         }
         Err(e) => {
-            tracing::error!("Failed to connect to Neo4j: {}", e);
-            tracing::warn!("Graph operations will be limited");
+            error!("Failed to connect to Neo4j: {}", e);
+            warn!("Graph operations will be limited");
             None
         }
     };
@@ -53,7 +54,7 @@ async fn main() -> std::io::Result<()> {
         .parse::<u16>()
         .expect("Invalid port number");
     
-    tracing::info!("🚀 [Graph Service] Starting on port {}", port);
+    info!("🚀 [Graph Service] Starting on port {}", port);
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -66,7 +67,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(neo4j_client.clone()))
             .wrap(cors)
-            .wrap(Logger::default())
+            .wrap(observability("graph-rag"))
             .service(
                 web::scope("/api/graph")
                     // Entity endpoints

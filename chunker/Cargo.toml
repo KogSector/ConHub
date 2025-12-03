@@ -33,6 +33,7 @@ env_logger = "0.11"
 
 # Shared models
 conhub-models = { path = "../shared/models" }
+conhub-observability = { path = "../shared/observability" }
 
 # Regex for code parsing
 regex = "1.10"

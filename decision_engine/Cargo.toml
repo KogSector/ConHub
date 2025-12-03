@@ -34,6 +34,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 # Shared models
 conhub-models = { path = "../shared/models" }
 conhub-config = { path = "../shared/config" }
+conhub-observability = { path = "../shared/observability" }
 
 # Redis for caching
 redis = { version = "0.23", features = ["tokio-comp", "connection-manager"] }

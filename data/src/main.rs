@@ -1,8 +1,12 @@
-
 use actix_web::{web, App, HttpServer, HttpRequest, HttpResponse, Result, HttpMessage};
 use conhub_middleware::auth::AuthMiddlewareFactory;
 use conhub_models::auth::Claims;
-use tracing::{info, warn, error};
+use conhub_observability::{
+    init_tracing, TracingConfig, observability,
+    info, warn, error, debug,
+    domain_events::{DomainEvent, EventCategory, log_connector_operation, log_sync_job_started, log_sync_job_completed, log_sync_job_failed},
+    get_trace_context,
+};
 use std::env;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -221,20 +225,37 @@ pub async fn secure_sync_github_repository(
     graph_ingestion: web::Data<Option<GraphRagIngestionService>>,
 ) -> Result<HttpResponse> {
     let start_time = std::time::Instant::now();
+    let trace_ctx = get_trace_context(&http_req);
     
     // Step 1: Extract user_id from JWT claims
     let user_id = match extract_user_id_from_request(&http_req) {
         Some(id) => id,
         None => {
-            error!("❌ No user_id found in request claims");
+            error!(trace_id = %trace_ctx.trace_id, "No user_id found in request claims");
+            DomainEvent::new("data-service", EventCategory::Auth, "auth_failed")
+                .trace(&trace_ctx.trace_id, &trace_ctx.span_id)
+                .failure("No user_id in claims")
+                .emit();
             return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
                 "error": "Authentication required"
             })));
         }
     };
     
-    info!("🔄 Starting secure GitHub repository sync for user {} - repo: {} (branch: {})", 
-          user_id, req.repo_url, req.branch);
+    // Create a sync job ID for tracking
+    let sync_job_id = Uuid::new_v4();
+    
+    info!(
+        trace_id = %trace_ctx.trace_id,
+        user_id = %user_id,
+        repo = %req.repo_url,
+        branch = %req.branch,
+        sync_job_id = %sync_job_id,
+        "Starting secure GitHub repository sync"
+    );
+    
+    // Log sync job started
+    log_sync_job_started("data-service", sync_job_id, "github", Some(&trace_ctx.trace_id));
     
     // Step 2: Fetch GitHub token from auth service
     let github_token = match auth_client.get_oauth_token(user_id, "github").await {
@@ -317,8 +338,17 @@ pub async fn secure_sync_github_repository(
     
     let sync_duration = start_time.elapsed().as_millis() as u64;
     
-    info!("🎉 Secure repository sync completed! Processed {} documents in {}ms", 
-          doc_count, sync_duration);
+    // Log sync job completed with domain event
+    log_sync_job_completed("data-service", sync_job_id, doc_count, sync_duration);
+    
+    info!(
+        trace_id = %trace_ctx.trace_id,
+        sync_job_id = %sync_job_id,
+        documents = doc_count,
+        embeddings = embeddings_created,
+        duration_ms = sync_duration,
+        "Repository sync completed successfully"
+    );
     
     let response = SyncRepositoryResponse {
         success: true,
@@ -426,8 +456,8 @@ pub async fn get_repository_languages(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
+    // Initialize tracing with observability infrastructure
+    init_tracing(TracingConfig::for_service("data-service"));
     
     let port = env::var("PORT").unwrap_or_else(|_| "3013".to_string());
     let bind_addr = format!("0.0.0.0:{}", port);
@@ -489,6 +519,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         let mut app = App::new()
+            .wrap(observability("data-service"))
             .wrap(auth_middleware.clone())
             .app_data(web::Data::new(kafka_producer.clone()))
             .app_data(web::Data::new(auth_client.clone()))

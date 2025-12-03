@@ -1,3 +1,12 @@
+// ============================================================================
+// ConHub Frontend Observability
+// Provides structured logging, performance tracking, and trace correlation
+// ============================================================================
+
+/** Header name for trace ID propagation to backend */
+export const TRACE_ID_HEADER = 'x-trace-id';
+export const SPAN_ID_HEADER = 'x-span-id';
+export const REQUEST_ID_HEADER = 'x-request-id';
 
 export interface LogEntry {
   timestamp: string;
@@ -7,6 +16,8 @@ export interface LogEntry {
   source: string;
   userId?: string;
   sessionId: string;
+  traceId: string;
+  spanId?: string;
   url: string;
   userAgent: string;
 }
@@ -31,7 +42,9 @@ export interface UserAction {
 
 class ConHubLogger {
   private sessionId: string;
+  private traceId: string;
   private userId?: string;
+  private tenantId?: string;
   private logBuffer: LogEntry[] = [];
   private performanceBuffer: PerformanceMetric[] = [];
   private userActionBuffer: UserAction[] = [];
@@ -39,29 +52,56 @@ class ConHubLogger {
   private flushInterval = 30000; 
   private isProduction: boolean;
   private logLevel: string;
+  private serviceName = 'frontend';
 
   constructor() {
     this.sessionId = this.generateSessionId();
+    this.traceId = this.generateTraceId();
     this.isProduction = process.env.NODE_ENV === 'production';
     this.logLevel = process.env.NEXT_PUBLIC_LOG_LEVEL || 'info';
     
-    
     setInterval(() => this.flush(), this.flushInterval);
-    
     
     if (typeof window !== 'undefined') {
       window.addEventListener('beforeunload', () => this.flush());
       window.addEventListener('unload', () => this.flush());
       
-      
       this.trackPagePerformance();
-      
-      
       this.setupUserActionTracking();
-      
-      
       this.setupErrorTracking();
+      this.setupRouteTracking();
     }
+  }
+
+  /** Generate a new trace ID (called once per session or user flow) */
+  private generateTraceId(): string {
+    return `trace_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 12)}`;
+  }
+
+  /** Generate a span ID for a specific operation */
+  private generateSpanId(): string {
+    return Math.random().toString(36).substr(2, 16);
+  }
+
+  /** Get the current trace ID for correlation */
+  public getTraceId(): string {
+    return this.traceId;
+  }
+
+  /** Start a new trace (for a new user flow) */
+  public newTrace(): string {
+    this.traceId = this.generateTraceId();
+    this.info('New trace started', { traceId: this.traceId }, 'trace');
+    return this.traceId;
+  }
+
+  /** Get headers to propagate trace context to backend */
+  public getTraceHeaders(): Record<string, string> {
+    return {
+      [TRACE_ID_HEADER]: this.traceId,
+      [SPAN_ID_HEADER]: this.generateSpanId(),
+      [REQUEST_ID_HEADER]: `req_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 8)}`,
+    };
   }
 
   private generateSessionId(): string {
@@ -75,7 +115,19 @@ class ConHubLogger {
 
   public setUserId(userId: string) {
     this.userId = userId;
-    this.info('User logged in', { userId });
+    this.info('User logged in', { userId }, 'auth');
+  }
+
+  public setTenantId(tenantId: string) {
+    this.tenantId = tenantId;
+    this.debug('Tenant set', { tenantId }, 'auth');
+  }
+
+  public clearUser() {
+    const oldUserId = this.userId;
+    this.userId = undefined;
+    this.tenantId = undefined;
+    this.info('User logged out', { previousUserId: oldUserId }, 'auth');
   }
 
   public debug(message: string, context?: Record<string, unknown>, source = 'app') {
@@ -107,10 +159,15 @@ class ConHubLogger {
       timestamp: new Date().toISOString(),
       level,
       message,
-      context,
+      context: {
+        ...context,
+        service: this.serviceName,
+        tenantId: this.tenantId,
+      },
       source,
       userId: this.userId,
       sessionId: this.sessionId,
+      traceId: this.traceId,
       url: typeof window !== 'undefined' ? window.location.href : '',
       userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : ''
     };
@@ -314,11 +371,70 @@ class ConHubLogger {
   }
 
   public trackRouteChange(from: string, to: string, duration?: number) {
+    // Start a new trace for each major navigation
+    this.newTrace();
     this.info('Route change', { from, to, duration }, 'navigation');
     
     if (duration) {
       this.trackPerformance('route_change_duration', duration, { from, to });
     }
+  }
+
+  /** Setup route change tracking for Next.js */
+  private setupRouteTracking() {
+    if (typeof window === 'undefined') return;
+    
+    // Track initial page view
+    this.trackPageView(window.location.pathname);
+    
+    // Listen for popstate (browser back/forward)
+    window.addEventListener('popstate', () => {
+      this.trackPageView(window.location.pathname);
+    });
+  }
+
+  /** Track a page view */
+  public trackPageView(path: string, metadata?: Record<string, unknown>) {
+    this.info('Page view', { path, ...metadata }, 'navigation');
+    this.trackPerformance('page_view', 1, { path });
+  }
+
+  /** Track a button click with structured context */
+  public trackButtonClick(buttonId: string, buttonText: string, metadata?: Record<string, unknown>) {
+    this.trackUserAction('button_click', buttonId, {
+      buttonText,
+      ...metadata,
+    });
+  }
+
+  /** Track a form submission */
+  public trackFormSubmit(formId: string, formName: string, success: boolean, metadata?: Record<string, unknown>) {
+    this.trackUserAction('form_submit', formId, {
+      formName,
+      success,
+      ...metadata,
+    });
+  }
+
+  /** Track a feature usage */
+  public trackFeatureUsage(featureName: string, action: string, metadata?: Record<string, unknown>) {
+    this.info('Feature usage', { feature: featureName, action, ...metadata }, 'feature');
+  }
+
+  /** Track a connector action */
+  public trackConnectorAction(connector: string, action: 'connect' | 'disconnect' | 'sync' | 'error', metadata?: Record<string, unknown>) {
+    this.info('Connector action', { connector, action, ...metadata }, 'connector');
+  }
+
+  /** Track a search query */
+  public trackSearch(query: string, resultsCount: number, duration: number, metadata?: Record<string, unknown>) {
+    this.info('Search executed', {
+      queryLength: query.length,
+      resultsCount,
+      duration,
+      ...metadata,
+    }, 'search');
+    this.trackPerformance('search_duration', duration, { resultsCount });
   }
 
   private checkBufferLimit() {

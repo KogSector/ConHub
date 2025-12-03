@@ -1,13 +1,12 @@
-use actix_web::{web, App, HttpServer, middleware::Logger};
+use actix_web::{web, App, HttpServer};
 use actix_cors::Cors;
 use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
 use redis::Client as RedisClient;
 use std::str::FromStr;
 use std::env;
-use tracing::{info, error};
-use tracing_subscriber;
 use conhub_middleware::auth::AuthMiddlewareFactory;
 use conhub_config::feature_toggles::FeatureToggles;
+use conhub_observability::{init_tracing, TracingConfig, observability, info, warn, error};
 
 mod handlers;
 mod services;
@@ -15,8 +14,8 @@ mod errors;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging
-    tracing_subscriber::fmt::init();
+    // Initialize observability with structured logging
+    init_tracing(TracingConfig::for_service("billing-service"));
 
     // Load environment variables
     dotenv::dotenv().ok();
@@ -110,7 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .app_data(web::Data::new(stripe_key_opt.clone()))
             .app_data(web::Data::new(redis_client_opt.clone()))
             .wrap(cors)
-            .wrap(Logger::default())
+            .wrap(observability("billing-service"))
             .wrap(auth_middleware.clone())
             .route("/health", web::get().to(health_check));
 

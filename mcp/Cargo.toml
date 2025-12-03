@@ -14,6 +14,7 @@ conhub-utils = { path = "../shared/utils" }
 conhub-middleware = { path = "../shared/middleware" }
 conhub-config = { path = "../shared/config" }
 conhub-database = { path = "../database" }
+conhub-observability = { path = "../shared/observability" }
 
 # Web framework
 actix-web = "4.4"

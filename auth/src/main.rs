@@ -1,9 +1,9 @@
-use actix_web::{web, App, HttpServer, middleware::Logger};
+use actix_web::{web, App, HttpServer};
 use actix_cors::Cors;
 use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
 use std::str::FromStr;
 use std::env;
-use tracing_subscriber;
+use conhub_observability::{init_tracing, TracingConfig, observability, info, warn, error};
 
 mod services;
 mod handlers;
@@ -14,8 +14,8 @@ use conhub_config::feature_toggles::FeatureToggles;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging
-    tracing_subscriber::fmt::init();
+    // Initialize observability with structured logging
+    init_tracing(TracingConfig::for_service("auth-service"));
 
     // Load environment variables
     dotenv::dotenv().ok();
@@ -169,7 +169,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .app_data(web::Data::new(toggles.clone()))
             .app_data(web::Data::new(db_pool_opt.clone()))
             .wrap(cors)
-            .wrap(Logger::default());
+            .wrap(observability("auth-service"));
 
         if let Some(redis_client) = redis_client_opt.clone() {
             app = app.app_data(web::Data::new(redis_client));

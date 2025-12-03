@@ -5,7 +5,7 @@ use axum::{
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn};
+use conhub_observability::{init_tracing, TracingConfig, info, warn};
 
 mod models;
 mod handlers;
@@ -17,14 +17,8 @@ use handlers::{memory, context};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive(tracing::Level::INFO.into())
-        )
-        .json()
-        .init();
+    // Initialize observability with structured logging
+    init_tracing(TracingConfig::for_service("decision-engine").json());
 
     let port = std::env::var("DECISION_ENGINE_PORT")
         .unwrap_or_else(|_| "3016".to_string())

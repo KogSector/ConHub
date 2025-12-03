@@ -14,6 +14,7 @@ use std::io;
 use std::str::FromStr;
 use conhub_middleware::auth::AuthMiddlewareFactory;
 use conhub_config::feature_toggles::FeatureToggles;
+use conhub_observability::{init_tracing, TracingConfig, observability, info, warn, error};
 
 use config::AppConfig;
 use state::AppState;
@@ -21,10 +22,10 @@ use crate::graphql::schema::build_schema;
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
-    // Initialize logger
-    env_logger::init();
+    // Initialize observability with structured logging
+    init_tracing(TracingConfig::for_service("backend-service"));
 
-    log::info!("Starting ConHub Backend Service...");
+    info!("Starting ConHub Backend Service...");
 
     // Load configuration from environment
     let config = AppConfig::from_env();
@@ -170,8 +171,8 @@ async fn main() -> io::Result<()> {
                     .supports_credentials()
                     .max_age(3600)
             )
-            // Logging middleware
-            .wrap(actix_web::middleware::Logger::default())
+            // Observability middleware (HTTP logging + tracing)
+            .wrap(observability("backend-service"))
             // Authentication middleware
             .wrap(auth_middleware.clone())
             // Configure all routes

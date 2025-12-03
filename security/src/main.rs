@@ -1,9 +1,10 @@
-use actix_web::{web, App, HttpServer, middleware::Logger};
+use actix_web::{web, App, HttpServer};
 use conhub_middleware::auth::AuthMiddlewareFactory;
 use actix_cors::Cors;
 use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
 use std::env;
 use std::str::FromStr;
+use conhub_observability::{init_tracing, TracingConfig, observability, info, warn, error};
 
 mod services;
 mod handlers;
@@ -11,8 +12,8 @@ mod errors;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging
-    env_logger::init();
+    // Initialize observability with structured logging
+    init_tracing(TracingConfig::for_service("security-service"));
 
     // Load environment variables
     dotenv::dotenv().ok();
@@ -36,9 +37,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .unwrap_or_else(|| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
 
         if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
-            println!("📊 [Security Service] Connecting to Neon DB...");
+            info!("📊 [Security Service] Connecting to Neon DB...");
         } else {
-            println!("📊 [Security Service] Connecting to database...");
+            info!("📊 [Security Service] Connecting to database...");
         }
         
         // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
@@ -49,19 +50,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .max_connections(10)
             .connect_with(connect_options)
             .await?;
-        println!("✅ [Security Service] Database connection established");
+        info!("✅ [Security Service] Database connection established");
         Some(pool)
     } else {
-        println!("[Security Service] Auth disabled; skipping database connection.");
+        info!("[Security Service] Auth disabled; skipping database connection.");
         None
     };
 
-    println!("🚀 [Security Service] Starting on port {}", port);
+    info!("🚀 [Security Service] Starting on port {}", port);
 
     let auth_middleware = match AuthMiddlewareFactory::new() {
         Ok(m) => m,
         Err(e) => {
-            println!("[Security Service] Auth middleware init failed: {}. Using dev claims.", e);
+            warn!("[Security Service] Auth middleware init failed: {}. Using dev claims.", e);
             AuthMiddlewareFactory::disabled()
         }
     };
@@ -76,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         App::new()
             .app_data(web::Data::new(db_pool_opt.clone()))
             .wrap(cors)
-            .wrap(Logger::default())
+            .wrap(observability("security-service"))
             .wrap(auth_middleware.clone())
             .configure(configure_routes)
             .configure(handlers::connections::configure_routes)

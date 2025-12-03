@@ -8,6 +8,7 @@ edition = "2021"
 conhub-database = { path = "../database", features = [] }
 conhub-middleware = { path = "../shared/middleware" }
 conhub-models = { path = "../shared/models" }
+conhub-observability = { path = "../shared/observability" }
 
 actix-web = "4.0"
 tokio = { version = "1.0", features = ["full"] }

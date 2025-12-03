@@ -4,12 +4,12 @@
 //! background jobs for indexing robot memory and other data sources.
 
 use conhub_indexers::{RobotMemoryIndexer, RobotMemoryIndexerConfig};
-use tracing::{info, error};
+use conhub_observability::{init_tracing, TracingConfig, info, error};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
+    // Initialize observability with structured logging
+    init_tracing(TracingConfig::for_service("indexer-service"));
     
     info!("🚀 ConHub Unified Indexer starting...");
     info!("📦 Version: {}", conhub_indexers::version());

@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 # Shared workspace libraries
 conhub-middleware = { path = "../shared/middleware" }
+conhub-observability = { path = "../shared/observability" }
 
 # HTTP Server
 actix-web = "4.4"

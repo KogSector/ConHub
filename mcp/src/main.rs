@@ -3,9 +3,8 @@
 // It provides tools and resources that agents can use to query ConHub data
 use anyhow::Result;
 use mcp_service::{McpConfig, connectors::ConnectorManager, protocol::McpServer};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use actix_web::{web, App, HttpResponse, HttpServer};
-use tokio::signal;
+use conhub_observability::{init_tracing, TracingConfig, observability, info, warn, error};
 
 async fn health() -> HttpResponse {
     HttpResponse::Ok().json(serde_json::json!({
@@ -16,15 +15,10 @@ async fn health() -> HttpResponse {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize logging
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    // Initialize observability with structured logging
+    init_tracing(TracingConfig::for_service("mcp-service"));
 
-    tracing::info!("Starting ConHub MCP Service");
+    info!("Starting ConHub MCP Service");
 
     // Load configuration
     dotenv::dotenv().ok();
@@ -32,16 +26,16 @@ async fn main() -> Result<()> {
 
     // Initialize database and Redis
     let db_config = conhub_database::DatabaseConfig::from_env();
-    tracing::info!("Initializing database");
+    info!("Initializing database");
     let database = conhub_database::Database::new(&db_config).await?;
-    tracing::info!("Database initialized");
+    info!("Database initialized");
 
     // Initialize connector manager
     let connector_manager = ConnectorManager::new(database, &config).await?;
 
-    tracing::info!(
-        "Initialized {} connectors",
-        connector_manager.connector_count()
+    info!(
+        connectors = connector_manager.connector_count(),
+        "Initialized connectors"
     );
 
     // Start minimal HTTP server for health checks only
