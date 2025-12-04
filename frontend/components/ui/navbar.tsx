@@ -30,7 +30,7 @@
 
   const handleLogin = () => {
     // 🆕 3. CHANGED: Navigate to your custom login page instead of Auth0 default
-    router.push("/login");
+    router.push("/auth/login");
   };
 
   const handleLogout = () => {

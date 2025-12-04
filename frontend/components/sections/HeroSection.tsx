@@ -25,7 +25,7 @@ export function HeroSection() {
     if (isAuthenticated) {
       window.location.href = '/dashboard';
     } else {
-      window.location.href = '/login';
+      window.location.href = '/auth/login';
     }
   };
 

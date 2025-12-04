@@ -8,6 +8,11 @@ import { fetchCurrentUserViaGraphQL } from '@/lib/api'
 export const useAuth = () => {
   const loginEnabled = isLoginEnabled()
   const auth0 = useAuth0()
+  console.log('[useAuth]', {
+    loginEnabled,
+    auth0IsAuthenticated: auth0.isAuthenticated,
+    auth0IsLoading: auth0.isLoading,
+  })
   
   // Auth0 access token state
   const [accessToken, setAccessToken] = useState<string | null>(null)

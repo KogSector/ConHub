@@ -21,12 +21,27 @@ export function AuthGuard({
 
   // If login is disabled, bypass auth requirements entirely
   const authRequired = requireAuth && isLoginEnabled()
+  console.log('[AuthGuard]', { authRequired, isAuthenticated, isLoading, redirectTo })
 
   useEffect(() => {
-    if (!isLoading && authRequired && !isAuthenticated) {
+    if (authRequired && !isAuthenticated) {
       router.push(redirectTo)
     }
-  }, [isAuthenticated, isLoading, authRequired, redirectTo, router])
+  }, [isAuthenticated, authRequired, redirectTo, router])
+
+  // Fallback: if auth stays in a loading state for too long while unauthenticated,
+  // send the user to the login page instead of spinning forever.
+  useEffect(() => {
+    if (!authRequired) return
+
+    const timeout = setTimeout(() => {
+      if (!isAuthenticated) {
+        router.push(redirectTo)
+      }
+    }, 5000)
+
+    return () => clearTimeout(timeout)
+  }, [authRequired, isAuthenticated, redirectTo, router])
 
   if (authRequired && isLoading) {
     return (
