@@ -167,9 +167,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut app = App::new()
             .app_data(web::Data::new(toggles.clone()))
+            // Optional PgPool for handlers that take web::Data<Option<PgPool>>
             .app_data(web::Data::new(db_pool_opt.clone()))
             .wrap(cors)
             .wrap(observability("auth-service"));
+
+        // Non-optional PgPool for legacy handlers that expect web::Data<PgPool>
+        if let Some(pool) = db_pool_opt.clone() {
+            app = app.app_data(web::Data::new(pool));
+        }
 
         if let Some(redis_client) = redis_client_opt.clone() {
             app = app.app_data(web::Data::new(redis_client));
@@ -193,6 +199,7 @@ fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewar
         .route("/forgot-password", web::post().to(handlers::auth::forgot_password))
         .route("/reset-password", web::post().to(handlers::auth::reset_password))
         // OAuth routes (public)
+        .route("/oauth/url", web::get().to(handlers::auth::oauth_url))
         .route("/oauth/{provider}", web::get().to(handlers::oauth::oauth_login))
         .route("/oauth/{provider}/callback", web::get().to(handlers::oauth::oauth_callback))
         // Auth0 exchange endpoint (public)
@@ -213,7 +220,6 @@ fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewar
                     .route("/profile", web::get().to(handlers::auth::get_profile))
                     .route("/connections", web::get().to(handlers::auth::list_auth_connections))
                     .route("/connections/{id}", web::delete().to(handlers::auth::disconnect_auth_connection))
-                    .route("/oauth/url", web::get().to(handlers::auth::oauth_url))
                     .route("/oauth/exchange", web::post().to(handlers::auth::oauth_exchange))
                     .route("/repos/github", web::get().to(handlers::auth::list_github_repos))
                     .route("/repos/github/branches", web::get().to(handlers::auth::list_github_branches))
@@ -250,7 +256,6 @@ fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewar
                     .route("/connections", web::get().to(handlers::auth::list_auth_connections))
                     .route("/connections/{id}", web::delete().to(handlers::auth::disconnect_auth_connection))
                     // OAuth helper endpoints used by the Connections UI (e.g. GitHub connect)
-                    .route("/oauth/url", web::get().to(handlers::auth::oauth_url))
                     .route("/oauth/exchange", web::post().to(handlers::auth::oauth_exchange))
                     // Repo listing/checking powered by social connections
                     .route("/repos/github", web::get().to(handlers::auth::list_github_repos))

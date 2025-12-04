@@ -20,9 +20,9 @@ bcrypt = "0.15"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
-# Database
-sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres"] }
-redis = { version = "0.24", features = ["tokio-comp", "connection-manager", "tokio-native-tls-comp"] }
+# Database (align TLS with other services using Rustls)
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres"] }
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager", "tokio-rustls-comp"] }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }

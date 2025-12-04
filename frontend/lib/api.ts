@@ -408,10 +408,10 @@ export async function listProviderFiles(provider: string): Promise<ApiResponse<{
 // Convenience helper: fetch current user via GraphQL when auth is enabled
 export async function fetchCurrentUserViaGraphQL() {
   const query = `
-    query Me { me { user_id roles } }
+    query Me { me { userId roles } }
   `;
   try {
-    const data = await apiClient.graphql<{ me: { user_id: string | null; roles: string[] } }>(query);
+    const data = await apiClient.graphql<{ me: { userId: string | null; roles: string[] } }>(query);
     return data.me;
   } catch (err) {
     // In environments where auth is disabled, backend may return default claims.

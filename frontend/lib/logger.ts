@@ -195,8 +195,11 @@ class ConHubLogger {
     this.checkBufferLimit();
 
     
-    if (metric.includes('duration') && value > 1000) {
-      this.warn(`Slow operation detected: ${metric}`, { value, ...context });
+    if (metric.includes('duration')) {
+      const threshold = metric === 'page_load_duration' ? 2500 : 1000;
+      if (value > threshold) {
+        this.warn(`Slow operation detected: ${metric}`, { value, threshold, ...context });
+      }
     }
   }
 

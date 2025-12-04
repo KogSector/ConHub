@@ -54,7 +54,7 @@ export const useAuth = () => {
             const mappedRole = roles.includes('admin') ? 'admin' : roles.includes('moderator') ? 'moderator' : 'user'
             setMockUser(prev => ({
               ...prev,
-              id: me.user_id ?? prev.id,
+              id: (me as any).userId ?? prev.id,
               role: mappedRole as typeof prev.role,
             }))
           }

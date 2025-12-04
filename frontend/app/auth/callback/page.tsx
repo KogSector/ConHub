@@ -14,6 +14,7 @@ export default function AuthCallbackPage() {
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(true)
   const [exchanged, setExchanged] = useState(false)
+  const [providerExchanged, setProviderExchanged] = useState(false)
 
   // Handle provider OAuth callback (GitHub, Google, etc. for connections, not login)
   useEffect(() => {
@@ -30,7 +31,16 @@ export default function AuthCallbackPage() {
     }
 
     // Provider OAuth exchange (for connecting external accounts, not Auth0 login)
-    if (provider && code) {
+    if (provider && code && !providerExchanged) {
+      if (typeof window !== 'undefined') {
+        const key = `oauth_exchanged:${provider}:${code}`
+        if (sessionStorage.getItem(key)) {
+          return
+        }
+        sessionStorage.setItem(key, '1')
+      }
+
+      setProviderExchanged(true)
       const exchangeProvider = async () => {
         try {
           const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
@@ -46,7 +56,7 @@ export default function AuthCallbackPage() {
       }
       exchangeProvider()
     }
-  }, [params, token, router])
+  }, [params, token, router, providerExchanged])
 
   // Handle Auth0 callback - the SDK handles the code exchange automatically
   // We just need to wait for authentication and then exchange for ConHub token
