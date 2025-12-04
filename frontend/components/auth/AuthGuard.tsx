@@ -3,7 +3,6 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
-import { isLoginEnabled } from '@/lib/feature-toggles'
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -19,20 +18,16 @@ export function AuthGuard({
   const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
 
-  // If login is disabled, bypass auth requirements entirely
-  const authRequired = requireAuth && isLoginEnabled()
-  console.log('[AuthGuard]', { authRequired, isAuthenticated, isLoading, redirectTo })
-
   useEffect(() => {
-    if (authRequired && !isAuthenticated) {
+    if (requireAuth && !isLoading && !isAuthenticated) {
       router.push(redirectTo)
     }
-  }, [isAuthenticated, authRequired, redirectTo, router])
+  }, [isAuthenticated, isLoading, requireAuth, redirectTo, router])
 
   // Fallback: if auth stays in a loading state for too long while unauthenticated,
   // send the user to the login page instead of spinning forever.
   useEffect(() => {
-    if (!authRequired) return
+    if (!requireAuth) return
 
     const timeout = setTimeout(() => {
       if (!isAuthenticated) {
@@ -41,9 +36,9 @@ export function AuthGuard({
     }, 5000)
 
     return () => clearTimeout(timeout)
-  }, [authRequired, isAuthenticated, redirectTo, router])
+  }, [requireAuth, isAuthenticated, redirectTo, router])
 
-  if (authRequired && isLoading) {
+  if (requireAuth && isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -51,7 +46,7 @@ export function AuthGuard({
     )
   }
 
-  if (authRequired && !isAuthenticated) {
+  if (requireAuth && !isAuthenticated) {
     return null
   }
 

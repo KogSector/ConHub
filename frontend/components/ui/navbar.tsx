@@ -8,7 +8,6 @@
  import { useRouter } from "next/navigation"; 
 
  import { useAuth0 } from "@auth0/auth0-react";
- import { isLoginEnabled } from "@/lib/feature-toggles";
 
  type NavbarProps = {
    showUserMenu?: boolean;
