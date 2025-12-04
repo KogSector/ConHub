@@ -1,5 +1,4 @@
 use std::env;
-use conhub_config::feature_toggles::FeatureToggles;
 
 #[derive(Clone, Debug)]
 pub struct AppConfig {
@@ -61,10 +60,6 @@ impl AppConfig {
     pub fn from_env() -> Self {
         dotenv::dotenv().ok();
 
-        // Read feature toggles to determine whether Auth is enabled
-        let toggles = FeatureToggles::from_env_path();
-        let auth_enabled = toggles.auth_enabled();
-
         Self {
             // Server
             backend_port: env::var("BACKEND_PORT")
@@ -96,11 +91,7 @@ impl AppConfig {
 
             // Authentication
             // Require JWT_SECRET only when Auth is enabled; otherwise use a stub to allow startup.
-            jwt_secret: if auth_enabled {
-                env::var("JWT_SECRET").expect("JWT_SECRET must be set when Auth is enabled")
-            } else {
-                env::var("JWT_SECRET").unwrap_or_else(|_| "dev-no-auth".to_string())
-            },
+            jwt_secret: env::var("JWT_SECRET").expect("JWT_SECRET must be set"),
             google_client_id: env::var("GOOGLE_CLIENT_ID").ok(),
             google_client_secret: env::var("GOOGLE_CLIENT_SECRET").ok(),
             github_client_id: env::var("GITHUB_CLIENT_ID").ok(),

@@ -24,8 +24,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse::<u16>()
         .unwrap_or(3014);
 
-    // Feature toggles: control auth middleware mode (but not DB connectivity)
-    let toggles = conhub_config::feature_toggles::FeatureToggles::from_env_path();
 
     // Database connection (always connect when a DB URL is configured)
     let database_url = env::var("DATABASE_URL_NEON")
@@ -53,16 +51,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("🚀 [Security Service] Starting on port {}", port);
 
-    // When Auth feature is disabled, run in dev mode by injecting default
-    // claims instead of requiring a real Auth0 JWT. This keeps the
-    // /api/security/* endpoints usable in local/dev even without login.
-    let auth_middleware = match AuthMiddlewareFactory::new_with_enabled(toggles.auth_enabled()) {
-        Ok(m) => m,
-        Err(e) => {
-            warn!("[Security Service] Auth middleware init failed: {}. Using dev claims.", e);
-            AuthMiddlewareFactory::disabled()
-        }
-    };
+    // Feature toggles: control auth middleware mode (but not DB connectivity)
+    let _toggles = conhub_config::feature_toggles::FeatureToggles::from_env_path();
+
+    // Auth is always required; fail to start if middleware cannot be initialized.
+    let auth_middleware = AuthMiddlewareFactory::new()
+        .map_err(|e| {
+            warn!("[Security Service] Auth middleware init failed: {}", e);
+            e
+        })?;
 
     HttpServer::new(move || {
         let cors = Cors::default()

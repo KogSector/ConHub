@@ -34,19 +34,13 @@ async fn main() -> io::Result<()> {
     log::info!("Environment mode: {}", config.env_mode);
     log::info!("Binding to port: {}", port);
 
-    // Initialize authentication middleware with feature toggle
+    // Initialize authentication middleware (Auth is always required)
     let toggles = FeatureToggles::from_env_path();
-    let auth_enabled = toggles.auth_enabled();
-    let auth_middleware = if auth_enabled {
-        AuthMiddlewareFactory::new()
-            .map_err(|e| {
-                log::error!("Failed to initialize auth middleware: {}", e);
-                std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
-            })?
-    } else {
-        log::warn!("Auth feature disabled via feature toggles; injecting default claims.");
-        AuthMiddlewareFactory::disabled()
-    };
+    let auth_middleware = AuthMiddlewareFactory::new()
+        .map_err(|e| {
+            log::error!("Failed to initialize auth middleware: {}", e);
+            std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
+        })?;
 
     log::info!("🔐 [Backend Service] Authentication middleware initialized");
 
@@ -76,7 +70,7 @@ async fn main() -> io::Result<()> {
     log::info!("✅ [Backend Service] Database connection established");
     let db_pool_opt = Some(db_pool);
 
-    // Redis setup (gated by Auth and Redis toggles)
+    // Redis setup (controlled by Redis feature toggle)
     let redis_enabled = toggles.should_connect_redis();
     let redis_client = if redis_enabled {
         if let Some(redis_url) = config.redis_url.clone() {
@@ -107,11 +101,7 @@ async fn main() -> io::Result<()> {
             None
         }
     } else {
-        if !auth_enabled {
-            log::warn!("[Backend Service] Auth disabled; skipping Redis connection.");
-        } else {
-            log::warn!("[Backend Service] Redis feature disabled; skipping Redis connection.");
-        }
+        log::warn!("[Backend Service] Redis feature disabled; skipping Redis connection.");
         None
     };
 

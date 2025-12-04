@@ -5,7 +5,6 @@ use redis::Client as RedisClient;
 use std::str::FromStr;
 use std::env;
 use conhub_middleware::auth::AuthMiddlewareFactory;
-use conhub_config::feature_toggles::FeatureToggles;
 use conhub_observability::{init_tracing, TracingConfig, observability, info, warn, error};
 
 mod handlers;
@@ -26,19 +25,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse::<u16>()
         .unwrap_or(3011);
 
-    // Initialize authentication middleware with feature toggle
-    let toggles = FeatureToggles::from_env_path();
-    let auth_enabled = toggles.auth_enabled();
-    let auth_middleware = if auth_enabled {
-        AuthMiddlewareFactory::new()
-            .map_err(|e| {
-                tracing::error!("Failed to initialize auth middleware: {}", e);
-                e
-            })?
-    } else {
-        tracing::warn!("Auth feature disabled via feature toggles; injecting default claims.");
-        AuthMiddlewareFactory::disabled()
-    };
+    // Initialize authentication middleware (Auth is always required)
+    let auth_middleware = AuthMiddlewareFactory::new()
+        .map_err(|e| {
+            tracing::error!("Failed to initialize auth middleware: {}", e);
+            e
+        })?;
 
     tracing::info!("🔐 [Billing Service] Authentication middleware initialized");
 

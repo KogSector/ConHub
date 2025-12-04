@@ -37,8 +37,8 @@ impl FeatureToggles {
     // Convenience: read Auth enablement strictly from feature-toggles.json
     // Controls database connections (PostgreSQL, Qdrant, Redis) and auth/authorization
     pub fn auth_enabled(&self) -> bool {
-        // Default to false when missing to avoid unexpected auth requirements.
-        self.is_enabled_or("Auth", false)
+        // Auth is now always enabled; the legacy "Auth" feature toggle is ignored.
+        true
     }
 
     // Check if database connections should be established
@@ -71,13 +71,13 @@ impl FeatureToggles {
     // Convenience: read Redis enablement
     // Controls whether Redis connections should be established for sessions/caching
     pub fn redis_enabled(&self) -> bool {
-        // Default to true when Auth is enabled, false otherwise
-        self.is_enabled_or("Redis", self.auth_enabled())
+        // Default to true when Redis flag is missing
+        self.is_enabled_or("Redis", true)
     }
 
     // Check if Redis connections should be established
     pub fn should_connect_redis(&self) -> bool {
-        self.auth_enabled() && self.redis_enabled()
+        self.redis_enabled()
     }
 
     pub fn billing_enabled(&self) -> bool {

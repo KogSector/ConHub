@@ -28,27 +28,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Feature toggles
     let toggles = FeatureToggles::from_env_path();
-    let auth_enabled = toggles.is_enabled_or("Auth", true);
 
-    // Initialize authentication middleware (enabled/disabled)
-    let auth_middleware = if auth_enabled {
-        match AuthMiddlewareFactory::new() {
-            Ok(middleware) => middleware,
-            Err(e) => {
-                eprintln!("⚠️  [Auth Service] Failed to initialize auth middleware: {}", e);
-                eprintln!("⚠️  [Auth Service] Common causes:");
-                eprintln!("    1. JWT_PUBLIC_KEY or JWT_PRIVATE_KEY not set in .env");
-                eprintln!("    2. Keys not properly formatted (must include BEGIN/END markers)");
-                eprintln!("    3. Run 'generate-jwt-keys.ps1' and 'setup-env.ps1' to create keys");
-                eprintln!("⚠️  [Auth Service] Falling back to disabled mode");
-                tracing::warn!("Auth middleware initialization failed, using disabled mode");
-                AuthMiddlewareFactory::disabled()
-            }
-        }
-    } else {
-        tracing::warn!("Auth feature disabled via feature toggles; injecting default claims.");
-        AuthMiddlewareFactory::disabled()
-    };
+    // Initialize authentication middleware (must succeed; Auth is always required)
+    let auth_middleware = AuthMiddlewareFactory::new()
+        .map_err(|e| {
+            tracing::error!("Failed to initialize auth middleware: {}", e);
+            e
+        })?;
 
     // Database connection
     // When Auth is enabled: required
@@ -58,74 +44,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .filter(|v| !v.trim().is_empty())
         .or_else(|| env::var("DATABASE_URL").ok().filter(|v| !v.trim().is_empty()));
 
-    let db_pool_opt: Option<PgPool> = if auth_enabled {
-        // Auth enabled: DB is required
-        let database_url = database_url_opt
-            .unwrap_or_else(|| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
+    let database_url = database_url_opt
+        .unwrap_or_else(|| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
 
-        if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
-            tracing::info!("📊 [Auth Service] Connecting to Neon DB...");
-        } else {
-            tracing::info!("📊 [Auth Service] Connecting to database...");
-        }
-        tracing::info!("🔗 [Auth Service] Database URL: {}", database_url.split('@').last().unwrap_or("hidden"));
-        
-        // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
-        let connect_options = PgConnectOptions::from_str(&database_url)?
-            .statement_cache_capacity(0);
-        
-        tracing::info!("🔌 [Auth Service] Attempting database connection...");
-        let pool = PgPoolOptions::new()
-            .max_connections(10)
-            .connect_with(connect_options)
-            .await?;
-        tracing::info!("✅ [Auth Service] Database connection established successfully");
-        tracing::info!("📊 [Auth Service] Database pool created with max 10 connections");
-        Some(pool)
-    } else if let Some(database_url) = database_url_opt {
-        // Auth disabled but DB URL is present: connect optionally for dev user seeding
-        tracing::info!("📊 [Auth Service] Auth disabled, but DB URL present - connecting for dev user support...");
-        tracing::info!("🔗 [Auth Service] Database URL: {}", database_url.split('@').last().unwrap_or("hidden"));
-        
-        let connect_options = PgConnectOptions::from_str(&database_url)?
-            .statement_cache_capacity(0);
-        
-        match PgPoolOptions::new()
-            .max_connections(5)
-            .connect_with(connect_options)
-            .await
-        {
-            Ok(pool) => {
-                tracing::info!("✅ [Auth Service] Database connection established for dev mode");
-                Some(pool)
-            }
-            Err(e) => {
-                tracing::warn!("[Auth Service] Could not connect to DB in dev mode: {}. Dev user will use in-memory profile.", e);
-                None
-            }
-        }
+    if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
+        tracing::info!("📊 [Auth Service] Connecting to Neon DB...");
     } else {
-        tracing::warn!("[Auth Service] Auth disabled and no DB URL; dev user will use in-memory profile.");
-        None
-    };
-
-    // When Auth is disabled and DB is available, ensure dev user exists
-    if !auth_enabled {
-        if let Some(ref pool) = db_pool_opt {
-            match services::ensure_dev_user_exists(pool).await {
-                Ok(created) => {
-                    if created {
-                        tracing::info!("🧑‍💻 [Auth Service] Development user created in database");
-                    } else {
-                        tracing::info!("🧑‍💻 [Auth Service] Development user already exists in database");
-                    }
-                }
-                Err(e) => {
-                    tracing::warn!("[Auth Service] Could not ensure dev user exists: {}. Using in-memory profile.", e);
-                }
-            }
-        }
+        tracing::info!("📊 [Auth Service] Connecting to database...");
     }
+    tracing::info!(
+        "🔗 [Auth Service] Database URL: {}",
+        database_url.split('@').last().unwrap_or("hidden")
+    );
+
+    // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
+    let connect_options = PgConnectOptions::from_str(&database_url)?
+        .statement_cache_capacity(0);
+
+    tracing::info!("🔌 [Auth Service] Attempting database connection...");
+    let pool = PgPoolOptions::new()
+        .max_connections(10)
+        .connect_with(connect_options)
+        .await?;
+    tracing::info!("✅ [Auth Service] Database connection established successfully");
+    tracing::info!("📊 [Auth Service] Database pool created with max 10 connections");
+    let db_pool_opt: Option<PgPool> = Some(pool);
 
     // Redis connection for sessions (gated by Auth and Redis toggles)
     let redis_enabled = toggles.should_connect_redis();
@@ -138,8 +81,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 match client.get_async_connection().await {
                     Ok(mut conn) => {
                         match redis::cmd("PING").query_async::<_, String>(&mut conn).await {
-                                    Ok(_) => Some(client),
-                                    Err(_) => None,
+                            Ok(_) => Some(client),
+                            Err(_) => None,
                         }
                     }
                     Err(_) => None,
@@ -148,11 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Err(_) => None,
         }
     } else {
-        if !auth_enabled {
-            tracing::warn!("[Auth Service] Auth disabled; skipping Redis connection.");
-        } else {
-            tracing::warn!("[Auth Service] Redis feature disabled; skipping Redis connection.");
-        }
+        tracing::warn!("[Auth Service] Redis feature disabled; skipping Redis connection.");
         None
     };
 
@@ -183,7 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         app
             .route("/health", web::get().to(health_check))
-            .configure(|cfg| configure_routes(cfg, auth_middleware.clone(), auth_enabled))
+            .configure(|cfg| configure_routes(cfg, auth_middleware.clone()))
     })
     .bind(("0.0.0.0", port))?
     .run()
@@ -192,7 +131,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewareFactory, auth_enabled: bool) {
+fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewareFactory) {
     use conhub_models::auth::UserRole;
     
     let mut scope = web::scope("/api/auth")
@@ -204,71 +143,32 @@ fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewar
         .route("/oauth/{provider}/callback", web::get().to(handlers::oauth::oauth_callback))
         // Auth0 exchange endpoint (public)
         .route("/auth0/exchange", web::post().to(handlers::auth0::auth0_exchange));
-
-    if auth_enabled {
-        scope = scope
-            .route("/login", web::post().to(handlers::auth::login))
-            .route("/register", web::post().to(handlers::auth::register))
-            .route("/connections/current", web::get().to(handlers::auth::list_auth_connections_current))
-            .service(
-                web::scope("")
-                    .wrap(auth_middleware)
-                    .route("/logout", web::post().to(handlers::auth::logout))
-                    .route("/me", web::get().to(handlers::auth::get_current_user))
-                    .route("/verify", web::post().to(handlers::auth::verify_token))
-                    .route("/refresh", web::post().to(handlers::auth::refresh_token))
-                    .route("/profile", web::get().to(handlers::auth::get_profile))
-                    .route("/connections", web::get().to(handlers::auth::list_auth_connections))
-                    .route("/connections/{id}", web::delete().to(handlers::auth::disconnect_auth_connection))
-                    .route("/oauth/exchange", web::post().to(handlers::auth::oauth_exchange))
-                    .route("/repos/github", web::get().to(handlers::auth::list_github_repos))
-                    .route("/repos/github/branches", web::get().to(handlers::auth::list_github_branches))
-                    .route("/repos/bitbucket", web::get().to(handlers::auth::list_bitbucket_repos))
-                    .route("/repos/bitbucket/branches", web::get().to(handlers::auth::list_bitbucket_branches))
-                    .route("/repos/check", web::post().to(handlers::auth::check_repo))
-                    .service(
-                        web::scope("/admin")
-                            .wrap(role_auth_middleware(vec![UserRole::Admin]))
-                            .route("/users", web::get().to(handlers::auth::list_users))
-                    )
-            );
-    } else {
-        // In disabled mode, we still want all connector and repo endpoints to work,
-        // but backed by the dev user identity instead of real Auth0 login.
-        //
-        // Login/register remain disabled, while the inner scope is wrapped with
-        // AuthMiddlewareFactory::disabled() so that default_dev_claims() are
-        // injected and handlers see a stable dev user ID.
-        scope = scope
-            .route("/login", web::post().to(handlers::auth::disabled))
-            .route("/register", web::post().to(handlers::auth::disabled))
-            .route("/connections/current", web::get().to(handlers::auth::list_auth_connections_current))
-            .service(
-                web::scope("")
-                    .wrap(auth_middleware)
-                    // Dev-mode identity for current user/profile
-                    .route("/logout", web::post().to(handlers::auth::disabled))
-                    .route("/me", web::get().to(handlers::auth::get_dev_current_user))
-                    .route("/verify", web::post().to(handlers::auth::disabled))
-                    .route("/refresh", web::post().to(handlers::auth::disabled))
-                    .route("/profile", web::get().to(handlers::auth::get_dev_profile))
-                    // Social connections + disconnect
-                    .route("/connections", web::get().to(handlers::auth::list_auth_connections))
-                    .route("/connections/{id}", web::delete().to(handlers::auth::disconnect_auth_connection))
-                    // OAuth helper endpoints used by the Connections UI (e.g. GitHub connect)
-                    .route("/oauth/exchange", web::post().to(handlers::auth::oauth_exchange))
-                    // Repo listing/checking powered by social connections
-                    .route("/repos/github", web::get().to(handlers::auth::list_github_repos))
-                    .route("/repos/github/branches", web::get().to(handlers::auth::list_github_branches))
-                    .route("/repos/bitbucket", web::get().to(handlers::auth::list_bitbucket_repos))
-                    .route("/repos/bitbucket/branches", web::get().to(handlers::auth::list_bitbucket_branches))
-                    .route("/repos/check", web::post().to(handlers::auth::check_repo))
-                    .service(
-                        web::scope("/admin")
-                            .route("/users", web::get().to(handlers::auth::disabled))
-                    )
-            );
-    }
+    scope = scope
+        .route("/login", web::post().to(handlers::auth::login))
+        .route("/register", web::post().to(handlers::auth::register))
+        .route("/connections/current", web::get().to(handlers::auth::list_auth_connections_current))
+        .service(
+            web::scope("")
+                .wrap(auth_middleware)
+                .route("/logout", web::post().to(handlers::auth::logout))
+                .route("/me", web::get().to(handlers::auth::get_current_user))
+                .route("/verify", web::post().to(handlers::auth::verify_token))
+                .route("/refresh", web::post().to(handlers::auth::refresh_token))
+                .route("/profile", web::get().to(handlers::auth::get_profile))
+                .route("/connections", web::get().to(handlers::auth::list_auth_connections))
+                .route("/connections/{id}", web::delete().to(handlers::auth::disconnect_auth_connection))
+                .route("/oauth/exchange", web::post().to(handlers::auth::oauth_exchange))
+                .route("/repos/github", web::get().to(handlers::auth::list_github_repos))
+                .route("/repos/github/branches", web::get().to(handlers::auth::list_github_branches))
+                .route("/repos/bitbucket", web::get().to(handlers::auth::list_bitbucket_repos))
+                .route("/repos/bitbucket/branches", web::get().to(handlers::auth::list_bitbucket_branches))
+                .route("/repos/check", web::post().to(handlers::auth::check_repo))
+                .service(
+                    web::scope("/admin")
+                        .wrap(role_auth_middleware(vec![UserRole::Admin]))
+                        .route("/users", web::get().to(handlers::auth::list_users))
+                )
+        );
 
     cfg.service(scope);
 

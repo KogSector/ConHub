@@ -21,10 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse::<u16>()
         .unwrap_or(3015);
 
-    let toggles = conhub_config::feature_toggles::FeatureToggles::from_env_path();
-    let auth_enabled = toggles.auth_enabled();
-
-    let pool = if auth_enabled {
+    let pool = {
         let database_url = env::var("DATABASE_URL_NEON")
             .ok()
             .filter(|v| !v.trim().is_empty())
@@ -53,9 +50,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 None
             }
         }
-    } else {
-        info!("[Webhook Service] Auth disabled; skipping database connection.");
-        None
     };
 
     info!("🚀 [Webhook Service] Starting on port {}", port);
