@@ -539,6 +539,7 @@ dependencies = [
  "conhub-database",
  "conhub-middleware",
  "conhub-models",
+ "conhub-observability",
  "conhub-utils",
  "constant_time_eq",
  "dashmap",
@@ -957,6 +958,24 @@ dependencies = [
  "sqlx",
  "uuid",
  "validator",
+]
+
+[[package]]
+name = "conhub-observability"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "chrono",
+ "futures-util",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

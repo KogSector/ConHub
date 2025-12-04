@@ -124,14 +124,29 @@ pub async fn list_provider_files(path: web::Path<String>) -> actix_web::Result<H
 }
 
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        web::scope("/api/security/connections")
-            .route("", web::get().to(list_connections))
-            .route("/configure", web::post().to(configure))
-            .route("/connect", web::post().to(connect))
-            .route("/oauth/callback", web::post().to(oauth_callback))
-            .route("/{id}", web::delete().to(disconnect))
-            .route("/{provider}/files", web::get().to(list_provider_files))
-    );
+    cfg
+        .service(
+            web::resource("/api/security/connections")
+                .route(web::get().to(list_connections)),
+        )
+        .service(
+            web::resource("/api/security/connections/configure")
+                .route(web::post().to(configure)),
+        )
+        .service(
+            web::resource("/api/security/connections/connect")
+                .route(web::post().to(connect)),
+        )
+        .service(
+            web::resource("/api/security/connections/oauth/callback")
+                .route(web::post().to(oauth_callback)),
+        )
+        .service(
+            web::resource("/api/security/connections/{id}")
+                .route(web::delete().to(disconnect)),
+        )
+        .service(
+            web::resource("/api/security/connections/{provider}/files")
+                .route(web::get().to(list_provider_files)),
+        );
 }
-

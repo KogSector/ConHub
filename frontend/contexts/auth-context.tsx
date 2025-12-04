@@ -1,10 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react'
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, ApiResponse, unwrapResponse } from '@/lib/api';
-import { isLoginEnabled } from '@/lib/feature-toggles';
-// Use a fixed dev user ID to avoid bundling issues with uuid in client
 
 export interface User {
   id: string
@@ -65,24 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const [connections, setConnections] = useState<Array<{ id: string; platform: string; username?: string; is_active: boolean }> | null>(null)
   const router = useRouter()
-  const loginEnabled = isLoginEnabled()
-
-  // Default dev user when auth is disabled
-  // This UUID MUST match the backend default_dev_user_id() in shared/models/src/auth.rs
-  // to ensure consistent identity across frontend and backend services
-  const DEV_USER_ID = '8f565516-5c3e-4d63-bc6f-1e049d4152ac'
-  const devUser: User = useMemo(() => ({
-    id: DEV_USER_ID,
-    email: 'dev@conhub.local',
-    name: 'Development User',
-    avatar_url: undefined,
-    organization: 'ConHub Dev',
-    role: 'user',
-    subscription_tier: 'free',
-    is_verified: true,
-    created_at: new Date().toISOString(),
-    last_login_at: new Date().toISOString()
-  }), [])
 
   
   const saveSession = (token: string, expiresAt: string) => {
@@ -125,9 +105,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('auth_session')
     localStorage.removeItem('auth_token')
     setToken(null)
-    // Preserve default dev user when auth is disabled
-    setUser(loginEnabled ? null : devUser)
-  }, [loginEnabled, devUser])
+    setUser(null)
+  }, [])
 
   // Fetch the user profile using the current token
   const fetchUserProfile = useCallback(async (authToken: string) => {
@@ -163,11 +142,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Verify the token with the backend and update session/user state accordingly
   const verifyToken = useCallback(async (tokenToVerify: string) => {
-    // Skip verification entirely when login is disabled
-    if (!loginEnabled) {
-      setIsLoading(false)
-      return
-    }
     try {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 2000)
@@ -197,27 +171,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (err: unknown) {
       console.error('Token verification failed:', err)
-      const isAbort = err instanceof Error && err.name === 'AbortError'
-      if (isAbort) {
-        console.log('Token verification timed out, keeping session for offline use')
-        setUser(null)
-      } else {
-        clearSession()
-      }
+      clearSession()
     } finally {
       setIsLoading(false)
     }
-  }, [loginEnabled, fetchUserProfile, clearSession])
+  }, [fetchUserProfile, clearSession, refreshConnections])
 
   useEffect(() => {
-    // If login is disabled, provide a default dev user immediately
-    if (!loginEnabled) {
-      setUser(devUser)
-      setToken(null)
-      setIsLoading(false)
-      return
-    }
-
     const session = getSession()
     if (session && isSessionValid(session)) {
       setToken(session.token)
@@ -234,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearSession()
       setIsLoading(false)
     }
-  }, [loginEnabled, updateLastActivity, verifyToken, clearSession, devUser])
+  }, [updateLastActivity, verifyToken, clearSession])
 
   
   useEffect(() => {
@@ -256,13 +216,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      // Bypass login when auth is disabled
-      if (!loginEnabled) {
-        setUser(devUser)
-        setToken(null)
-        router.push('/dashboard')
-        return
-      }
       const result = await apiClient.post('/api/auth/login', { email, password })
       const data = unwrapResponse<AuthResponse>(result)
 
@@ -286,13 +239,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterData) => {
     setIsLoading(true)
     try {
-      // Bypass registration when auth is disabled
-      if (!loginEnabled) {
-        setUser(devUser)
-        setToken(null)
-        router.push('/dashboard')
-        return
-      }
       const result = await apiClient.post('/api/auth/register', data)
       const authData = unwrapResponse<AuthResponse>(result)
 

@@ -1,15 +1,16 @@
-use actix_web::{web, App, HttpServer, middleware::Logger};
+use actix_web::{web, App, HttpServer};
 use actix_cors::Cors;
 use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
 use std::str::FromStr;
 use std::env;
+use conhub_observability::{init_tracing, TracingConfig, observability, info, warn, error};
 
 mod handlers;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging
-    env_logger::init();
+    // Initialize observability with structured logging
+    init_tracing(TracingConfig::for_service("webhook-service"));
 
     // Load environment variables
     dotenv::dotenv().ok();
@@ -31,9 +32,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .unwrap_or_else(|| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
 
         if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
-            println!("📊 [Webhook Service] Connecting to Neon DB...");
+            info!("📊 [Webhook Service] Connecting to Neon DB...");
         } else {
-            println!("📊 [Webhook Service] Connecting to database...");
+            info!("📊 [Webhook Service] Connecting to database...");
         }
 
         let connect_options = PgConnectOptions::from_str(&database_url)?
@@ -44,20 +45,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .connect_with(connect_options)
             .await {
             Ok(p) => {
-                println!("✅ [Webhook Service] Database connection established");
+                info!("✅ [Webhook Service] Database connection established");
                 Some(p)
             }
             Err(e) => {
-                eprintln!("⚠️  [Webhook Service] Failed to connect to database: {}", e);
+                error!("⚠️  [Webhook Service] Failed to connect to database: {}", e);
                 None
             }
         }
     } else {
-        println!("[Webhook Service] Auth disabled; skipping database connection.");
+        info!("[Webhook Service] Auth disabled; skipping database connection.");
         None
     };
 
-    println!("🚀 [Webhook Service] Starting on port {}", port);
+    info!("🚀 [Webhook Service] Starting on port {}", port);
 
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -68,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut app = App::new()
             .wrap(cors)
-            .wrap(Logger::default());
+            .wrap(observability("webhook-service"));
 
         if let Some(p) = pool.clone() {
             app = app.app_data(web::Data::new(p));

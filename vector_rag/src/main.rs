@@ -1,6 +1,7 @@
 use actix_web::{web, App, HttpServer};
 use std::env;
 use std::sync::Arc;
+use conhub_observability::{init_tracing, TracingConfig, observability, info, warn, error};
 
 mod config;
 mod handlers;
@@ -15,8 +16,8 @@ use crate::models::EmbeddingStatus;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Initialize logger
-    env_logger::init();
+    // Initialize observability with structured logging
+    init_tracing(TracingConfig::for_service("vector-rag"));
 
     // Load configuration
     let port = env::var("EMBEDDING_PORT")
@@ -26,7 +27,7 @@ async fn main() -> std::io::Result<()> {
 
     let host = env::var("EMBEDDING_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
 
-    log::info!("Starting embedding service on {}:{}", host, port);
+    info!("Starting embedding service on {}:{}", host, port);
 
     // Load feature toggles
     let toggles = FeatureToggles::from_env_path();
@@ -34,37 +35,38 @@ async fn main() -> std::io::Result<()> {
 
     // Initialize services
     let embedding_service = if heavy_enabled {
-        log::info!("Initializing multi-model fusion embedding service...");
+        info!("Initializing multi-model fusion embedding service...");
         
         let config_path = env::var("EMBEDDING_FUSION_CONFIG_PATH")
             .unwrap_or_else(|_| "config/fusion_config.json".to_string());
         
-        log::info!("Loading fusion config from: {}", config_path);
+        info!("Loading fusion config from: {}", config_path);
 
         match FusionEmbeddingService::new(&config_path) {
             Ok(svc) => {
-                log::info!("Fusion embedding service initialized successfully");
+                info!("Fusion embedding service initialized successfully");
                 Some(Arc::new(svc))
             }
             Err(e) => {
-                log::error!("Failed to initialize fusion embedding service: {}", e);
+                error!("Failed to initialize fusion embedding service: {}", e);
                 None
             }
         }
     } else {
-        log::warn!("Heavy mode disabled; skipping embedding model initialization.");
+        warn!("Heavy mode disabled; skipping embedding model initialization.");
         None
     };
 
     // Service ready for production use
 
     // Start HTTP server
-    log::info!("Starting HTTP server...");
+    info!("Starting HTTP server...");
     let heavy_ready = embedding_service.is_some();
     let status = EmbeddingStatus { available: heavy_ready, reason: if heavy_enabled && !heavy_ready { Some("missing_api_keys".to_string()) } else { None } };
 
     HttpServer::new(move || {
         let mut app = App::new()
+            .wrap(observability("vector-rag"))
             .app_data(web::Data::new(status.clone()))
             .route("/health", web::get().to(health_handler));
 

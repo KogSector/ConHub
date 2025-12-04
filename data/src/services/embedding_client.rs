@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use tracing::{info, error};
 
-use crate::connectors::DocumentForEmbedding;
+use crate::connectors::types::DocumentForEmbedding;
 
 #[derive(Debug, Serialize)]
 struct BatchEmbedRequest {

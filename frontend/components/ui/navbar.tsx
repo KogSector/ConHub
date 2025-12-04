@@ -1,16 +1,19 @@
-'use client'
+ 'use client'
 
-import { Button } from "@/components/ui/button";
-import { Menu, X, LogOut, User } from "lucide-react";
-import { useState } from "react";
-import Link from "next/link";
-// 🆕 1. Import the router hook for navigation
-import { useRouter } from "next/navigation"; 
+ import { Button } from "@/components/ui/button";
+ import { Menu, X, LogOut, User } from "lucide-react";
+ import { useState } from "react";
+ import Link from "next/link";
+ // 🆕 1. Import the router hook for navigation
+ import { useRouter } from "next/navigation"; 
 
-import { useAuth0 } from "@auth0/auth0-react";
-import { isLoginEnabled } from "@/lib/feature-toggles";
+ import { useAuth0 } from "@auth0/auth0-react";
 
-export const Navbar = () => {
+ type NavbarProps = {
+   showUserMenu?: boolean;
+ };
+
+ export const Navbar = ({ showUserMenu = true }: NavbarProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   // 🆕 2. Initialize the router
@@ -26,7 +29,7 @@ export const Navbar = () => {
 
   const handleLogin = () => {
     // 🆕 3. CHANGED: Navigate to your custom login page instead of Auth0 default
-    router.push("/login");
+    router.push("/auth/login");
   };
 
   const handleLogout = () => {
@@ -54,27 +57,27 @@ export const Navbar = () => {
               Pricing
             </Link>
 
-            {isLoading ? (
-              <Button variant="outline" size="sm" disabled>
-                Loading...
-              </Button>
-            ) : isAuthenticated && user ? (
-              // STATE A: LOGGED IN (Show Profile)
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-foreground/80">
-                  {user.name || user.email}
-                </span>
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full border border-border bg-muted flex items-center justify-center">
-                    <span className="text-sm font-semibold">{getInitial(user.name || user.email)}</span>
+            {showUserMenu && (
+              isLoading ? (
+                <Button variant="outline" size="sm" disabled>
+                  Loading...
+                </Button>
+              ) : isAuthenticated && user ? (
+                // STATE A: LOGGED IN (Show Profile)
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-medium text-foreground/80">
+                    {user.name || user.email}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full border border-border bg-muted flex items-center justify-center">
+                      <span className="text-sm font-semibold">{getInitial(user.name || user.email)}</span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={handleLogout} title="Log Out">
+                      <LogOut className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={handleLogout} title="Log Out">
-                    <LogOut className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                  </Button>
                 </div>
-              </div>
-            ) : (
-              null
+              ) : null
             )}
           </div>
 
@@ -105,29 +108,31 @@ export const Navbar = () => {
               </Link>
 
               <div className="pt-2 border-t border-border/50">
-                {isLoading ? (
-                  <Button variant="outline" size="sm" className="w-full" disabled>
-                    Loading...
-                  </Button>
-                ) : isAuthenticated && user ? (
-                  // MOBILE LOGGED IN STATE
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3 px-2">
-                      <div className="h-8 w-8 rounded-full border border-border bg-muted flex items-center justify-center">
-                        <span className="text-sm font-semibold">{getInitial(user.name || user.email)}</span>
-                      </div>
-                      <span className="text-sm font-medium">{user.name || user.email}</span>
-                    </div>
-                    <Button variant="ghost" size="sm" className="w-full justify-start text-destructive" onClick={handleLogout}>
-                      <LogOut className="w-4 h-4 mr-2" /> Log Out
+                {showUserMenu ? (
+                  isLoading ? (
+                    <Button variant="outline" size="sm" className="w-full" disabled>
+                      Loading...
                     </Button>
-                  </div>
-                ) : (
-                  // MOBILE LOGGED OUT STATE
-                  <Button variant="outline" size="sm" className="w-full" onClick={handleLogin}>
-                    Sign In
-                  </Button>
-                )}
+                  ) : isAuthenticated && user ? (
+                    // MOBILE LOGGED IN STATE
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-3 px-2">
+                        <div className="h-8 w-8 rounded-full border border-border bg-muted flex items-center justify-center">
+                          <span className="text-sm font-semibold">{getInitial(user.name || user.email)}</span>
+                        </div>
+                        <span className="text-sm font-medium">{user.name || user.email}</span>
+                      </div>
+                      <Button variant="ghost" size="sm" className="w-full justify-start text-destructive" onClick={handleLogout}>
+                        <LogOut className="w-4 h-4 mr-2" /> Log Out
+                      </Button>
+                    </div>
+                  ) : (
+                    // MOBILE LOGGED OUT STATE
+                    <Button variant="outline" size="sm" className="w-full" onClick={handleLogin}>
+                      Sign In
+                    </Button>
+                  )
+                ) : null}
               </div>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { API_CONFIG } from './config';
+import logger, { TRACE_ID_HEADER, SPAN_ID_HEADER, REQUEST_ID_HEADER } from './logger';
 
 export interface DocumentRecord {
   id: string;
@@ -88,15 +89,22 @@ export class ApiClient {
   private baseUrl: string;
   private authBaseUrl: string;
   private billingEnabled: boolean;
+  private serviceName: string;
 
-  constructor(baseUrl = API_CONFIG.baseUrl) {
+  constructor(baseUrl = API_CONFIG.baseUrl, serviceName = 'backend') {
     this.baseUrl = baseUrl;
     this.authBaseUrl = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || process.env.AUTH_SERVICE_URL || 'http://localhost:3010';
     this.billingEnabled = true;
+    this.serviceName = serviceName;
     
     if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      console.log('API Client initialized with baseUrl:', this.baseUrl);
+      logger.debug('API Client initialized', { baseUrl: this.baseUrl, serviceName }, 'api');
     }
+  }
+
+  /** Get trace headers for request correlation */
+  private getTraceHeaders(): Record<string, string> {
+    return logger.getTraceHeaders();
   }
 
   private resolveBase(endpoint: string): string {
@@ -140,51 +148,67 @@ export class ApiClient {
   }
 
   async get<T = unknown>(endpoint: string, headers: Record<string, string> = {}): Promise<T> {
+    const startTime = performance.now();
     try {
       const response = await fetch(`${this.resolveBase(endpoint)}${endpoint}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          ...this.getTraceHeaders(),
           ...headers,
         },
       });
+      const duration = performance.now() - startTime;
+      logger.trackAPICall(endpoint, 'GET', duration, response.status);
       return this.handleResponse<T>(response);
     } catch (error) {
-      console.error(`API GET ${endpoint} failed:`, error);
+      const duration = performance.now() - startTime;
+      logger.trackAPICall(endpoint, 'GET', duration, 0, error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }
 
   async graphql<T = unknown>(query: string, variables: Record<string, unknown> = {}, headers: Record<string, string> = {}): Promise<T> {
+    const startTime = performance.now();
+    const operationName = query.match(/(?:query|mutation)\s+(\w+)/)?.[1] || 'anonymous';
     try {
       const response = await fetch(`${this.baseUrl}/api/graphql`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...this.getTraceHeaders(),
           ...headers,
         },
         body: JSON.stringify({ query, variables }),
         credentials: 'include',
       });
+      const duration = performance.now() - startTime;
+      logger.trackAPICall(`/api/graphql:${operationName}`, 'POST', duration, response.status);
       return this.handleGraphQLResponse<T>(response);
     } catch (error) {
-      console.error('GraphQL request failed:', error);
+      const duration = performance.now() - startTime;
+      logger.trackAPICall(`/api/graphql:${operationName}`, 'POST', duration, 0, error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }
   async post<T = unknown>(endpoint: string, data: unknown, headers: Record<string, string> = {}): Promise<T> {
+    const startTime = performance.now();
     try {
       const response = await fetch(`${this.resolveBase(endpoint)}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...this.getTraceHeaders(),
           ...headers,
         },
         body: JSON.stringify(data),
       });
+      const duration = performance.now() - startTime;
+      logger.trackAPICall(endpoint, 'POST', duration, response.status);
       return this.handleResponse<T>(response);
     } catch (error) {
-      console.error(`API POST ${endpoint} failed:`, error);
+      const duration = performance.now() - startTime;
+      logger.trackAPICall(endpoint, 'POST', duration, 0, error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }
@@ -204,33 +228,43 @@ export class ApiClient {
     }
   }
   async put<T = unknown>(endpoint: string, data: unknown, headers: Record<string, string> = {}): Promise<T> {
+    const startTime = performance.now();
     try {
       const response = await fetch(`${this.resolveBase(endpoint)}${endpoint}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          ...this.getTraceHeaders(),
           ...headers,
         },
         body: JSON.stringify(data),
       });
+      const duration = performance.now() - startTime;
+      logger.trackAPICall(endpoint, 'PUT', duration, response.status);
       return this.handleResponse<T>(response);
     } catch (error) {
-      console.error(`API PUT ${endpoint} failed:`, error);
+      const duration = performance.now() - startTime;
+      logger.trackAPICall(endpoint, 'PUT', duration, 0, error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }
   async delete<T = unknown>(endpoint: string, headers: Record<string, string> = {}): Promise<T> {
+    const startTime = performance.now();
     try {
       const response = await fetch(`${this.resolveBase(endpoint)}${endpoint}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          ...this.getTraceHeaders(),
           ...headers,
         },
       });
+      const duration = performance.now() - startTime;
+      logger.trackAPICall(endpoint, 'DELETE', duration, response.status);
       return this.handleResponse<T>(response);
     } catch (error) {
-      console.error(`API DELETE ${endpoint} failed:`, error);
+      const duration = performance.now() - startTime;
+      logger.trackAPICall(endpoint, 'DELETE', duration, 0, error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }
@@ -374,10 +408,10 @@ export async function listProviderFiles(provider: string): Promise<ApiResponse<{
 // Convenience helper: fetch current user via GraphQL when auth is enabled
 export async function fetchCurrentUserViaGraphQL() {
   const query = `
-    query Me { me { user_id roles } }
+    query Me { me { userId roles } }
   `;
   try {
-    const data = await apiClient.graphql<{ me: { user_id: string | null; roles: string[] } }>(query);
+    const data = await apiClient.graphql<{ me: { userId: string | null; roles: string[] } }>(query);
     return data.me;
   } catch (err) {
     // In environments where auth is disabled, backend may return default claims.

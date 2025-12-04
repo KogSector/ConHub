@@ -241,10 +241,17 @@ impl OAuthService {
     }
 
     async fn exchange_github_code(&self, code: &str) -> Result<OAuthTokenResponse> {
+        // GitHub requires redirect_uri here if it was included in the authorization request.
+        // Our auth flow uses OAUTH_REDIRECT_URI with a provider query parameter, e.g.
+        //   http://localhost:3000/auth/callback?provider=github
+        // so we must pass the exact same value during the token exchange.
+        let redirect_with_provider = format!("{}?provider=github", self.redirect_uri);
+
         let params = [
             ("client_id", self.github_client_id.as_str()),
             ("client_secret", self.github_client_secret.as_str()),
             ("code", code),
+            ("redirect_uri", redirect_with_provider.as_str()),
         ];
 
         let response = self.client
@@ -254,12 +261,27 @@ impl OAuthService {
             .send()
             .await?;
 
-        if !response.status().is_success() {
-            let error_text = response.text().await?;
-            return Err(anyhow!("GitHub token exchange failed: {}", error_text));
+        let status = response.status();
+        let body_text = response.text().await?;
+
+        if !status.is_success() {
+            // Surface the full error body from GitHub to make configuration issues easier to debug
+            return Err(anyhow!(
+                "GitHub token exchange failed (status {}): {}",
+                status,
+                body_text
+            ));
         }
 
-        Ok(response.json().await?)
+        // Decode into OAuthTokenResponse; if this fails, include the raw body to understand why
+        match serde_json::from_str::<OAuthTokenResponse>(&body_text) {
+            Ok(token) => Ok(token),
+            Err(e) => Err(anyhow!(
+                "GitHub token exchange failed: could not decode response: {}. Body: {}",
+                e,
+                body_text
+            )),
+        }
     }
 
     async fn exchange_bitbucket_code(&self, code: &str) -> Result<OAuthTokenResponse> {

@@ -57,9 +57,11 @@ export function SocialConnections() {
   const fetchConnections = useCallback(async () => {
     try {
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      const resp = await apiClient.get('/api/auth/connections', headers);
-      const data = unwrapResponse<SocialConnection[]>(resp) ?? []
-      setConnections(data)
+      // Use the security service connections API; auth service may be disabled and
+      // it does not expose /api/auth/connections.
+      const resp = await securityApiClient.get('/api/security/connections', headers);
+      const data = unwrapResponse<SocialConnection[]>(resp) ?? [];
+      setConnections(data);
     } catch (error) {
       console.error('Error fetching connections:', error);
       toast({
@@ -137,7 +139,9 @@ export function SocialConnections() {
   const disconnectPlatform = async (connectionId: string) => {
     try {
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      await apiClient.delete(`/api/auth/connections/${connectionId}`, headers);
+      // Disconnect via security service; this matches the backend routes in
+      // security/src/handlers/connections.rs.
+      await securityApiClient.delete(`/api/security/connections/${connectionId}`, headers);
       setConnections(prev => prev.filter(conn => conn.id !== connectionId));
       toast({
         title: "Success",

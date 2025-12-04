@@ -1010,36 +1010,86 @@ pub async fn disconnect_auth_connection(
 
 pub async fn oauth_url(
     query: web::Query<std::collections::HashMap<String, String>>,
-    pool_opt: web::Data<Option<PgPool>>,
 ) -> Result<HttpResponse> {
-    let pool = match pool_opt.get_ref() {
-        Some(p) => p,
-        None => {
-            return Ok(HttpResponse::ServiceUnavailable().json(json!({
-                "error": "Database service unavailable"
-            })));
-        }
-    };
+    use std::env;
 
-    let provider = query.get("provider").cloned().unwrap_or_default();
+    let provider_raw = query.get("provider").cloned().unwrap_or_default();
+    let provider = provider_raw.to_lowercase();
+
+    if provider.is_empty() {
+        return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Missing provider",
+            "message": "Query parameter 'provider' is required",
+        })));
+    }
+
     let state = Uuid::new_v4().to_string();
 
-    let oauth_service = crate::services::oauth::OAuthService::new(pool.clone());
-    let provider_enum = match provider.to_lowercase().as_str() {
-        "google" => crate::services::oauth::OAuthProvider::Google,
-        "microsoft" => crate::services::oauth::OAuthProvider::Microsoft,
-        "github" => crate::services::oauth::OAuthProvider::GitHub,
-        "bitbucket" => crate::services::oauth::OAuthProvider::Bitbucket,
-        "gitlab" => crate::services::oauth::OAuthProvider::GitLab,
+    let redirect_base = env::var("OAUTH_REDIRECT_URI")
+        .unwrap_or_else(|_| "http://localhost:3000/auth/callback".to_string());
+    let redirect_with_provider = format!("{}?provider={}", redirect_base, provider);
+
+    let auth_url = match provider.as_str() {
+        "google" => {
+            let client_id = env::var("GOOGLE_CLIENT_ID").unwrap_or_default();
+            format!(
+                "https://accounts.google.com/o/oauth2/v2/auth?client_id={}&redirect_uri={}&response_type=code&scope=openid%20email%20profile&state={}",
+                client_id,
+                urlencoding::encode(&redirect_with_provider),
+                state
+            )
+        }
+        "microsoft" => {
+            let client_id = env::var("MICROSOFT_CLIENT_ID").unwrap_or_default();
+            let tenant = env::var("MICROSOFT_TENANT_ID").unwrap_or_else(|_| "common".to_string());
+            format!(
+                "https://login.microsoftonline.com/{}/oauth2/v2.0/authorize?client_id={}&redirect_uri={}&response_type=code&scope=openid%20email%20profile&state={}",
+                tenant,
+                client_id,
+                urlencoding::encode(&redirect_with_provider),
+                state
+            )
+        }
+        "github" => {
+            let client_id = env::var("GITHUB_CLIENT_ID").unwrap_or_default();
+            format!(
+                "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&scope=user:email&state={}",
+                client_id,
+                urlencoding::encode(&redirect_with_provider),
+                state
+            )
+        }
+        "bitbucket" => {
+            let client_id = env::var("BITBUCKET_CLIENT_ID").unwrap_or_default();
+            let scopes = ["repository:read", "account", "email"].join(" ");
+            format!(
+                "https://bitbucket.org/site/oauth2/authorize?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}",
+                client_id,
+                urlencoding::encode(&redirect_with_provider),
+                urlencoding::encode(&scopes),
+                state
+            )
+        }
+        "gitlab" => {
+            let client_id = env::var("GITLAB_CLIENT_ID").unwrap_or_default();
+            let scopes = ["read_user"].join(" ");
+            format!(
+                "https://gitlab.com/oauth/authorize?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}",
+                client_id,
+                urlencoding::encode(&redirect_with_provider),
+                urlencoding::encode(&scopes),
+                state
+            )
+        }
         _ => {
             return Ok(HttpResponse::BadRequest().json(json!({
-                "error": "Unsupported provider"
+                "error": "Unsupported provider",
+                "provider": provider_raw,
             })));
         }
     };
 
-    let url = oauth_service.get_authorization_url(provider_enum, &state);
-    Ok(HttpResponse::Ok().json(json!({"url": url, "state": state})))
+    Ok(HttpResponse::Ok().json(json!({ "url": auth_url, "state": state })))
 }
 
 async fn get_bearer_token_for_provider(pool: &PgPool, user_id: uuid::Uuid, provider: &str) -> Result<String, anyhow::Error> {
@@ -1342,6 +1392,171 @@ pub async fn oauth_exchange(
         "is_new_user": false,
         "connection_id": final_connection_id
     })))
+}
+
+// ============================================================================
+// INTERNAL SERVICE-TO-SERVICE ENDPOINTS
+// These endpoints are used by other microservices to access user data securely
+// ============================================================================
+
+#[derive(serde::Serialize)]
+pub struct InternalTokenResponse {
+    pub access_token: String,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub refresh_token: Option<String>,
+}
+
+/// Internal endpoint for service-to-service token resolution
+/// Used by data service to get GitHub tokens for repository sync
+/// 
+/// GET /internal/oauth/{provider}/token?user_id={uuid}
+pub async fn internal_get_oauth_token(
+    path: web::Path<String>,
+    query: web::Query<std::collections::HashMap<String, String>>,
+    pool_opt: web::Data<Option<PgPool>>,
+) -> Result<HttpResponse> {
+    let pool = match pool_opt.get_ref() {
+        Some(p) => p,
+        None => return Ok(HttpResponse::ServiceUnavailable().json(json!({
+            "error": "Database service unavailable"
+        }))),
+    };
+
+    let provider = path.into_inner().to_lowercase();
+    let user_id_str = match query.get("user_id") {
+        Some(id) => id,
+        None => return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Missing user_id query parameter"
+        }))),
+    };
+
+    let user_id: uuid::Uuid = match user_id_str.parse() {
+        Ok(id) => id,
+        Err(_) => return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Invalid user_id format"
+        }))),
+    };
+
+    // Validate provider
+    let valid_providers = ["github", "bitbucket", "gitlab", "google", "microsoft"];
+    if !valid_providers.contains(&provider.as_str()) {
+        return Ok(HttpResponse::BadRequest().json(json!({
+            "error": format!("Unsupported provider: {}", provider)
+        })));
+    }
+
+    // Query for active token
+    let row = sqlx::query(
+        r#"
+        SELECT access_token, refresh_token, token_expires_at
+        FROM social_connections
+        WHERE user_id = $1 AND platform = $2 AND is_active = true
+        ORDER BY updated_at DESC
+        LIMIT 1
+        "#
+    )
+    .bind(user_id)
+    .bind(&provider)
+    .fetch_optional(pool)
+    .await;
+
+    match row {
+        Ok(Some(row)) => {
+            let access_token: String = row.get("access_token");
+            let refresh_token: Option<String> = row.get("refresh_token");
+            let expires_at: Option<chrono::DateTime<chrono::Utc>> = row.get("token_expires_at");
+
+            Ok(HttpResponse::Ok().json(InternalTokenResponse {
+                access_token,
+                expires_at,
+                refresh_token,
+            }))
+        }
+        Ok(None) => Ok(HttpResponse::NotFound().json(json!({
+            "error": format!("No active {} connection found for user", provider)
+        }))),
+        Err(e) => {
+            tracing::error!("Failed to fetch OAuth token: {}", e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to fetch OAuth token"
+            })))
+        }
+    }
+}
+
+/// Internal endpoint to check if a user has a valid connection for a provider
+/// GET /internal/oauth/{provider}/status?user_id={uuid}
+pub async fn internal_check_oauth_status(
+    path: web::Path<String>,
+    query: web::Query<std::collections::HashMap<String, String>>,
+    pool_opt: web::Data<Option<PgPool>>,
+) -> Result<HttpResponse> {
+    let pool = match pool_opt.get_ref() {
+        Some(p) => p,
+        None => return Ok(HttpResponse::ServiceUnavailable().json(json!({
+            "error": "Database service unavailable"
+        }))),
+    };
+
+    let provider = path.into_inner().to_lowercase();
+    let user_id_str = match query.get("user_id") {
+        Some(id) => id,
+        None => return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Missing user_id query parameter"
+        }))),
+    };
+
+    let user_id: uuid::Uuid = match user_id_str.parse() {
+        Ok(id) => id,
+        Err(_) => return Ok(HttpResponse::BadRequest().json(json!({
+            "error": "Invalid user_id format"
+        }))),
+    };
+
+    let row = sqlx::query(
+        r#"
+        SELECT id, username, token_expires_at, updated_at
+        FROM social_connections
+        WHERE user_id = $1 AND platform = $2 AND is_active = true
+        ORDER BY updated_at DESC
+        LIMIT 1
+        "#
+    )
+    .bind(user_id)
+    .bind(&provider)
+    .fetch_optional(pool)
+    .await;
+
+    match row {
+        Ok(Some(row)) => {
+            let connection_id: uuid::Uuid = row.get("id");
+            let username: String = row.get("username");
+            let expires_at: Option<chrono::DateTime<chrono::Utc>> = row.get("token_expires_at");
+            let updated_at: chrono::DateTime<chrono::Utc> = row.get("updated_at");
+
+            let is_expired = expires_at
+                .map(|exp| exp < chrono::Utc::now())
+                .unwrap_or(false);
+
+            Ok(HttpResponse::Ok().json(json!({
+                "connected": true,
+                "connection_id": connection_id,
+                "username": username,
+                "is_expired": is_expired,
+                "expires_at": expires_at,
+                "updated_at": updated_at
+            })))
+        }
+        Ok(None) => Ok(HttpResponse::Ok().json(json!({
+            "connected": false
+        }))),
+        Err(e) => {
+            tracing::error!("Failed to check OAuth status: {}", e);
+            Ok(HttpResponse::InternalServerError().json(json!({
+                "error": "Failed to check OAuth status"
+            })))
+        }
+    }
 }
 
 /// Public endpoint that returns connections for the current user (if authenticated)

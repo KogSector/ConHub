@@ -4,14 +4,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { isLoginEnabled } from "@/lib/feature-toggles";
 
 export const AuthStatus = () => {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
-  const loginEnabled = isLoginEnabled();
 
   const handleLogin = () => {
-    
     window.location.href = '/auth/login';
   };
 
@@ -31,16 +28,10 @@ export const AuthStatus = () => {
         <CardTitle>Authentication Status</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!loginEnabled && (
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm text-yellow-800">Development Mode: Authentication bypassed</p>
-          </div>
-        )}
-        
         <div className="flex items-center justify-between">
           <span>Status:</span>
           <Badge variant={isAuthenticated ? "default" : "secondary"}>
-            {isAuthenticated ? (loginEnabled ? "Authenticated" : "Dev Mode") : "Not Authenticated"}
+            {isAuthenticated ? "Authenticated" : "Not Authenticated"}
           </Badge>
         </div>
         
@@ -64,31 +55,29 @@ export const AuthStatus = () => {
                 />
               </div>
             )}
-            <div className="flex items-center justify-between">
-              <span>Role:</span>
-              <Badge variant="outline">{user.role}</Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Organization:</span>
-              <span className="text-sm">{user.organization || 'N/A'}</span>
-            </div>
+            {user.role && (
+              <div className="flex items-center justify-between">
+                <span>Role:</span>
+                <Badge variant="outline">{user.role}</Badge>
+              </div>
+            )}
+            {user.organization && (
+              <div className="flex items-center justify-between">
+                <span>Organization:</span>
+                <span className="text-sm">{user.organization}</span>
+              </div>
+            )}
           </div>
         )}
         
         <div className="pt-4">
-          {loginEnabled ? (
-            isAuthenticated ? (
-              <Button onClick={logout} variant="outline" className="w-full">
-                Sign Out
-              </Button>
-            ) : (
-              <Button onClick={handleLogin} className="w-full">
-                Sign In
-              </Button>
-            )
+          {isAuthenticated ? (
+            <Button onClick={logout} variant="outline" className="w-full">
+              Sign Out
+            </Button>
           ) : (
-            <Button disabled className="w-full">
-              Authentication Disabled
+            <Button onClick={handleLogin} className="w-full">
+              Sign In
             </Button>
           )}
         </div>

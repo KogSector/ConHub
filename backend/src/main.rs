@@ -14,6 +14,7 @@ use std::io;
 use std::str::FromStr;
 use conhub_middleware::auth::AuthMiddlewareFactory;
 use conhub_config::feature_toggles::FeatureToggles;
+use conhub_observability::{init_tracing, TracingConfig, observability, info, warn, error};
 
 use config::AppConfig;
 use state::AppState;
@@ -21,10 +22,10 @@ use crate::graphql::schema::build_schema;
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
-    // Initialize logger
-    env_logger::init();
+    // Initialize observability with structured logging
+    init_tracing(TracingConfig::for_service("backend-service"));
 
-    log::info!("Starting ConHub Backend Service...");
+    info!("Starting ConHub Backend Service...");
 
     // Load configuration from environment
     let config = AppConfig::from_env();
@@ -49,37 +50,31 @@ async fn main() -> io::Result<()> {
 
     log::info!("🔐 [Backend Service] Authentication middleware initialized");
 
-    // Database setup (gated by Auth toggle)
-    let db_pool_opt = if auth_enabled {
-        // Prefer Neon URL if present, fall back to DATABASE_URL
-        let database_url = std::env::var("DATABASE_URL_NEON")
-            .ok()
-            .filter(|v| !v.trim().is_empty())
-            .or_else(|| config.database_url.clone())
-            .expect("DATABASE_URL or DATABASE_URL_NEON must be set when Auth is enabled");
+    // Database setup (always connect when a DB URL is configured)
+    let database_url = std::env::var("DATABASE_URL_NEON")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| config.database_url.clone())
+        .unwrap_or_else(|| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
 
-        if std::env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
-            log::info!("📊 [Backend Service] Connecting to Neon DB...");
-        } else {
-            log::info!("Connecting to PostgreSQL database...");
-        }
-        
-        // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
-        let connect_options = PgConnectOptions::from_str(&database_url)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
-            .statement_cache_capacity(0);
-        
-        let db_pool = PgPoolOptions::new()
-            .max_connections(10)
-            .connect_with(connect_options)
-            .await
-            .expect("Failed to connect to Postgres");
-        log::info!("✅ [Backend Service] Database connection established");
-        Some(db_pool)
+    if std::env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
+        log::info!("📊 [Backend Service] Connecting to Neon DB...");
     } else {
-        log::warn!("Auth disabled; skipping PostgreSQL connection.");
-        None
-    };
+        log::info!("Connecting to PostgreSQL database...");
+    }
+
+    // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
+    let connect_options = PgConnectOptions::from_str(&database_url)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
+        .statement_cache_capacity(0);
+
+    let db_pool = PgPoolOptions::new()
+        .max_connections(10)
+        .connect_with(connect_options)
+        .await
+        .expect("Failed to connect to Postgres");
+    log::info!("✅ [Backend Service] Database connection established");
+    let db_pool_opt = Some(db_pool);
 
     // Redis setup (gated by Auth and Redis toggles)
     let redis_enabled = toggles.should_connect_redis();
@@ -164,14 +159,21 @@ async fn main() -> io::Result<()> {
             .wrap(
                 Cors::default()
                     .allowed_origin("http://localhost:3000")
+                    .allowed_origin("https://localhost:3000")
                     .allowed_origin("http://localhost:80")
                     .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-                    .allowed_headers(vec!["Content-Type", "Authorization"])
+                    .allowed_headers(vec![
+                        "Content-Type",
+                        "Authorization",
+                        "x-trace-id",
+                        "x-span-id",
+                        "x-request-id",
+                    ])
                     .supports_credentials()
                     .max_age(3600)
             )
-            // Logging middleware
-            .wrap(actix_web::middleware::Logger::default())
+            // Observability middleware (HTTP logging + tracing)
+            .wrap(observability("backend-service"))
             // Authentication middleware
             .wrap(auth_middleware.clone())
             // Configure all routes

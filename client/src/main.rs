@@ -29,38 +29,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse::<u16>()
         .unwrap_or(3012);
 
-    // Feature toggles: gate database connection when Auth is disabled
-    let toggles = FeatureToggles::from_env_path();
-    let auth_enabled = toggles.auth_enabled();
+    // Feature toggles (currently not used for DB behaviour, but loaded for future use)
+    let _toggles = FeatureToggles::from_env_path();
 
-    let db_pool_opt: Option<PgPool> = if auth_enabled {
-        // Prefer Neon if provided; fall back to DATABASE_URL or local default
-        let database_url = env::var("DATABASE_URL_NEON")
-            .ok()
-            .filter(|v| !v.trim().is_empty())
-            .or_else(|| env::var("DATABASE_URL").ok())
-            .unwrap_or_else(|| "postgresql://conhub:conhub_password@postgres:5432/conhub".to_string());
+    // Always connect to the database when a URL is configured
+    let database_url = env::var("DATABASE_URL_NEON")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| env::var("DATABASE_URL").ok())
+        .unwrap_or_else(|| "postgresql://conhub:conhub_password@postgres:5432/conhub".to_string());
 
-        if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
-            tracing::info!("📊 [AI Service] Connecting to Neon DB...");
-        } else {
-            tracing::info!("📊 [AI Service] Connecting to database...");
-        }
-
-        // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
-        let connect_options = PgConnectOptions::from_str(&database_url)?
-            .statement_cache_capacity(0);
-
-        let pool = PgPoolOptions::new()
-            .max_connections(10)
-            .connect_with(connect_options)
-            .await?;
-        tracing::info!("✅ [AI Service] Database connection established");
-        Some(pool)
+    if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
+        tracing::info!("📊 [AI Service] Connecting to Neon DB...");
     } else {
-        tracing::warn!("[AI Service] Auth disabled; skipping database connection.");
-        None
-    };
+        tracing::info!("📊 [AI Service] Connecting to database...");
+    }
+
+    // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
+    let connect_options = PgConnectOptions::from_str(&database_url)?
+        .statement_cache_capacity(0);
+
+    let pool = PgPoolOptions::new()
+        .max_connections(10)
+        .connect_with(connect_options)
+        .await?;
+    tracing::info!("✅ [AI Service] Database connection established");
+    let db_pool_opt: Option<PgPool> = Some(pool);
 
     tracing::info!("🚀 [AI Service] Starting on port {}", port);
 

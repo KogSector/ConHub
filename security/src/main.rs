@@ -1,9 +1,10 @@
-use actix_web::{web, App, HttpServer, middleware::Logger};
+use actix_web::{web, App, HttpServer};
 use conhub_middleware::auth::AuthMiddlewareFactory;
 use actix_cors::Cors;
 use sqlx::{PgPool, postgres::{PgPoolOptions, PgConnectOptions}};
 use std::env;
 use std::str::FromStr;
+use conhub_observability::{init_tracing, TracingConfig, observability, info, warn, error};
 
 mod services;
 mod handlers;
@@ -11,8 +12,8 @@ mod errors;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging
-    env_logger::init();
+    // Initialize observability with structured logging
+    init_tracing(TracingConfig::for_service("security-service"));
 
     // Load environment variables
     dotenv::dotenv().ok();
@@ -23,45 +24,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse::<u16>()
         .unwrap_or(3014);
 
-    // Feature toggles: gate database connection when Auth is disabled
+    // Feature toggles: control auth middleware mode (but not DB connectivity)
     let toggles = conhub_config::feature_toggles::FeatureToggles::from_env_path();
-    let auth_enabled = toggles.auth_enabled();
 
-    let db_pool_opt: Option<PgPool> = if auth_enabled {
-        // Prefer Neon URL if present, fall back to DATABASE_URL, then local default
-        let database_url = env::var("DATABASE_URL_NEON")
-            .ok()
-            .filter(|v| !v.trim().is_empty())
-            .or_else(|| env::var("DATABASE_URL").ok())
-            .unwrap_or_else(|| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
+    // Database connection (always connect when a DB URL is configured)
+    let database_url = env::var("DATABASE_URL_NEON")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| env::var("DATABASE_URL").ok())
+        .unwrap_or_else(|| "postgresql://conhub:conhub_password@localhost:5432/conhub".to_string());
 
-        if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
-            println!("📊 [Security Service] Connecting to Neon DB...");
-        } else {
-            println!("📊 [Security Service] Connecting to database...");
-        }
-        
-        // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
-        let connect_options = PgConnectOptions::from_str(&database_url)?
-            .statement_cache_capacity(0);
-        
-        let pool = PgPoolOptions::new()
-            .max_connections(10)
-            .connect_with(connect_options)
-            .await?;
-        println!("✅ [Security Service] Database connection established");
-        Some(pool)
+    if env::var("DATABASE_URL_NEON").ok().filter(|v| !v.trim().is_empty()).is_some() {
+        info!("📊 [Security Service] Connecting to Neon DB...");
     } else {
-        println!("[Security Service] Auth disabled; skipping database connection.");
-        None
-    };
+        info!("📊 [Security Service] Connecting to database...");
+    }
 
-    println!("🚀 [Security Service] Starting on port {}", port);
+    // Disable server-side prepared statements for pgbouncer/Neon transaction pooling
+    let connect_options = PgConnectOptions::from_str(&database_url)?
+        .statement_cache_capacity(0);
 
-    let auth_middleware = match AuthMiddlewareFactory::new() {
+    let pool = PgPoolOptions::new()
+        .max_connections(10)
+        .connect_with(connect_options)
+        .await?;
+    info!("✅ [Security Service] Database connection established");
+    let db_pool_opt: Option<PgPool> = Some(pool);
+
+    info!("🚀 [Security Service] Starting on port {}", port);
+
+    // When Auth feature is disabled, run in dev mode by injecting default
+    // claims instead of requiring a real Auth0 JWT. This keeps the
+    // /api/security/* endpoints usable in local/dev even without login.
+    let auth_middleware = match AuthMiddlewareFactory::new_with_enabled(toggles.auth_enabled()) {
         Ok(m) => m,
         Err(e) => {
-            println!("[Security Service] Auth middleware init failed: {}. Using dev claims.", e);
+            warn!("[Security Service] Auth middleware init failed: {}. Using dev claims.", e);
             AuthMiddlewareFactory::disabled()
         }
     };
@@ -76,10 +74,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         App::new()
             .app_data(web::Data::new(db_pool_opt.clone()))
             .wrap(cors)
-            .wrap(Logger::default())
+            .wrap(observability("security-service"))
             .wrap(auth_middleware.clone())
             .configure(configure_routes)
-            .configure(handlers::connections::configure_routes)
             .route("/health", web::get().to(health_check))
     })
     .bind(("0.0.0.0", port))?
@@ -98,6 +95,13 @@ fn configure_routes(cfg: &mut web::ServiceConfig) {
             .route("/rulesets/{id}", web::put().to(handlers::rulesets::update_ruleset))
             .route("/rulesets/{id}", web::delete().to(handlers::rulesets::delete_ruleset))
             .route("/audit-logs", web::get().to(handlers::security::get_audit_logs))
+            // Social connections endpoints
+            .route("/connections", web::get().to(handlers::connections::list_connections))
+            .route("/connections/configure", web::post().to(handlers::connections::configure))
+            .route("/connections/connect", web::post().to(handlers::connections::connect))
+            .route("/connections/oauth/callback", web::post().to(handlers::connections::oauth_callback))
+            .route("/connections/{id}", web::delete().to(handlers::connections::disconnect))
+            .route("/connections/{provider}/files", web::get().to(handlers::connections::list_provider_files))
     );
 }
 

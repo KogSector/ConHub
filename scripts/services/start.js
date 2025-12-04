@@ -284,12 +284,15 @@ class ServiceManager {
     console.log('\n🚀 Starting services... ');
     console.log(''); // First empty line
     console.log(''); // Second empty line
-    if (toggles.Auth) {
-      await this.startService('auth', toggles);
-      // Increase auth wait timeout by +60s (30s -> 90s)
-      await this.waitForService('auth', 90000);
-      console.log('');
-    }
+
+    // Always start the auth service. The internal Auth feature toggle
+    // controls whether it runs in full Auth0 mode or dev-mode with
+    // default claims, but the process should always be running so that
+    // DB connections, dev user seeding, and connector endpoints work.
+    await this.startService('auth', toggles);
+    // Increase auth wait timeout by +60s (30s -> 90s)
+    await this.waitForService('auth', 90000);
+    console.log('');
 
 
     await this.startService('data', toggles);

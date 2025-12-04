@@ -757,6 +757,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "conhub-observability"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "chrono",
+ "futures-util",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "conhub-utils"
 version = "0.1.0"
 dependencies = [
@@ -3935,6 +3953,7 @@ dependencies = [
  "conhub-config",
  "conhub-middleware",
  "conhub-models",
+ "conhub-observability",
  "conhub-utils",
  "dotenv",
  "env_logger",

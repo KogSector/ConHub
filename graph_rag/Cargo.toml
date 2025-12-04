@@ -39,6 +39,7 @@ dotenv = "0.15"
 # Shared libraries
 conhub-models = { path = "../shared/models" }
 conhub-config = { path = "../shared/config" }
+conhub-observability = { path = "../shared/observability" }
 
 # String similarity
 strsim = "0.11"

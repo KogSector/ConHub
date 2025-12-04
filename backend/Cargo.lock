@@ -840,6 +840,7 @@ dependencies = [
  "conhub-config",
  "conhub-middleware",
  "conhub-models",
+ "conhub-observability",
  "conhub-utils",
  "dotenv",
  "env_logger",
@@ -911,6 +912,24 @@ dependencies = [
  "sqlx",
  "uuid",
  "validator",
+]
+
+[[package]]
+name = "conhub-observability"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "chrono",
+ "futures-util",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -2651,12 +2670,17 @@ dependencies = [
  "native-tls",
  "percent-encoding",
  "pin-project-lite",
+ "rustls",
+ "rustls-native-certs",
+ "rustls-pemfile",
+ "rustls-webpki",
  "ryu",
  "sha1_smol",
  "socket2 0.4.10",
  "tokio",
  "tokio-native-tls",
  "tokio-retry",
+ "tokio-rustls",
  "tokio-util",
  "url",
 ]
@@ -2860,6 +2884,18 @@ dependencies = [
  "ring",
  "rustls-webpki",
  "sct",
+]
+
+[[package]]
+name = "rustls-native-certs"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9aace74cb666635c918e9c12bc0d348266037aa8eb599b5cba565709a8dff00"
+dependencies = [
+ "openssl-probe",
+ "rustls-pemfile",
+ "schannel",
+ "security-framework",
 ]
 
 [[package]]
@@ -3197,7 +3233,6 @@ dependencies = [
  "indexmap",
  "log",
  "memchr",
- "native-tls",
  "once_cell",
  "paste",
  "percent-encoding",

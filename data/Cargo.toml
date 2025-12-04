@@ -8,6 +8,7 @@ edition = "2021"
 conhub-database = { path = "../database", features = [] }
 conhub-middleware = { path = "../shared/middleware" }
 conhub-models = { path = "../shared/models" }
+conhub-observability = { path = "../shared/observability" }
 
 actix-web = "4.0"
 tokio = { version = "1.0", features = ["full"] }
@@ -18,7 +19,7 @@ tracing-subscriber = "0.3"
 regex = "1.0"
 base64 = "0.22"
 reqwest = { version = "0.11", features = ["json"] }
-uuid = { version = "1.0", features = ["v4", "serde"] }
+uuid = { version = "1.0", features = ["v4", "v5", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1"
 oauth2 = "4.0"
