@@ -188,14 +188,35 @@ impl Auth0Service {
     /// Extract user info from Auth0 claims
     pub fn extract_user_info(&self, claims: &Auth0Claims) -> (String, Option<String>, Option<String>, Option<String>) {
         let sub = claims.sub.clone();
-        let email = claims.email.clone();
-        let name = claims.name.clone().or_else(|| {
-            // Fallback to email username if name not provided
-            email.as_ref().and_then(|e| e.split('@').next().map(|s| s.to_string()))
+        let email = claims.email.clone().or_else(|| {
+            Self::get_namespaced_claim(&claims.extra, "email")
         });
-        let picture = claims.picture.clone();
+        let name = claims
+            .name
+            .clone()
+            .or_else(|| Self::get_namespaced_claim(&claims.extra, "name"))
+            .or_else(|| {
+                // Fallback to email username if name not provided
+                email
+                    .as_ref()
+                    .and_then(|e| e.split('@').next().map(|s| s.to_string()))
+            });
+        let picture = claims
+            .picture
+            .clone()
+            .or_else(|| Self::get_namespaced_claim(&claims.extra, "picture"));
 
         (sub, email, name, picture)
+    }
+
+    fn get_namespaced_claim(
+        extra: &HashMap<String, serde_json::Value>,
+        suffix: &str,
+    ) -> Option<String> {
+        extra
+            .iter()
+            .find(|(k, _)| k.ends_with(suffix))
+            .and_then(|(_, v)| v.as_str().map(|s| s.to_string()))
     }
 }
 

@@ -68,7 +68,9 @@ export const useAuth = () => {
   return {
     user: auth0.user as any,
     isAuthenticated: auth0.isAuthenticated,
-    isLoading: auth0.isLoading || tokenLoading,
+    // Use Auth0's loading state for route guards; tokenLoading is internal
+    // to access-token caching and should not block page rendering.
+    isLoading: auth0.isLoading,
     login,
     loginWithRedirect,
     logout: logoutUser,

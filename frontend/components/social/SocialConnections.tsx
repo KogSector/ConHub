@@ -55,10 +55,16 @@ export function SocialConnections() {
   const { token } = useAuth();
 
   const fetchConnections = useCallback(async () => {
+    // Do not hit the security service until we have an Auth0 access token;
+    // otherwise we get an automatic 401 and show a spurious error toast.
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     try {
-      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      // Use the security service connections API; auth service may be disabled and
-      // it does not expose /api/auth/connections.
+      const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
       const resp = await securityApiClient.get('/api/security/connections', headers);
       const data = unwrapResponse<SocialConnection[]>(resp) ?? [];
       setConnections(data);

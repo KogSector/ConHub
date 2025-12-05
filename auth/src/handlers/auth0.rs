@@ -81,14 +81,21 @@ pub async fn auth0_exchange(
     // Extract user info from claims
     let (auth0_sub, email_opt, name_opt, picture_opt) = auth0_service.extract_user_info(&claims);
 
-    // Email is required
+    // Email is strongly preferred, but some Auth0 access tokens for custom APIs
+    // may not include a standard or namespaced email claim. In that case, we
+    // synthesize a stable, valid email from the Auth0 subject so users can
+    // still log in.
     let email = match email_opt {
         Some(e) => e,
         None => {
-            return Ok(HttpResponse::BadRequest().json(json!({
-                "error": "Email not provided",
-                "message": "Auth0 token must include email claim"
-            })));
+            let sanitized_sub = auth0_sub.replace('|', ".");
+            let synthetic_email = format!("{}@auth0.local", sanitized_sub);
+            tracing::warn!(
+                "Auth0 token missing email claim for sub {}; using synthetic email {}",
+                auth0_sub,
+                synthetic_email,
+            );
+            synthetic_email
         }
     };
 
@@ -117,15 +124,19 @@ pub async fn auth0_exchange(
         }
     };
 
-    // Find or create user based on auth0_sub
-    let user = match find_or_create_auth0_user(
-        pool,
-        &user_service,
-        &auth0_sub,
-        &email,
-        &name,
-        picture_opt.as_deref(),
-    ).await {
+    // Find or create user based on auth0_sub using the dedicated helper on
+    // UserService. This path is specific to SSO/Auth0 users and does not
+    // enforce local password strength rules, since Auth0 is the identity
+    // provider of record.
+    let user = match user_service
+        .find_or_create_by_auth0(
+            &auth0_sub,
+            &email,
+            Some(&name),
+            picture_opt.as_deref(),
+        )
+        .await
+    {
         Ok(user) => user,
         Err(e) => {
             tracing::error!("Failed to find/create Auth0 user: {}", e);
@@ -169,85 +180,6 @@ pub async fn auth0_exchange(
 
     tracing::info!("Auth0 exchange successful for sub: {}", auth0_sub);
     Ok(HttpResponse::Ok().json(auth_response))
-}
-
-/// Find existing user by auth0_sub or create new user
-async fn find_or_create_auth0_user(
-    pool: &PgPool,
-    user_service: &UserService,
-    auth0_sub: &str,
-    email: &str,
-    name: &str,
-    avatar_url: Option<&str>,
-) -> anyhow::Result<conhub_models::auth::User> {
-    // First, try to find user by auth0_sub
-    let existing_by_sub = sqlx::query_as::<_, (Uuid,)>(
-        "SELECT id FROM users WHERE auth0_sub = $1"
-    )
-    .bind(auth0_sub)
-    .fetch_optional(pool)
-    .await?;
-
-    if let Some((user_id,)) = existing_by_sub {
-        tracing::info!("Found existing user by auth0_sub: {}", user_id);
-        return user_service.get_user_by_id(user_id).await?
-            .ok_or_else(|| anyhow::anyhow!("User not found after lookup"));
-    }
-
-    // Try to find by email (user might exist from email/password registration)
-    let existing_by_email = user_service.find_by_email(email).await;
-
-    match existing_by_email {
-        Ok(mut user) => {
-            // Link this user to Auth0
-            tracing::info!("Linking existing user {} to Auth0 sub: {}", user.id, auth0_sub);
-            
-            sqlx::query(
-                "UPDATE users SET auth0_sub = $1, updated_at = $2 WHERE id = $3"
-            )
-            .bind(auth0_sub)
-            .bind(Utc::now())
-            .bind(user.id)
-            .execute(pool)
-            .await?;
-
-            // Update the user struct
-            user.updated_at = Utc::now();
-            Ok(user)
-        }
-        Err(_) => {
-            // Create new user
-            tracing::info!("Creating new user for Auth0 sub: {}", auth0_sub);
-            
-            let register_request = RegisterRequest {
-                email: email.to_string(),
-                password: Uuid::new_v4().to_string(), // Random password (won't be used)
-                name: name.to_string(),
-                avatar_url: avatar_url.map(|s| s.to_string()),
-                organization: None,
-            };
-
-            let mut new_user = user_service.create_user(&register_request).await?;
-
-            // Link to Auth0
-            sqlx::query(
-                "UPDATE users SET auth0_sub = $1, is_verified = true, email_verified_at = $2, updated_at = $3 WHERE id = $4"
-            )
-            .bind(auth0_sub)
-            .bind(Utc::now())
-            .bind(Utc::now())
-            .bind(new_user.id)
-            .execute(pool)
-            .await?;
-
-            // Update the user struct
-            new_user.is_verified = true;
-            new_user.email_verified_at = Some(Utc::now());
-            new_user.updated_at = Utc::now();
-
-            Ok(new_user)
-        }
-    }
 }
 
 #[cfg(test)]
