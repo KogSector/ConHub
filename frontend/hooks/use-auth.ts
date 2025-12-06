@@ -26,7 +26,9 @@ export const useAuth = () => {
           
           if (now < expiresAt) {
             // Token is still valid, use it
-            setAccessToken(storedToken)
+            if (accessToken !== storedToken) {
+              setAccessToken(storedToken)
+            }
             return
           } else {
             // Token expired, clear it
@@ -55,7 +57,8 @@ export const useAuth = () => {
           setTokenLoading(false)
         })
     }
-  }, [auth0.isAuthenticated, auth0.isLoading, accessToken, tokenLoading, auth0])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth0.isAuthenticated, auth0.isLoading, tokenLoading])
 
   const login = () => {
     return auth0.loginWithRedirect()

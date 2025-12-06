@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +51,8 @@ export function SocialConnections() {
   const [connections, setConnections] = useState<SocialConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
+  // Use a Set in a ref to track codes that have been processed (prevents duplicate exchanges)
+  const processedCodesRef = useRef<Set<string>>(new Set());
   const { toast } = useToast();
   const { token } = useAuth();
 
@@ -82,20 +84,63 @@ export function SocialConnections() {
 
   useEffect(() => {
     fetchConnections();
-    const handler = (e: MessageEvent) => {
+    const handler = async (e: MessageEvent) => {
       const dataUnknown: unknown = e.data
-      if (
-        typeof dataUnknown === 'object' &&
-        dataUnknown !== null &&
-        'type' in dataUnknown &&
-        (dataUnknown as { type: string }).type === 'oauth-connected'
-      ) {
+      if (typeof dataUnknown !== 'object' || dataUnknown === null || !('type' in dataUnknown)) {
+        return
+      }
+      
+      const data = dataUnknown as { type: string; provider?: string; code?: string; error?: string }
+      
+      if (data.type === 'oauth-connected') {
+        // Legacy: popup already did the exchange
         fetchConnections()
+      } else if (data.type === 'oauth-code' && data.provider && data.code) {
+        // Prevent duplicate exchange calls - OAuth codes are single-use
+        const codeKey = `${data.provider}:${data.code}`
+        if (processedCodesRef.current.has(codeKey)) {
+          console.log('OAuth code already processed, skipping duplicate:', codeKey)
+          return
+        }
+        processedCodesRef.current.add(codeKey)
+        
+        // New: popup sent us the code, we do the exchange here (we have the token)
+        try {
+          const storedToken = localStorage.getItem('auth_token')
+          if (!storedToken) {
+            toast({
+              title: "Error",
+              description: "Please log in first before connecting accounts",
+              variant: "destructive"
+            })
+            return
+          }
+          const headers: Record<string, string> = { Authorization: `Bearer ${storedToken}` }
+          await apiClient.post('/api/auth/oauth/exchange', { provider: data.provider, code: data.code }, headers)
+          toast({
+            title: "Success",
+            description: `${data.provider} connected successfully!`,
+          })
+          fetchConnections()
+        } catch (error: any) {
+          console.error('OAuth exchange error:', error)
+          toast({
+            title: "Error",
+            description: error?.message || `Failed to connect ${data.provider}`,
+            variant: "destructive"
+          })
+        }
+      } else if (data.type === 'oauth-error' && data.error) {
+        toast({
+          title: "Error",
+          description: data.error,
+          variant: "destructive"
+        })
       }
     }
     window.addEventListener('message', handler)
     return () => window.removeEventListener('message', handler)
-  }, [fetchConnections]);
+  }, [fetchConnections, toast]);
 
   
 
@@ -110,13 +155,9 @@ export function SocialConnections() {
         const resp = await apiClient.get<{ url: string; state: string }>(`/api/auth/oauth/url?provider=${providerForAuth}`, headers)
         const { url: authUrl } = resp
         if (authUrl) {
+          // Open popup - the callback page will send the code via postMessage
+          // and we'll handle the exchange in the message handler above
           window.open(authUrl, '_blank', 'width=500,height=700')
-          // Listen for OAuth completion and refresh connections
-          const checkInterval = setInterval(() => {
-            fetchConnections();
-          }, 3000);
-          // Clear interval after 60 seconds
-          setTimeout(() => clearInterval(checkInterval), 60000);
         } else {
           toast({ title: 'Error', description: `Failed to get ${platform} auth URL. Please check OAuth configuration.`, variant: 'destructive' })
         }

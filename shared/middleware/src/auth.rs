@@ -361,9 +361,14 @@ async fn verify_conhub_jwt_token(token: &str) -> Result<conhub_models::auth::Cla
     }
     
     // Get the auth service public key from environment
-    let public_key_pem = std::env::var("CONHUB_AUTH_PUBLIC_KEY")
+    let public_key_raw = std::env::var("CONHUB_AUTH_PUBLIC_KEY")
         .or_else(|_| std::env::var("JWT_PUBLIC_KEY"))
         .map_err(|_| "ConHub auth public key not configured")?;
+    
+    // Handle escaped newlines from .env files and remove surrounding quotes
+    let public_key_pem = public_key_raw
+        .trim_matches('"')
+        .replace("\\n", "\n");
     
     // Parse the public key
     let decoding_key = DecodingKey::from_rsa_pem(public_key_pem.as_bytes())
@@ -654,6 +659,12 @@ mod tests {
 
 // Check if the endpoint is public and doesn't require authentication
 fn is_public_endpoint(path: &str) -> bool {
+    // OAuth *exchange* must require authentication even if other /api/auth/oauth
+    // helpers are public (URL generation, provider redirects, etc.).
+    if path.starts_with("/api/auth/oauth/exchange") {
+        return false;
+    }
+
     let public_paths = [
         "/health",
         "/metrics",
@@ -667,6 +678,7 @@ fn is_public_endpoint(path: &str) -> bool {
         "/swagger",
         "/api/dashboard/stats",      // Public dashboard stats
         "/api/auth/auth0",           // Auth0 exchange endpoints
+        "/api/auth/oauth",           // OAuth helper endpoints (GitHub, Google, etc.)
         "/api/security/connections", // Social connections (auth handled internally)
     ];
     

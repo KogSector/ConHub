@@ -25,6 +25,12 @@ export default function AuthCallbackPage() {
 
     // Check for errors in URL
     if (errorParam) {
+      // If this is a popup, send error to opener and close
+      if (window.opener) {
+        window.opener.postMessage({ type: 'oauth-error', provider, error: errorDescription || errorParam }, '*')
+        window.close()
+        return
+      }
       setError(errorDescription || errorParam)
       setProcessing(false)
       return
@@ -32,6 +38,35 @@ export default function AuthCallbackPage() {
 
     // Provider OAuth exchange (for connecting external accounts, not Auth0 login)
     if (provider && code && !providerExchanged) {
+      // If this is a popup window, send the code back to the opener and close
+      // The opener has the auth token and will do the exchange
+      if (window.opener) {
+        // Deduplicate - only send the message once
+        const popupKey = `oauth_popup_sent:${provider}:${code}`
+        if (sessionStorage.getItem(popupKey)) {
+          setProcessing(false)
+          setTimeout(() => window.close(), 100)
+          return
+        }
+        sessionStorage.setItem(popupKey, '1')
+        
+        window.opener.postMessage({ type: 'oauth-code', provider, code }, '*')
+        setProcessing(false)
+        // Close popup after a short delay to ensure message is sent
+        setTimeout(() => window.close(), 500)
+        return
+      }
+
+      // Not a popup - do the exchange directly (same-window flow)
+      const storedToken = localStorage.getItem('auth_token')
+      
+      // If no token, user needs to log in first
+      if (!storedToken) {
+        setError('Please log in first before connecting external accounts')
+        setProcessing(false)
+        return
+      }
+
       if (typeof window !== 'undefined') {
         const key = `oauth_exchanged:${provider}:${code}`
         if (sessionStorage.getItem(key)) {
@@ -43,9 +78,8 @@ export default function AuthCallbackPage() {
       setProviderExchanged(true)
       const exchangeProvider = async () => {
         try {
-          const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+          const headers: Record<string, string> = { Authorization: `Bearer ${storedToken}` }
           await apiClient.post('/api/auth/oauth/exchange', { provider, code }, headers)
-          try { window.opener?.postMessage({ type: 'oauth-connected', provider }, '*') } catch {}
           setProcessing(false)
           router.replace('/dashboard/connections')
         } catch (e: any) {
@@ -56,7 +90,8 @@ export default function AuthCallbackPage() {
       }
       exchangeProvider()
     }
-  }, [params, token, router, providerExchanged])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, providerExchanged])
 
   // Handle Auth0 callback - the SDK handles the code exchange automatically
   // We just need to wait for authentication and then exchange for ConHub token

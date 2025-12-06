@@ -137,7 +137,7 @@ fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewar
     let mut scope = web::scope("/api/auth")
         .route("/forgot-password", web::post().to(handlers::auth::forgot_password))
         .route("/reset-password", web::post().to(handlers::auth::reset_password))
-        // OAuth routes (public)
+        // OAuth routes (public - no auth required)
         .route("/oauth/url", web::get().to(handlers::auth::oauth_url))
         .route("/oauth/{provider}", web::get().to(handlers::oauth::oauth_login))
         .route("/oauth/{provider}/callback", web::get().to(handlers::oauth::oauth_callback))
@@ -157,7 +157,7 @@ fn configure_routes(cfg: &mut web::ServiceConfig, auth_middleware: AuthMiddlewar
                 .route("/profile", web::get().to(handlers::auth::get_profile))
                 .route("/connections", web::get().to(handlers::auth::list_auth_connections))
                 .route("/connections/{id}", web::delete().to(handlers::auth::disconnect_auth_connection))
-                .route("/oauth/exchange", web::post().to(handlers::auth::oauth_exchange))
+                .route("/oauth/exchange", web::post().to(handlers::auth::oauth_exchange))  // Requires auth
                 .route("/repos/github", web::get().to(handlers::auth::list_github_repos))
                 .route("/repos/github/branches", web::get().to(handlers::auth::list_github_branches))
                 .route("/repos/bitbucket", web::get().to(handlers::auth::list_bitbucket_repos))
