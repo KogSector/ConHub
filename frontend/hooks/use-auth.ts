@@ -6,12 +6,41 @@ import { useAuth0 } from '@auth0/auth0-react'
 export const useAuth = () => {
   const auth0 = useAuth0()
   
-  // Auth0 access token state
+  // Token state - prefer ConHub token from localStorage, fallback to Auth0 token
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [tokenLoading, setTokenLoading] = useState(false)
 
-  // Fetch and cache Auth0 access token when authenticated
+  // Check for ConHub token in localStorage first, then fallback to Auth0 token
   useEffect(() => {
+    // First, check if we have a ConHub token in localStorage (from auth0/exchange)
+    const storedToken = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+    
+    if (storedToken) {
+      // Verify the stored token is still valid by checking expiry
+      try {
+        const sessionStr = localStorage.getItem('auth_session')
+        if (sessionStr) {
+          const session = JSON.parse(sessionStr)
+          const expiresAt = new Date(session.expires_at).getTime()
+          const now = Date.now()
+          
+          if (now < expiresAt) {
+            // Token is still valid, use it
+            setAccessToken(storedToken)
+            return
+          } else {
+            // Token expired, clear it
+            localStorage.removeItem('auth_token')
+            localStorage.removeItem('auth_session')
+            localStorage.removeItem('refresh_token')
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing stored session:', e)
+      }
+    }
+    
+    // Fallback to Auth0 access token if no valid ConHub token
     if (auth0.isAuthenticated && !auth0.isLoading && !accessToken && !tokenLoading) {
       setTokenLoading(true)
       auth0.getAccessTokenSilently()
@@ -37,6 +66,13 @@ export const useAuth = () => {
   }
 
   const logoutUser = () => {
+    // Clear ConHub tokens from localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('auth_session')
+      localStorage.removeItem('refresh_token')
+    }
+    setAccessToken(null)
     auth0.logout({ logoutParams: { returnTo: window.location.origin } })
   }
 

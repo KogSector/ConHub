@@ -46,7 +46,7 @@ export function HeroSection() {
         {[...Array(20)].map((_, i) => (
           <div
             key={i}
-            className={`absolute w-1 h-1 bg-primary/30 rounded-full dot ${anim('animate-float')} ${anim(delayClasses[Math.floor(Math.random() * delayClasses.length)])} ${anim(durationClasses[Math.floor(Math.random() * durationClasses.length)])} dot-pos-${i}`}
+            className={`absolute w-1 h-1 bg-primary/30 rounded-full dot ${anim('animate-float')} ${anim(delayClasses[i % delayClasses.length])} ${anim(durationClasses[i % durationClasses.length])} dot-pos-${i}`}
           />
         ))}
       </div>

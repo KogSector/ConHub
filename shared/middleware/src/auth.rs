@@ -166,6 +166,15 @@ where
                         if let Ok(auth_str) = auth_header.to_str() {
                             if auth_str.starts_with("Bearer ") {
                                 let token = &auth_str[7..];
+                                
+                                // Try ConHub token first (issued by auth service after Auth0 exchange)
+                                if let Ok(claims) = verify_conhub_jwt_token(token).await {
+                                    req.extensions_mut().insert(claims);
+                                    let res = service.call(req).await?;
+                                    return Ok(res.map_into_left_body());
+                                }
+                                
+                                // Fall back to Auth0 token verification
                                 match verify_auth0_jwt_token(token, &verifier).await {
                                     Ok(claims) => {
                                         req.extensions_mut().insert(claims);
@@ -337,6 +346,46 @@ async fn verify_auth0_jwt_token(
     };
 
     Ok(internal_claims)
+}
+
+/// Verify ConHub JWT tokens (issued by auth service after Auth0 exchange)
+/// These tokens have issuer "conhub-auth" and audience "conhub-services"
+async fn verify_conhub_jwt_token(token: &str) -> Result<conhub_models::auth::Claims, Box<dyn std::error::Error>> {
+    // Decode header to check if this is a ConHub token
+    let header = decode_header(token)?;
+    
+    // ConHub tokens have kid "conhub-auth-key"
+    let kid = header.kid.as_deref().unwrap_or("");
+    if kid != "conhub-auth-key" {
+        return Err("Not a ConHub token".into());
+    }
+    
+    // Get the auth service public key from environment
+    let public_key_pem = std::env::var("CONHUB_AUTH_PUBLIC_KEY")
+        .or_else(|_| std::env::var("JWT_PUBLIC_KEY"))
+        .map_err(|_| "ConHub auth public key not configured")?;
+    
+    // Parse the public key
+    let decoding_key = DecodingKey::from_rsa_pem(public_key_pem.as_bytes())
+        .map_err(|e| format!("Failed to parse ConHub public key: {}", e))?;
+    
+    // Set up validation for ConHub tokens
+    let mut validation = Validation::new(Algorithm::RS256);
+    validation.set_issuer(&["conhub-auth"]);
+    validation.set_audience(&["conhub-services"]);
+    
+    // Decode and validate token
+    let token_data = decode::<conhub_models::auth::Claims>(token, &decoding_key, &validation)
+        .map_err(|e| format!("ConHub token validation failed: {}", e))?;
+    
+    // Check expiry
+    let now = chrono::Utc::now().timestamp() as usize;
+    if token_data.claims.exp < now {
+        return Err("ConHub token expired".into());
+    }
+    
+    tracing::debug!("Successfully verified ConHub token for sub: {}", token_data.claims.sub);
+    Ok(token_data.claims)
 }
 
 // Load public key from environment variable or file with robust parsing
@@ -616,6 +665,9 @@ fn is_public_endpoint(path: &str) -> bool {
         "/auth/oauth",
         "/docs",
         "/swagger",
+        "/api/dashboard/stats",      // Public dashboard stats
+        "/api/auth/auth0",           // Auth0 exchange endpoints
+        "/api/security/connections", // Social connections (auth handled internally)
     ];
     
     public_paths.iter().any(|&public_path| path.starts_with(public_path))
