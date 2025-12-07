@@ -134,14 +134,18 @@ impl OAuthService {
                 )
             }
             OAuthProvider::GitHub => {
+                // Include 'repo' scope for repository access (private repos) 
+                // and 'read:user' + 'user:email' for profile info
+                let scopes = "repo read:user user:email";
                 format!(
                     "https://github.com/login/oauth/authorize?\
                     client_id={}&\
                     redirect_uri={}&\
-                    scope=user:email&\
+                    scope={}&\
                     state={}",
                     self.github_client_id,
                     urlencoding::encode(&redirect_with_provider),
+                    urlencoding::encode(scopes),
                     state
                 )
             }
@@ -161,7 +165,8 @@ impl OAuthService {
                 )
             }
             OAuthProvider::GitLab => {
-                let scopes = ["read_user"].join(" ");
+                // Include 'read_repository' for repo access and 'read_user' for profile
+                let scopes = "read_repository read_user";
                 format!(
                     "https://gitlab.com/oauth/authorize?\
                     client_id={}&\
@@ -171,7 +176,7 @@ impl OAuthService {
                     state={}",
                     self.gitlab_client_id,
                     urlencoding::encode(&redirect_with_provider),
-                    urlencoding::encode(&scopes),
+                    urlencoding::encode(scopes),
                     state
                 )
             }

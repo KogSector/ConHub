@@ -1052,10 +1052,12 @@ pub async fn oauth_url(
         }
         "github" => {
             let client_id = env::var("GITHUB_CLIENT_ID").unwrap_or_default();
+            let scopes = "repo read:user user:email";
             format!(
-                "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&scope=user:email&state={}",
+                "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&scope={}&state={}",
                 client_id,
                 urlencoding::encode(&redirect_with_provider),
+                urlencoding::encode(scopes),
                 state
             )
         }
@@ -1072,12 +1074,12 @@ pub async fn oauth_url(
         }
         "gitlab" => {
             let client_id = env::var("GITLAB_CLIENT_ID").unwrap_or_default();
-            let scopes = ["read_user"].join(" ");
+            let scopes = "read_repository read_user";
             format!(
                 "https://gitlab.com/oauth/authorize?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}",
                 client_id,
                 urlencoding::encode(&redirect_with_provider),
-                urlencoding::encode(&scopes),
+                urlencoding::encode(scopes),
                 state
             )
         }

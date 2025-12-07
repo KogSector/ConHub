@@ -12,6 +12,7 @@ use uuid::Uuid;
 use std::path::Path;
 use tokio::fs;
 use mime_guess::from_path;
+use tracing::{info, warn, error};
 
 #[derive(Deserialize)]
 pub struct CreateDocumentRequest {
@@ -58,26 +59,27 @@ pub struct ImportDocumentRequest {
 }
 
 pub async fn upload_document(mut payload: Multipart) -> Result<HttpResponse, ServiceError> {
-    log::info!("Received file upload request");
+    info!("Received file upload request");
     
     let upload_dir = "uploads";
     if !Path::new(upload_dir).exists() {
         fs::create_dir_all(upload_dir).await
-            .map_err(|e| ServiceError::InternalError(format!("Failed to create upload directory: {}", e)))?;
+            .map_err(|e| ServiceError::InternalServerError(format!("Failed to create upload directory: {}", e)))?;
     }
 
     let mut uploaded_files = Vec::new();
     
-    while let Some(mut field) = payload.next().await {
-        let field = field.map_err(|e| ServiceError::InternalError(format!("Multipart error: {}", e)))?;
+    while let Some(field_result) = payload.next().await {
+        let mut field = field_result.map_err(|e| ServiceError::InternalServerError(format!("Multipart error: {}", e)))?;
         
-        let content_disposition = field.content_disposition();
+        let content_disposition = field.content_disposition().clone();
         let filename = content_disposition
             .get_filename()
-            .ok_or_else(|| ServiceError::BadRequest("No filename provided".to_string()))?;
+            .ok_or_else(|| ServiceError::BadRequest("No filename provided".to_string()))?
+            .to_string();
         
         let file_id = Uuid::new_v4().to_string();
-        let file_extension = Path::new(filename)
+        let file_extension = Path::new(&filename)
             .extension()
             .and_then(|ext| ext.to_str())
             .unwrap_or("txt");
@@ -85,17 +87,17 @@ pub async fn upload_document(mut payload: Multipart) -> Result<HttpResponse, Ser
         let filepath = Path::new(upload_dir).join(&stored_filename);
         
         let mut file = fs::File::create(&filepath).await
-            .map_err(|e| ServiceError::InternalError(format!("Failed to create file: {}", e)))?;
+            .map_err(|e| ServiceError::InternalServerError(format!("Failed to create file: {}", e)))?;
         
         let mut file_size = 0u64;
         while let Some(chunk) = field.next().await {
-            let data = chunk.map_err(|e| ServiceError::InternalError(format!("Chunk error: {}", e)))?;
+            let data = chunk.map_err(|e| ServiceError::InternalServerError(format!("Chunk error: {}", e)))?;
             file_size += data.len() as u64;
             file.write_all(&data).await
-                .map_err(|e| ServiceError::InternalError(format!("Failed to write file: {}", e)))?;
+                .map_err(|e| ServiceError::InternalServerError(format!("Failed to write file: {}", e)))?;
         }
         
-        let mime_type = from_path(filename).first_or_octet_stream().to_string();
+        let mime_type = from_path(&filename).first_or_octet_stream().to_string();
         let user_id = "user_123".to_string(); // TODO: Get from auth context
         
         let document_record = DocumentRecord {
@@ -125,12 +127,12 @@ pub async fn upload_document(mut payload: Multipart) -> Result<HttpResponse, Ser
         
         tokio::spawn(async move {
             if let Err(e) = trigger_document_chunking(&file_id_clone, &filepath_clone.to_string_lossy(), &filename_clone, &mime_type_clone).await {
-                log::error!("Failed to trigger chunking for document {}: {}", file_id_clone, e);
+                error!("Failed to trigger chunking for document {}: {}", file_id_clone, e);
             }
         });
         
         uploaded_files.push(document_record);
-        log::info!("Successfully uploaded file: {} ({})", filename, format_file_size(file_size));
+        info!("Successfully uploaded file: {} ({})", filename, format_file_size(file_size));
     }
     
     Ok(HttpResponse::Created().json(serde_json::json!({
@@ -156,7 +158,7 @@ fn format_file_size(size: u64) -> String {
 /// Trigger document chunking via the chunker service
 /// This sends the document to the chunker for processing with modern chunking strategies
 async fn trigger_document_chunking(file_id: &str, file_path: &str, filename: &str, mime_type: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    log::info!("Triggering chunking for document: {} ({})", file_id, filename);
+    info!("Triggering chunking for document: {} ({})", file_id, filename);
     
     // Read file content
     let content = tokio::fs::read_to_string(file_path).await?;
@@ -191,13 +193,13 @@ async fn trigger_document_chunking(file_id: &str, file_path: &str, filename: &st
         .await?;
     
     if response.status().is_success() {
-        log::info!("Successfully triggered chunking for document: {}", file_id);
+        info!("Successfully triggered chunking for document: {}", file_id);
         // Update document status to processed
         update_document_status(file_id, "processed").await;
     } else {
         let status = response.status();
         let error_text = response.text().await.unwrap_or_default();
-        log::warn!("Chunker service returned {}: {} - document saved but not chunked", status, error_text);
+        warn!("Chunker service returned {}: {} - document saved but not chunked", status, error_text);
         // Still mark as uploaded even if chunking fails
         update_document_status(file_id, "uploaded").await;
     }
@@ -255,7 +257,7 @@ async fn update_document_status(file_id: &str, status: &str) {
 }
 
 pub async fn create_document(req: web::Json<CreateDocumentRequest>) -> Result<HttpResponse, ServiceError> {
-    log::info!("Received create document request: {:?}", req.name);
+    info!("Received create document request: {:?}", req.name);
     
     if req.name.trim().is_empty() {
         return Ok(HttpResponse::BadRequest().json(CreateDocumentResponse {
@@ -288,7 +290,7 @@ pub async fn create_document(req: web::Json<CreateDocumentRequest>) -> Result<Ht
     };
 
     user_docs.push(document_record.clone());
-    log::info!("Successfully created document with ID: {}", document_record.id);
+    info!("Successfully created document with ID: {}", document_record.id);
 
     Ok(HttpResponse::Created().json(CreateDocumentResponse {
         success: true,
@@ -404,9 +406,10 @@ pub async fn upload_documents(mut payload: Multipart) -> Result<HttpResponse, Se
     let mut created: Vec<DocumentRecord> = Vec::new();
 
     while let Some(Ok(mut field)) = payload.next().await {
-        let content_disposition = field.content_disposition().cloned();
+        let content_disposition = field.content_disposition().clone();
         let filename = content_disposition
-            .and_then(|cd| cd.get_filename().map(|s| s.to_string()))
+            .get_filename()
+            .map(|s| s.to_string())
             .unwrap_or_else(|| format!("upload_{}", chrono::Utc::now().timestamp_millis()));
 
         let filepath = upload_dir.join(&filename);
@@ -485,7 +488,7 @@ pub async fn import_document(req: web::Json<ImportDocumentRequest>) -> Result<Ht
     //     let content_clone = document_content.clone();
     //     tokio::spawn(async move {
     //         if let Err(e) = trigger_content_embedding(&file_id, &content_clone).await {
-    //             log::error!("Failed to trigger embedding for imported document {}: {}", file_id, e);
+    //             error!("Failed to trigger embedding for imported document {}: {}", file_id, e);
     //         }
     //     });
     // }
@@ -500,7 +503,7 @@ pub async fn import_document(req: web::Json<ImportDocumentRequest>) -> Result<Ht
 async fn import_from_google_drive(file_id: &str) -> Result<String, ServiceError> {
     // TODO: Implement actual Google Drive API integration
     // For now, return mock content
-    log::info!("Importing document from Google Drive: {}", file_id);
+    info!("Importing document from Google Drive: {}", file_id);
     
     // Mock Google Drive API call
     Ok(format!("Mock content from Google Drive file: {}", file_id))
@@ -509,14 +512,14 @@ async fn import_from_google_drive(file_id: &str) -> Result<String, ServiceError>
 async fn import_from_dropbox(file_id: &str) -> Result<String, ServiceError> {
     // TODO: Implement actual Dropbox API integration
     // For now, return mock content
-    log::info!("Importing document from Dropbox: {}", file_id);
+    info!("Importing document from Dropbox: {}", file_id);
     
     // Mock Dropbox API call
     Ok(format!("Mock content from Dropbox file: {}", file_id))
 }
 
 async fn trigger_content_embedding(file_id: &str, content: &str) -> Result<(), Box<dyn std::error::Error>> {
-    log::info!("Triggering embedding for imported document: {}", file_id);
+    info!("Triggering embedding for imported document: {}", file_id);
     
     // Call embedding service
     let client = reqwest::Client::new();
@@ -539,10 +542,10 @@ async fn trigger_content_embedding(file_id: &str, content: &str) -> Result<(), B
         .await?;
     
     if response.status().is_success() {
-        log::info!("Successfully triggered embedding for imported document: {}", file_id);
+        info!("Successfully triggered embedding for imported document: {}", file_id);
         update_document_status(file_id, "processed").await;
     } else {
-        log::error!("Failed to trigger embedding for imported document: {} - Status: {}", file_id, response.status());
+        error!("Failed to trigger embedding for imported document: {} - Status: {}", file_id, response.status());
     }
     
     Ok(())
@@ -571,7 +574,7 @@ pub async fn list_cloud_files(query: web::Query<HashMap<String, String>>) -> Res
 
 async fn list_google_drive_files() -> Result<Vec<serde_json::Value>, ServiceError> {
     // TODO: Implement actual Google Drive API integration
-    log::info!("Listing Google Drive files");
+    info!("Listing Google Drive files");
     
     // Mock Google Drive files
     Ok(vec![
@@ -594,7 +597,7 @@ async fn list_google_drive_files() -> Result<Vec<serde_json::Value>, ServiceErro
 
 async fn list_dropbox_files() -> Result<Vec<serde_json::Value>, ServiceError> {
     // TODO: Implement actual Dropbox API integration
-    log::info!("Listing Dropbox files");
+    info!("Listing Dropbox files");
     
     // Mock Dropbox files
     Ok(vec![

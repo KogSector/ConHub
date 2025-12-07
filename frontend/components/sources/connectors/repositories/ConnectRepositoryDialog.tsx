@@ -150,10 +150,22 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     setIsValidated(false);
 
     try {
-      const repoCheck = await dataApiClient.post<{ provider?: string; name?: string; full_name?: string }>('/api/repositories/oauth/check', { 
+      const repoCheck = await dataApiClient.post<{ provider?: string; name?: string; full_name?: string; success?: boolean; error?: string; message?: string }>('/api/repositories/oauth/check', { 
         provider,
         repo_url: repositoryUrl.trim()
       }, token ? { Authorization: `Bearer ${token}` } : {})
+
+      console.log('[FRONTEND] repoCheck response:', repoCheck);
+
+      const repoCheckAny = repoCheck as any;
+      if (repoCheckAny && repoCheckAny.success === false) {
+        const message = repoCheckAny.error || repoCheckAny.message || 'Repository access check failed. Please verify the URL and permissions.';
+        setFetchBranchesError(message);
+        setBranches([]);
+        setIsValidated(false);
+        return;
+      }
+
       const repoName = repoCheck.name || repoCheck.full_name
       if (repoName) {
         setName(prev => prev || repoName)
@@ -165,8 +177,19 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
 
       if (provider === 'github') {
         const slug = extractRepoName(repositoryUrl.trim())
-        const gh = await dataApiClient.get<{ success?: boolean; data?: { branches?: string[] } }>(`/api/repositories/oauth/branches?provider=github&repo=${encodeURIComponent(slug)}`, token ? { Authorization: `Bearer ${token}` } : {})
-        const ghBranches = gh && (gh as any).data && Array.isArray((gh as any).data.branches) ? (gh as any).data.branches as string[] : (gh as any).branches
+        const gh = await dataApiClient.get<{ success?: boolean; data?: { branches?: string[] }; error?: string; message?: string }>(`/api/repositories/oauth/branches?provider=github&repo=${encodeURIComponent(slug)}`, token ? { Authorization: `Bearer ${token}` } : {})
+        console.log('[FRONTEND] github branches response:', gh);
+
+        const ghAny = gh as any;
+        const ghError = ghAny?.error || ghAny?.message;
+        if (ghAny && ghAny.success === false && ghError) {
+          setFetchBranchesError(ghError);
+          setBranches([]);
+          setIsValidated(false);
+          return;
+        }
+
+        const ghBranches = ghAny && ghAny.data && Array.isArray(ghAny.data.branches) ? (ghAny.data.branches as string[]) : ghAny.branches
         fetchedBranches = Array.isArray(ghBranches) ? ghBranches : []
       } else if (provider === 'bitbucket') {
         const slug = extractRepoName(repositoryUrl.trim())

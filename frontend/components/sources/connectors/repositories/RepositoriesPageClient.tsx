@@ -28,6 +28,7 @@ import {
 import { ConnectRepositoryDialog } from "./ConnectRepositoryDialog";
 import { apiClient, ApiResponse } from '@/lib/api';
 import { ChangeBranchDialog } from "./ChangeBranchDialog";
+import { useAuth } from '@/hooks/use-auth';
 
 interface Repository {
   id: string;
@@ -53,6 +54,7 @@ interface DataSource {
 }
 
 export function RepositoriesPageClient() {
+  const { token } = useAuth();
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [dataSources, setDataSources] = useState<DataSource[]>([]);
   const [showConnectDialog, setShowConnectDialog] = useState(false);
@@ -109,8 +111,9 @@ export function RepositoriesPageClient() {
 
   const fetchRepositories = async () => {
     try {
-      // Fetch real repository data from the API
-      const resp = await apiClient.get<ApiResponse<{ repositories: Repository[] }>>('/api/repositories');
+      // Fetch real repository data from the API with auth header
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const resp = await apiClient.get<ApiResponse<{ repositories: Repository[] }>>('/api/repositories', headers);
       if (resp.success && resp.data?.repositories) {
         setRepositories(resp.data.repositories);
       } else {
@@ -128,7 +131,9 @@ export function RepositoriesPageClient() {
 
   const fetchDataSources = async () => {
     try {
-        const resp = await apiClient.get<ApiResponse<{ dataSources: DataSource[] }>>('/api/data-sources');
+        // Fetch data sources with auth header
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const resp = await apiClient.get<ApiResponse<{ dataSources: DataSource[] }>>('/api/data-sources', headers);
         if (resp.success && resp.data) {
           const repoDataSources = resp.data.dataSources?.filter((ds: DataSource) => 
             ['github', 'bitbucket'].includes(ds.type)

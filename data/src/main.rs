@@ -52,7 +52,10 @@ mod handlers {
     pub mod robots;
     pub mod robot_ingestion;
     pub mod github_app;
+    pub mod documents;
 }
+
+mod errors;
 
 // Simplified handlers inline
 use serde::{Deserialize, Serialize};
@@ -762,7 +765,9 @@ async fn main() -> std::io::Result<()> {
             .route("/api/ingestion/robots/{robot_id}/events/batch", web::post().to(robot_ingestion::ingest_events_batch))
             .route("/api/ingestion/robots/{robot_id}/cv_events", web::post().to(robot_ingestion::ingest_cv_events))
             .route("/api/ingestion/robots/{robot_id}/cv_events/batch", web::post().to(robot_ingestion::ingest_cv_events_batch))
-            .route("/api/ingestion/robots/{robot_id}/frames", web::post().to(robot_ingestion::ingest_frames));
+            .route("/api/ingestion/robots/{robot_id}/frames", web::post().to(robot_ingestion::ingest_frames))
+            // Document management routes (local file upload + cloud import)
+            .configure(handlers::documents::configure);
         
         // Add GitHub App routes if configured
         if let Some(ref state) = github_app_state {

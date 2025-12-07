@@ -145,27 +145,26 @@ async fn main() -> io::Result<()> {
             .app_data(rag_data.clone())
             .app_data(web::Data::new(toggles.clone()))
             .app_data(web::Data::new(schema))
-            // CORS middleware
+            // Middleware execution order is REVERSE of registration order.
+            // We want: CORS (first) -> Observability -> Auth (last before routes)
+            // So we register: Auth first, then Observability, then CORS last.
+            
+            // 1. Authentication middleware (innermost - runs last on request, first on response)
+            .wrap(auth_middleware.clone())
+            // 2. Observability middleware (HTTP logging + tracing)
+            .wrap(observability("backend-service"))
+            // 3. CORS middleware (outermost - runs first on request, handles OPTIONS preflight)
             .wrap(
                 Cors::default()
                     .allowed_origin("http://localhost:3000")
                     .allowed_origin("https://localhost:3000")
+                    .allowed_origin("http://127.0.0.1:3000")
                     .allowed_origin("http://localhost:80")
                     .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-                    .allowed_headers(vec![
-                        "Content-Type",
-                        "Authorization",
-                        "x-trace-id",
-                        "x-span-id",
-                        "x-request-id",
-                    ])
+                    .allow_any_header()
                     .supports_credentials()
-                    .max_age(3600)
+                    .max_age(3600),
             )
-            // Observability middleware (HTTP logging + tracing)
-            .wrap(observability("backend-service"))
-            // Authentication middleware
-            .wrap(auth_middleware.clone())
             // Configure all routes
             .configure(routes::configure_routes)
     })
