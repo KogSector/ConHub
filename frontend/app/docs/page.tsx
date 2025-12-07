@@ -17,8 +17,10 @@ import {
   Users,
   GitBranch,
   Target,
-  ArrowRight
+  ArrowRight,
+  ArrowLeft
 } from "lucide-react";
+import Link from "next/link";
 
 export default function Documentation() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -110,9 +112,38 @@ export default function Documentation() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      {/* Header with back navigation */}
+      <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-4">
+              <Link href={isAuthenticated ? "/dashboard" : "/"}>
+                <Button variant="ghost" size="sm">
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+              </Link>
+              <div className="flex items-center space-x-3">
+                <BookOpen className="w-5 h-5 text-primary" />
+                <span className="text-lg font-semibold text-foreground">Documentation</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              {!isLoading && (
+                <Button 
+                  onClick={handleDashboardClick}
+                  variant={isAuthenticated ? "default" : "outline"}
+                  size="sm"
+                >
+                  {isAuthenticated ? "Dashboard" : "Get Started"}
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
       
-      <main className="pt-20">
+      <main>
         {}
         <section className="py-24 bg-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

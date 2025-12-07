@@ -88,8 +88,10 @@ export default function UrlsPage() {
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
               </Link>
-              <div className="h-6 w-px bg-border" />
-              <h1 className="text-2xl font-bold text-foreground">URL Management</h1>
+              <div className="flex items-center space-x-3">
+                <Globe className="w-6 h-6 text-primary" />
+                <h1 className="text-2xl font-bold text-foreground">URL Management</h1>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <ProfileAvatar />

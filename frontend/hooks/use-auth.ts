@@ -2,6 +2,16 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
+import { apiClient, unwrapResponse } from '@/lib/api'
+
+interface SocialConnection {
+  id: string
+  platform: string
+  username: string
+  is_active: boolean
+  connected_at: string
+  last_sync: string | null
+}
 
 export const useAuth = () => {
   const auth0 = useAuth0()
@@ -9,6 +19,7 @@ export const useAuth = () => {
   // Token state - prefer ConHub token from localStorage, fallback to Auth0 token
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [tokenLoading, setTokenLoading] = useState(false)
+  const [connections, setConnections] = useState<SocialConnection[]>([])
 
   // Check for ConHub token in localStorage first, then fallback to Auth0 token
   useEffect(() => {
@@ -101,8 +112,28 @@ export const useAuth = () => {
   useEffect(() => {
     if (!auth0.isAuthenticated && accessToken) {
       setAccessToken(null)
+      setConnections([])
     }
   }, [auth0.isAuthenticated, accessToken])
+
+  // Fetch connections when we have a token
+  const fetchConnections = useCallback(async () => {
+    if (!accessToken) return
+    try {
+      const headers = { Authorization: `Bearer ${accessToken}` }
+      const resp = await apiClient.get('/api/auth/connections', headers)
+      const data = unwrapResponse<SocialConnection[]>(resp) ?? []
+      setConnections(data)
+    } catch (err) {
+      console.error('Failed to fetch connections:', err)
+    }
+  }, [accessToken])
+
+  useEffect(() => {
+    if (accessToken) {
+      fetchConnections()
+    }
+  }, [accessToken, fetchConnections])
 
   return {
     user: auth0.user as any,
@@ -116,7 +147,8 @@ export const useAuth = () => {
     getAccessTokenSilently,
     // Auth0 access token (use this for API calls)
     token: accessToken,
-    connections: null as any,
+    connections,
+    refreshConnections: fetchConnections,
 
     // Stubbed methods for now; callers may override these with real implementations
     // when backend Auth0-backed profile/password flows are wired up.

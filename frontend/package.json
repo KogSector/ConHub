@@ -74,6 +74,7 @@
     "isomorphic-git": "^1.33.3",
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
+    "jszip": "^3.10.1",
     "langchain": "^0.3.2",
     "lucide-react": "^0.462.0",
     "morgan": "^1.10.0",

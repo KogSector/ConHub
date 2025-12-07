@@ -41,7 +41,17 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    let combined = [...selectedFiles, ...files];
+    const allowedExtensions = ['.docx', '.txt'];
+    const validFiles = files.filter(file => {
+      const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+      return allowedExtensions.includes(ext);
+    });
+    
+    if (validFiles.length < files.length) {
+      toast({ title: "Invalid file type", description: "Only .docx and .txt files are allowed", variant: "destructive" });
+    }
+    
+    let combined = [...selectedFiles, ...validFiles];
     if (combined.length > 5) {
       toast({ title: "Limit reached", description: "You can upload up to 5 files", variant: "destructive" });
     }
@@ -145,7 +155,7 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
 
           <TabsContent value="local_files" className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="files">Select Files (max 5)</Label>
+              <Label htmlFor="files">Select Files (max 5) - .docx, .txt only</Label>
               <div className="rounded-xl p-10 text-center border border-border bg-card/60 hover:bg-card transition-colors">
                 <FolderOpen className="w-12 h-12 mx-auto text-primary mb-6" />
                 <input
@@ -153,8 +163,9 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  title="Select files to upload"
-                  aria-label="Select files to upload"
+                  accept=".docx,.txt,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                  title="Select .docx or .txt files to upload"
+                  aria-label="Select .docx or .txt files to upload"
                   onChange={handleFileChange}
                   className="hidden"
                 />

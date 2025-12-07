@@ -1,4 +1,5 @@
-use actix_web::{web, App, HttpServer, HttpRequest, HttpResponse, Result, HttpMessage};
+use actix_web::{web, App, HttpServer, HttpRequest, HttpResponse, Result, HttpMessage, http::header};
+use actix_cors::Cors;
 use conhub_middleware::auth::AuthMiddlewareFactory;
 use conhub_models::auth::Claims;
 use conhub_observability::{
@@ -107,6 +108,34 @@ pub struct SecureSyncRepositoryRequest {
     pub include_languages: Option<Vec<String>>,
     pub exclude_paths: Option<Vec<String>>,
     pub max_file_size_mb: Option<i64>,
+}
+
+/// OAuth-based repository check request (no token - uses JWT to get from auth service)
+#[derive(Debug, Deserialize)]
+pub struct OAuthRepoCheckRequest {
+    pub provider: String,
+    pub repo_url: String,
+}
+
+/// OAuth-based branches request query params
+#[derive(Debug, Deserialize)]
+pub struct OAuthBranchesQuery {
+    pub provider: String,
+    pub repo: String,  // owner/repo format
+}
+
+/// Repository info response
+#[derive(Debug, Serialize)]
+pub struct RepoCheckResponse {
+    pub success: bool,
+    pub provider: String,
+    pub name: Option<String>,
+    pub full_name: Option<String>,
+    pub default_branch: Option<String>,
+    pub private: Option<bool>,
+    pub has_read_access: bool,
+    pub languages: Option<Vec<String>>,
+    pub error: Option<String>,
 }
 
 /// Validate GitHub repository access
@@ -408,6 +437,180 @@ pub async fn get_repository_branches(
     }
 }
 
+/// OAuth-based repository check - uses JWT claims to get token from auth service
+/// POST /api/repositories/oauth/check
+pub async fn oauth_repo_check(
+    http_req: HttpRequest,
+    req: web::Json<OAuthRepoCheckRequest>,
+    auth_client: web::Data<AuthClient>,
+) -> Result<HttpResponse> {
+    info!("🔍 OAuth repo check for {} (provider: {})", req.repo_url, req.provider);
+    
+    // Extract user_id from JWT claims
+    let user_id = match extract_user_id_from_request(&http_req) {
+        Some(id) => id,
+        None => {
+            return Ok(HttpResponse::Unauthorized().json(RepoCheckResponse {
+                success: false,
+                provider: req.provider.clone(),
+                name: None,
+                full_name: None,
+                default_branch: None,
+                private: None,
+                has_read_access: false,
+                languages: None,
+                error: Some("Authentication required".to_string()),
+            }));
+        }
+    };
+    
+    // Get OAuth token from auth service
+    let access_token = match auth_client.get_oauth_token(user_id, &req.provider).await {
+        Ok(token_response) => token_response.access_token,
+        Err(e) => {
+            return Ok(HttpResponse::BadRequest().json(RepoCheckResponse {
+                success: false,
+                provider: req.provider.clone(),
+                name: None,
+                full_name: None,
+                default_branch: None,
+                private: None,
+                has_read_access: false,
+                languages: None,
+                error: Some(format!("No {} connection found. Please connect in Social Connections first.", req.provider)),
+            }));
+        }
+    };
+    
+    // Validate repository access
+    let connector = GitHubConnector::new();
+    let access_request = GitHubRepoAccessRequest {
+        repo_url: req.repo_url.clone(),
+        access_token,
+    };
+    
+    match connector.validate_repo_access(&access_request).await {
+        Ok(response) => {
+            if response.has_access {
+                let repo_info = response.repo_info.unwrap();
+                Ok(HttpResponse::Ok().json(RepoCheckResponse {
+                    success: true,
+                    provider: req.provider.clone(),
+                    name: Some(repo_info.name),
+                    full_name: Some(repo_info.full_name),
+                    default_branch: Some(repo_info.default_branch),
+                    private: Some(repo_info.private),
+                    has_read_access: repo_info.permissions.pull,
+                    languages: Some(repo_info.languages),
+                    error: None,
+                }))
+            } else {
+                Ok(HttpResponse::Ok().json(RepoCheckResponse {
+                    success: false,
+                    provider: req.provider.clone(),
+                    name: None,
+                    full_name: None,
+                    default_branch: None,
+                    private: None,
+                    has_read_access: false,
+                    languages: None,
+                    error: response.error_message,
+                }))
+            }
+        }
+        Err(e) => {
+            Ok(HttpResponse::BadRequest().json(RepoCheckResponse {
+                success: false,
+                provider: req.provider.clone(),
+                name: None,
+                full_name: None,
+                default_branch: None,
+                private: None,
+                has_read_access: false,
+                languages: None,
+                error: Some(e.to_string()),
+            }))
+        }
+    }
+}
+
+/// OAuth-based branches fetch - uses JWT claims to get token from auth service
+/// GET /api/repositories/oauth/branches?provider=github&repo=owner/repo
+pub async fn oauth_repo_branches(
+    http_req: HttpRequest,
+    query: web::Query<OAuthBranchesQuery>,
+    auth_client: web::Data<AuthClient>,
+) -> Result<HttpResponse> {
+    info!("🌿 OAuth branches fetch for {} (provider: {})", query.repo, query.provider);
+    
+    // Extract user_id from JWT claims
+    let user_id = match extract_user_id_from_request(&http_req) {
+        Some(id) => id,
+        None => {
+            return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
+                "success": false,
+                "error": "Authentication required"
+            })));
+        }
+    };
+    
+    // Get OAuth token from auth service
+    let access_token = match auth_client.get_oauth_token(user_id, &query.provider).await {
+        Ok(token_response) => token_response.access_token,
+        Err(e) => {
+            return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "error": format!("No {} connection found", query.provider)
+            })));
+        }
+    };
+    
+    // Parse owner/repo
+    let parts: Vec<&str> = query.repo.split('/').collect();
+    if parts.len() != 2 {
+        return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+            "success": false,
+            "error": "Invalid repo format. Expected 'owner/repo'"
+        })));
+    }
+    
+    let (owner, repo) = (parts[0], parts[1]);
+    let repo_url = format!("https://github.com/{}/{}", owner, repo);
+    
+    let connector = GitHubConnector::new();
+    let access_request = GitHubRepoAccessRequest {
+        repo_url,
+        access_token,
+    };
+    
+    match connector.validate_repo_access(&access_request).await {
+        Ok(response) => {
+            if response.has_access {
+                let repo_info = response.repo_info.unwrap();
+                let branch_names: Vec<String> = repo_info.branches.into_iter().map(|b| b.name).collect();
+                Ok(HttpResponse::Ok().json(serde_json::json!({
+                    "success": true,
+                    "data": {
+                        "branches": branch_names,
+                        "default_branch": repo_info.default_branch
+                    }
+                })))
+            } else {
+                Ok(HttpResponse::Ok().json(serde_json::json!({
+                    "success": false,
+                    "error": response.error_message.unwrap_or("Access denied".to_string())
+                })))
+            }
+        }
+        Err(e) => {
+            Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                "success": false,
+                "error": e.to_string()
+            })))
+        }
+    }
+}
+
 /// Get repository languages
 pub async fn get_repository_languages(
     req: web::Json<ValidateRepoAccessRequest>,
@@ -518,7 +721,17 @@ async fn main() -> std::io::Result<()> {
     };
 
     HttpServer::new(move || {
+        // Configure CORS - allow any header to support frontend trace headers (x-trace-id, x-span-id, x-request-id)
+        let cors = Cors::default()
+            .allowed_origin("http://localhost:3000")
+            .allowed_origin("http://127.0.0.1:3000")
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+            .allow_any_header()
+            .supports_credentials()
+            .max_age(3600);
+        
         let mut app = App::new()
+            .wrap(cors)
             .wrap(observability("data-service"))
             .wrap(auth_middleware.clone())
             .app_data(web::Data::new(kafka_producer.clone()))
@@ -534,6 +747,9 @@ async fn main() -> std::io::Result<()> {
             .route("/api/github/languages", web::post().to(get_repository_languages))
             // NEW: Secure GitHub sync (uses JWT + auth service for token)
             .route("/api/github/sync", web::post().to(secure_sync_github_repository))
+            // OAuth-based repository routes (uses JWT to get token from auth service)
+            .route("/api/repositories/oauth/check", web::post().to(oauth_repo_check))
+            .route("/api/repositories/oauth/branches", web::get().to(oauth_repo_branches))
             // Robot management routes
             .route("/api/robots/register", web::post().to(robots::register_robot))
             .route("/api/robots", web::get().to(robots::list_robots))
