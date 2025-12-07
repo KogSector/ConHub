@@ -124,11 +124,28 @@ export function SocialConnections() {
           fetchConnections()
         } catch (error: any) {
           console.error('OAuth exchange error:', error)
-          toast({
-            title: "Error",
-            description: error?.message || `Failed to connect ${data.provider}`,
-            variant: "destructive"
-          })
+          const errorMsg = error?.message || `Failed to connect ${data.provider}`
+          
+          // Provide specific guidance for common OAuth errors
+          if (errorMsg.includes('bad_verification_code') || errorMsg.includes('incorrect or expired')) {
+            toast({
+              title: "Authorization Expired",
+              description: "The GitHub authorization code has expired. Please click Connect again to restart.",
+              variant: "destructive"
+            })
+          } else if (errorMsg.includes('redirect_uri_mismatch')) {
+            toast({
+              title: "Configuration Error",
+              description: "OAuth callback URL mismatch. Please check the GitHub OAuth app settings.",
+              variant: "destructive"
+            })
+          } else {
+            toast({
+              title: "Error",
+              description: errorMsg,
+              variant: "destructive"
+            })
+          }
         }
       } else if (data.type === 'oauth-error' && data.error) {
         toast({

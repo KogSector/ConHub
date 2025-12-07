@@ -885,7 +885,7 @@ pub async fn oauth_callback(
     .fetch_one(pool)
     .await;
 
-    let final_connection_id = match result {
+    let final_connection_id: Uuid = match result {
         Ok(row) => row.get("id"),
         Err(e) => {
             tracing::error!("Failed to create/update social connection: {}", e);
@@ -1379,7 +1379,7 @@ pub async fn oauth_exchange(
     .fetch_one(pool)
     .await;
 
-    let final_connection_id = match result {
+    let final_connection_id: Uuid = match result {
         Ok(row) => row.get("id"),
         Err(e) => {
             tracing::error!("Failed to create/update social connection: {}", e);

@@ -273,15 +273,26 @@ impl OAuthService {
             ));
         }
 
-        // Decode into OAuthTokenResponse; if this fails, include the raw body to understand why
-        match serde_json::from_str::<OAuthTokenResponse>(&body_text) {
-            Ok(token) => Ok(token),
-            Err(e) => Err(anyhow!(
-                "GitHub token exchange failed: could not decode response: {}. Body: {}",
-                e,
-                body_text
-            )),
+        // GitHub returns errors as 200 OK with JSON containing "error" field
+        // Check for error field first before trying to decode as OAuthTokenResponse
+        let json_value: serde_json::Value = serde_json::from_str(&body_text)
+            .map_err(|e| anyhow!("GitHub token exchange failed: invalid JSON response: {}", e))?;
+
+        if let Some(error) = json_value.get("error").and_then(|v| v.as_str()) {
+            let description = json_value
+                .get("error_description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            return Err(anyhow!(
+                "GitHub OAuth error: {} - {}",
+                error,
+                description
+            ));
         }
+
+        // Now decode into OAuthTokenResponse
+        serde_json::from_value::<OAuthTokenResponse>(json_value)
+            .map_err(|e| anyhow!("GitHub token exchange failed: could not decode response: {}", e))
     }
 
     async fn exchange_bitbucket_code(&self, code: &str) -> Result<OAuthTokenResponse> {
