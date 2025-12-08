@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { dataApiClient, apiClient, ApiResponse, unwrapResponse } from '@/lib/api';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
@@ -334,6 +334,9 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
             <GitBranch className="w-5 h-5" />
             Connect Repository
           </DialogTitle>
+          <DialogDescription>
+            Connect a GitHub, GitLab, or Bitbucket repository to index and search your code.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-8">

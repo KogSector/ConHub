@@ -753,6 +753,9 @@ async fn main() -> std::io::Result<()> {
             // OAuth-based repository routes (uses JWT to get token from auth service)
             .route("/api/repositories/oauth/check", web::post().to(oauth_repo_check))
             .route("/api/repositories/oauth/branches", web::get().to(oauth_repo_branches))
+            // List endpoints for frontend compatibility
+            .route("/api/repositories", web::get().to(list_repositories))
+            .route("/api/data-sources", web::get().to(list_data_sources))
             // Robot management routes
             .route("/api/robots/register", web::post().to(robots::register_robot))
             .route("/api/robots", web::get().to(robots::list_robots))
@@ -828,6 +831,34 @@ async fn status_check() -> Result<HttpResponse> {
             "http_ingestion": true,
             "issues_sync": github_app_enabled,
             "prs_sync": github_app_enabled
+        }
+    })))
+}
+
+/// List repositories - placeholder that returns empty list
+/// In a full implementation, this would query the database for user's repositories
+async fn list_repositories() -> Result<HttpResponse> {
+    // TODO: Query database for user's connected repositories
+    // For now, return empty list to prevent 404 errors
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "Repositories retrieved",
+        "data": {
+            "repositories": []
+        }
+    })))
+}
+
+/// List data sources - placeholder that returns empty list
+/// In a full implementation, this would query the database for user's data sources
+async fn list_data_sources() -> Result<HttpResponse> {
+    // TODO: Query database for user's connected data sources
+    // For now, return empty list to prevent 404 errors
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "message": "Data sources retrieved",
+        "data": {
+            "dataSources": []
         }
     })))
 }

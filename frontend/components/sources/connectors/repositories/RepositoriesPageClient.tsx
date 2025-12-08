@@ -26,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
 import { ConnectRepositoryDialog } from "./ConnectRepositoryDialog";
-import { apiClient, ApiResponse } from '@/lib/api';
+import { dataApiClient, ApiResponse } from '@/lib/api';
 import { ChangeBranchDialog } from "./ChangeBranchDialog";
 import { useAuth } from '@/hooks/use-auth';
 
@@ -112,8 +112,8 @@ export function RepositoriesPageClient() {
   const fetchRepositories = async () => {
     try {
       // Fetch real repository data from the API with auth header
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const resp = await apiClient.get<ApiResponse<{ repositories: Repository[] }>>('/api/repositories', headers);
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const resp = await dataApiClient.get<ApiResponse<{ repositories: Repository[] }>>('/api/repositories', headers);
       if (resp.success && resp.data?.repositories) {
         setRepositories(resp.data.repositories);
       } else {
@@ -132,8 +132,8 @@ export function RepositoriesPageClient() {
   const fetchDataSources = async () => {
     try {
         // Fetch data sources with auth header
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const resp = await apiClient.get<ApiResponse<{ dataSources: DataSource[] }>>('/api/data-sources', headers);
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        const resp = await dataApiClient.get<ApiResponse<{ dataSources: DataSource[] }>>('/api/data-sources', headers);
         if (resp.success && resp.data) {
           const repoDataSources = resp.data.dataSources?.filter((ds: DataSource) => 
             ['github', 'bitbucket'].includes(ds.type)
@@ -182,7 +182,7 @@ export function RepositoriesPageClient() {
       );
       
       if (dataSource) {
-        const resp = await apiClient.post<ApiResponse>(`/api/data-sources/${dataSource.id}/sync`, {});
+        const resp = await dataApiClient.post<ApiResponse>(`/api/data-sources/${dataSource.id}/sync`, {});
         if (resp.success) {
           fetchDataSources();
         }
