@@ -121,29 +121,70 @@ impl ChunkerService {
             info!("✂️  Generated {} chunks", chunks.len());
             total_chunks += chunks.len();
 
+            // Evaluate cost policy to determine ingestion targets
+            let targets = {
+                let cost_policies = state.cost_policies.read().await;
+                // Estimate token count from content length (roughly 4 chars per token)
+                let token_count = chunks.first().map(|c| c.content.len() / 4).unwrap_or(100);
+                cost_policies.evaluate(
+                    &source_item.source_kind,
+                    Some(&source_item.content_type),
+                    source_item.metadata.get("language").and_then(|v| v.as_str()),
+                    token_count,
+                )
+            };
+
+            info!(
+                "💰 Cost policy: vector={}, graph={} for {:?}",
+                targets.enable_vector, targets.enable_graph, source_item.source_kind
+            );
+
             // Process chunks in batches
             for batch in chunks.chunks(batch_size) {
                 let batch_vec = batch.to_vec();
 
-                // Send to embedding service (fire and forget or await both)
-                let embedding_future = self.embedding_client.embed_chunks(batch_vec.clone());
+                // Conditionally send to embedding service based on cost policy
+                let embedding_future = if targets.enable_vector {
+                    Some(self.embedding_client.embed_chunks(batch_vec.clone()))
+                } else {
+                    None
+                };
                 
-                // Send to graph service
-                let graph_future = self.graph_client.ingest_chunks(
-                    request.source_id,
-                    request.source_kind.clone(),
-                    batch_vec,
-                );
+                // Conditionally send to graph service based on cost policy
+                let graph_future = if targets.enable_graph {
+                    Some(self.graph_client.ingest_chunks(
+                        request.source_id,
+                        request.source_kind.clone(),
+                        batch_vec,
+                    ))
+                } else {
+                    None
+                };
 
-                // Process both in parallel
-                let (embed_result, graph_result) = tokio::join!(embedding_future, graph_future);
-
-                if let Err(e) = embed_result {
-                    warn!("⚠️  Embedding failed for batch: {}", e);
-                }
-
-                if let Err(e) = graph_result {
-                    warn!("⚠️  Graph ingestion failed for batch: {}", e);
+                // Process enabled targets in parallel
+                match (embedding_future, graph_future) {
+                    (Some(embed_fut), Some(graph_fut)) => {
+                        let (embed_result, graph_result) = tokio::join!(embed_fut, graph_fut);
+                        if let Err(e) = embed_result {
+                            warn!("⚠️  Embedding failed for batch: {}", e);
+                        }
+                        if let Err(e) = graph_result {
+                            warn!("⚠️  Graph ingestion failed for batch: {}", e);
+                        }
+                    }
+                    (Some(embed_fut), None) => {
+                        if let Err(e) = embed_fut.await {
+                            warn!("⚠️  Embedding failed for batch: {}", e);
+                        }
+                    }
+                    (None, Some(graph_fut)) => {
+                        if let Err(e) = graph_fut.await {
+                            warn!("⚠️  Graph ingestion failed for batch: {}", e);
+                        }
+                    }
+                    (None, None) => {
+                        info!("⏭️  Skipping batch (cost policy: none)");
+                    }
                 }
             }
 

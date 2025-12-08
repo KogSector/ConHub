@@ -100,14 +100,15 @@ impl GitHubConnector {
         }
     }
 
+    /// Build Authorization header for GitHub API
+    /// Using Bearer scheme consistently for all token types (OAuth, PAT, fine-grained)
     fn auth_header(token: &str) -> String {
-        if token.starts_with("github_pat_") {
-            format!("Bearer {}", token)
-        } else if token.starts_with("ghp_") || token.starts_with("gho_") || token.starts_with("ghu_") || token.starts_with("ghs_") {
-            format!("token {}", token)
-        } else {
-            format!("token {}", token)
-        }
+        // Log token prefix for debugging (never log full token)
+        let token_prefix = if token.len() >= 8 { &token[..8] } else { token };
+        tracing::debug!("[GITHUB] Building auth header for token prefix: {}...", token_prefix);
+        
+        // Use Bearer for all GitHub tokens - works for OAuth tokens, classic PATs, and fine-grained PATs
+        format!("Bearer {}", token)
     }
     
     pub fn factory() -> GitHubConnectorFactory {
@@ -357,7 +358,10 @@ impl GitHubConnector {
             .send()
             .await?;
         
-        match response.status().as_u16() {
+        let status = response.status();
+        tracing::info!("[GITHUB] Repository access check response status: {}", status);
+        
+        match status.as_u16() {
             200 => {
                 let repo_data: GitHubRepoResponse = response.json().await?;
                 
@@ -400,19 +404,46 @@ impl GitHubConnector {
                     error_message: Some("Repository not found or access denied".to_string()),
                 })
             },
-            403 => {
+            401 => {
+                let error_text = response.text().await.unwrap_or_else(|_| "Bad credentials".to_string());
+                tracing::error!("[GITHUB] Authentication failed (401): {}", error_text);
+                
+                // Check for specific "Bad credentials" message from GitHub
+                let error_message = if error_text.contains("Bad credentials") {
+                    "GitHub authentication failed. Your GitHub connection token is invalid or revoked. Please reconnect GitHub in Social Connections.".to_string()
+                } else {
+                    format!("GitHub authentication failed: {}. Please reconnect GitHub in Social Connections.", error_text)
+                };
+                
                 Ok(GitHubRepoAccessResponse {
                     has_access: false,
                     repo_info: None,
-                    error_message: Some("Access forbidden - insufficient permissions".to_string()),
+                    error_message: Some(error_message),
+                })
+            },
+            403 => {
+                let error_text = response.text().await.unwrap_or_else(|_| "Forbidden".to_string());
+                tracing::warn!("[GITHUB] Access forbidden (403): {}", error_text);
+                
+                let error_message = if error_text.contains("rate limit") {
+                    "GitHub API rate limit exceeded. Please wait a few minutes and try again.".to_string()
+                } else {
+                    "Access forbidden - insufficient permissions. Ensure your GitHub token has the 'repo' scope for private repositories.".to_string()
+                };
+                
+                Ok(GitHubRepoAccessResponse {
+                    has_access: false,
+                    repo_info: None,
+                    error_message: Some(error_message),
                 })
             },
             _ => {
                 let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                tracing::error!("[GITHUB] Unexpected error ({}): {}", status, error_text);
                 Ok(GitHubRepoAccessResponse {
                     has_access: false,
                     repo_info: None,
-                    error_message: Some(format!("GitHub API error: {}", error_text)),
+                    error_message: Some(format!("GitHub API error ({}): {}", status, error_text)),
                 })
             }
         }

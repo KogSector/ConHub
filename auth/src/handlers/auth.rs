@@ -1447,12 +1447,16 @@ pub async fn internal_get_oauth_token(
         })));
     }
 
-    // Query for active token
+    // Query for active token - filter out expired tokens in SQL
+    // Note: Some providers (like GitHub) don't have expiry, so we allow NULL token_expires_at
     let row = sqlx::query(
         r#"
         SELECT access_token, refresh_token, token_expires_at
         FROM social_connections
-        WHERE user_id = $1 AND platform = $2 AND is_active = true
+        WHERE user_id = $1 
+          AND platform = $2 
+          AND is_active = true
+          AND (token_expires_at IS NULL OR token_expires_at > NOW())
         ORDER BY updated_at DESC
         LIMIT 1
         "#
@@ -1468,15 +1472,50 @@ pub async fn internal_get_oauth_token(
             let refresh_token: Option<String> = row.get("refresh_token");
             let expires_at: Option<chrono::DateTime<chrono::Utc>> = row.get("token_expires_at");
 
+            tracing::info!(
+                "✅ Found valid {} token for user {} (expires: {:?})",
+                provider, user_id, expires_at
+            );
+
             Ok(HttpResponse::Ok().json(InternalTokenResponse {
                 access_token,
                 expires_at,
                 refresh_token,
             }))
         }
-        Ok(None) => Ok(HttpResponse::NotFound().json(json!({
-            "error": format!("No active {} connection found for user", provider)
-        }))),
+        Ok(None) => {
+            // Check if there's an expired token to give a better error message
+            let expired_check = sqlx::query(
+                r#"
+                SELECT token_expires_at
+                FROM social_connections
+                WHERE user_id = $1 AND platform = $2 AND is_active = true
+                ORDER BY updated_at DESC
+                LIMIT 1
+                "#
+            )
+            .bind(user_id)
+            .bind(&provider)
+            .fetch_optional(pool)
+            .await;
+
+            let error_message = match expired_check {
+                Ok(Some(row)) => {
+                    let expires_at: Option<chrono::DateTime<chrono::Utc>> = row.get("token_expires_at");
+                    if expires_at.is_some() {
+                        tracing::warn!("⚠️ {} token for user {} has expired", provider, user_id);
+                        format!("Your {} connection has expired. Please reconnect in Social Connections.", provider)
+                    } else {
+                        format!("No active {} connection found for user", provider)
+                    }
+                }
+                _ => format!("No active {} connection found for user", provider)
+            };
+
+            Ok(HttpResponse::NotFound().json(json!({
+                "error": error_message
+            })))
+        }
         Err(e) => {
             tracing::error!("Failed to fetch OAuth token: {}", e);
             Ok(HttpResponse::InternalServerError().json(json!({

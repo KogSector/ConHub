@@ -7,6 +7,8 @@ use conhub_models::chunking::ChunkJobStatus;
 use crate::services::embedding_client::EmbeddingClient;
 use crate::services::graph_client::GraphClient;
 use crate::services::cache::ChunkCache;
+use crate::services::profiles::ProfileManager;
+use crate::services::cost_policy::CostPolicyManager;
 
 /// Application state shared across handlers
 pub struct AppState {
@@ -15,6 +17,10 @@ pub struct AppState {
     pub cache: RwLock<ChunkCache>,
     pub max_concurrent_jobs: usize,
     pub jobs: RwLock<HashMap<Uuid, JobHandle>>,
+    /// Profile manager for chunking configuration
+    pub profiles: RwLock<ProfileManager>,
+    /// Cost policy manager for ingestion target decisions
+    pub cost_policies: RwLock<CostPolicyManager>,
 }
 
 /// Handle for tracking an active chunking job

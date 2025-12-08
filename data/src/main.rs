@@ -53,6 +53,7 @@ mod handlers {
     pub mod robot_ingestion;
     pub mod github_app;
     pub mod documents;
+    pub mod local_fs;
 }
 
 mod errors;
@@ -770,7 +771,9 @@ async fn main() -> std::io::Result<()> {
             .route("/api/ingestion/robots/{robot_id}/cv_events/batch", web::post().to(robot_ingestion::ingest_cv_events_batch))
             .route("/api/ingestion/robots/{robot_id}/frames", web::post().to(robot_ingestion::ingest_frames))
             // Document management routes (local file upload + cloud import)
-            .configure(handlers::documents::configure);
+            .configure(handlers::documents::configure)
+            // Local filesystem sync routes
+            .configure(handlers::local_fs::configure);
         
         // Add GitHub App routes if configured
         if let Some(ref state) = github_app_state {
