@@ -178,6 +178,15 @@ class ServiceManager {
         NODE_ENV: isProd ? 'production' : 'development'
       };
 
+      // Ensure Rust services have useful logging by default.
+      // If RUST_LOG is already set in the parent env, respect it;
+      // otherwise, default to info for all crates and debug for conhub-*.
+      if (service.command === 'cargo') {
+        if (!env.RUST_LOG) {
+          env.RUST_LOG = process.env.RUST_LOG || 'info,conhub=debug';
+        }
+      }
+
       const featureTogglesPath = path.join(this.projectRoot, 'feature-toggles.json');
       env.FEATURE_TOGGLES_PATH = featureTogglesPath;
 

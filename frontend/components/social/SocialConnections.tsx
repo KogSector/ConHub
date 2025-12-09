@@ -229,16 +229,23 @@ export function SocialConnections() {
     }
   };
 
-  const disconnectPlatform = async (connectionId: string) => {
+  const disconnectPlatform = async (connectionId: string, platform: string) => {
     try {
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       
-      // Try to disconnect from both services (auth for OAuth providers, security for others)
-      // Use Promise.allSettled to try both without failing if one doesn't have the connection
-      await Promise.allSettled([
-        apiClient.delete(`/api/auth/connections/${connectionId}`, headers),
-        securityApiClient.delete(`/api/security/connections/${connectionId}`, headers)
-      ]);
+      // Route to the correct service based on platform type
+      // VCS providers (github, bitbucket, gitlab) are managed by auth service
+      // Other platforms (gmail, google_drive, dropbox, slack, etc.) are managed by security service
+      const vcsProviders = ['github', 'bitbucket', 'gitlab'];
+      const isVcsProvider = vcsProviders.includes(platform);
+      
+      if (isVcsProvider) {
+        // Only call auth service for VCS providers
+        await apiClient.delete(`/api/auth/connections/${connectionId}`, headers);
+      } else {
+        // Only call security service for other platforms
+        await securityApiClient.delete(`/api/security/connections/${connectionId}`, headers);
+      }
       
       setConnections(prev => prev.filter(conn => conn.id !== connectionId));
       toast({
@@ -353,7 +360,7 @@ export function SocialConnections() {
                   <Button
                     title={`Disconnect ${config.name}`}
                     aria-label={`Disconnect ${config.name}`}
-                    onClick={() => connection && disconnectPlatform(connection.id)}
+                    onClick={() => connection && disconnectPlatform(connection.id, platform)}
                     className="w-full bg-red-600 hover:bg-red-700 text-white"
                     variant="destructive"
                   >

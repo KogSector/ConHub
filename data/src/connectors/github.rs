@@ -100,13 +100,20 @@ impl GitHubConnector {
         }
     }
 
+    /// Generate safe token debug string (never logs full token)
+    fn token_debug(token: &str) -> String {
+        use sha2::{Sha256, Digest};
+        let mut hasher = Sha256::new();
+        hasher.update(token.as_bytes());
+        let hash = format!("{:x}", hasher.finalize());
+        let len = token.len();
+        let prefix = if len >= 6 { &token[..6] } else { token };
+        format!("len={}, prefix={}..., sha256_prefix={}", len, prefix, &hash[..12])
+    }
+    
     /// Build Authorization header for GitHub API
     /// Using Bearer scheme consistently for all token types (OAuth, PAT, fine-grained)
     fn auth_header(token: &str) -> String {
-        // Log token prefix for debugging (never log full token)
-        let token_prefix = if token.len() >= 8 { &token[..8] } else { token };
-        tracing::debug!("[GITHUB] Building auth header for token prefix: {}...", token_prefix);
-        
         // Use Bearer for all GitHub tokens - works for OAuth tokens, classic PATs, and fine-grained PATs
         format!("Bearer {}", token)
     }
@@ -350,6 +357,11 @@ impl GitHubConnector {
         // Check repository access
         let repo_url = format!("https://api.github.com/repos/{}/{}", owner, repo);
         
+        tracing::info!(
+            "[GITHUB] 🌐 Calling GitHub API: url={}, token_debug={}",
+            repo_url, Self::token_debug(&request.access_token)
+        );
+        
         let response = self.client
             .get(&repo_url)
             .header("Authorization", Self::auth_header(&request.access_token))
@@ -359,7 +371,25 @@ impl GitHubConnector {
             .await?;
         
         let status = response.status();
-        tracing::info!("[GITHUB] Repository access check response status: {}", status);
+        
+        // Log response headers for debugging
+        let oauth_scopes = response.headers()
+            .get("x-oauth-scopes")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("<not present>");
+        let accepted_scopes = response.headers()
+            .get("x-accepted-oauth-scopes")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("<not present>");
+        let rate_limit_remaining = response.headers()
+            .get("x-ratelimit-remaining")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("<not present>");
+        
+        tracing::info!(
+            "[GITHUB] 📡 GitHub API response: status={}, x-oauth-scopes={}, x-accepted-oauth-scopes={}, x-ratelimit-remaining={}",
+            status, oauth_scopes, accepted_scopes, rate_limit_remaining
+        );
         
         match status.as_u16() {
             200 => {
@@ -406,7 +436,10 @@ impl GitHubConnector {
             },
             401 => {
                 let error_text = response.text().await.unwrap_or_else(|_| "Bad credentials".to_string());
-                tracing::error!("[GITHUB] Authentication failed (401): {}", error_text);
+                tracing::error!(
+                    "[GITHUB] ❌ AUTHENTICATION FAILED (401): error_body={}, token_debug={}",
+                    error_text, Self::token_debug(&request.access_token)
+                );
                 
                 // Check for specific "Bad credentials" message from GitHub
                 let error_message = if error_text.contains("Bad credentials") {

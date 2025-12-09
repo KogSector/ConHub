@@ -139,6 +139,8 @@ pub struct RepoCheckResponse {
     pub private: Option<bool>,
     pub has_read_access: bool,
     pub languages: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
     pub error: Option<String>,
 }
 
@@ -441,6 +443,17 @@ pub async fn get_repository_branches(
     }
 }
 
+/// Helper to generate safe token debug string (never logs full token)
+fn token_debug(token: &str) -> String {
+    use sha2::{Sha256, Digest};
+    let mut hasher = Sha256::new();
+    hasher.update(token.as_bytes());
+    let hash = format!("{:x}", hasher.finalize());
+    let len = token.len();
+    let prefix = if len >= 6 { &token[..6] } else { token };
+    format!("len={}, prefix={}..., sha256_prefix={}", len, prefix, &hash[..12])
+}
+
 /// OAuth-based repository check - uses JWT claims to get token from auth service
 /// POST /api/repositories/oauth/check
 pub async fn oauth_repo_check(
@@ -448,12 +461,26 @@ pub async fn oauth_repo_check(
     req: web::Json<OAuthRepoCheckRequest>,
     auth_client: web::Data<AuthClient>,
 ) -> Result<HttpResponse> {
-    info!("🔍 OAuth repo check for {} (provider: {})", req.repo_url, req.provider);
+    // Generate correlation ID for tracing
+    let correlation_id = http_req.headers()
+        .get("x-correlation-id")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()[..8].to_string());
+    
+    info!(
+        "[Repo Check][{}] 🔍 Starting: repo_url={}, provider={}",
+        correlation_id, req.repo_url, req.provider
+    );
     
     // Extract user_id from JWT claims
     let user_id = match extract_user_id_from_request(&http_req) {
-        Some(id) => id,
+        Some(id) => {
+            info!("[Repo Check][{}] ✅ User authenticated: user_id={}", correlation_id, id);
+            id
+        },
         None => {
+            warn!("[Repo Check][{}] ❌ No JWT claims found - authentication required", correlation_id);
             return Ok(HttpResponse::Unauthorized().json(RepoCheckResponse {
                 success: false,
                 provider: req.provider.clone(),
@@ -463,15 +490,46 @@ pub async fn oauth_repo_check(
                 private: None,
                 has_read_access: false,
                 languages: None,
+                code: Some("auth_required".to_string()),
                 error: Some("Authentication required".to_string()),
             }));
         }
     };
     
     // Get OAuth token from auth service
-    let access_token = match auth_client.get_oauth_token(user_id, &req.provider).await {
-        Ok(token_response) => token_response.access_token,
+    info!(
+        "[Repo Check][{}] 🔑 Fetching OAuth token from auth service: user_id={}, provider={}",
+        correlation_id, user_id, req.provider
+    );
+    
+    let access_token = match auth_client.get_oauth_token_with_correlation(user_id, &req.provider, &correlation_id).await {
+        Ok(token_response) => {
+            info!(
+                "[Repo Check][{}] ✅ Got OAuth token from auth service: provider={}, token_debug={}",
+                correlation_id, req.provider, token_debug(&token_response.access_token)
+            );
+            token_response.access_token
+        },
         Err(e) => {
+            use crate::services::auth_client::AuthClientError;
+            let (code, error_msg) = match &e {
+                AuthClientError::NoConnection(provider) => (
+                    "no_connection",
+                    format!("No {} connection found. Please connect in Social Connections first.", provider)
+                ),
+                AuthClientError::TokenExpired(provider) => (
+                    "token_expired",
+                    format!("Your {} token has expired. Please reconnect in Social Connections.", provider)
+                ),
+                _ => (
+                    "auth_error",
+                    format!("Failed to get {} token: {}", req.provider, e)
+                ),
+            };
+            error!(
+                "[Repo Check][{}] ❌ Failed to get OAuth token: user_id={}, provider={}, error_code={}, error={}",
+                correlation_id, user_id, req.provider, code, error_msg
+            );
             return Ok(HttpResponse::BadRequest().json(RepoCheckResponse {
                 success: false,
                 provider: req.provider.clone(),
@@ -481,22 +539,33 @@ pub async fn oauth_repo_check(
                 private: None,
                 has_read_access: false,
                 languages: None,
-                error: Some(format!("No {} connection found. Please connect in Social Connections first.", req.provider)),
+                code: Some(code.to_string()),
+                error: Some(error_msg),
             }));
         }
     };
     
     // Validate repository access
+    info!(
+        "[Repo Check][{}] 🌐 Calling GitHub API to validate repo access: repo_url={}",
+        correlation_id, req.repo_url
+    );
+    
     let connector = GitHubConnector::new();
     let access_request = GitHubRepoAccessRequest {
         repo_url: req.repo_url.clone(),
-        access_token,
+        access_token: access_token.clone(),
     };
     
     match connector.validate_repo_access(&access_request).await {
         Ok(response) => {
             if response.has_access {
                 let repo_info = response.repo_info.unwrap();
+                info!(
+                    "[Repo Check][{}] ✅✅ REPO ACCESS VALIDATED: full_name={}, private={}, default_branch={}, permissions={{pull={}, push={}, admin={}}}",
+                    correlation_id, repo_info.full_name, repo_info.private, repo_info.default_branch,
+                    repo_info.permissions.pull, repo_info.permissions.push, repo_info.permissions.admin
+                );
                 Ok(HttpResponse::Ok().json(RepoCheckResponse {
                     success: true,
                     provider: req.provider.clone(),
@@ -506,9 +575,23 @@ pub async fn oauth_repo_check(
                     private: Some(repo_info.private),
                     has_read_access: repo_info.permissions.pull,
                     languages: Some(repo_info.languages),
+                    code: None,
                     error: None,
                 }))
             } else {
+                // Check if error message indicates bad credentials
+                let error_msg = response.error_message.clone().unwrap_or_default();
+                let code = if error_msg.contains("Bad credentials") || error_msg.contains("401") {
+                    Some("github_bad_credentials".to_string())
+                } else if error_msg.contains("403") || error_msg.contains("permission") {
+                    Some("github_insufficient_permissions".to_string())
+                } else {
+                    Some("repo_access_denied".to_string())
+                };
+                error!(
+                    "[Repo Check][{}] ❌ REPO ACCESS DENIED: repo_url={}, code={:?}, error={}, token_debug={}",
+                    correlation_id, req.repo_url, code, error_msg, token_debug(&access_token)
+                );
                 Ok(HttpResponse::Ok().json(RepoCheckResponse {
                     success: false,
                     provider: req.provider.clone(),
@@ -518,11 +601,25 @@ pub async fn oauth_repo_check(
                     private: None,
                     has_read_access: false,
                     languages: None,
+                    code,
                     error: response.error_message,
                 }))
             }
         }
         Err(e) => {
+            // Parse error to determine code
+            let error_str = e.to_string();
+            let code = if error_str.contains("Bad credentials") || error_str.contains("401") {
+                "github_bad_credentials"
+            } else if error_str.contains("403") || error_str.contains("permission") {
+                "github_insufficient_permissions"
+            } else {
+                "repo_error"
+            };
+            error!(
+                "[Repo Check][{}] ❌ GITHUB API ERROR: repo_url={}, code={}, error={}, token_debug={}",
+                correlation_id, req.repo_url, code, error_str, token_debug(&access_token)
+            );
             Ok(HttpResponse::BadRequest().json(RepoCheckResponse {
                 success: false,
                 provider: req.provider.clone(),
@@ -532,6 +629,7 @@ pub async fn oauth_repo_check(
                 private: None,
                 has_read_access: false,
                 languages: None,
+                code: Some(code.to_string()),
                 error: Some(e.to_string()),
             }))
         }
@@ -545,12 +643,32 @@ pub async fn oauth_repo_branches(
     query: web::Query<OAuthBranchesQuery>,
     auth_client: web::Data<AuthClient>,
 ) -> Result<HttpResponse> {
-    info!("🌿 OAuth branches fetch for {} (provider: {})", query.repo, query.provider);
+    // Correlation ID (propagated from frontend if present)
+    let correlation_id = http_req.headers()
+        .get("x-correlation-id")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()[..8].to_string());
+
+    info!(
+        "[Repo Branches][{}] 🌿 Starting OAuth branches fetch: repo={}, provider={}",
+        correlation_id, query.repo, query.provider
+    );
     
     // Extract user_id from JWT claims
     let user_id = match extract_user_id_from_request(&http_req) {
-        Some(id) => id,
+        Some(id) => {
+            info!(
+                "[Repo Branches][{}] ✅ User authenticated: user_id={}",
+                correlation_id, id
+            );
+            id
+        }
         None => {
+            warn!(
+                "[Repo Branches][{}] ❌ No JWT claims found - authentication required",
+                correlation_id
+            );
             return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
                 "success": false,
                 "error": "Authentication required"
@@ -559,12 +677,52 @@ pub async fn oauth_repo_branches(
     };
     
     // Get OAuth token from auth service
-    let access_token = match auth_client.get_oauth_token(user_id, &query.provider).await {
-        Ok(token_response) => token_response.access_token,
+    info!(
+        "[Repo Branches][{}] 🔑 Fetching OAuth token from auth service: user_id={}, provider={}",
+        correlation_id, user_id, query.provider
+    );
+    let access_token = match auth_client
+        .get_oauth_token_with_correlation(user_id, &query.provider, &correlation_id)
+        .await
+    {
+        Ok(token_response) => {
+            info!(
+                "[Repo Branches][{}] ✅ Got OAuth token from auth service: provider={}, token_debug={}",
+                correlation_id,
+                query.provider,
+                token_debug(&token_response.access_token)
+            );
+            token_response.access_token
+        }
         Err(e) => {
+            use crate::services::auth_client::AuthClientError;
+            let (code, error_msg) = match &e {
+                AuthClientError::NoConnection(provider) => (
+                    "no_connection",
+                    format!(
+                        "No {} connection found. Please connect in Social Connections first.",
+                        provider
+                    ),
+                ),
+                AuthClientError::TokenExpired(provider) => (
+                    "token_expired",
+                    format!(
+                        "Your {} token has expired. Please reconnect in Social Connections.",
+                        provider
+                    ),
+                ),
+                _ => (
+                    "auth_error",
+                    format!("Failed to get {} token: {}", query.provider, e),
+                ),
+            };
+            error!(
+                "[Repo Branches][{}] ❌ Failed to get OAuth token: user_id={}, provider={}, error_code={}, error={}",
+                correlation_id, user_id, query.provider, code, error_msg
+            );
             return Ok(HttpResponse::BadRequest().json(serde_json::json!({
                 "success": false,
-                "error": format!("No {} connection found", query.provider)
+                "error": error_msg
             })));
         }
     };
@@ -572,6 +730,10 @@ pub async fn oauth_repo_branches(
     // Parse owner/repo
     let parts: Vec<&str> = query.repo.split('/').collect();
     if parts.len() != 2 {
+        warn!(
+            "[Repo Branches][{}] ❌ Invalid repo format: repo={}",
+            correlation_id, query.repo
+        );
         return Ok(HttpResponse::BadRequest().json(serde_json::json!({
             "success": false,
             "error": "Invalid repo format. Expected 'owner/repo'"
@@ -580,18 +742,32 @@ pub async fn oauth_repo_branches(
     
     let (owner, repo) = (parts[0], parts[1]);
     let repo_url = format!("https://github.com/{}/{}", owner, repo);
+    info!(
+        "[Repo Branches][{}] 🔄 Parsed repo: owner={}, repo={}, repo_url={}",
+        correlation_id, owner, repo, repo_url
+    );
     
     let connector = GitHubConnector::new();
     let access_request = GitHubRepoAccessRequest {
         repo_url,
-        access_token,
+        access_token: access_token.clone(),
     };
     
+    info!(
+        "[Repo Branches][{}] 🌐 Calling GitHub API to fetch branches",
+        correlation_id
+    );
     match connector.validate_repo_access(&access_request).await {
         Ok(response) => {
             if response.has_access {
                 let repo_info = response.repo_info.unwrap();
-                let branch_names: Vec<String> = repo_info.branches.into_iter().map(|b| b.name).collect();
+                let branch_count = repo_info.branches.len();
+                let branch_names: Vec<String> =
+                    repo_info.branches.into_iter().map(|b| b.name).collect();
+                info!(
+                    "[Repo Branches][{}] ✅ Branch fetch successful: default_branch={}, branch_count={}",
+                    correlation_id, repo_info.default_branch, branch_count
+                );
                 Ok(HttpResponse::Ok().json(serde_json::json!({
                     "success": true,
                     "data": {
@@ -600,16 +776,29 @@ pub async fn oauth_repo_branches(
                     }
                 })))
             } else {
+                let error_msg = response
+                    .error_message
+                    .clone()
+                    .unwrap_or_else(|| "Access denied".to_string());
+                error!(
+                    "[Repo Branches][{}] ❌ Access denied when fetching branches: repo={}, provider={}, error={}, token_debug={}",
+                    correlation_id, query.repo, query.provider, error_msg, token_debug(&access_token)
+                );
                 Ok(HttpResponse::Ok().json(serde_json::json!({
                     "success": false,
-                    "error": response.error_message.unwrap_or("Access denied".to_string())
+                    "error": error_msg
                 })))
             }
         }
         Err(e) => {
+            let error_str = e.to_string();
+            error!(
+                "[Repo Branches][{}] ❌ GitHub error when fetching branches: repo={}, provider={}, error={}, token_debug={}",
+                correlation_id, query.repo, query.provider, error_str, token_debug(&access_token)
+            );
             Ok(HttpResponse::BadRequest().json(serde_json::json!({
                 "success": false,
-                "error": e.to_string()
+                "error": error_str
             })))
         }
     }

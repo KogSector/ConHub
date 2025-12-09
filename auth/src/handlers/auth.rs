@@ -1314,10 +1314,41 @@ pub async fn oauth_exchange(
     request: web::Json<OAuthExchangeRequest>,
     pool_opt: web::Data<Option<PgPool>>,
 ) -> Result<HttpResponse> {
-    let pool = match pool_opt.get_ref() { Some(p) => p, None => return Ok(HttpResponse::ServiceUnavailable().json(json!({"error": "Database service unavailable"}))) };
+    use crate::services::oauth::token_debug;
+    
+    // Generate debug_id for correlation
+    let debug_id = Uuid::new_v4().to_string()[..8].to_string();
+    
+    // Extract correlation ID from header if present
+    let correlation_id = req.headers()
+        .get("x-correlation-id")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| debug_id.clone());
+    
+    let pool = match pool_opt.get_ref() { 
+        Some(p) => p, 
+        None => {
+            tracing::error!("[OAuth Exchange][{}] Database pool unavailable", correlation_id);
+            return Ok(HttpResponse::ServiceUnavailable().json(json!({"error": "Database service unavailable"})));
+        }
+    };
+    
     use crate::services::middleware::extract_claims_from_request;
-    let claims = match extract_claims_from_request(&req) { Some(c) => c, None => return Ok(HttpResponse::Unauthorized().json(json!({"error": "Authentication required"}))) };
+    let claims = match extract_claims_from_request(&req) { 
+        Some(c) => c, 
+        None => {
+            tracing::warn!("[OAuth Exchange][{}] No JWT claims found - authentication required", correlation_id);
+            return Ok(HttpResponse::Unauthorized().json(json!({"error": "Authentication required"})));
+        }
+    };
     let user_id: uuid::Uuid = claims.sub.parse().map_err(|_| actix_web::error::ErrorBadRequest("Invalid user id"))?;
+    
+    let code_preview = if request.code.len() > 10 { &request.code[..10] } else { &request.code };
+    tracing::info!(
+        "[OAuth Exchange][{}] 🔄 Starting exchange: provider={}, user_id={}, code_prefix={}...",
+        correlation_id, request.provider, user_id, code_preview
+    );
 
     let oauth_service = crate::services::oauth::OAuthService::new(pool.clone());
     let provider_enum = match request.provider.to_lowercase().as_str() {
@@ -1326,17 +1357,44 @@ pub async fn oauth_exchange(
         "github" => crate::services::oauth::OAuthProvider::GitHub,
         "bitbucket" => crate::services::oauth::OAuthProvider::Bitbucket,
         "gitlab" => crate::services::oauth::OAuthProvider::GitLab,
-        _ => return Ok(HttpResponse::BadRequest().json(json!({"error": "Unsupported provider"}))),
+        _ => {
+            tracing::warn!("[OAuth Exchange][{}] Unsupported provider: {}", correlation_id, request.provider);
+            return Ok(HttpResponse::BadRequest().json(json!({"error": "Unsupported provider"})));
+        }
     };
 
     let token = match oauth_service.exchange_code_for_token(provider_enum.clone(), &request.code).await {
-        Ok(t) => t,
-        Err(e) => return Ok(HttpResponse::BadRequest().json(json!({"error": format!("Token exchange failed: {}", e)}))),
+        Ok(t) => {
+            tracing::info!(
+                "[OAuth Exchange][{}] ✅ Token exchange successful: provider={}, user_id={}, token_type={}, scope={:?}, has_refresh={}, token_debug={}",
+                correlation_id, request.provider, user_id, t.token_type, t.scope, t.refresh_token.is_some(), token_debug(&t.access_token)
+            );
+            t
+        },
+        Err(e) => {
+            tracing::error!(
+                "[OAuth Exchange][{}] ❌ Token exchange FAILED: provider={}, user_id={}, error={}",
+                correlation_id, request.provider, user_id, e
+            );
+            return Ok(HttpResponse::BadRequest().json(json!({"error": format!("Token exchange failed: {}", e)})));
+        }
     };
 
     let (platform_user_id, email, name, avatar_url) = match oauth_service.get_user_info(provider_enum.clone(), &token.access_token).await {
-        Ok(info) => info,
-        Err(e) => return Ok(HttpResponse::BadRequest().json(json!({"error": format!("Failed to fetch user info: {}", e)}))),
+        Ok(info) => {
+            tracing::info!(
+                "[OAuth Exchange][{}] ✅ User info fetched: provider={}, platform_user_id={}, email={}",
+                correlation_id, request.provider, info.0, info.1
+            );
+            info
+        },
+        Err(e) => {
+            tracing::error!(
+                "[OAuth Exchange][{}] ❌ Failed to fetch user info: provider={}, error={}",
+                correlation_id, request.provider, e
+            );
+            return Ok(HttpResponse::BadRequest().json(json!({"error": format!("Failed to fetch user info: {}", e)})));
+        }
     };
 
     let scope = token.scope.clone().unwrap_or_default();
@@ -1345,6 +1403,13 @@ pub async fn oauth_exchange(
     let connection_id = Uuid::new_v4();
     let now = Utc::now();
     let provider_str = format!("{}", provider_enum);
+    
+    tracing::info!(
+        "[OAuth Exchange][{}] 💾 Storing connection: connection_id={}, user_id={}, platform={}, platform_user_id={}, scope={}, expires_at={:?}, token_debug={}",
+        correlation_id, connection_id, user_id, provider_str, platform_user_id, scope, 
+        expires_at.map(|ts| chrono::DateTime::<Utc>::from_timestamp(ts, 0)),
+        token_debug(&token.access_token)
+    );
 
     let result = sqlx::query(
         r#"
@@ -1384,15 +1449,26 @@ pub async fn oauth_exchange(
     let final_connection_id: Uuid = match result {
         Ok(row) => row.get("id"),
         Err(e) => {
-            tracing::error!("Failed to create/update social connection: {}", e);
+            tracing::error!(
+                "[OAuth Exchange][{}] ❌ DB INSERT FAILED: provider={}, user_id={}, error={}",
+                correlation_id, request.provider, user_id, e
+            );
             return Ok(HttpResponse::InternalServerError().json(json!({"error": "Failed to store social connection"})));
         }
     };
 
+    tracing::info!(
+        "[OAuth Exchange][{}] ✅✅ CONNECTION STORED SUCCESSFULLY: provider={}, user_id={}, connection_id={}, platform_user_id={}, scope={}, expires_at={:?}, token_debug={}",
+        correlation_id, request.provider, user_id, final_connection_id, platform_user_id, scope,
+        expires_at.map(|ts| chrono::DateTime::<Utc>::from_timestamp(ts, 0)),
+        token_debug(&token.access_token)
+    );
+
     Ok(HttpResponse::Ok().json(json!({
         "user_id": user_id,
         "is_new_user": false,
-        "connection_id": final_connection_id
+        "connection_id": final_connection_id,
+        "debug_id": correlation_id
     })))
 }
 
@@ -1413,45 +1489,81 @@ pub struct InternalTokenResponse {
 /// 
 /// GET /internal/oauth/{provider}/token?user_id={uuid}
 pub async fn internal_get_oauth_token(
+    req: HttpRequest,
     path: web::Path<String>,
     query: web::Query<std::collections::HashMap<String, String>>,
     pool_opt: web::Data<Option<PgPool>>,
 ) -> Result<HttpResponse> {
+    use crate::services::oauth::token_debug;
+    
+    // Extract correlation ID from header if present
+    let correlation_id = req.headers()
+        .get("x-correlation-id")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| Uuid::new_v4().to_string()[..8].to_string());
+    
     let pool = match pool_opt.get_ref() {
         Some(p) => p,
-        None => return Ok(HttpResponse::ServiceUnavailable().json(json!({
-            "error": "Database service unavailable"
-        }))),
+        None => {
+            tracing::error!("[Internal Token][{}] Database pool unavailable", correlation_id);
+            return Ok(HttpResponse::ServiceUnavailable().json(json!({
+                "error": "Database service unavailable"
+            })));
+        }
     };
 
     let provider = path.into_inner().to_lowercase();
     let user_id_str = match query.get("user_id") {
         Some(id) => id,
-        None => return Ok(HttpResponse::BadRequest().json(json!({
-            "error": "Missing user_id query parameter"
-        }))),
+        None => {
+            tracing::warn!("[Internal Token][{}] Missing user_id query parameter", correlation_id);
+            return Ok(HttpResponse::BadRequest().json(json!({
+                "error": "Missing user_id query parameter"
+            })));
+        }
     };
 
     let user_id: uuid::Uuid = match user_id_str.parse() {
         Ok(id) => id,
-        Err(_) => return Ok(HttpResponse::BadRequest().json(json!({
-            "error": "Invalid user_id format"
-        }))),
+        Err(_) => {
+            tracing::warn!("[Internal Token][{}] Invalid user_id format: {}", correlation_id, user_id_str);
+            return Ok(HttpResponse::BadRequest().json(json!({
+                "error": "Invalid user_id format"
+            })));
+        }
     };
+    
+    tracing::info!(
+        "[Internal Token][{}] 🔍 Looking up token: provider={}, user_id={}",
+        correlation_id, provider, user_id
+    );
 
     // Validate provider
     let valid_providers = ["github", "bitbucket", "gitlab", "google", "microsoft"];
     if !valid_providers.contains(&provider.as_str()) {
+        tracing::warn!("[Internal Token][{}] Unsupported provider: {}", correlation_id, provider);
         return Ok(HttpResponse::BadRequest().json(json!({
             "error": format!("Unsupported provider: {}", provider)
         })));
     }
 
+    // First, let's see how many connections exist for this user/provider (for debugging)
+    let count_result = sqlx::query(
+        r#"SELECT COUNT(*) as cnt FROM social_connections WHERE user_id = $1 AND platform = $2"#
+    )
+    .bind(user_id)
+    .bind(&provider)
+    .fetch_one(pool)
+    .await;
+    
+    let total_connections: i64 = count_result.map(|r| r.get::<i64, _>("cnt")).unwrap_or(0);
+    
     // Query for active token - filter out expired tokens in SQL
     // Note: Some providers (like GitHub) don't have expiry, so we allow NULL token_expires_at
     let row = sqlx::query(
         r#"
-        SELECT access_token, refresh_token, token_expires_at
+        SELECT id, access_token, refresh_token, token_expires_at, scope, username, platform_user_id, updated_at, is_active
         FROM social_connections
         WHERE user_id = $1 
           AND platform = $2 
@@ -1468,13 +1580,18 @@ pub async fn internal_get_oauth_token(
 
     match row {
         Ok(Some(row)) => {
+            let connection_id: Uuid = row.get("id");
             let access_token: String = row.get("access_token");
             let refresh_token: Option<String> = row.get("refresh_token");
             let expires_at: Option<chrono::DateTime<chrono::Utc>> = row.get("token_expires_at");
+            let scope: Option<String> = row.get("scope");
+            let username: String = row.get("username");
+            let platform_user_id: String = row.get("platform_user_id");
+            let updated_at: chrono::DateTime<chrono::Utc> = row.get("updated_at");
 
             tracing::info!(
-                "✅ Found valid {} token for user {} (expires: {:?})",
-                provider, user_id, expires_at
+                "[Internal Token][{}] ✅ FOUND VALID TOKEN: provider={}, user_id={}, connection_id={}, platform_user_id={}, username={}, scope={:?}, expires_at={:?}, updated_at={}, total_connections={}, token_debug={}",
+                correlation_id, provider, user_id, connection_id, platform_user_id, username, scope, expires_at, updated_at, total_connections, token_debug(&access_token)
             );
 
             Ok(HttpResponse::Ok().json(InternalTokenResponse {
@@ -1484,12 +1601,17 @@ pub async fn internal_get_oauth_token(
             }))
         }
         Ok(None) => {
+            tracing::warn!(
+                "[Internal Token][{}] ⚠️ NO VALID TOKEN FOUND: provider={}, user_id={}, total_connections={}",
+                correlation_id, provider, user_id, total_connections
+            );
+            
             // Check if there's an expired token to give a better error message
             let expired_check = sqlx::query(
                 r#"
-                SELECT token_expires_at
+                SELECT id, token_expires_at, scope, username, is_active, updated_at
                 FROM social_connections
-                WHERE user_id = $1 AND platform = $2 AND is_active = true
+                WHERE user_id = $1 AND platform = $2
                 ORDER BY updated_at DESC
                 LIMIT 1
                 "#
@@ -1499,26 +1621,50 @@ pub async fn internal_get_oauth_token(
             .fetch_optional(pool)
             .await;
 
-            let error_message = match expired_check {
+            let (error_code, error_message) = match expired_check {
                 Ok(Some(row)) => {
+                    let connection_id: Uuid = row.get("id");
                     let expires_at: Option<chrono::DateTime<chrono::Utc>> = row.get("token_expires_at");
-                    if expires_at.is_some() {
-                        tracing::warn!("⚠️ {} token for user {} has expired", provider, user_id);
-                        format!("Your {} connection has expired. Please reconnect in Social Connections.", provider)
+                    let is_active: bool = row.get("is_active");
+                    let scope: Option<String> = row.get("scope");
+                    let username: String = row.get("username");
+                    let updated_at: chrono::DateTime<chrono::Utc> = row.get("updated_at");
+                    
+                    tracing::warn!(
+                        "[Internal Token][{}] 📋 Found connection but not valid: connection_id={}, is_active={}, expires_at={:?}, scope={:?}, username={}, updated_at={}",
+                        correlation_id, connection_id, is_active, expires_at, scope, username, updated_at
+                    );
+                    
+                    if !is_active {
+                        ("connection_inactive", format!("Your {} connection is inactive. Please reconnect in Social Connections.", provider))
+                    } else if expires_at.map(|e| e < chrono::Utc::now()).unwrap_or(false) {
+                        ("token_expired", format!("Your {} connection has expired. Please reconnect in Social Connections.", provider))
                     } else {
-                        format!("No active {} connection found for user", provider)
+                        ("no_connection", format!("No active {} connection found for user", provider))
                     }
                 }
-                _ => format!("No active {} connection found for user", provider)
+                Ok(None) => {
+                    tracing::warn!(
+                        "[Internal Token][{}] 📋 No connection exists at all for provider={}, user_id={}",
+                        correlation_id, provider, user_id
+                    );
+                    ("no_connection", format!("No {} connection found. Please connect in Social Connections first.", provider))
+                }
+                Err(e) => {
+                    tracing::error!("[Internal Token][{}] DB error checking expired: {}", correlation_id, e);
+                    ("no_connection", format!("No active {} connection found for user", provider))
+                }
             };
 
             Ok(HttpResponse::NotFound().json(json!({
+                "code": error_code,
                 "error": error_message
             })))
         }
         Err(e) => {
-            tracing::error!("Failed to fetch OAuth token: {}", e);
+            tracing::error!("[Internal Token][{}] ❌ DB QUERY FAILED: provider={}, user_id={}, error={}", correlation_id, provider, user_id, e);
             Ok(HttpResponse::InternalServerError().json(json!({
+                "code": "internal_error",
                 "error": "Failed to fetch OAuth token"
             })))
         }

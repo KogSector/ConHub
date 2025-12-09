@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from "react";
+import { useRouter } from 'next/navigation';
 import type { ChangeEvent } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { dataApiClient, apiClient, ApiResponse, unwrapResponse } from '@/lib/api';
@@ -23,6 +24,7 @@ interface ConnectRepositoryDialogProps {
 }
 
 export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: ConnectRepositoryDialogProps) {
+  const router = useRouter();
   const { token, connections } = useAuth()
   const [provider, setProvider] = useState('');
   const [name, setName] = useState('');
@@ -159,7 +161,31 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
 
       const repoCheckAny = repoCheck as any;
       if (repoCheckAny && repoCheckAny.success === false) {
-        const message = repoCheckAny.error || repoCheckAny.message || 'Repository access check failed. Please verify the URL and permissions.';
+        // Use error code to provide specific guidance
+        const errorCode = repoCheckAny.code;
+        let message: string;
+        
+        switch (errorCode) {
+          case 'no_connection':
+            message = `No ${provider === 'github' ? 'GitHub' : provider === 'gitlab' ? 'GitLab' : 'BitBucket'} connection found. Please connect in Social Connections first.`;
+            setNeedsSocialConnect(provider);
+            break;
+          case 'token_expired':
+            message = `Your ${provider === 'github' ? 'GitHub' : provider === 'gitlab' ? 'GitLab' : 'BitBucket'} token has expired. Please reconnect in Social Connections.`;
+            setNeedsSocialConnect(provider);
+            break;
+          case 'github_bad_credentials':
+            message = 'GitHub authentication failed. Your token may be invalid or revoked. Please reconnect GitHub in Social Connections.';
+            setNeedsSocialConnect(provider);
+            break;
+          case 'github_insufficient_permissions':
+            message = 'Your GitHub token does not have permission to access this repository. Please reconnect with the required scopes.';
+            setNeedsSocialConnect(provider);
+            break;
+          default:
+            message = repoCheckAny.error || repoCheckAny.message || 'Repository access check failed. Please verify the URL and permissions.';
+        }
+        
         setFetchBranchesError(message);
         setBranches([]);
         setIsValidated(false);
@@ -362,7 +388,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   title="Go to Social Connections"
                   aria-label="Go to Social Connections"
                   className="bg-blue-600 hover:bg-blue-700 text-white"
-                  onClick={() => { window.location.href = '/dashboard/connections'; }}
+                  onClick={() => { router.push('/dashboard/connections'); }}
                   disabled={checkingConnection}
                 >
                   Go to Social Connections
@@ -446,7 +472,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                       <Button
                         variant="link"
                         className="text-blue-700 px-0"
-                        onClick={() => { window.location.href = '/dashboard/connections'; }}
+                        onClick={() => { router.push('/dashboard/connections'); }}
                       >
                         Open Connections
                       </Button>

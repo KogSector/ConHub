@@ -61,6 +61,7 @@ validator = { version = "0.18", features = ["derive"] }
 argon2 = "0.5"
 ring = "0.17"
 constant_time_eq = "0.3"
+sha2 = "0.10"
 
 # Rate limiting
 governor = "0.6"
