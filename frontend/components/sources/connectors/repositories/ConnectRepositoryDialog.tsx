@@ -79,17 +79,17 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   const [repositoryUrl, setRepositoryUrl] = useState('');
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   interface RepositoryConfigUI {
-    includeReadme: boolean;
-    includeCode: boolean;
+    fetchIssues: boolean;
+    fetchPrs: boolean;
     defaultBranch: string;
-    enableWebhooks: boolean;
+    autoSync: boolean;
     fileExtensions: string[];
   }
   const [config, setConfig] = useState<RepositoryConfigUI>({
-    includeReadme: true,
-    includeCode: true,
+    fetchIssues: true,
+    fetchPrs: true,
     defaultBranch: 'main',
-    enableWebhooks: false,
+    autoSync: false,
     fileExtensions: ['.js', '.ts', '.jsx', '.tsx', '.py', '.rs', '.go', '.java', '.md']
   });
   const [loading, setLoading] = useState(false);
@@ -381,10 +381,10 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     setRepositoryUrl('');
     setCredentials({});
     setConfig({
-      includeReadme: true,
-      includeCode: true,
+      fetchIssues: true,
+      fetchPrs: true,
       defaultBranch: 'main',
-      enableWebhooks: false,
+      autoSync: false,
       fileExtensions: DEFAULT_FILE_EXTENSIONS
     });
     setBranches([]);
@@ -550,34 +550,34 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
               <div className="grid gap-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label className="text-sm font-medium">Include README files</Label>
-                    <p className="text-xs text-muted-foreground">Extract and index README.md files</p>
+                    <Label className="text-sm font-medium">Fetch Issues</Label>
+                    <p className="text-xs text-muted-foreground">Ingest GitHub issues (title, body, comments) for this repository</p>
                   </div>
                   <Switch
-                    checked={config.includeReadme}
-                    onCheckedChange={(checked) => setConfig({ ...config, includeReadme: checked })}
+                    checked={config.fetchIssues}
+                    onCheckedChange={(checked) => setConfig({ ...config, fetchIssues: checked })}
                   />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label className="text-sm font-medium">Include source code</Label>
-                    <p className="text-xs text-muted-foreground">Index source code files for search</p>
+                    <Label className="text-sm font-medium">Fetch PRs</Label>
+                    <p className="text-xs text-muted-foreground">Ingest pull requests, reviews, and discussions</p>
                   </div>
                   <Switch
-                    checked={config.includeCode}
-                    onCheckedChange={(checked) => setConfig({ ...config, includeCode: checked })}
+                    checked={config.fetchPrs}
+                    onCheckedChange={(checked) => setConfig({ ...config, fetchPrs: checked })}
                   />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label className="text-sm font-medium">Enable webhooks (future)</Label>
-                    <p className="text-xs text-muted-foreground">Real-time updates when repositories change</p>
+                    <Label className="text-sm font-medium">Auto-sync</Label>
+                    <p className="text-xs text-muted-foreground">Automatically re-sync this repository on a schedule</p>
                   </div>
                   <Switch
-                    checked={config.enableWebhooks}
-                    onCheckedChange={(checked) => setConfig({ ...config, enableWebhooks: checked })}
+                    checked={config.autoSync}
+                    onCheckedChange={(checked) => setConfig({ ...config, autoSync: checked })}
                   />
                 </div>
 

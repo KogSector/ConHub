@@ -301,6 +301,8 @@ pub struct GitHubSyncConfig {
     pub include_languages: Option<Vec<String>>,
     pub exclude_paths: Option<Vec<String>>,
     pub max_file_size_mb: Option<i64>,
+    /// File extensions to include (e.g. ["ts", "tsx", "md"]). Takes precedence over include_languages when set.
+    pub include_extensions: Option<Vec<String>>,
 }
 
 /// Qdrant vector storage configuration

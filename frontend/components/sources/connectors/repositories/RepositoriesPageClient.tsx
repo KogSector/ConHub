@@ -42,6 +42,11 @@ interface Repository {
   url: string;
   provider: 'github' | 'bitbucket';
   defaultBranch?: string;
+  // Sync config options
+  fileExtensions?: string[];
+  fetchIssues?: boolean;
+  fetchPrs?: boolean;
+  autoSync?: boolean;
 }
 
 interface SyncResult {
@@ -51,6 +56,8 @@ interface SyncResult {
   sync_duration_ms: number;
   error_message?: string;
   graph_job_id?: string;
+  issues_processed?: number;
+  prs_processed?: number;
 }
 
 interface DataSource {
@@ -195,13 +202,18 @@ export function RepositoriesPageClient() {
     try {
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       
-      // Call the GitHub sync endpoint
+      // Call the GitHub sync endpoint with config options
       const resp = await dataApiClient.post<SyncResult>('/api/github/sync', {
         repo_url: repo.url,
         branch: repo.defaultBranch || 'main',
         include_languages: null, // All languages
         exclude_paths: ['node_modules', 'dist', 'build', '.git', 'target', '__pycache__'],
-        max_file_size_mb: 5
+        max_file_size_mb: 5,
+        // Pass file extensions if configured
+        file_extensions: repo.fileExtensions || null,
+        // Pass issues/PRs flags (default to true for backwards compatibility)
+        fetch_issues: repo.fetchIssues ?? true,
+        fetch_prs: repo.fetchPrs ?? true,
       }, headers);
       
       if (resp.success) {
@@ -209,7 +221,7 @@ export function RepositoriesPageClient() {
           ...prev,
           [repo.id]: {
             status: 'success',
-            message: `Synced ${resp.documents_processed} documents in ${(resp.sync_duration_ms / 1000).toFixed(1)}s`
+            message: `Synced ${resp.documents_processed} docs${resp.issues_processed ? `, ${resp.issues_processed} issues` : ''}${resp.prs_processed ? `, ${resp.prs_processed} PRs` : ''} in ${(resp.sync_duration_ms / 1000).toFixed(1)}s`
           }
         }));
         

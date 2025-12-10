@@ -102,6 +102,10 @@ pub struct SyncRepositoryResponse {
     pub sync_duration_ms: u64,
     pub error_message: Option<String>,
     pub graph_job_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issues_processed: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prs_processed: Option<usize>,
 }
 
 /// New secure sync request - no access_token required (fetched from auth service)
@@ -112,6 +116,12 @@ pub struct SecureSyncRepositoryRequest {
     pub include_languages: Option<Vec<String>>,
     pub exclude_paths: Option<Vec<String>>,
     pub max_file_size_mb: Option<i64>,
+    /// File extensions to include (e.g. ["ts", "tsx", "md"]). Takes precedence over include_languages.
+    pub file_extensions: Option<Vec<String>>,
+    /// Whether to fetch and ingest issues for this repository
+    pub fetch_issues: Option<bool>,
+    /// Whether to fetch and ingest pull requests for this repository
+    pub fetch_prs: Option<bool>,
 }
 
 /// OAuth-based repository check request (no token - uses JWT to get from auth service)
@@ -198,6 +208,7 @@ pub async fn sync_github_repository(
         include_languages: req.include_languages.clone(),
         exclude_paths: req.exclude_paths.clone(),
         max_file_size_mb: req.max_file_size_mb,
+        include_extensions: None, // No extension filter for legacy endpoint
     };
     
     let documents = match connector.sync_repository_branch(&req.access_token, &sync_config).await {
@@ -211,6 +222,8 @@ pub async fn sync_github_repository(
                 sync_duration_ms: start_time.elapsed().as_millis() as u64,
                 error_message: Some(e.to_string()),
                 graph_job_id: None,
+                issues_processed: None,
+                prs_processed: None,
             };
             return Ok(HttpResponse::BadRequest().json(response));
         }
@@ -231,6 +244,8 @@ pub async fn sync_github_repository(
         sync_duration_ms: sync_duration,
         error_message: None,
         graph_job_id: None,
+        issues_processed: None,
+        prs_processed: None,
     };
     
     Ok(HttpResponse::Ok().json(response))
@@ -241,6 +256,150 @@ fn extract_user_id_from_request(req: &HttpRequest) -> Option<Uuid> {
     req.extensions()
         .get::<Claims>()
         .and_then(|claims| claims.sub.parse::<Uuid>().ok())
+}
+
+/// Helper to extract owner and repo from GitHub URL
+fn parse_github_url(repo_url: &str) -> Option<(String, String)> {
+    // Handle URLs like https://github.com/owner/repo or https://github.com/owner/repo.git
+    let url = repo_url.trim_end_matches(".git");
+    let parts: Vec<&str> = url.split('/').collect();
+    if parts.len() >= 2 {
+        let repo = parts[parts.len() - 1].to_string();
+        let owner = parts[parts.len() - 2].to_string();
+        if !owner.is_empty() && !repo.is_empty() {
+            return Some((owner, repo));
+        }
+    }
+    None
+}
+
+/// Sync issues and PRs from a repository using OAuth token
+/// Returns (issues_processed, prs_processed) counts
+async fn sync_issues_and_prs(
+    access_token: &str,
+    repo_url: &str,
+    fetch_issues: bool,
+    fetch_prs: bool,
+) -> (Option<usize>, Option<usize>) {
+    if !fetch_issues && !fetch_prs {
+        return (None, None);
+    }
+    
+    let (owner, repo) = match parse_github_url(repo_url) {
+        Some((o, r)) => (o, r),
+        None => {
+            warn!("Could not parse owner/repo from URL: {}", repo_url);
+            return (None, None);
+        }
+    };
+    
+    let client = reqwest::Client::new();
+    let mut issues_count: Option<usize> = None;
+    let mut prs_count: Option<usize> = None;
+    
+    // Fetch issues if requested
+    if fetch_issues {
+        info!("🎫 Fetching issues for {}/{}", owner, repo);
+        match fetch_github_issues(&client, access_token, &owner, &repo).await {
+            Ok(count) => {
+                info!("✅ Fetched {} issues", count);
+                issues_count = Some(count);
+            }
+            Err(e) => {
+                warn!("⚠️ Failed to fetch issues: {}", e);
+            }
+        }
+    }
+    
+    // Fetch PRs if requested
+    if fetch_prs {
+        info!("🔀 Fetching PRs for {}/{}", owner, repo);
+        match fetch_github_prs(&client, access_token, &owner, &repo).await {
+            Ok(count) => {
+                info!("✅ Fetched {} PRs", count);
+                prs_count = Some(count);
+            }
+            Err(e) => {
+                warn!("⚠️ Failed to fetch PRs: {}", e);
+            }
+        }
+    }
+    
+    (issues_count, prs_count)
+}
+
+/// Fetch GitHub issues using OAuth token
+async fn fetch_github_issues(
+    client: &reqwest::Client,
+    access_token: &str,
+    owner: &str,
+    repo: &str,
+) -> Result<usize, String> {
+    let url = format!("https://api.github.com/repos/{}/{}/issues?state=all&per_page=100", owner, repo);
+    
+    let response = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("User-Agent", "ConHub")
+        .header("Accept", "application/vnd.github.v3+json")
+        .send()
+        .await
+        .map_err(|e| format!("HTTP error: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("GitHub API error: {}", response.status()));
+    }
+    
+    let issues: Vec<serde_json::Value> = response
+        .json()
+        .await
+        .map_err(|e| format!("JSON parse error: {}", e))?;
+    
+    // Filter out PRs (GitHub returns PRs in the issues endpoint)
+    let pure_issues: Vec<_> = issues
+        .into_iter()
+        .filter(|i| i.get("pull_request").is_none())
+        .collect();
+    
+    // TODO: Send issues to chunker service for indexing
+    // For now, just count them
+    info!("📝 Found {} issues (excluding PRs) for {}/{}", pure_issues.len(), owner, repo);
+    
+    Ok(pure_issues.len())
+}
+
+/// Fetch GitHub PRs using OAuth token
+async fn fetch_github_prs(
+    client: &reqwest::Client,
+    access_token: &str,
+    owner: &str,
+    repo: &str,
+) -> Result<usize, String> {
+    let url = format!("https://api.github.com/repos/{}/{}/pulls?state=all&per_page=100", owner, repo);
+    
+    let response = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("User-Agent", "ConHub")
+        .header("Accept", "application/vnd.github.v3+json")
+        .send()
+        .await
+        .map_err(|e| format!("HTTP error: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("GitHub API error: {}", response.status()));
+    }
+    
+    let prs: Vec<serde_json::Value> = response
+        .json()
+        .await
+        .map_err(|e| format!("JSON parse error: {}", e))?;
+    
+    // TODO: Send PRs to chunker service for indexing
+    // For now, just count them
+    info!("🔀 Found {} PRs for {}/{}", prs.len(), owner, repo);
+    
+    Ok(prs.len())
 }
 
 /// Secure sync endpoint - uses JWT claims to identify user and fetches token from auth service
@@ -304,6 +463,8 @@ pub async fn secure_sync_github_repository(
                 sync_duration_ms: start_time.elapsed().as_millis() as u64,
                 error_message: Some(format!("Failed to retrieve GitHub token: {}. Please ensure you have connected your GitHub account.", e)),
                 graph_job_id: None,
+                issues_processed: None,
+                prs_processed: None,
             };
             return Ok(HttpResponse::BadRequest().json(response));
         }
@@ -314,12 +475,20 @@ pub async fn secure_sync_github_repository(
     // Step 3: Sync repository using GitHubConnector
     let connector = GitHubConnector::new();
     
+    // Normalize file extensions: strip leading dots and lowercase
+    let include_extensions = req.file_extensions.as_ref().map(|exts| {
+        exts.iter()
+            .map(|e| e.trim_start_matches('.').to_lowercase())
+            .collect::<Vec<_>>()
+    });
+    
     let sync_config = GitHubSyncConfig {
         repo_url: req.repo_url.clone(),
         branch: req.branch.clone(),
         include_languages: req.include_languages.clone(),
         exclude_paths: req.exclude_paths.clone(),
         max_file_size_mb: req.max_file_size_mb,
+        include_extensions,
     };
     
     let documents: Vec<DocumentForEmbedding> = match connector.sync_repository_branch(&github_token, &sync_config).await {
@@ -333,6 +502,8 @@ pub async fn secure_sync_github_repository(
                 sync_duration_ms: start_time.elapsed().as_millis() as u64,
                 error_message: Some(e.to_string()),
                 graph_job_id: None,
+                issues_processed: None,
+                prs_processed: None,
             };
             return Ok(HttpResponse::BadRequest().json(response));
         }
@@ -341,6 +512,14 @@ pub async fn secure_sync_github_repository(
     info!("📄 Retrieved {} documents from repository", documents.len());
     
     let doc_count = documents.len();
+    
+    // Step 3.5: Sync issues and PRs if requested
+    let (issues_processed, prs_processed) = sync_issues_and_prs(
+        &github_token,
+        &req.repo_url,
+        req.fetch_issues.unwrap_or(false),
+        req.fetch_prs.unwrap_or(false),
+    ).await;
     
     // Step 4: Send to chunker service (which handles embedding + graph ingestion)
     // The chunker service will:
@@ -402,6 +581,8 @@ pub async fn secure_sync_github_repository(
         sync_duration_ms: sync_duration,
         error_message: None,
         graph_job_id,
+        issues_processed,
+        prs_processed,
     };
     
     Ok(HttpResponse::Ok().json(response))

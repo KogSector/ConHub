@@ -638,15 +638,27 @@ impl GitHubConnector {
                         }
                     }
                     
-                    // Check language filter
-                    if let Some(ref include_languages) = config.include_languages {
-                        let file_extension = std::path::Path::new(&file.name)
-                            .extension()
-                            .and_then(|ext| ext.to_str())
-                            .unwrap_or("");
-                        
+                    // Check extension filter (takes precedence over language filter)
+                    let file_extension = std::path::Path::new(&file.name)
+                        .extension()
+                        .and_then(|ext| ext.to_str())
+                        .map(|e| e.to_lowercase())
+                        .unwrap_or_default();
+                    
+                    if let Some(ref include_extensions) = config.include_extensions {
+                        // Extension-based filter: only include files matching these extensions
+                        if !include_extensions.is_empty() {
+                            let ext_matches = include_extensions.iter().any(|ext| {
+                                ext.to_lowercase() == file_extension
+                            });
+                            if !ext_matches {
+                                continue;
+                            }
+                        }
+                    } else if let Some(ref include_languages) = config.include_languages {
+                        // Fallback to language filter if no extensions specified
                         let language_matches = include_languages.iter().any(|lang| {
-                            self.matches_language(lang, file_extension, &file.name)
+                            self.matches_language(lang, &file_extension, &file.name)
                         });
                         
                         if !language_matches {
