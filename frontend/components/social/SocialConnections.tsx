@@ -54,10 +54,12 @@ export function SocialConnections() {
   const [syncing, setSyncing] = useState<string | null>(null);
   // Use a Set in a ref to track codes that have been processed (prevents duplicate exchanges)
   const processedCodesRef = useRef<Set<string>>(new Set());
+  // Track whether initial load has completed to avoid skeleton flash on subsequent fetches
+  const hasLoadedRef = useRef(false);
   const { toast } = useToast();
   const { token, refreshConnections } = useAuth();
 
-  const fetchConnections = useCallback(async () => {
+  const fetchConnections = useCallback(async (options?: { initial?: boolean }) => {
     // Do not hit the services until we have an Auth0 access token;
     // otherwise we get an automatic 401 and show a spurious error toast.
     if (!token) {
@@ -65,7 +67,12 @@ export function SocialConnections() {
       return;
     }
 
-    setLoading(true);
+    // Only show skeleton on initial load, not on subsequent refreshes
+    const isInitialLoad = options?.initial && !hasLoadedRef.current;
+    if (isInitialLoad) {
+      setLoading(true);
+    }
+
     try {
       const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
       
@@ -105,12 +112,15 @@ export function SocialConnections() {
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+        hasLoadedRef.current = true;
+      }
     }
   }, [toast, token]);
 
   useEffect(() => {
-    fetchConnections();
+    fetchConnections({ initial: true });
     const handler = async (e: MessageEvent) => {
       const dataUnknown: unknown = e.data
       if (typeof dataUnknown !== 'object' || dataUnknown === null || !('type' in dataUnknown)) {
@@ -132,9 +142,12 @@ export function SocialConnections() {
         processedCodesRef.current.add(codeKey)
         
         // New: popup sent us the code, we do the exchange here (we have the token)
+        // IMPORTANT: Use the same token source as other API calls (useAuth's token)
+        // to ensure consistent user_id across all flows. Fall back to localStorage
+        // only if useAuth token is not yet available.
         try {
-          const storedToken = localStorage.getItem('auth_token')
-          if (!storedToken) {
+          const effectiveToken = token || localStorage.getItem('auth_token')
+          if (!effectiveToken) {
             toast({
               title: "Error",
               description: "Please log in first before connecting accounts",
@@ -142,14 +155,14 @@ export function SocialConnections() {
             })
             return
           }
-          const headers: Record<string, string> = { Authorization: `Bearer ${storedToken}` }
+          const headers: Record<string, string> = { Authorization: `Bearer ${effectiveToken}` }
           await apiClient.post('/api/auth/oauth/exchange', { provider: data.provider, code: data.code }, headers)
           toast({
             title: "Success",
             description: `${data.provider} connected successfully!`,
           })
+          // Refresh connections in-place (no skeleton) and update global state
           fetchConnections()
-          // Also refresh the global connections in useAuth hook so other components see the update
           if (refreshConnections) refreshConnections()
         } catch (error: any) {
           console.error('OAuth exchange error:', error)

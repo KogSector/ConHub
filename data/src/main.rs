@@ -342,33 +342,43 @@ pub async fn secure_sync_github_repository(
     
     let doc_count = documents.len();
     
-    // Step 4: Send to embedding service (vector store)
-    let mut embeddings_created = 0;
-    if let Err(e) = embedding_client.embed_documents(documents.clone()).await {
-        warn!("⚠️ Embedding service error (continuing): {}", e);
-    } else {
-        embeddings_created = doc_count;
-        info!("✅ Sent {} documents to embedding service", doc_count);
-    }
-    
-    // Step 5: Send to graph RAG ingestion
-    let graph_job_id = if let Some(ref graph_service) = graph_ingestion.get_ref() {
+    // Step 4: Send to chunker service (which handles embedding + graph ingestion)
+    // The chunker service will:
+    // - Apply intelligent chunking strategies (AST for code, markdown for docs)
+    // - Send chunks to embedding service for vector indexing
+    // - Send chunks to graph RAG for knowledge graph construction
+    let (graph_job_id, embeddings_created) = if let Some(ref graph_service) = graph_ingestion.get_ref() {
         // Use a stable source_id based on repo URL
         let source_id = Uuid::new_v5(&Uuid::NAMESPACE_URL, req.repo_url.as_bytes());
         
-        match graph_service.ingest_documents(source_id, SourceKind::CodeRepo, documents).await {
+        // Pass a cloned Vec so the original `documents` can still be cloned for fallback embedding.
+        match graph_service.ingest_documents(source_id, SourceKind::CodeRepo, documents.clone()).await {
             Ok(job_id) => {
-                info!("✅ Graph RAG ingestion job started: {}", job_id);
-                Some(job_id)
+                info!("✅ Chunker job started: {} - documents will be chunked, embedded, and indexed", job_id);
+                (Some(job_id), doc_count) // Embeddings will be created by chunker
             }
             Err(e) => {
-                warn!("⚠️ Graph RAG ingestion error (continuing): {}", e);
-                None
+                warn!("⚠️ Chunker service error: {} - falling back to direct embedding", e);
+                // Fallback: send directly to embedding service if chunker fails
+                if let Err(embed_err) = embedding_client.embed_documents(documents.clone()).await {
+                    warn!("⚠️ Embedding service also failed: {}", embed_err);
+                    (None, 0)
+                } else {
+                    info!("✅ Fallback: sent {} documents directly to embedding service", doc_count);
+                    (None, doc_count)
+                }
             }
         }
     } else {
-        info!("📊 Graph RAG ingestion service not configured, skipping");
-        None
+        // No chunker configured - send directly to embedding service
+        info!("📊 Chunker service not configured, sending directly to embedding service");
+        if let Err(e) = embedding_client.embed_documents(documents.clone()).await {
+            warn!("⚠️ Embedding service error: {}", e);
+            (None, 0)
+        } else {
+            info!("✅ Sent {} documents to embedding service", doc_count);
+            (None, doc_count)
+        }
     };
     
     let sync_duration = start_time.elapsed().as_millis() as u64;
@@ -946,6 +956,9 @@ async fn main() -> std::io::Result<()> {
             // List endpoints for frontend compatibility
             .route("/api/repositories", web::get().to(list_repositories))
             .route("/api/data-sources", web::get().to(list_data_sources))
+            // Data sources CRUD (for repo connect flow)
+            .route("/api/data/sources", web::post().to(create_data_source))
+            .route("/api/data/sources", web::get().to(list_data_sources))
             // Robot management routes
             .route("/api/robots/register", web::post().to(robots::register_robot))
             .route("/api/robots", web::get().to(robots::list_robots))
@@ -1051,6 +1064,64 @@ async fn list_data_sources() -> Result<HttpResponse> {
         "message": "Data sources retrieved",
         "data": {
             "dataSources": []
+        }
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateDataSourceRequest {
+    #[serde(rename = "type")]
+    pub source_type: String,
+    pub url: String,
+    pub credentials: Option<serde_json::Value>,
+    pub config: Option<serde_json::Value>,
+}
+
+/// Create a new data source (repository, cloud storage, etc.)
+/// This is called when user clicks "Connect Repository" in the frontend
+async fn create_data_source(
+    req: web::Json<CreateDataSourceRequest>,
+) -> Result<HttpResponse> {
+    info!(
+        "[Data Source] Creating new data source: type={}, url={}",
+        req.source_type, req.url
+    );
+    
+    // Extract config values
+    let config = req.config.as_ref();
+    let name = config
+        .and_then(|c| c.get("name"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("Unnamed Source");
+    let default_branch = config
+        .and_then(|c| c.get("defaultBranch"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("main");
+    
+    // Generate a unique ID for this data source
+    let source_id = Uuid::new_v4().to_string();
+    
+    // TODO: In a full implementation, this would:
+    // 1. Validate the repository URL and credentials
+    // 2. Store the data source in the database
+    // 3. Optionally trigger an initial sync
+    
+    info!(
+        "[Data Source] Created data source: id={}, name={}, type={}, branch={}",
+        source_id, name, req.source_type, default_branch
+    );
+    
+    Ok(HttpResponse::Created().json(serde_json::json!({
+        "success": true,
+        "message": "Data source created successfully",
+        "data": {
+            "id": source_id,
+            "name": name,
+            "type": req.source_type,
+            "url": req.url,
+            "status": "connected",
+            "defaultBranch": default_branch,
+            "createdAt": chrono::Utc::now().to_rfc3339()
         }
     })))
 }

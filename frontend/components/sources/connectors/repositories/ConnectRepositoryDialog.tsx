@@ -17,6 +17,54 @@ import GitHubIcon from '@/components/icons/GitHubIcon';
 import GitLabIcon from '@/components/icons/GitLabIcon';
 import BitbucketIcon from '@/components/icons/BitbucketIcon';
 
+// Default file extensions to index - used when no language detection is available
+const DEFAULT_FILE_EXTENSIONS = [
+  '.js', '.ts', '.jsx', '.tsx', '.py', '.rs', '.go', '.java', '.md',
+  '.txt', '.json', '.yml', '.yaml', '.toml', '.css', '.scss', '.html'
+];
+
+// Map programming languages to file extensions
+const LANGUAGE_TO_EXTENSIONS: Record<string, string[]> = {
+  'JavaScript': ['.js', '.jsx', '.mjs', '.cjs'],
+  'TypeScript': ['.ts', '.tsx'],
+  'Python': ['.py', '.pyi'],
+  'Rust': ['.rs'],
+  'Go': ['.go'],
+  'Java': ['.java'],
+  'Kotlin': ['.kt', '.kts'],
+  'C': ['.c', '.h'],
+  'C++': ['.cpp', '.cc', '.cxx', '.hpp', '.hh'],
+  'C#': ['.cs'],
+  'Ruby': ['.rb'],
+  'PHP': ['.php'],
+  'Swift': ['.swift'],
+  'Scala': ['.scala'],
+  'Shell': ['.sh', '.bash', '.zsh'],
+  'HTML': ['.html', '.htm'],
+  'CSS': ['.css', '.scss', '.sass', '.less'],
+  'Markdown': ['.md', '.mdx'],
+  'JSON': ['.json'],
+  'YAML': ['.yml', '.yaml'],
+  'TOML': ['.toml'],
+  'XML': ['.xml'],
+  'SQL': ['.sql'],
+  'Dockerfile': ['Dockerfile'],
+};
+
+// Convert detected languages to file extensions
+function languagesToExtensions(languages: string[]): string[] {
+  const extensions = new Set<string>();
+  for (const lang of languages) {
+    const exts = LANGUAGE_TO_EXTENSIONS[lang];
+    if (exts) {
+      exts.forEach(ext => extensions.add(ext));
+    }
+  }
+  // Always include common config/doc files
+  ['.md', '.json', '.yml', '.yaml', '.toml'].forEach(ext => extensions.add(ext));
+  return Array.from(extensions).sort();
+}
+
 interface ConnectRepositoryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -51,7 +99,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   const [fetchBranchesError, setFetchBranchesError] = useState<string | null>(null);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [isValidated, setIsValidated] = useState(false);
-  const [availableFileExtensions, setAvailableFileExtensions] = useState<string[]>([]);
+  const [availableFileExtensions, setAvailableFileExtensions] = useState<string[]>(DEFAULT_FILE_EXTENSIONS);
   const [needsSocialConnect, setNeedsSocialConnect] = useState<string | null>(null);
   const [checkingConnection, setCheckingConnection] = useState(false);
   const isProviderSelected = provider === 'github' || provider === 'gitlab' || provider === 'bitbucket';
@@ -197,9 +245,14 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
         setName(prev => prev || repoName)
       }
 
+      // Extract languages from repo check response to infer file extensions
+      const repoLanguages: string[] = repoCheckAny.languages || [];
+      const inferredExtensions = repoLanguages.length > 0 
+        ? languagesToExtensions(repoLanguages) 
+        : DEFAULT_FILE_EXTENSIONS;
+
       let fetchedBranches: string[] = []
       let default_branch: string | undefined
-      let file_extensions: string[] | undefined
 
       if (provider === 'github') {
         const slug = extractRepoName(repositoryUrl.trim())
@@ -237,14 +290,14 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       } else {
         setBranches(fetchedBranches);
         const inferredDefault = default_branch || (fetchedBranches.includes('main') ? 'main' : (fetchedBranches.includes('master') ? 'master' : fetchedBranches[0]))
+        // Update config with inferred extensions from repo languages
         setConfig(prev => ({ 
           ...prev, 
           defaultBranch: inferredDefault || prev.defaultBranch,
-          fileExtensions: file_extensions && file_extensions.length > 0 ? file_extensions : prev.fileExtensions
+          fileExtensions: inferredExtensions
         }));
-        if (file_extensions && file_extensions.length > 0) {
-          setAvailableFileExtensions(file_extensions);
-        }
+        // Update available extensions for the UI badges
+        setAvailableFileExtensions(inferredExtensions);
         setIsValidated(true);
       }
     } catch (err: unknown) {
@@ -332,11 +385,15 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       includeCode: true,
       defaultBranch: 'main',
       enableWebhooks: false,
-      fileExtensions: ['.js', '.ts', '.jsx', '.tsx', '.py', '.rs', '.go', '.java', '.md']
+      fileExtensions: DEFAULT_FILE_EXTENSIONS
     });
     setBranches([]);
     setShowAdvancedSettings(false);
     setError(null);
+    setAvailableFileExtensions(DEFAULT_FILE_EXTENSIONS);
+    setNeedsSocialConnect(null);
+    setIsValidated(false);
+    setFetchBranchesError(null);
   };
 
   const renderCredentialFields = () => {
@@ -464,7 +521,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   {isFetchingBranches ? 'Validating...' : 'Check'}
                 </Button>
               </div>
-              {fetchBranchesError && (
+              {fetchBranchesError && !needsSocialConnect && (
                 <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
                   <p className="text-sm text-red-700 flex items-center gap-2">
                     <span>{fetchBranchesError}</span>
@@ -480,17 +537,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   </p>
                 </div>
               )}
-              {isValidated && branches.length > 0 && !fetchBranchesError && (
-                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
-                  <p className="text-sm text-green-700">✓ Successfully found {branches.length} branches</p>
-                  {config.fileExtensions && config.fileExtensions.length > 0 && (
-                    <p className="text-xs text-green-600 mt-1">
-                      Found file types: {config.fileExtensions.slice(0, 10).join(', ')}
-                      {config.fileExtensions.length > 10 && ` and ${config.fileExtensions.length - 10} more`}
-                    </p>
-                  )}
-                </div>
-              )}
+              {/* Success state is indicated by showing the configuration options below */}
             </div>
           )}
 
@@ -579,7 +626,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                       <div className="space-y-3">
                         <Label className="text-sm font-medium">File Extensions to Index</Label>
                         <div className="flex flex-wrap gap-2 mt-3">
-                          {(availableFileExtensions.length > 0 ? availableFileExtensions : []).map((ext) => (
+                          {(availableFileExtensions.length > 0 ? availableFileExtensions : DEFAULT_FILE_EXTENSIONS).map((ext) => (
                             <Badge
                               key={ext}
                               variant={config.fileExtensions?.includes(ext) ? "default" : "outline"}
