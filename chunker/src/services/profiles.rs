@@ -101,6 +101,7 @@ impl ChunkingStrategy {
             SourceKind::Ticketing => ChunkingStrategy::Ticketing,
             SourceKind::Wiki => ChunkingStrategy::Markdown,
             SourceKind::Email => ChunkingStrategy::Text,
+            SourceKind::Web => ChunkingStrategy::Html,
             SourceKind::Other => ChunkingStrategy::Text,
         }
     }
@@ -268,6 +269,7 @@ impl ChunkerProfile {
             SourceKind::Ticketing => "ticketing",
             SourceKind::Wiki => "document",
             SourceKind::Email => "document",
+            SourceKind::Web => "document",
             SourceKind::Other => "document",
         };
 

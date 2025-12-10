@@ -351,6 +351,41 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
 
       const resp = await dataApiClient.post<ApiResponse>('/api/data/sources', payload);
       if (resp.success) {
+        // Auto-trigger sync + chunking after successful connection
+        console.log('[ConnectRepo] Connection successful, triggering auto-sync...');
+        
+        try {
+          const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+          const syncPayload = {
+            repo_url: repositoryUrl,
+            branch: config.defaultBranch || 'main',
+            include_languages: null,
+            exclude_paths: ['node_modules', 'dist', 'build', '.git', 'target', '__pycache__', 'vendor', '.venv', 'venv'],
+            max_file_size_mb: 5,
+            file_extensions: config.fileExtensions || null,
+            fetch_issues: config.fetchIssues ?? true,
+            fetch_prs: config.fetchPrs ?? true,
+          };
+          
+          // Fire sync in background - don't block the UI
+          dataApiClient.post('/api/github/sync', syncPayload, headers)
+            .then((syncResp: any) => {
+              if (syncResp.success) {
+                console.log('[ConnectRepo] Auto-sync completed:', syncResp);
+              } else {
+                console.warn('[ConnectRepo] Auto-sync failed:', syncResp.error_message || syncResp.error);
+              }
+            })
+            .catch((syncErr: any) => {
+              console.warn('[ConnectRepo] Auto-sync error:', syncErr);
+            });
+          
+          console.log('[ConnectRepo] Auto-sync triggered in background');
+        } catch (syncError) {
+          // Don't fail the connection if sync fails - it can be retried
+          console.warn('[ConnectRepo] Failed to trigger auto-sync:', syncError);
+        }
+        
         onSuccess();
         onOpenChange(false);
         resetForm();

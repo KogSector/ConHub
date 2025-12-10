@@ -1092,7 +1092,7 @@ async fn main() -> std::io::Result<()> {
 
     // Initialize graph RAG ingestion service (optional)
     let chunker_url = env::var("CHUNKER_SERVICE_URL")
-        .unwrap_or_else(|_| "http://localhost:3016".to_string());
+        .unwrap_or_else(|_| "http://localhost:3017".to_string());
     let graph_ingestion: Option<GraphRagIngestionService> = if env::var("GRAPH_RAG_ENABLED")
         .map(|v| v.to_lowercase() == "true")
         .unwrap_or(true)

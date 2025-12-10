@@ -133,6 +133,26 @@ impl CostPolicy {
                     targets: IngestionTargets::both(),
                     priority: 70,
                 },
+                // Web: Vector for search, graph for link relationships
+                CostPolicyRule {
+                    source_kind: Some(SourceKind::Web),
+                    content_type_prefix: None,
+                    language: None,
+                    min_tokens: None,
+                    max_tokens: None,
+                    targets: IngestionTargets::both(),
+                    priority: 65,
+                },
+                // Wiki: Both for documentation search and relationships
+                CostPolicyRule {
+                    source_kind: Some(SourceKind::Wiki),
+                    content_type_prefix: None,
+                    language: None,
+                    min_tokens: None,
+                    max_tokens: None,
+                    targets: IngestionTargets::both(),
+                    priority: 60,
+                },
             ],
             default_targets: IngestionTargets::both(),
         }

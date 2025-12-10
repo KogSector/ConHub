@@ -10,7 +10,7 @@ use conhub_models::chunking::{
 use crate::models::AppState;
 use crate::services::embedding_client::EmbeddingClient;
 use crate::services::graph_client::GraphClient;
-use crate::services::strategies::{CodeChunker, TextChunker, ChatChunker, AstCodeChunker, MarkdownChunker, TicketingChunker};
+use crate::services::strategies::{CodeChunker, TextChunker, ChatChunker, AstCodeChunker, MarkdownChunker, TicketingChunker, WebChunker};
 
 pub struct ChunkerService {
     embedding_client: EmbeddingClient,
@@ -63,6 +63,8 @@ impl ChunkerService {
                 SourceKind::Document => "markdown",
                 SourceKind::Chat => "chat",
                 SourceKind::Ticketing => "ticketing",
+                SourceKind::Web => "web",
+                SourceKind::Wiki => "markdown",
                 _ => "text",
             };
 
@@ -97,6 +99,14 @@ impl ChunkerService {
                         SourceKind::Ticketing => {
                             // Issues and PRs use the ticketing chunker
                             TicketingChunker::chunk(source_item)?
+                        }
+                        SourceKind::Web => {
+                            // Web/HTML content from URL scraping
+                            WebChunker::chunk(source_item)?
+                        }
+                        SourceKind::Wiki => {
+                            // Wiki pages are typically markdown-like
+                            MarkdownChunker::chunk(source_item)?
                         }
                         _ => {
                             // Default to text chunker for other types

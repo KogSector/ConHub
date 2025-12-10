@@ -12,6 +12,7 @@ pub enum SourceKind {
     Wiki,
     Ticketing,
     Email,
+    Web,
     Other,
 }
 
@@ -24,6 +25,7 @@ impl SourceKind {
             SourceKind::Wiki => "wiki",
             SourceKind::Ticketing => "ticketing",
             SourceKind::Email => "email",
+            SourceKind::Web => "web",
             SourceKind::Other => "other",
         }
     }
@@ -36,6 +38,7 @@ impl SourceKind {
             "wiki" => Some(SourceKind::Wiki),
             "ticketing" => Some(SourceKind::Ticketing),
             "email" => Some(SourceKind::Email),
+            "web" => Some(SourceKind::Web),
             "other" => Some(SourceKind::Other),
             _ => None,
         }
