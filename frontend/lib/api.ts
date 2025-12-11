@@ -317,8 +317,9 @@ export class ApiClient {
   
   async checkBackendHealth(): Promise<boolean> {
     try {
-      const response = await this.health();
-      return response.success;
+      const response = await this.health() as unknown as { status?: string; success?: boolean };
+      // Health endpoint returns { status: "healthy" } not { success: true }
+      return response.status === 'healthy' || response.success === true;
     } catch (error) {
       console.error('Backend health check failed:', error);
       return false;

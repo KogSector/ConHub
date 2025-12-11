@@ -54,35 +54,109 @@ impl AuthClient {
         user_id: Uuid,
         provider: &str,
     ) -> Result<OAuthTokenResponse, AuthClientError> {
+        self.get_oauth_token_with_correlation(user_id, provider, "none").await
+    }
+    
+    /// Get OAuth token with correlation ID for tracing
+    pub async fn get_oauth_token_with_correlation(
+        &self,
+        user_id: Uuid,
+        provider: &str,
+        correlation_id: &str,
+    ) -> Result<OAuthTokenResponse, AuthClientError> {
         let url = format!(
             "{}/internal/oauth/{}/token?user_id={}",
             self.base_url, provider, user_id
         );
 
-        info!("🔑 Fetching {} token for user {} from auth service", provider, user_id);
+        info!(
+            "[AuthClient][{}] 🔑 Fetching {} token: user_id={}, url={}",
+            correlation_id, provider, user_id, url
+        );
 
         let response = self.client
             .get(&url)
+            .header("x-correlation-id", correlation_id)
             .send()
             .await
-            .map_err(|e| AuthClientError::RequestFailed(e.to_string()))?;
+            .map_err(|e| {
+                error!(
+                    "[AuthClient][{}] ❌ HTTP request failed: provider={}, user_id={}, error={}",
+                    correlation_id, provider, user_id, e
+                );
+                AuthClientError::RequestFailed(e.to_string())
+            })?;
 
         let status = response.status();
+        
+        info!(
+            "[AuthClient][{}] 📡 Auth service response: status={}",
+            correlation_id, status
+        );
         
         if status.is_success() {
             let token_response: OAuthTokenResponse = response
                 .json()
                 .await
-                .map_err(|e| AuthClientError::ParseError(e.to_string()))?;
+                .map_err(|e| {
+                    error!(
+                        "[AuthClient][{}] ❌ Failed to parse token response: error={}",
+                        correlation_id, e
+                    );
+                    AuthClientError::ParseError(e.to_string())
+                })?;
             
-            info!("✅ Successfully retrieved {} token for user {}", provider, user_id);
+            // Generate safe token debug
+            let token_len = token_response.access_token.len();
+            let token_prefix = if token_len >= 6 { &token_response.access_token[..6] } else { &token_response.access_token };
+            
+            info!(
+                "[AuthClient][{}] ✅ Got token from auth service: provider={}, user_id={}, token_len={}, token_prefix={}..., expires_at={:?}",
+                correlation_id, provider, user_id, token_len, token_prefix, token_response.expires_at
+            );
             Ok(token_response)
         } else if status.as_u16() == 404 {
-            warn!("⚠️ No {} connection found for user {}", provider, user_id);
-            Err(AuthClientError::NoConnection(provider.to_string()))
+            // Parse the error response to check for code field
+            let error_text = response.text().await.unwrap_or_else(|_| "{}".to_string());
+            
+            info!(
+                "[AuthClient][{}] 📋 Auth service 404 response: body={}",
+                correlation_id, error_text
+            );
+            
+            let error_code = serde_json::from_str::<serde_json::Value>(&error_text)
+                .ok()
+                .and_then(|v| v.get("code").and_then(|c| c.as_str()).map(|s| s.to_string()));
+            
+            match error_code.as_deref() {
+                Some("token_expired") => {
+                    warn!(
+                        "[AuthClient][{}] ⚠️ Token expired: provider={}, user_id={}",
+                        correlation_id, provider, user_id
+                    );
+                    Err(AuthClientError::TokenExpired(provider.to_string()))
+                }
+                Some("connection_inactive") => {
+                    warn!(
+                        "[AuthClient][{}] ⚠️ Connection inactive: provider={}, user_id={}",
+                        correlation_id, provider, user_id
+                    );
+                    Err(AuthClientError::NoConnection(provider.to_string()))
+                }
+                _ => {
+                    warn!(
+                        "[AuthClient][{}] ⚠️ No connection found: provider={}, user_id={}, code={:?}",
+                        correlation_id, provider, user_id, error_code
+                    );
+                    Err(AuthClientError::NoConnection(provider.to_string()))
+                }
+            }
         } else {
             let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-            error!("❌ Auth service error {}: {}", status, error_text);
+            error!(
+                "[AuthClient][{}] ❌ Auth service error: status={}, body={}",
+                correlation_id, status, error_text
+            );
             Err(AuthClientError::ServiceError(status.as_u16(), error_text))
         }
     }
@@ -137,6 +211,9 @@ pub enum AuthClientError {
 
     #[error("No {0} connection found for user")]
     NoConnection(String),
+
+    #[error("{0} token has expired")]
+    TokenExpired(String),
 
     #[error("Auth service returned error {0}: {1}")]
     ServiceError(u16, String),

@@ -5,8 +5,10 @@ import { useAuth } from '@/hooks/use-auth'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, CreditCard } from 'lucide-react'
 import Link from 'next/link'
+import { ProfileAvatar } from '@/components/ui/ProfileAvatar'
+import { Footer } from '@/components/ui/footer'
 import { BillingDashboard } from '@/components/billing/BillingDashboard'
 import { SubscriptionPlans } from '@/components/billing/SubscriptionPlans'
 import { PaymentMethods } from '@/components/billing/PaymentMethods'
@@ -35,21 +37,33 @@ export default function BillingPage() {
 
   return (
     <StripeProvider>
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <Link href="/dashboard">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Dashboard
-              </Button>
-            </Link>
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <div className="border-b border-border bg-card/50 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-20">
+              <div className="flex items-center space-x-4">
+                <Link href="/dashboard">
+                  <Button variant="ghost" size="sm">
+                    <ArrowLeft className="w-4 h-4" />
+                  </Button>
+                </Link>
+                <div className="flex items-center space-x-3">
+                  <CreditCard className="w-6 h-6 text-primary" />
+                  <h1 className="text-2xl font-bold text-foreground">Billing & Subscription</h1>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <ProfileAvatar />
+              </div>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold">Billing & Subscription</h1>
-          <p className="text-muted-foreground mt-2">
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <p className="text-muted-foreground mb-8">
             Manage your subscription, payment methods, and billing information.
           </p>
-        </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">
@@ -79,8 +93,11 @@ export default function BillingPage() {
         <TabsContent value="usage">
           <UsageTracking />
         </TabsContent>
-      </Tabs>
-    </div>
+        </Tabs>
+        </div>
+        
+        <Footer />
+      </div>
     </StripeProvider>
   )
 }

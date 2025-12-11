@@ -123,9 +123,8 @@ export default function DocumentsPage() {
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
               </Link>
-              <div className="h-6 w-px bg-border" />
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" />
+              <div className="flex items-center space-x-3">
+                <FileText className="w-6 h-6 text-primary" />
                 <h1 className="text-2xl font-bold text-foreground">Documents</h1>
               </div>
             </div>

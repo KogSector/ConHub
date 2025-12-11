@@ -100,14 +100,22 @@ impl GitHubConnector {
         }
     }
 
+    /// Generate safe token debug string (never logs full token)
+    fn token_debug(token: &str) -> String {
+        use sha2::{Sha256, Digest};
+        let mut hasher = Sha256::new();
+        hasher.update(token.as_bytes());
+        let hash = format!("{:x}", hasher.finalize());
+        let len = token.len();
+        let prefix = if len >= 6 { &token[..6] } else { token };
+        format!("len={}, prefix={}..., sha256_prefix={}", len, prefix, &hash[..12])
+    }
+    
+    /// Build Authorization header for GitHub API
+    /// Using Bearer scheme consistently for all token types (OAuth, PAT, fine-grained)
     fn auth_header(token: &str) -> String {
-        if token.starts_with("github_pat_") {
-            format!("Bearer {}", token)
-        } else if token.starts_with("ghp_") || token.starts_with("gho_") || token.starts_with("ghu_") || token.starts_with("ghs_") {
-            format!("token {}", token)
-        } else {
-            format!("token {}", token)
-        }
+        // Use Bearer for all GitHub tokens - works for OAuth tokens, classic PATs, and fine-grained PATs
+        format!("Bearer {}", token)
     }
     
     pub fn factory() -> GitHubConnectorFactory {
@@ -349,6 +357,11 @@ impl GitHubConnector {
         // Check repository access
         let repo_url = format!("https://api.github.com/repos/{}/{}", owner, repo);
         
+        tracing::info!(
+            "[GITHUB] 🌐 Calling GitHub API: url={}, token_debug={}",
+            repo_url, Self::token_debug(&request.access_token)
+        );
+        
         let response = self.client
             .get(&repo_url)
             .header("Authorization", Self::auth_header(&request.access_token))
@@ -357,7 +370,28 @@ impl GitHubConnector {
             .send()
             .await?;
         
-        match response.status().as_u16() {
+        let status = response.status();
+        
+        // Log response headers for debugging
+        let oauth_scopes = response.headers()
+            .get("x-oauth-scopes")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("<not present>");
+        let accepted_scopes = response.headers()
+            .get("x-accepted-oauth-scopes")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("<not present>");
+        let rate_limit_remaining = response.headers()
+            .get("x-ratelimit-remaining")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("<not present>");
+        
+        tracing::info!(
+            "[GITHUB] 📡 GitHub API response: status={}, x-oauth-scopes={}, x-accepted-oauth-scopes={}, x-ratelimit-remaining={}",
+            status, oauth_scopes, accepted_scopes, rate_limit_remaining
+        );
+        
+        match status.as_u16() {
             200 => {
                 let repo_data: GitHubRepoResponse = response.json().await?;
                 
@@ -400,19 +434,49 @@ impl GitHubConnector {
                     error_message: Some("Repository not found or access denied".to_string()),
                 })
             },
-            403 => {
+            401 => {
+                let error_text = response.text().await.unwrap_or_else(|_| "Bad credentials".to_string());
+                tracing::error!(
+                    "[GITHUB] ❌ AUTHENTICATION FAILED (401): error_body={}, token_debug={}",
+                    error_text, Self::token_debug(&request.access_token)
+                );
+                
+                // Check for specific "Bad credentials" message from GitHub
+                let error_message = if error_text.contains("Bad credentials") {
+                    "GitHub authentication failed. Your GitHub connection token is invalid or revoked. Please reconnect GitHub in Social Connections.".to_string()
+                } else {
+                    format!("GitHub authentication failed: {}. Please reconnect GitHub in Social Connections.", error_text)
+                };
+                
                 Ok(GitHubRepoAccessResponse {
                     has_access: false,
                     repo_info: None,
-                    error_message: Some("Access forbidden - insufficient permissions".to_string()),
+                    error_message: Some(error_message),
+                })
+            },
+            403 => {
+                let error_text = response.text().await.unwrap_or_else(|_| "Forbidden".to_string());
+                tracing::warn!("[GITHUB] Access forbidden (403): {}", error_text);
+                
+                let error_message = if error_text.contains("rate limit") {
+                    "GitHub API rate limit exceeded. Please wait a few minutes and try again.".to_string()
+                } else {
+                    "Access forbidden - insufficient permissions. Ensure your GitHub token has the 'repo' scope for private repositories.".to_string()
+                };
+                
+                Ok(GitHubRepoAccessResponse {
+                    has_access: false,
+                    repo_info: None,
+                    error_message: Some(error_message),
                 })
             },
             _ => {
                 let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                tracing::error!("[GITHUB] Unexpected error ({}): {}", status, error_text);
                 Ok(GitHubRepoAccessResponse {
                     has_access: false,
                     repo_info: None,
-                    error_message: Some(format!("GitHub API error: {}", error_text)),
+                    error_message: Some(format!("GitHub API error ({}): {}", status, error_text)),
                 })
             }
         }
@@ -574,15 +638,27 @@ impl GitHubConnector {
                         }
                     }
                     
-                    // Check language filter
-                    if let Some(ref include_languages) = config.include_languages {
-                        let file_extension = std::path::Path::new(&file.name)
-                            .extension()
-                            .and_then(|ext| ext.to_str())
-                            .unwrap_or("");
-                        
+                    // Check extension filter (takes precedence over language filter)
+                    let file_extension = std::path::Path::new(&file.name)
+                        .extension()
+                        .and_then(|ext| ext.to_str())
+                        .map(|e| e.to_lowercase())
+                        .unwrap_or_default();
+                    
+                    if let Some(ref include_extensions) = config.include_extensions {
+                        // Extension-based filter: only include files matching these extensions
+                        if !include_extensions.is_empty() {
+                            let ext_matches = include_extensions.iter().any(|ext| {
+                                ext.to_lowercase() == file_extension
+                            });
+                            if !ext_matches {
+                                continue;
+                            }
+                        }
+                    } else if let Some(ref include_languages) = config.include_languages {
+                        // Fallback to language filter if no extensions specified
                         let language_matches = include_languages.iter().any(|lang| {
-                            self.matches_language(lang, file_extension, &file.name)
+                            self.matches_language(lang, &file_extension, &file.name)
                         });
                         
                         if !language_matches {

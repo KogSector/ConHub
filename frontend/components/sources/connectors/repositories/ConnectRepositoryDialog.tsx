@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState, useEffect } from "react";
+import { useRouter } from 'next/navigation';
 import type { ChangeEvent } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { dataApiClient, apiClient, ApiResponse, unwrapResponse } from '@/lib/api';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,54 @@ import GitHubIcon from '@/components/icons/GitHubIcon';
 import GitLabIcon from '@/components/icons/GitLabIcon';
 import BitbucketIcon from '@/components/icons/BitbucketIcon';
 
+// Default file extensions to index - used when no language detection is available
+const DEFAULT_FILE_EXTENSIONS = [
+  '.js', '.ts', '.jsx', '.tsx', '.py', '.rs', '.go', '.java', '.md',
+  '.txt', '.json', '.yml', '.yaml', '.toml', '.css', '.scss', '.html'
+];
+
+// Map programming languages to file extensions
+const LANGUAGE_TO_EXTENSIONS: Record<string, string[]> = {
+  'JavaScript': ['.js', '.jsx', '.mjs', '.cjs'],
+  'TypeScript': ['.ts', '.tsx'],
+  'Python': ['.py', '.pyi'],
+  'Rust': ['.rs'],
+  'Go': ['.go'],
+  'Java': ['.java'],
+  'Kotlin': ['.kt', '.kts'],
+  'C': ['.c', '.h'],
+  'C++': ['.cpp', '.cc', '.cxx', '.hpp', '.hh'],
+  'C#': ['.cs'],
+  'Ruby': ['.rb'],
+  'PHP': ['.php'],
+  'Swift': ['.swift'],
+  'Scala': ['.scala'],
+  'Shell': ['.sh', '.bash', '.zsh'],
+  'HTML': ['.html', '.htm'],
+  'CSS': ['.css', '.scss', '.sass', '.less'],
+  'Markdown': ['.md', '.mdx'],
+  'JSON': ['.json'],
+  'YAML': ['.yml', '.yaml'],
+  'TOML': ['.toml'],
+  'XML': ['.xml'],
+  'SQL': ['.sql'],
+  'Dockerfile': ['Dockerfile'],
+};
+
+// Convert detected languages to file extensions
+function languagesToExtensions(languages: string[]): string[] {
+  const extensions = new Set<string>();
+  for (const lang of languages) {
+    const exts = LANGUAGE_TO_EXTENSIONS[lang];
+    if (exts) {
+      exts.forEach(ext => extensions.add(ext));
+    }
+  }
+  // Always include common config/doc files
+  ['.md', '.json', '.yml', '.yaml', '.toml'].forEach(ext => extensions.add(ext));
+  return Array.from(extensions).sort();
+}
+
 interface ConnectRepositoryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -23,23 +72,24 @@ interface ConnectRepositoryDialogProps {
 }
 
 export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: ConnectRepositoryDialogProps) {
+  const router = useRouter();
   const { token, connections } = useAuth()
   const [provider, setProvider] = useState('');
   const [name, setName] = useState('');
   const [repositoryUrl, setRepositoryUrl] = useState('');
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   interface RepositoryConfigUI {
-    includeReadme: boolean;
-    includeCode: boolean;
+    fetchIssues: boolean;
+    fetchPrs: boolean;
     defaultBranch: string;
-    enableWebhooks: boolean;
+    autoSync: boolean;
     fileExtensions: string[];
   }
   const [config, setConfig] = useState<RepositoryConfigUI>({
-    includeReadme: true,
-    includeCode: true,
+    fetchIssues: true,
+    fetchPrs: true,
     defaultBranch: 'main',
-    enableWebhooks: false,
+    autoSync: false,
     fileExtensions: ['.js', '.ts', '.jsx', '.tsx', '.py', '.rs', '.go', '.java', '.md']
   });
   const [loading, setLoading] = useState(false);
@@ -49,7 +99,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
   const [fetchBranchesError, setFetchBranchesError] = useState<string | null>(null);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [isValidated, setIsValidated] = useState(false);
-  const [availableFileExtensions, setAvailableFileExtensions] = useState<string[]>([]);
+  const [availableFileExtensions, setAvailableFileExtensions] = useState<string[]>(DEFAULT_FILE_EXTENSIONS);
   const [needsSocialConnect, setNeedsSocialConnect] = useState<string | null>(null);
   const [checkingConnection, setCheckingConnection] = useState(false);
   const isProviderSelected = provider === 'github' || provider === 'gitlab' || provider === 'bitbucket';
@@ -150,23 +200,75 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     setIsValidated(false);
 
     try {
-      const repoCheck = await dataApiClient.post<{ provider?: string; name?: string; full_name?: string }>('/api/repositories/oauth/check', { 
+      const repoCheck = await dataApiClient.post<{ provider?: string; name?: string; full_name?: string; success?: boolean; error?: string; message?: string }>('/api/repositories/oauth/check', { 
         provider,
         repo_url: repositoryUrl.trim()
       }, token ? { Authorization: `Bearer ${token}` } : {})
+
+      console.log('[FRONTEND] repoCheck response:', repoCheck);
+
+      const repoCheckAny = repoCheck as any;
+      if (repoCheckAny && repoCheckAny.success === false) {
+        // Use error code to provide specific guidance
+        const errorCode = repoCheckAny.code;
+        let message: string;
+        
+        switch (errorCode) {
+          case 'no_connection':
+            message = `No ${provider === 'github' ? 'GitHub' : provider === 'gitlab' ? 'GitLab' : 'BitBucket'} connection found. Please connect in Social Connections first.`;
+            setNeedsSocialConnect(provider);
+            break;
+          case 'token_expired':
+            message = `Your ${provider === 'github' ? 'GitHub' : provider === 'gitlab' ? 'GitLab' : 'BitBucket'} token has expired. Please reconnect in Social Connections.`;
+            setNeedsSocialConnect(provider);
+            break;
+          case 'github_bad_credentials':
+            message = 'GitHub authentication failed. Your token may be invalid or revoked. Please reconnect GitHub in Social Connections.';
+            setNeedsSocialConnect(provider);
+            break;
+          case 'github_insufficient_permissions':
+            message = 'Your GitHub token does not have permission to access this repository. Please reconnect with the required scopes.';
+            setNeedsSocialConnect(provider);
+            break;
+          default:
+            message = repoCheckAny.error || repoCheckAny.message || 'Repository access check failed. Please verify the URL and permissions.';
+        }
+        
+        setFetchBranchesError(message);
+        setBranches([]);
+        setIsValidated(false);
+        return;
+      }
+
       const repoName = repoCheck.name || repoCheck.full_name
       if (repoName) {
         setName(prev => prev || repoName)
       }
 
+      // Extract languages from repo check response to infer file extensions
+      const repoLanguages: string[] = repoCheckAny.languages || [];
+      const inferredExtensions = repoLanguages.length > 0 
+        ? languagesToExtensions(repoLanguages) 
+        : DEFAULT_FILE_EXTENSIONS;
+
       let fetchedBranches: string[] = []
       let default_branch: string | undefined
-      let file_extensions: string[] | undefined
 
       if (provider === 'github') {
         const slug = extractRepoName(repositoryUrl.trim())
-        const gh = await dataApiClient.get<{ success?: boolean; data?: { branches?: string[] } }>(`/api/repositories/oauth/branches?provider=github&repo=${encodeURIComponent(slug)}`, token ? { Authorization: `Bearer ${token}` } : {})
-        const ghBranches = gh && (gh as any).data && Array.isArray((gh as any).data.branches) ? (gh as any).data.branches as string[] : (gh as any).branches
+        const gh = await dataApiClient.get<{ success?: boolean; data?: { branches?: string[] }; error?: string; message?: string }>(`/api/repositories/oauth/branches?provider=github&repo=${encodeURIComponent(slug)}`, token ? { Authorization: `Bearer ${token}` } : {})
+        console.log('[FRONTEND] github branches response:', gh);
+
+        const ghAny = gh as any;
+        const ghError = ghAny?.error || ghAny?.message;
+        if (ghAny && ghAny.success === false && ghError) {
+          setFetchBranchesError(ghError);
+          setBranches([]);
+          setIsValidated(false);
+          return;
+        }
+
+        const ghBranches = ghAny && ghAny.data && Array.isArray(ghAny.data.branches) ? (ghAny.data.branches as string[]) : ghAny.branches
         fetchedBranches = Array.isArray(ghBranches) ? ghBranches : []
       } else if (provider === 'bitbucket') {
         const slug = extractRepoName(repositoryUrl.trim())
@@ -188,14 +290,14 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
       } else {
         setBranches(fetchedBranches);
         const inferredDefault = default_branch || (fetchedBranches.includes('main') ? 'main' : (fetchedBranches.includes('master') ? 'master' : fetchedBranches[0]))
+        // Update config with inferred extensions from repo languages
         setConfig(prev => ({ 
           ...prev, 
           defaultBranch: inferredDefault || prev.defaultBranch,
-          fileExtensions: file_extensions && file_extensions.length > 0 ? file_extensions : prev.fileExtensions
+          fileExtensions: inferredExtensions
         }));
-        if (file_extensions && file_extensions.length > 0) {
-          setAvailableFileExtensions(file_extensions);
-        }
+        // Update available extensions for the UI badges
+        setAvailableFileExtensions(inferredExtensions);
         setIsValidated(true);
       }
     } catch (err: unknown) {
@@ -249,6 +351,41 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
 
       const resp = await dataApiClient.post<ApiResponse>('/api/data/sources', payload);
       if (resp.success) {
+        // Auto-trigger sync + chunking after successful connection
+        console.log('[ConnectRepo] Connection successful, triggering auto-sync...');
+        
+        try {
+          const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+          const syncPayload = {
+            repo_url: repositoryUrl,
+            branch: config.defaultBranch || 'main',
+            include_languages: null,
+            exclude_paths: ['node_modules', 'dist', 'build', '.git', 'target', '__pycache__', 'vendor', '.venv', 'venv'],
+            max_file_size_mb: 5,
+            file_extensions: config.fileExtensions || null,
+            fetch_issues: config.fetchIssues ?? true,
+            fetch_prs: config.fetchPrs ?? true,
+          };
+          
+          // Fire sync in background - don't block the UI
+          dataApiClient.post('/api/github/sync', syncPayload, headers)
+            .then((syncResp: any) => {
+              if (syncResp.success) {
+                console.log('[ConnectRepo] Auto-sync completed:', syncResp);
+              } else {
+                console.warn('[ConnectRepo] Auto-sync failed:', syncResp.error_message || syncResp.error);
+              }
+            })
+            .catch((syncErr: any) => {
+              console.warn('[ConnectRepo] Auto-sync error:', syncErr);
+            });
+          
+          console.log('[ConnectRepo] Auto-sync triggered in background');
+        } catch (syncError) {
+          // Don't fail the connection if sync fails - it can be retried
+          console.warn('[ConnectRepo] Failed to trigger auto-sync:', syncError);
+        }
+        
         onSuccess();
         onOpenChange(false);
         resetForm();
@@ -279,15 +416,19 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
     setRepositoryUrl('');
     setCredentials({});
     setConfig({
-      includeReadme: true,
-      includeCode: true,
+      fetchIssues: true,
+      fetchPrs: true,
       defaultBranch: 'main',
-      enableWebhooks: false,
-      fileExtensions: ['.js', '.ts', '.jsx', '.tsx', '.py', '.rs', '.go', '.java', '.md']
+      autoSync: false,
+      fileExtensions: DEFAULT_FILE_EXTENSIONS
     });
     setBranches([]);
     setShowAdvancedSettings(false);
     setError(null);
+    setAvailableFileExtensions(DEFAULT_FILE_EXTENSIONS);
+    setNeedsSocialConnect(null);
+    setIsValidated(false);
+    setFetchBranchesError(null);
   };
 
   const renderCredentialFields = () => {
@@ -311,6 +452,9 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
             <GitBranch className="w-5 h-5" />
             Connect Repository
           </DialogTitle>
+          <DialogDescription>
+            Connect a GitHub, GitLab, or Bitbucket repository to index and search your code.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-8">
@@ -336,7 +480,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   title="Go to Social Connections"
                   aria-label="Go to Social Connections"
                   className="bg-blue-600 hover:bg-blue-700 text-white"
-                  onClick={() => { window.location.href = '/dashboard/connections'; }}
+                  onClick={() => { router.push('/dashboard/connections'); }}
                   disabled={checkingConnection}
                 >
                   Go to Social Connections
@@ -412,7 +556,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   {isFetchingBranches ? 'Validating...' : 'Check'}
                 </Button>
               </div>
-              {fetchBranchesError && (
+              {fetchBranchesError && !needsSocialConnect && (
                 <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
                   <p className="text-sm text-red-700 flex items-center gap-2">
                     <span>{fetchBranchesError}</span>
@@ -420,7 +564,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                       <Button
                         variant="link"
                         className="text-blue-700 px-0"
-                        onClick={() => { window.location.href = '/dashboard/connections'; }}
+                        onClick={() => { router.push('/dashboard/connections'); }}
                       >
                         Open Connections
                       </Button>
@@ -428,17 +572,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                   </p>
                 </div>
               )}
-              {isValidated && branches.length > 0 && !fetchBranchesError && (
-                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
-                  <p className="text-sm text-green-700">✓ Successfully found {branches.length} branches</p>
-                  {config.fileExtensions && config.fileExtensions.length > 0 && (
-                    <p className="text-xs text-green-600 mt-1">
-                      Found file types: {config.fileExtensions.slice(0, 10).join(', ')}
-                      {config.fileExtensions.length > 10 && ` and ${config.fileExtensions.length - 10} more`}
-                    </p>
-                  )}
-                </div>
-              )}
+              {/* Success state is indicated by showing the configuration options below */}
             </div>
           )}
 
@@ -451,34 +585,34 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
               <div className="grid gap-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label className="text-sm font-medium">Include README files</Label>
-                    <p className="text-xs text-muted-foreground">Extract and index README.md files</p>
+                    <Label className="text-sm font-medium">Fetch Issues</Label>
+                    <p className="text-xs text-muted-foreground">Ingest GitHub issues (title, body, comments) for this repository</p>
                   </div>
                   <Switch
-                    checked={config.includeReadme}
-                    onCheckedChange={(checked) => setConfig({ ...config, includeReadme: checked })}
+                    checked={config.fetchIssues}
+                    onCheckedChange={(checked) => setConfig({ ...config, fetchIssues: checked })}
                   />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label className="text-sm font-medium">Include source code</Label>
-                    <p className="text-xs text-muted-foreground">Index source code files for search</p>
+                    <Label className="text-sm font-medium">Fetch PRs</Label>
+                    <p className="text-xs text-muted-foreground">Ingest pull requests, reviews, and discussions</p>
                   </div>
                   <Switch
-                    checked={config.includeCode}
-                    onCheckedChange={(checked) => setConfig({ ...config, includeCode: checked })}
+                    checked={config.fetchPrs}
+                    onCheckedChange={(checked) => setConfig({ ...config, fetchPrs: checked })}
                   />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label className="text-sm font-medium">Enable webhooks (future)</Label>
-                    <p className="text-xs text-muted-foreground">Real-time updates when repositories change</p>
+                    <Label className="text-sm font-medium">Auto-sync</Label>
+                    <p className="text-xs text-muted-foreground">Automatically re-sync this repository on a schedule</p>
                   </div>
                   <Switch
-                    checked={config.enableWebhooks}
-                    onCheckedChange={(checked) => setConfig({ ...config, enableWebhooks: checked })}
+                    checked={config.autoSync}
+                    onCheckedChange={(checked) => setConfig({ ...config, autoSync: checked })}
                   />
                 </div>
 
@@ -527,7 +661,7 @@ export function ConnectRepositoryDialog({ open, onOpenChange, onSuccess }: Conne
                       <div className="space-y-3">
                         <Label className="text-sm font-medium">File Extensions to Index</Label>
                         <div className="flex flex-wrap gap-2 mt-3">
-                          {(availableFileExtensions.length > 0 ? availableFileExtensions : []).map((ext) => (
+                          {(availableFileExtensions.length > 0 ? availableFileExtensions : DEFAULT_FILE_EXTENSIONS).map((ext) => (
                             <Badge
                               key={ext}
                               variant={config.fileExtensions?.includes(ext) ? "default" : "outline"}

@@ -196,7 +196,9 @@ impl GitConnector {
         tracing::info!("[VCS_CONNECTOR] make_api_request to: {}", url);
         tracing::info!("[VCS_CONNECTOR] Credential type: {:?}", std::mem::discriminant(&credentials.credential_type));
         
-        let mut request = self.client.get(url);
+        let mut request = self.client.get(url)
+            .header("User-Agent", "ConHub")
+            .header("Accept", "application/json");
         
         match &credentials.credential_type {
             CredentialType::PersonalAccessToken { token } => {

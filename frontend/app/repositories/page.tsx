@@ -1,5 +1,10 @@
 import { RepositoriesPageClient } from "@/components/sources/connectors/repositories";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 
 export default function RepositoriesPage() {
-  return <RepositoriesPageClient />;
+  return (
+    <AuthGuard>
+      <RepositoriesPageClient />
+    </AuthGuard>
+  );
 }

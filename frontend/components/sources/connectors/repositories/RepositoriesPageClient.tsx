@@ -26,8 +26,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
 import { ConnectRepositoryDialog } from "./ConnectRepositoryDialog";
-import { apiClient, ApiResponse } from '@/lib/api';
+import { dataApiClient, ApiResponse } from '@/lib/api';
 import { ChangeBranchDialog } from "./ChangeBranchDialog";
+import { useAuth } from '@/hooks/use-auth';
 
 interface Repository {
   id: string;
@@ -40,6 +41,23 @@ interface Repository {
   status: 'active' | 'inactive' | 'syncing' | 'error';
   url: string;
   provider: 'github' | 'bitbucket';
+  defaultBranch?: string;
+  // Sync config options
+  fileExtensions?: string[];
+  fetchIssues?: boolean;
+  fetchPrs?: boolean;
+  autoSync?: boolean;
+}
+
+interface SyncResult {
+  success: boolean;
+  documents_processed: number;
+  embeddings_created: number;
+  sync_duration_ms: number;
+  error_message?: string;
+  graph_job_id?: string;
+  issues_processed?: number;
+  prs_processed?: number;
 }
 
 interface DataSource {
@@ -53,6 +71,7 @@ interface DataSource {
 }
 
 export function RepositoriesPageClient() {
+  const { token } = useAuth();
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [dataSources, setDataSources] = useState<DataSource[]>([]);
   const [showConnectDialog, setShowConnectDialog] = useState(false);
@@ -61,6 +80,8 @@ export function RepositoriesPageClient() {
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [currentBranch, setCurrentBranch] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncingRepoId, setSyncingRepoId] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<{ [key: string]: { status: string; message?: string } }>({});
 
   
   const sampleRepositories: Repository[] = [
@@ -109,8 +130,9 @@ export function RepositoriesPageClient() {
 
   const fetchRepositories = async () => {
     try {
-      // Fetch real repository data from the API
-      const resp = await apiClient.get<ApiResponse<{ repositories: Repository[] }>>('/api/repositories');
+      // Fetch real repository data from the API with auth header
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const resp = await dataApiClient.get<ApiResponse<{ repositories: Repository[] }>>('/api/repositories', headers);
       if (resp.success && resp.data?.repositories) {
         setRepositories(resp.data.repositories);
       } else {
@@ -128,7 +150,9 @@ export function RepositoriesPageClient() {
 
   const fetchDataSources = async () => {
     try {
-        const resp = await apiClient.get<ApiResponse<{ dataSources: DataSource[] }>>('/api/data-sources');
+        // Fetch data sources with auth header
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        const resp = await dataApiClient.get<ApiResponse<{ dataSources: DataSource[] }>>('/api/data-sources', headers);
         if (resp.success && resp.data) {
           const repoDataSources = resp.data.dataSources?.filter((ds: DataSource) => 
             ['github', 'bitbucket'].includes(ds.type)
@@ -169,21 +193,71 @@ export function RepositoriesPageClient() {
     }
   };
 
-  const syncRepository = async (repoId: string) => {
+  const syncRepository = async (repo: Repository) => {
+    if (!repo.url || syncingRepoId) return;
+    
+    setSyncingRepoId(repo.id);
+    setSyncStatus(prev => ({ ...prev, [repo.id]: { status: 'syncing', message: 'Starting sync...' } }));
+    
     try {
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       
-      const dataSource = dataSources.find(ds => 
-        ds.config?.repositories?.some((repo: string) => repo.includes(repoId))
-      );
+      // Call the GitHub sync endpoint with config options
+      const resp = await dataApiClient.post<SyncResult>('/api/github/sync', {
+        repo_url: repo.url,
+        branch: repo.defaultBranch || 'main',
+        include_languages: null, // All languages
+        exclude_paths: ['node_modules', 'dist', 'build', '.git', 'target', '__pycache__'],
+        max_file_size_mb: 5,
+        // Pass file extensions if configured
+        file_extensions: repo.fileExtensions || null,
+        // Pass issues/PRs flags (default to true for backwards compatibility)
+        fetch_issues: repo.fetchIssues ?? true,
+        fetch_prs: repo.fetchPrs ?? true,
+      }, headers);
       
-      if (dataSource) {
-        const resp = await apiClient.post<ApiResponse>(`/api/data-sources/${dataSource.id}/sync`, {});
-        if (resp.success) {
-          fetchDataSources();
-        }
+      if (resp.success) {
+        setSyncStatus(prev => ({
+          ...prev,
+          [repo.id]: {
+            status: 'success',
+            message: `Synced ${resp.documents_processed} docs${resp.issues_processed ? `, ${resp.issues_processed} issues` : ''}${resp.prs_processed ? `, ${resp.prs_processed} PRs` : ''} in ${(resp.sync_duration_ms / 1000).toFixed(1)}s`
+          }
+        }));
+        
+        // Update repository status
+        setRepositories(prev => prev.map(r => 
+          r.id === repo.id ? { ...r, status: 'active' as const } : r
+        ));
+        
+        fetchDataSources();
+      } else {
+        setSyncStatus(prev => ({
+          ...prev,
+          [repo.id]: {
+            status: 'error',
+            message: resp.error_message || 'Sync failed'
+          }
+        }));
       }
     } catch (error) {
       console.error('Error syncing repository:', error);
+      setSyncStatus(prev => ({
+        ...prev,
+        [repo.id]: {
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Sync failed'
+        }
+      }));
+    } finally {
+      setSyncingRepoId(null);
+      // Clear status after 5 seconds
+      setTimeout(() => {
+        setSyncStatus(prev => {
+          const { [repo.id]: _, ...rest } = prev;
+          return rest;
+        });
+      }, 5000);
     }
   };
 
@@ -381,12 +455,17 @@ export function RepositoriesPageClient() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => syncRepository(repo.id)}
-                        disabled={repo.status === 'syncing'}
+                        onClick={() => syncRepository(repo)}
+                        disabled={syncingRepoId === repo.id || repo.status === 'syncing'}
                       >
-                        <RefreshCw className={`w-4 h-4 mr-1 ${repo.status === 'syncing' ? 'animate-spin' : ''}`} />
-                        {repo.status === 'syncing' ? 'Syncing...' : 'Sync'}
+                        <RefreshCw className={`w-4 h-4 mr-1 ${syncingRepoId === repo.id ? 'animate-spin' : ''}`} />
+                        {syncingRepoId === repo.id ? 'Syncing...' : syncStatus[repo.id]?.status === 'success' ? '✓ Synced' : syncStatus[repo.id]?.status === 'error' ? '✗ Error' : 'Sync'}
                       </Button>
+                      {syncStatus[repo.id]?.message && (
+                        <span className={`text-xs ${syncStatus[repo.id]?.status === 'error' ? 'text-red-500' : 'text-green-500'}`}>
+                          {syncStatus[repo.id]?.message}
+                        </span>
+                      )}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" size="sm">

@@ -10,6 +10,7 @@ import { apiClient, securityApiClient, unwrapResponse } from '@/lib/api';
 import { useAuth } from '@/hooks/use-auth';
 import Link from 'next/link';
 import { ArrowLeft, Share2 } from 'lucide-react';
+import { ProfileAvatar } from '@/components/ui/ProfileAvatar';
 import GitHubIcon from '@/components/icons/GitHubIcon'
 import GitLabIcon from '@/components/icons/GitLabIcon'
 import BitbucketIcon from '@/components/icons/BitbucketIcon'
@@ -53,23 +54,56 @@ export function SocialConnections() {
   const [syncing, setSyncing] = useState<string | null>(null);
   // Use a Set in a ref to track codes that have been processed (prevents duplicate exchanges)
   const processedCodesRef = useRef<Set<string>>(new Set());
+  // Track whether initial load has completed to avoid skeleton flash on subsequent fetches
+  const hasLoadedRef = useRef(false);
   const { toast } = useToast();
-  const { token } = useAuth();
+  const { token, refreshConnections } = useAuth();
 
-  const fetchConnections = useCallback(async () => {
-    // Do not hit the security service until we have an Auth0 access token;
+  const fetchConnections = useCallback(async (options?: { initial?: boolean }) => {
+    // Do not hit the services until we have an Auth0 access token;
     // otherwise we get an automatic 401 and show a spurious error toast.
     if (!token) {
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    // Only show skeleton on initial load, not on subsequent refreshes
+    const isInitialLoad = options?.initial && !hasLoadedRef.current;
+    if (isInitialLoad) {
+      setLoading(true);
+    }
+
     try {
       const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
-      const resp = await securityApiClient.get('/api/security/connections', headers);
-      const data = unwrapResponse<SocialConnection[]>(resp) ?? [];
-      setConnections(data);
+      
+      // Fetch from both auth service (GitHub/Bitbucket/GitLab OAuth) and security service
+      const [authResp, securityResp] = await Promise.allSettled([
+        apiClient.get('/api/auth/connections', headers),
+        securityApiClient.get('/api/security/connections', headers)
+      ]);
+      
+      // Merge connections from both sources, avoiding duplicates by platform
+      const authData = authResp.status === 'fulfilled' 
+        ? (unwrapResponse<SocialConnection[]>(authResp.value) ?? [])
+        : [];
+      const securityData = securityResp.status === 'fulfilled'
+        ? (unwrapResponse<SocialConnection[]>(securityResp.value) ?? [])
+        : [];
+      
+      // Use a Map to dedupe by platform (auth service takes precedence for OAuth providers)
+      const connectionMap = new Map<string, SocialConnection>();
+      securityData.forEach(conn => connectionMap.set(conn.platform, conn));
+      authData.forEach(conn => connectionMap.set(conn.platform, conn)); // Auth overwrites security
+
+      const merged = Array.from(connectionMap.values());
+      console.log('[SocialConnections] fetched connections', {
+        tokenPresent: !!token,
+        authData,
+        securityData,
+        merged,
+      });
+
+      setConnections(merged);
     } catch (error) {
       console.error('Error fetching connections:', error);
       toast({
@@ -78,12 +112,15 @@ export function SocialConnections() {
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+        hasLoadedRef.current = true;
+      }
     }
   }, [toast, token]);
 
   useEffect(() => {
-    fetchConnections();
+    fetchConnections({ initial: true });
     const handler = async (e: MessageEvent) => {
       const dataUnknown: unknown = e.data
       if (typeof dataUnknown !== 'object' || dataUnknown === null || !('type' in dataUnknown)) {
@@ -105,9 +142,12 @@ export function SocialConnections() {
         processedCodesRef.current.add(codeKey)
         
         // New: popup sent us the code, we do the exchange here (we have the token)
+        // IMPORTANT: Use the same token source as other API calls (useAuth's token)
+        // to ensure consistent user_id across all flows. Fall back to localStorage
+        // only if useAuth token is not yet available.
         try {
-          const storedToken = localStorage.getItem('auth_token')
-          if (!storedToken) {
+          const effectiveToken = token || localStorage.getItem('auth_token')
+          if (!effectiveToken) {
             toast({
               title: "Error",
               description: "Please log in first before connecting accounts",
@@ -115,13 +155,15 @@ export function SocialConnections() {
             })
             return
           }
-          const headers: Record<string, string> = { Authorization: `Bearer ${storedToken}` }
+          const headers: Record<string, string> = { Authorization: `Bearer ${effectiveToken}` }
           await apiClient.post('/api/auth/oauth/exchange', { provider: data.provider, code: data.code }, headers)
           toast({
             title: "Success",
             description: `${data.provider} connected successfully!`,
           })
+          // Refresh connections in-place (no skeleton) and update global state
           fetchConnections()
+          if (refreshConnections) refreshConnections()
         } catch (error: any) {
           console.error('OAuth exchange error:', error)
           const errorMsg = error?.message || `Failed to connect ${data.provider}`
@@ -200,12 +242,24 @@ export function SocialConnections() {
     }
   };
 
-  const disconnectPlatform = async (connectionId: string) => {
+  const disconnectPlatform = async (connectionId: string, platform: string) => {
     try {
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      // Disconnect via security service; this matches the backend routes in
-      // security/src/handlers/connections.rs.
-      await securityApiClient.delete(`/api/security/connections/${connectionId}`, headers);
+      
+      // Route to the correct service based on platform type
+      // VCS providers (github, bitbucket, gitlab) are managed by auth service
+      // Other platforms (gmail, google_drive, dropbox, slack, etc.) are managed by security service
+      const vcsProviders = ['github', 'bitbucket', 'gitlab'];
+      const isVcsProvider = vcsProviders.includes(platform);
+      
+      if (isVcsProvider) {
+        // Only call auth service for VCS providers
+        await apiClient.delete(`/api/auth/connections/${connectionId}`, headers);
+      } else {
+        // Only call security service for other platforms
+        await securityApiClient.delete(`/api/security/connections/${connectionId}`, headers);
+      }
+      
       setConnections(prev => prev.filter(conn => conn.id !== connectionId));
       toast({
         title: "Success",
@@ -242,13 +296,6 @@ export function SocialConnections() {
     }
   };
 
-  const connectedPlatforms = new Set<keyof typeof PLATFORM_CONFIGS>(
-    connections.map(conn => conn.platform as keyof typeof PLATFORM_CONFIGS)
-  );
-  const availablePlatforms = (Object.keys(PLATFORM_CONFIGS) as Array<keyof typeof PLATFORM_CONFIGS>).filter(
-    (platform) => !connectedPlatforms.has(platform)
-  );
-
   if (loading) {
     return (
       <div className="space-y-4">
@@ -278,9 +325,13 @@ export function SocialConnections() {
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
               </Link>
-              <div className="h-6 w-px bg-border" />
-              <Share2 className="w-5 h-5 text-primary" />
-              <h2 className="text-2xl font-bold">Connections</h2>
+              <div className="flex items-center space-x-3">
+                <Share2 className="w-6 h-6 text-primary" />
+                <h1 className="text-2xl font-bold text-foreground">Connections</h1>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <ProfileAvatar />
             </div>
           </div>
         </div>
@@ -291,109 +342,61 @@ export function SocialConnections() {
         </p>
       </div>
 
-      {}
-          {connections.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Connected Accounts</h3>
-              {connections.map((connection) => {
-                const config = PLATFORM_CONFIGS[connection.platform];
-                return (
-                  <Card key={connection.id}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-                            {config.icon('w-10 h-10')}
-                          </div>
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <h4 className="font-semibold">{config.name}</h4>
-                              <Badge variant={connection.is_active ? "default" : "secondary"}>
-                                {connection.is_active ? "Active" : "Inactive"}
-                              </Badge>
-                            </div>
-                        <p className="text-sm text-muted-foreground">
-                          {connection.username}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Connected: {new Date(connection.connected_at).toLocaleDateString()}
-                          {connection.last_sync && (
-                            <span> • Last sync: {new Date(connection.last_sync).toLocaleDateString()}</span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => syncPlatform(connection.id, connection.platform)}
-                        disabled={syncing === connection.id}
-                      >
-                        <RefreshCw className={`h-4 w-4 ${syncing === connection.id ? 'animate-spin' : ''}`} />
-                        Sync
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => disconnectPlatform(connection.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Disconnect
-                      </Button>
-                    </div>
+      {/* All Platforms Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {(Object.keys(PLATFORM_CONFIGS) as Array<keyof typeof PLATFORM_CONFIGS>).map((platform) => {
+          const config = PLATFORM_CONFIGS[platform];
+          const connection = connections.find(c => c.platform === platform);
+          const isConnected = connection?.is_active;
+          
+          return (
+            <Card key={platform} className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+                    {config.icon('w-8 h-8')}
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {}
-      {availablePlatforms.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Available Platforms</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {availablePlatforms.map((platform) => {
-              const config = PLATFORM_CONFIGS[platform as keyof typeof PLATFORM_CONFIGS];
-              return (
-                <Card key={platform} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center">
-                        {config.icon('w-8 h-8')}
-                      </div>
-                      <CardTitle className="text-lg">{config.name}</CardTitle>
-                    </div>
-                    <CardDescription>{config.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <Button
-                      title={`Connect ${config.name}`}
-                      aria-label={`Connect ${config.name}`}
-                      onClick={() => connectPlatform(platform)}
-                      className="w-full"
-                      variant="outline"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Connect
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {connections.length === 0 && availablePlatforms.length === 0 && (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <p className="text-muted-foreground">All available platforms are connected!</p>
-          </CardContent>
-        </Card>
-      )}
+                  <CardTitle className="text-lg">{config.name}</CardTitle>
+                </div>
+                <CardDescription>
+                  {isConnected ? (
+                    <span className="text-green-600 dark:text-green-400">
+                      Connected
+                    </span>
+                  ) : (
+                    config.description
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {isConnected ? (
+                  <Button
+                    title={`Disconnect ${config.name}`}
+                    aria-label={`Disconnect ${config.name}`}
+                    onClick={() => connection && disconnectPlatform(connection.id, platform)}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white"
+                    variant="destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Disconnect
+                  </Button>
+                ) : (
+                  <Button
+                    title={`Connect ${config.name}`}
+                    aria-label={`Connect ${config.name}`}
+                    onClick={() => connectPlatform(platform)}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Connect
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }

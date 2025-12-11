@@ -4,10 +4,22 @@ use anyhow::{Result, anyhow};
 use reqwest::Client;
 use chrono::{DateTime, Utc, Duration};
 use uuid::Uuid;
+use sha2::{Sha256, Digest};
 
 use bcrypt;
 
 use conhub_models::auth::{User, UserRole, SubscriptionTier};
+
+/// Generate a safe debug string for tokens (never logs full token)
+/// Returns: "len=N, prefix=XXXXXX, sha256=XXXXXXXXXXXX"
+pub fn token_debug(token: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(token.as_bytes());
+    let hash = format!("{:x}", hasher.finalize());
+    let len = token.len();
+    let prefix = if len >= 6 { &token[..6] } else { token };
+    format!("len={}, prefix={}..., sha256_prefix={}", len, prefix, &hash[..12])
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OAuthProvider {
@@ -134,14 +146,18 @@ impl OAuthService {
                 )
             }
             OAuthProvider::GitHub => {
+                // Include 'repo' scope for repository access (private repos) 
+                // and 'read:user' + 'user:email' for profile info
+                let scopes = "repo read:user user:email";
                 format!(
                     "https://github.com/login/oauth/authorize?\
                     client_id={}&\
                     redirect_uri={}&\
-                    scope=user:email&\
+                    scope={}&\
                     state={}",
                     self.github_client_id,
                     urlencoding::encode(&redirect_with_provider),
+                    urlencoding::encode(scopes),
                     state
                 )
             }
@@ -161,7 +177,8 @@ impl OAuthService {
                 )
             }
             OAuthProvider::GitLab => {
-                let scopes = ["read_user"].join(" ");
+                // Include 'read_repository' for repo access and 'read_user' for profile
+                let scopes = "read_repository read_user";
                 format!(
                     "https://gitlab.com/oauth/authorize?\
                     client_id={}&\
@@ -171,7 +188,7 @@ impl OAuthService {
                     state={}",
                     self.gitlab_client_id,
                     urlencoding::encode(&redirect_with_provider),
-                    urlencoding::encode(&scopes),
+                    urlencoding::encode(scopes),
                     state
                 )
             }
@@ -246,6 +263,14 @@ impl OAuthService {
         //   http://localhost:3000/auth/callback?provider=github
         // so we must pass the exact same value during the token exchange.
         let redirect_with_provider = format!("{}?provider=github", self.redirect_uri);
+        
+        let code_preview = if code.len() > 10 { &code[..10] } else { code };
+        tracing::info!(
+            "[GitHub OAuth] Starting token exchange: client_id={}, redirect_uri={}, code_prefix={}...",
+            self.github_client_id,
+            redirect_with_provider,
+            code_preview
+        );
 
         let params = [
             ("client_id", self.github_client_id.as_str()),
@@ -263,9 +288,14 @@ impl OAuthService {
 
         let status = response.status();
         let body_text = response.text().await?;
+        
+        tracing::debug!("[GitHub OAuth] Token endpoint response: status={}, body_len={}", status, body_text.len());
 
         if !status.is_success() {
-            // Surface the full error body from GitHub to make configuration issues easier to debug
+            tracing::error!(
+                "[GitHub OAuth] Token exchange HTTP error: status={}, body={}",
+                status, body_text
+            );
             return Err(anyhow!(
                 "GitHub token exchange failed (status {}): {}",
                 status,
@@ -283,6 +313,10 @@ impl OAuthService {
                 .get("error_description")
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
+            tracing::error!(
+                "[GitHub OAuth] Token exchange OAuth error: error={}, description={}",
+                error, description
+            );
             return Err(anyhow!(
                 "GitHub OAuth error: {} - {}",
                 error,
@@ -291,8 +325,19 @@ impl OAuthService {
         }
 
         // Now decode into OAuthTokenResponse
-        serde_json::from_value::<OAuthTokenResponse>(json_value)
-            .map_err(|e| anyhow!("GitHub token exchange failed: could not decode response: {}", e))
+        let token_response: OAuthTokenResponse = serde_json::from_value(json_value)
+            .map_err(|e| anyhow!("GitHub token exchange failed: could not decode response: {}", e))?;
+        
+        // Log token details (safely)
+        tracing::info!(
+            "[GitHub OAuth] ✅ Token exchange successful: token_type={}, scope={:?}, expires_in={:?}, token_debug={}",
+            token_response.token_type,
+            token_response.scope,
+            token_response.expires_in,
+            token_debug(&token_response.access_token)
+        );
+        
+        Ok(token_response)
     }
 
     async fn exchange_bitbucket_code(&self, code: &str) -> Result<OAuthTokenResponse> {

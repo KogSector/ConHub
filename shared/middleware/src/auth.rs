@@ -154,6 +154,14 @@ where
         let mode = self.mode.clone();
 
         Box::pin(async move {
+            // Always allow OPTIONS requests through for CORS preflight
+            // This is a safety net - CORS middleware should handle OPTIONS before this,
+            // but if it doesn't, we let it through to avoid blocking preflight requests.
+            if req.method() == actix_web::http::Method::OPTIONS {
+                let res = service.call(req).await?;
+                return Ok(res.map_into_left_body());
+            }
+            
             // Check if this is a public endpoint that doesn't require authentication
             if is_public_endpoint(req.path()) {
                 let res = service.call(req).await?;

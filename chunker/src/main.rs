@@ -53,6 +53,30 @@ async fn main() -> std::io::Result<()> {
     // Initialize cache
     let cache = services::cache::ChunkCache::new(redis_url).await;
 
+    // Initialize profile manager with optional profile from env
+    let mut profile_manager = services::profiles::ProfileManager::new();
+    if let Ok(profile_name) = env::var("CHUNKER_PROFILE") {
+        if profile_manager.set_active(&profile_name) {
+            info!("📋 Using chunker profile: {}", profile_name);
+        } else {
+            warn!("⚠️ Unknown chunker profile '{}', using standard", profile_name);
+        }
+    } else {
+        info!("📋 Using chunker profile: standard");
+    }
+
+    // Initialize cost policy manager with optional policy from env
+    let mut cost_policy_manager = services::cost_policy::CostPolicyManager::new();
+    if let Ok(policy_name) = env::var("COST_POLICY") {
+        if cost_policy_manager.set_active(&policy_name) {
+            info!("💰 Using cost policy: {}", policy_name);
+        } else {
+            warn!("⚠️ Unknown cost policy '{}', using balanced", policy_name);
+        }
+    } else {
+        info!("💰 Using cost policy: balanced");
+    }
+
     // Create app state
     let state = Arc::new(AppState {
         embedding_client: services::embedding_client::EmbeddingClient::new(embedding_url),
@@ -60,6 +84,8 @@ async fn main() -> std::io::Result<()> {
         cache: RwLock::new(cache),
         max_concurrent_jobs,
         jobs: RwLock::new(HashMap::new()),
+        profiles: RwLock::new(profile_manager),
+        cost_policies: RwLock::new(cost_policy_manager),
     });
 
     HttpServer::new(move || {
@@ -69,6 +95,14 @@ async fn main() -> std::io::Result<()> {
             .route("/health", web::get().to(health_check))
             .route("/chunk/jobs", web::post().to(handlers::jobs::start_chunk_job))
             .route("/chunk/jobs/{job_id}", web::get().to(handlers::jobs::get_chunk_job_status))
+            // Profile management endpoints
+            .route("/chunk/profiles", web::get().to(list_profiles))
+            .route("/chunk/profiles/active", web::get().to(get_active_profile))
+            .route("/chunk/profiles/active/{name}", web::put().to(set_active_profile))
+            // Cost policy management endpoints
+            .route("/chunk/policies", web::get().to(list_cost_policies))
+            .route("/chunk/policies/active", web::get().to(get_active_cost_policy))
+            .route("/chunk/policies/active/{name}", web::put().to(set_active_cost_policy))
     })
     .bind((host.as_str(), port))?
     .run()
@@ -81,4 +115,90 @@ async fn health_check() -> HttpResponse {
         "service": "chunker",
         "version": "0.1.0"
     }))
+}
+
+/// List available chunker profiles
+async fn list_profiles(state: web::Data<Arc<AppState>>) -> HttpResponse {
+    let profiles = state.profiles.read().await;
+    let names = profiles.list_profiles();
+    let active = profiles.active().name.clone();
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "profiles": names,
+        "active": active
+    }))
+}
+
+/// Get the currently active chunker profile
+async fn get_active_profile(state: web::Data<Arc<AppState>>) -> HttpResponse {
+    let profiles = state.profiles.read().await;
+    let active = profiles.active();
+    
+    HttpResponse::Ok().json(active)
+}
+
+/// Set the active chunker profile
+async fn set_active_profile(
+    state: web::Data<Arc<AppState>>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let name = path.into_inner();
+    let mut profiles = state.profiles.write().await;
+    
+    if profiles.set_active(&name) {
+        info!("📋 Switched to chunker profile: {}", name);
+        HttpResponse::Ok().json(serde_json::json!({
+            "success": true,
+            "active": name
+        }))
+    } else {
+        HttpResponse::BadRequest().json(serde_json::json!({
+            "success": false,
+            "error": format!("Unknown profile: {}", name),
+            "available": profiles.list_profiles()
+        }))
+    }
+}
+
+/// List available cost policies
+async fn list_cost_policies(state: web::Data<Arc<AppState>>) -> HttpResponse {
+    let policies = state.cost_policies.read().await;
+    let names = policies.list_policies();
+    let active = policies.active().name.clone();
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "policies": names,
+        "active": active
+    }))
+}
+
+/// Get the currently active cost policy
+async fn get_active_cost_policy(state: web::Data<Arc<AppState>>) -> HttpResponse {
+    let policies = state.cost_policies.read().await;
+    let active = policies.active();
+    
+    HttpResponse::Ok().json(active)
+}
+
+/// Set the active cost policy
+async fn set_active_cost_policy(
+    state: web::Data<Arc<AppState>>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let name = path.into_inner();
+    let mut policies = state.cost_policies.write().await;
+    
+    if policies.set_active(&name) {
+        info!("💰 Switched to cost policy: {}", name);
+        HttpResponse::Ok().json(serde_json::json!({
+            "success": true,
+            "active": name
+        }))
+    } else {
+        HttpResponse::BadRequest().json(serde_json::json!({
+            "success": false,
+            "error": format!("Unknown policy: {}", name),
+            "available": policies.list_policies()
+        }))
+    }
 }

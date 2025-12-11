@@ -39,13 +39,32 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Expanded file types: documents, code, config files
+  const allowedExtensions = [
+    // Documents
+    '.docx', '.txt', '.md', '.pdf', '.rtf',
+    // Code files
+    '.js', '.ts', '.jsx', '.tsx', '.py', '.rs', '.go', '.java', '.c', '.cpp', '.h', '.hpp', '.cs', '.rb', '.php',
+    // Config/data files
+    '.json', '.yml', '.yaml', '.toml', '.xml', '.csv'
+  ];
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    let combined = [...selectedFiles, ...files];
-    if (combined.length > 5) {
-      toast({ title: "Limit reached", description: "You can upload up to 5 files", variant: "destructive" });
+    const validFiles = files.filter(file => {
+      const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+      return allowedExtensions.includes(ext);
+    });
+    
+    if (validFiles.length < files.length) {
+      toast({ title: "Invalid file type", description: "Some files were skipped. Supported: docs, code, and config files.", variant: "destructive" });
     }
-    combined = combined.slice(0, 5);
+    
+    let combined = [...selectedFiles, ...validFiles];
+    if (combined.length > 10) {
+      toast({ title: "Limit reached", description: "You can upload up to 10 files at once", variant: "destructive" });
+    }
+    combined = combined.slice(0, 10);
     setSelectedFiles(combined);
     e.target.value = "";
   };
@@ -59,7 +78,7 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
     try {
       const formData = new FormData();
       selectedFiles.forEach((file) => formData.append("files", file));
-      const result = await dataApiClient.postForm<{ success: boolean; message?: string }>("/api/data/documents/upload", formData);
+      const result = await dataApiClient.postForm<{ success: boolean; message?: string }>("/api/documents/upload", formData);
       if ((result as any).success) {
         setConnectionStatus({ status: "success", message: `Successfully uploaded ${selectedFiles.length} file(s)` });
         toast({ title: "Success", description: `Uploaded ${selectedFiles.length} file(s) successfully` });
@@ -145,7 +164,7 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
 
           <TabsContent value="local_files" className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="files">Select Files (max 5)</Label>
+              <Label htmlFor="files">Select Files (max 10) - Documents, code, and config files</Label>
               <div className="rounded-xl p-10 text-center border border-border bg-card/60 hover:bg-card transition-colors">
                 <FolderOpen className="w-12 h-12 mx-auto text-primary mb-6" />
                 <input
@@ -153,8 +172,9 @@ export function ConnectSourceModal({ open, onOpenChange, onSourceConnected }: Co
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  title="Select files to upload"
-                  aria-label="Select files to upload"
+                  accept=".docx,.txt,.md,.pdf,.rtf,.js,.ts,.jsx,.tsx,.py,.rs,.go,.java,.c,.cpp,.h,.hpp,.cs,.rb,.php,.json,.yml,.yaml,.toml,.xml,.csv"
+                  title="Select .docx or .txt files to upload"
+                  aria-label="Select .docx or .txt files to upload"
                   onChange={handleFileChange}
                   className="hidden"
                 />
