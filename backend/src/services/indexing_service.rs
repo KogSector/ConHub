@@ -12,7 +12,7 @@ pub struct IndexingResult {
 pub enum IndexerError {
     IndexingFailed(String),
     InvalidUrl(String),
-    QdrantError(String),
+    VectorStoreError(String),
 }
 
 impl std::fmt::Display for IndexerError {
@@ -20,7 +20,7 @@ impl std::fmt::Display for IndexerError {
         match self {
             IndexerError::IndexingFailed(msg) => write!(f, "Indexing failed: {}", msg),
             IndexerError::InvalidUrl(msg) => write!(f, "Invalid URL: {}", msg),
-            IndexerError::QdrantError(msg) => write!(f, "Qdrant error: {}", msg),
+            IndexerError::VectorStoreError(msg) => write!(f, "Vector store error: {}", msg),
         }
     }
 }
@@ -28,14 +28,12 @@ impl std::fmt::Display for IndexerError {
 impl std::error::Error for IndexerError {}
 
 pub struct IndexingService {
-    qdrant_url: String,
     config: AppConfig,
 }
 
 impl IndexingService {
-    pub fn new(qdrant_url: &str, config: AppConfig) -> Self {
+    pub fn new(config: AppConfig) -> Self {
         Self {
-            qdrant_url: qdrant_url.to_string(),
             config,
         }
     }

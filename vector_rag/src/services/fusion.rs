@@ -41,10 +41,9 @@ impl EmbeddingClientFactory {
                     .map_err(|_| anyhow!("VOYAGE_API_KEY environment variable not set"))?;
                 Ok(Box::new(VoyageEmbeddingClient::new(api_key)))
             }
-            "jina" => {
-                let api_key = std::env::var("JINA_API_KEY")
-                    .map_err(|_| anyhow!("JINA_API_KEY environment variable not set"))?;
-                Ok(Box::new(JinaEmbeddingClient::new(api_key)))
+            "jina" | "external" => {
+                // Use external embedding API (configured via EMBEDDINGS_API_URL, EXTERNAL_SEARCH_API_KEY)
+                Ok(Box::new(JinaEmbeddingClient::from_env()?))
             }
             "huggingface" => {
                 let api_token = std::env::var("HUGGINGFACE_API_TOKEN")

@@ -47,6 +47,10 @@ strsim = "0.11"
 # Fuzzy matching
 fuzzy-matcher = "0.3"
 
+# Regex
+regex = "1.10"
+lazy_static = "1.4"
+
 # Graph algorithms
 petgraph = "0.6"
 

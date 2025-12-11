@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use crate::llm::{LlmEmbeddingClient, LlmEmbeddingRequest};
-use crate::models::qwen::QwenEmbeddingClient;
+use crate::models::jina::{HttpEmbeddingClient, HttpRerankClient, RerankResult};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tokio::sync::Semaphore;
@@ -108,19 +108,34 @@ pub struct LlmEmbeddingService {
 }
 
 impl LlmEmbeddingService {
-    /// Creates a new embedding service with a client for the specified provider.
+    /// Creates a new embedding service using the external HTTP embedding API.
+    /// Configuration is read from environment variables:
+    /// - EMBEDDINGS_API_URL: The embedding API endpoint
+    /// - EMBEDDINGS_MODEL: The model to use
+    /// - EXTERNAL_SEARCH_API_KEY: The API key
     pub fn new(model: &str) -> Result<Self> {
-        let api_key = std::env::var("QWEN_API_KEY")
-            .map_err(|_| anyhow!("QWEN_API_KEY environment variable not set"))?;
-        let client: Box<dyn LlmEmbeddingClient> = Box::new(QwenEmbeddingClient::new(api_key));
+        // Try to create the HTTP embedding client from environment
+        let client: Box<dyn LlmEmbeddingClient> = Box::new(HttpEmbeddingClient::from_env()?);
+        let actual_model = std::env::var("EMBEDDINGS_MODEL").unwrap_or_else(|_| model.to_string());
 
         Ok(Self {
+            client,
+            model: actual_model,
+            cache: EmbeddingCache::new(std::env::var("EMBEDDING_CACHE_SIZE").ok().and_then(|v| v.parse().ok()).unwrap_or(10000)),
+            semaphore: Arc::new(Semaphore::new(std::env::var("EMBEDDING_MAX_CONCURRENCY").ok().and_then(|v| v.parse().ok()).unwrap_or(10))),
+            batch_size: std::env::var("EMBEDDING_BATCH_SIZE").ok().and_then(|v| v.parse().ok()).unwrap_or(100),
+        })
+    }
+    
+    /// Creates a new embedding service with a custom client.
+    pub fn with_client(client: Box<dyn LlmEmbeddingClient>, model: &str) -> Self {
+        Self {
             client,
             model: model.to_string(),
             cache: EmbeddingCache::new(std::env::var("EMBEDDING_CACHE_SIZE").ok().and_then(|v| v.parse().ok()).unwrap_or(10000)),
             semaphore: Arc::new(Semaphore::new(std::env::var("EMBEDDING_MAX_CONCURRENCY").ok().and_then(|v| v.parse().ok()).unwrap_or(10))),
             batch_size: std::env::var("EMBEDDING_BATCH_SIZE").ok().and_then(|v| v.parse().ok()).unwrap_or(100),
-        })
+        }
     }
 
     /// Generate hash key for caching
@@ -250,6 +265,39 @@ impl LlmEmbeddingService {
         access.clear();
     }
 }
+
+/// Rerank service using external HTTP API
+pub struct RerankService {
+    client: HttpRerankClient,
+}
+
+impl RerankService {
+    /// Creates a new rerank service from environment configuration.
+    pub fn new() -> Result<Self> {
+        let client = HttpRerankClient::from_env()?;
+        Ok(Self { client })
+    }
+    
+    /// Rerank documents by relevance to the query.
+    /// Returns results sorted by relevance score (highest first).
+    pub async fn rerank(&self, query: &str, documents: Vec<String>, top_n: usize) -> Result<Vec<RerankResult>> {
+        self.client.rerank(query, documents, top_n).await
+    }
+    
+    /// Rerank with document IDs - returns (original_index, score) pairs.
+    pub async fn rerank_with_indices(&self, query: &str, documents: Vec<String>, top_n: usize) -> Result<Vec<(usize, f32)>> {
+        let results = self.client.rerank(query, documents, top_n).await?;
+        Ok(results.into_iter().map(|r| (r.index, r.relevance_score)).collect())
+    }
+    
+    /// Get the model being used
+    pub fn get_model(&self) -> &str {
+        self.client.get_model()
+    }
+}
+
+// Re-export for convenience
+pub use crate::models::jina::{RerankResult as ExternalRerankResult};
 
 #[cfg(test)]
 mod tests {

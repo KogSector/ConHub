@@ -1,6 +1,6 @@
 use crate::errors::GraphResult;
-use crate::models::{Entity, Relationship, CreateEntityRequest, CreateEntityResponse};
-use crate::entity_resolution::{EntityResolver, ResolutionConfig};
+use crate::models::{Entity, Relationship, CreateEntityRequest, CreateEntityResponse, ResolutionConfig};
+use crate::entity_resolution::EntityResolver;
 use crate::knowledge_fusion::FusionEngine;
 use sqlx::PgPool;
 use uuid::Uuid;

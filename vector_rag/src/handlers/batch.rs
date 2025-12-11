@@ -232,7 +232,7 @@ async fn process_document(
         }
     }
     
-    // TODO: Store embedded chunks in vector database (Qdrant)
+    // TODO: Store embedded chunks in vector database (Zilliz)
     // This will be done via a separate service call
     
     let status = if failed_chunks == 0 {

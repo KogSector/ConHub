@@ -35,7 +35,7 @@ impl FeatureToggles {
     }
 
     // Convenience: read Auth enablement strictly from feature-toggles.json
-    // Controls database connections (PostgreSQL, Qdrant, Redis) and auth/authorization
+    // Controls database connections (PostgreSQL, Zilliz, Redis) and auth/authorization
     pub fn auth_enabled(&self) -> bool {
         // Auth is now always enabled; the legacy "Auth" feature toggle is ignored.
         true

@@ -9,7 +9,12 @@ pub struct AppConfig {
     // Database
     pub database_url: Option<String>,
     pub redis_url: Option<String>,
-    pub qdrant_url: String,
+    
+    // Vector Store (Zilliz Cloud)
+    pub zilliz_uri: Option<String>,
+    pub zilliz_token: Option<String>,
+    pub zilliz_db_name: Option<String>,
+    
     // Microservices
     pub embedding_service_url: String,
     // Microservice call settings
@@ -72,8 +77,11 @@ impl AppConfig {
             // Make DB URLs optional to allow full startup when Auth is disabled
             database_url: env::var("DATABASE_URL").ok(),
             redis_url: env::var("REDIS_URL").ok(),
-            qdrant_url: env::var("QDRANT_URL")
-                .unwrap_or_else(|_| "http://localhost:6333".to_string()),
+            
+            // Vector Store (Zilliz Cloud)
+            zilliz_uri: env::var("ZILLIZ_URI").ok(),
+            zilliz_token: env::var("ZILLIZ_TOKEN").ok(),
+            zilliz_db_name: env::var("ZILLIZ_DB_NAME").ok(),
             embedding_service_url: env::var("EMBEDDING_SERVICE_URL")
                 .unwrap_or_else(|_| "http://localhost:8082".to_string()),
             embedding_request_timeout_ms: env::var("EMBEDDING_REQUEST_TIMEOUT_MS")
