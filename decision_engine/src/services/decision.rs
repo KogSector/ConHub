@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use tracing::{info, warn};
 
 use crate::models::{
-    ContextQueryRequest, ContextQueryResponse, ContextBlock, Strategy,
+    ContextQueryRequest, ContextQueryResponse, ContextBlock, Strategy, SourceRetrievalMode,
 };
 use crate::services::{VectorRagClient, GraphRagClient};
 
@@ -17,15 +17,41 @@ impl DecisionService {
         graph_client: &GraphRagClient,
         request: &ContextQueryRequest,
     ) -> Result<ContextQueryResponse> {
+        Self::query_context_with_mode(vector_client, graph_client, request, None).await
+    }
+    
+    /// Execute context query with source-level retrieval mode consideration
+    pub async fn query_context_with_mode(
+        vector_client: &VectorRagClient,
+        graph_client: &GraphRagClient,
+        request: &ContextQueryRequest,
+        source_mode: Option<SourceRetrievalMode>,
+    ) -> Result<ContextQueryResponse> {
         let start_time = std::time::Instant::now();
 
-        // Determine strategy
+        // Determine strategy based on request and source mode
         let strategy = match request.strategy {
-            Strategy::Auto => Self::auto_select_strategy(&request.query, &request.filters),
-            s => s,
+            Strategy::Auto => {
+                // If source mode is specified, use its default strategy
+                // Otherwise, auto-select based on query analysis
+                if let Some(mode) = source_mode {
+                    Self::auto_select_with_mode(&request.query, &request.filters, mode)
+                } else {
+                    Self::auto_select_strategy(&request.query, &request.filters)
+                }
+            }
+            s => {
+                // Validate requested strategy against source mode
+                if let Some(mode) = source_mode {
+                    mode.validate_strategy(s)
+                } else {
+                    s
+                }
+            }
         };
 
-        info!("🎯 Using strategy: {:?} for query: '{}'", strategy, request.query);
+        info!("🎯 Using strategy: {:?} for query: '{}' (source_mode: {:?})", 
+              strategy, request.query, source_mode);
 
         // Execute strategy
         let blocks = match strategy {
@@ -79,6 +105,19 @@ impl DecisionService {
 
         // Vector for simple Q&A
         Strategy::Vector
+    }
+    
+    /// Auto-select strategy considering source retrieval mode
+    fn auto_select_with_mode(
+        query: &str, 
+        filters: &crate::models::QueryFilters,
+        mode: SourceRetrievalMode,
+    ) -> Strategy {
+        // Get the ideal strategy based on query analysis
+        let ideal = Self::auto_select_strategy(query, filters);
+        
+        // Validate against source mode
+        mode.validate_strategy(ideal)
     }
 
     /// Execute vector-only strategy

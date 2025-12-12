@@ -305,10 +305,3 @@ pub struct GitHubSyncConfig {
     pub include_extensions: Option<Vec<String>>,
 }
 
-/// Qdrant vector storage configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QdrantConfig {
-    pub url: String,
-    pub api_key: String,
-    pub collection_name: String,
-}

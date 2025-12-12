@@ -25,7 +25,6 @@ mod connectors {
 
 mod services {
     pub mod zilliz_client;
-    pub mod qdrant_client;
     pub mod vector_store;
     pub mod kafka_client;
     pub mod github_app_client;
@@ -36,8 +35,6 @@ mod services {
     pub mod graph_rag_ingestion;
     
     pub use zilliz_client::*;
-    #[allow(deprecated)]
-    pub use qdrant_client::*;
     pub use vector_store::*;
     pub use kafka_client::*;
     pub use github_app_client::*;

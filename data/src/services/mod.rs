@@ -8,15 +8,13 @@ pub mod connector_cache;
 pub mod kafka_client;
 pub mod auth_client;
 
-// Zilliz Cloud vector store client (replaces Qdrant)
+// Zilliz Cloud vector store client
 pub mod zilliz_client;
 pub mod vector_store;
 
 // Legacy modules (will be deprecated/removed in Graph RAG migration)
 #[deprecated(note = "Use chunker service instead")]
 pub mod embedding_pipeline;
-#[deprecated(note = "Use zilliz_client instead - Qdrant has been replaced by Zilliz Cloud")]
-pub mod qdrant_client;
 #[deprecated(note = "Graph service owns entity/relationship extraction")]
 pub mod relationship;
 
@@ -32,7 +30,5 @@ pub use auth_client::{AuthClient, AuthClientError, OAuthTokenResponse, OAuthStat
 // Legacy exports (deprecated)
 #[allow(deprecated)]
 pub use embedding_pipeline::*;
-#[allow(deprecated)]
-pub use qdrant_client::QdrantClient;
 #[allow(deprecated)]
 pub use relationship::RelationshipService;

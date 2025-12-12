@@ -209,8 +209,8 @@ pub async fn search_by_ids(
     log::info!("Search by IDs for {} chunks (tenant: {})", 
               req.chunk_ids.len(), req.tenant_id);
     
-    // TODO: Implement Qdrant retrieval by IDs
-    // This would use Qdrant's retrieve API to fetch specific points
+    // TODO: Implement Zilliz retrieval by IDs
+    // This would use Zilliz's retrieve API to fetch specific points
     // For now, return empty results
     
     HttpResponse::Ok().json(SearchByIdsResponse {
@@ -229,7 +229,7 @@ pub async fn search_by_entity(
     
     // TODO: Implement entity-based search
     // 1. Call graph service to get entity embedding
-    // 2. Use entity embedding as query vector in Qdrant
+    // 2. Use entity embedding as query vector in Zilliz
     // 3. Apply filters and return related chunks
     
     let query_time_ms = start.elapsed().as_millis() as u64;

@@ -46,7 +46,6 @@ impl AppState {
         ));
 
         let indexing_service = Arc::new(IndexingService::new(
-            &config.qdrant_url,
             config.clone(),
         ));
 

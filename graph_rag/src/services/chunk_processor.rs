@@ -4,8 +4,8 @@ use uuid::Uuid;
 
 use conhub_models::chunking::{IngestChunksRequest, Chunk};
 
-use crate::models::{Entity, EntityType, DataSource};
-use crate::entity_resolution::{EntityResolver, ResolutionConfig};
+use crate::models::{Entity, EntityType, DataSource, ResolutionConfig};
+use crate::entity_resolution::EntityResolver;
 use crate::knowledge_fusion::FusionEngine;
 use crate::extractors::code_entities::CodeEntityExtractor;
 use crate::errors::GraphResult;

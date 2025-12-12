@@ -8,7 +8,7 @@ pub async fn health_check() -> Result<HttpResponse> {
 }
 
 pub async fn readiness_check() -> Result<HttpResponse> {
-    // TODO: Check database connectivity, Redis, Qdrant, etc.
+    // TODO: Check database connectivity, Redis, Zilliz, etc.
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "status": "ready",
         "service": "conhub-backend"

@@ -100,9 +100,6 @@ time = "0.3"
 # UUID
 uuid = { version = "1.6", features = ["v4", "serde"] }
 
-# Vector database
-qdrant-client = "1.7"
-
 # HTTP client
 reqwest = { version = "0.11", features = ["json"] }
 

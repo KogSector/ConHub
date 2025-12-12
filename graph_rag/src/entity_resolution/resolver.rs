@@ -16,6 +16,7 @@ use super::matchers::{
 };
 
 /// Entity resolution engine that matches entities across data sources
+#[derive(Clone)]
 pub struct EntityResolver {
     db_pool: PgPool,
     config: ResolutionConfig,
@@ -341,7 +342,7 @@ impl EntityResolver {
         .fetch_one(&self.db_pool)
         .await?;
 
-        let canonical_id = if let Some(Some(canonical_id)) = existing_canonical {
+        let canonical_id = if let Some(canonical_id) = existing_canonical {
             // Add new entity to existing canonical entity
             sqlx::query(
                 "UPDATE entities SET canonical_id = $1, updated_at = NOW() WHERE id = $2"
