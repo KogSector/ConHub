@@ -1,6 +1,6 @@
 {
   "Docker": false,
   "Prod": false,
-  "Redis": true,
+  "Redis": false,
   "Heavy": true
 }
