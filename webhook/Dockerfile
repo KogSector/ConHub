@@ -1,26 +1,53 @@
-FROM rustlang/rust:nightly AS builder
+# Multi-stage build for Webhook service
+FROM rust:1.75-slim AS builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Copy shared dependencies first (to parent directory structure)
-COPY shared/ ../shared/
+# Copy shared dependencies first
+COPY shared ./shared
 
-# Copy service Cargo files
-COPY webhook/Cargo.toml ./Cargo.toml
+# Copy webhook service
+COPY webhook ./webhook
 
-# Copy service source code
-COPY webhook/src ./src
-
-# Build
+# Build the service
+WORKDIR /app/webhook
 RUN cargo build --release
-
-# Development stage
-FROM builder AS development
-RUN cargo install cargo-watch
-CMD ["cargo", "watch", "-q", "-x", "run"]
 
 # Runtime stage
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y ca-certificates libssl3 && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/release/webhook-service /usr/local/bin/
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1001 conhub
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /app/webhook/target/release/webhook-service /app/webhook-service
+
+# Set ownership
+RUN chown -R conhub:conhub /app
+
+USER conhub
+
 EXPOSE 3015
-CMD ["webhook-service"]
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3015/health || exit 1
+
+CMD ["./webhook-service"]
