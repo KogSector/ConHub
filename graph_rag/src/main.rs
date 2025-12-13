@@ -89,6 +89,8 @@ async fn main() -> std::io::Result<()> {
             )
             // Chunk ingestion (from chunker service)
             .route("/graph/chunks", web::post().to(handlers::ingest_chunks))
+            // NEW: IDs-only observation (Option A architecture)
+            .route("/graph/observe", web::post().to(handlers::observe_chunks))
             .route("/health", web::get().to(|| async { 
                 actix_web::HttpResponse::Ok().json(serde_json::json!({
                     "status": "healthy",
