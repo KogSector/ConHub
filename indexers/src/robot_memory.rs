@@ -238,11 +238,11 @@ impl Default for RobotMemoryIndexerConfig {
             episode_topics: vec!["robot.*.episodes".to_string()],
             semantic_topics: vec!["robot.*.semantic_events".to_string()],
             chunker_service_url: std::env::var("CHUNKER_SERVICE_URL")
-                .unwrap_or_else(|_| "http://localhost:3016".to_string()),
-            vector_rag_service_url: std::env::var("VECTOR_RAG_SERVICE_URL")
                 .unwrap_or_else(|_| "http://localhost:3017".to_string()),
+            vector_rag_service_url: std::env::var("VECTOR_RAG_SERVICE_URL")
+                .unwrap_or_else(|_| "http://localhost:8082".to_string()),
             graph_rag_service_url: std::env::var("GRAPH_RAG_SERVICE_URL")
-                .unwrap_or_else(|_| "http://localhost:3018".to_string()),
+                .unwrap_or_else(|_| "http://localhost:8006".to_string()),
             batch_size: 100,
             batch_timeout_ms: 5000,
         }

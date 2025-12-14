@@ -169,10 +169,11 @@ impl ObserveChunkProcessor {
                 "code" => {
                     let extracted = code_extractor.extract(content, chunk_ref.language.as_deref());
                     for ext in extracted {
+                        let name = ext.name;
                         entities.push(ExtractedEntity {
                             entity_type: ext.entity_type,
-                            name: ext.name,
-                            normalized_name: ext.name.to_lowercase(),
+                            normalized_name: name.to_lowercase(),
+                            name,
                             language: chunk_ref.language.clone(),
                             metadata: chunk_ref.metadata.clone(),
                         });
@@ -196,39 +197,37 @@ impl ObserveChunkProcessor {
         chunk_id: Uuid,
     ) -> GraphResult<bool> {
         // Upsert entity (get or create)
-        let entity_id = sqlx::query_scalar!(
+        let entity_id: Uuid = sqlx::query_scalar(
             r#"
             INSERT INTO entities (entity_type, canonical_name, normalized_name, language, metadata)
             VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (entity_type, normalized_name, service_name, language) 
-            DO UPDATE SET 
+            ON CONFLICT (entity_type, normalized_name, service_name, language)
+            DO UPDATE SET
                 last_seen_at = CURRENT_TIMESTAMP,
                 occurrence_count = entities.occurrence_count + 1
             RETURNING id
             "#,
-            entity.entity_type.as_str(),
-            entity.name,
-            entity.normalized_name,
-            entity.language,
-            entity.metadata
         )
+        .bind(entity.entity_type.as_str())
+        .bind(&entity.name)
+        .bind(&entity.normalized_name)
+        .bind(&entity.language)
+        .bind(&entity.metadata)
         .fetch_one(&self.db_pool)
-        .await
-        .map_err(|e| crate::errors::GraphError::DatabaseError(e.to_string()))?;
+        .await?;
 
         // Create evidence linking entity to chunk
-        sqlx::query!(
+        sqlx::query(
             r#"
             INSERT INTO entity_evidence (entity_id, chunk_id, confidence, extraction_method)
             VALUES ($1, $2, 1.0, 'ast')
             ON CONFLICT (entity_id, chunk_id) DO NOTHING
             "#,
-            entity_id,
-            chunk_id
         )
+        .bind(entity_id)
+        .bind(chunk_id)
         .execute(&self.db_pool)
-        .await
-        .map_err(|e| crate::errors::GraphError::DatabaseError(e.to_string()))?;
+        .await?;
 
         Ok(true)
     }

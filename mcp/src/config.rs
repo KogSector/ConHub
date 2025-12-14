@@ -32,7 +32,7 @@ impl McpConfig {
     pub fn from_env() -> Result<Self> {
         Ok(Self {
             service_port: std::env::var("MCP_SERVICE_PORT")
-                .unwrap_or_else(|_| "3016".to_string())
+                .unwrap_or_else(|_| "3004".to_string())
                 .parse()?,
             host: std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string()),
             

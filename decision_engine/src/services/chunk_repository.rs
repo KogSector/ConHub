@@ -25,8 +25,7 @@ impl ChunkRepository {
 
         info!("📖 [Decision Engine] Fetching {} chunks from Postgres", chunk_ids.len());
 
-        let rows = sqlx::query_as!(
-            ChunkRow,
+        let rows: Vec<ChunkRow> = sqlx::query_as(
             r#"
             SELECT 
                 chunk_id,
@@ -37,8 +36,8 @@ impl ChunkRepository {
             FROM chunks
             WHERE chunk_id = ANY($1)
             "#,
-            chunk_ids
         )
+        .bind(chunk_ids)
         .fetch_all(&self.db_pool)
         .await?;
 
@@ -70,8 +69,7 @@ impl ChunkRepository {
 
         info!("📖 [Decision Engine] Fetching chunks for {} entities via evidence", entity_ids.len());
 
-        let rows = sqlx::query_as!(
-            ChunkRow,
+        let rows: Vec<ChunkRow> = sqlx::query_as(
             r#"
             SELECT DISTINCT
                 c.chunk_id,
@@ -84,8 +82,8 @@ impl ChunkRepository {
             WHERE ee.entity_id = ANY($1)
             ORDER BY c.chunk_id
             "#,
-            entity_ids
         )
+        .bind(entity_ids)
         .fetch_all(&self.db_pool)
         .await?;
 
@@ -109,8 +107,7 @@ impl ChunkRepository {
 
         info!("📖 [Decision Engine] Fetching chunks for {} relationships via evidence", rel_ids.len());
 
-        let rows = sqlx::query_as!(
-            ChunkRow,
+        let rows: Vec<ChunkRow> = sqlx::query_as(
             r#"
             SELECT DISTINCT
                 c.chunk_id,
@@ -123,8 +120,8 @@ impl ChunkRepository {
             WHERE re.relationship_id = ANY($1)
             ORDER BY c.chunk_id
             "#,
-            rel_ids
         )
+        .bind(rel_ids)
         .fetch_all(&self.db_pool)
         .await?;
 
@@ -142,6 +139,7 @@ impl ChunkRepository {
 }
 
 /// Internal row type for sqlx mapping
+#[derive(sqlx::FromRow)]
 struct ChunkRow {
     chunk_id: Uuid,
     content: String,

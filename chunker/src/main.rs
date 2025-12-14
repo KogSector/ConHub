@@ -32,7 +32,7 @@ async fn main() -> std::io::Result<()> {
         .unwrap_or_else(|_| "http://localhost:8082".to_string());
     
     let graph_url = env::var("GRAPH_SERVICE_URL")
-        .unwrap_or_else(|_| "http://localhost:3015".to_string());
+        .unwrap_or_else(|_| "http://localhost:8006".to_string());
 
     let redis_url = env::var("REDIS_URL").ok();
 

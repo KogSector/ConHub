@@ -40,5 +40,8 @@ conhub-observability = { path = "../shared/observability" }
 redis = { version = "0.23", features = ["tokio-comp", "connection-manager"] }
 sha2 = "0.10"
 
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono", "json"] }
+
 # Async traits
 async-trait = "0.1"

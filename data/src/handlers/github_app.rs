@@ -727,7 +727,7 @@ pub async fn execute_sync_job(
     
     // Get chunker URL from environment
     let chunker_url = std::env::var("CHUNKER_SERVICE_URL")
-        .unwrap_or_else(|_| "http://localhost:3016".to_string());
+        .unwrap_or_else(|_| "http://localhost:3017".to_string());
     
     // Create ingestion service
     let ingestion_service = crate::services::GitHubIngestionService::new(

@@ -25,8 +25,7 @@ impl ChunkRepository {
 
         info!("📖 Fetching {} chunks from Postgres", chunk_ids.len());
 
-        let rows = sqlx::query_as!(
-            ChunkRow,
+        let rows: Vec<ChunkRow> = sqlx::query_as(
             r#"
             SELECT 
                 chunk_id,
@@ -37,8 +36,8 @@ impl ChunkRepository {
             FROM chunks
             WHERE chunk_id = ANY($1)
             "#,
-            chunk_ids
         )
+        .bind(chunk_ids)
         .fetch_all(&self.db_pool)
         .await?;
 
@@ -64,8 +63,7 @@ impl ChunkRepository {
 
     /// Fetch a single chunk by ID
     pub async fn fetch_by_id(&self, chunk_id: Uuid) -> Result<Option<ChunkText>, sqlx::Error> {
-        let row = sqlx::query_as!(
-            ChunkRow,
+        let row: Option<ChunkRow> = sqlx::query_as(
             r#"
             SELECT 
                 chunk_id,
@@ -76,8 +74,8 @@ impl ChunkRepository {
             FROM chunks
             WHERE chunk_id = $1
             "#,
-            chunk_id
         )
+        .bind(chunk_id)
         .fetch_optional(&self.db_pool)
         .await?;
 
@@ -92,6 +90,7 @@ impl ChunkRepository {
 }
 
 /// Internal row type for sqlx mapping
+#[derive(sqlx::FromRow)]
 struct ChunkRow {
     chunk_id: Uuid,
     content: String,

@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_else(|_| "http://localhost:8082".to_string());
     
     let graph_rag_url = std::env::var("GRAPH_RAG_URL")
-        .unwrap_or_else(|_| "http://localhost:3015".to_string());
+        .unwrap_or_else(|_| "http://localhost:8006".to_string());
 
     let redis_url = std::env::var("REDIS_URL").ok();
 
