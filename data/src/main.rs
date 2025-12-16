@@ -10,7 +10,30 @@ use conhub_observability::{
 };
 use std::env;
 use std::sync::Arc;
+use std::collections::HashMap;
+use tokio::sync::RwLock;
 use uuid::Uuid;
+
+// In-memory storage for connected data sources (per-user)
+// Key: source_id, Value: ConnectedDataSource
+lazy_static::lazy_static! {
+    static ref CONNECTED_SOURCES: RwLock<HashMap<String, ConnectedDataSource>> = RwLock::new(HashMap::new());
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConnectedDataSource {
+    pub id: String,
+    pub user_id: Option<Uuid>,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub source_type: String,
+    pub url: String,
+    pub status: String,
+    pub default_branch: String,
+    pub created_at: String,
+    pub sync_status: Option<String>,
+    pub documents_count: Option<usize>,
+}
 
 use services::kafka_client::KafkaProducer;
 use handlers::{robots, robot_ingestion};
@@ -255,6 +278,35 @@ fn extract_user_id_from_request(req: &HttpRequest) -> Option<Uuid> {
         .and_then(|claims| claims.sub.parse::<Uuid>().ok())
 }
 
+fn token_debug(token: &str) -> String {
+    let token_len = token.len();
+    let prefix = if token_len >= 6 { &token[..6] } else { token };
+    format!("{}... (len={})", prefix, token_len)
+}
+
+async fn update_connected_source_by_url(
+    repo_url: &str,
+    sync_status: Option<String>,
+    status: Option<String>,
+    documents_count: Option<usize>,
+) {
+    let mut sources = CONNECTED_SOURCES.write().await;
+    for source in sources.values_mut() {
+        if source.url == repo_url {
+            if let Some(v) = sync_status.clone() {
+                source.sync_status = Some(v);
+            }
+            if let Some(v) = status.clone() {
+                source.status = v;
+            }
+            if documents_count.is_some() {
+                source.documents_count = documents_count;
+            }
+            break;
+        }
+    }
+}
+
 /// Helper to extract owner and repo from GitHub URL
 fn parse_github_url(repo_url: &str) -> Option<(String, String)> {
     // Handle URLs like https://github.com/owner/repo or https://github.com/owner/repo.git
@@ -399,6 +451,145 @@ async fn fetch_github_prs(
     Ok(prs.len())
 }
 
+async fn run_secure_github_sync_pipeline(
+    user_id: Uuid,
+    sync_job_id: Uuid,
+    req: SecureSyncRepositoryRequest,
+    auth_client: &AuthClient,
+    embedding_client: &EmbeddingClient,
+    graph_ingestion: Option<&GraphRagIngestionService>,
+) -> SyncRepositoryResponse {
+    let start_time = std::time::Instant::now();
+
+    let github_token = match auth_client.get_oauth_token(user_id, "github").await {
+        Ok(token_response) => token_response.access_token,
+        Err(e) => {
+            error!("❌ Failed to get GitHub token: {}", e);
+            update_connected_source_by_url(&req.repo_url, Some("failed".to_string()), Some("error".to_string()), None).await;
+            log_sync_job_failed(
+                "data-service",
+                sync_job_id,
+                &format!("Failed to retrieve GitHub token: {e}"),
+                start_time.elapsed().as_millis() as u64,
+            );
+            return SyncRepositoryResponse {
+                success: false,
+                documents_processed: 0,
+                embeddings_created: 0,
+                sync_duration_ms: start_time.elapsed().as_millis() as u64,
+                error_message: Some(format!(
+                    "Failed to retrieve GitHub token: {}. Please ensure you have connected your GitHub account.",
+                    e
+                )),
+                graph_job_id: None,
+                issues_processed: None,
+                prs_processed: None,
+            };
+        }
+    };
+
+    let connector = GitHubConnector::new();
+
+    let include_extensions = req.file_extensions.as_ref().map(|exts| {
+        exts.iter()
+            .map(|e| e.trim_start_matches('.').to_lowercase())
+            .collect::<Vec<_>>()
+    });
+
+    let sync_config = GitHubSyncConfig {
+        repo_url: req.repo_url.clone(),
+        branch: req.branch.clone(),
+        include_languages: req.include_languages.clone(),
+        exclude_paths: req.exclude_paths.clone(),
+        max_file_size_mb: req.max_file_size_mb,
+        include_extensions,
+    };
+
+    let documents: Vec<DocumentForEmbedding> = match connector
+        .sync_repository_branch(&github_token, &sync_config)
+        .await
+    {
+        Ok(docs) => docs,
+        Err(e) => {
+            error!("❌ Failed to sync repository: {}", e);
+            update_connected_source_by_url(&req.repo_url, Some("failed".to_string()), Some("error".to_string()), None).await;
+            log_sync_job_failed(
+                "data-service",
+                sync_job_id,
+                &e.to_string(),
+                start_time.elapsed().as_millis() as u64,
+            );
+            return SyncRepositoryResponse {
+                success: false,
+                documents_processed: 0,
+                embeddings_created: 0,
+                sync_duration_ms: start_time.elapsed().as_millis() as u64,
+                error_message: Some(e.to_string()),
+                graph_job_id: None,
+                issues_processed: None,
+                prs_processed: None,
+            };
+        }
+    };
+
+    let doc_count = documents.len();
+
+    let (issues_processed, prs_processed) = sync_issues_and_prs(
+        &github_token,
+        &req.repo_url,
+        req.fetch_issues.unwrap_or(false),
+        req.fetch_prs.unwrap_or(false),
+    )
+    .await;
+
+    let (graph_job_id, embeddings_created) = if let Some(graph_service) = graph_ingestion {
+        let source_id = Uuid::new_v5(&Uuid::NAMESPACE_URL, req.repo_url.as_bytes());
+        match graph_service
+            .ingest_documents(source_id, SourceKind::CodeRepo, documents.clone())
+            .await
+        {
+            Ok(job_id) => (Some(job_id), doc_count),
+            Err(e) => {
+                warn!("⚠️ Chunker service error: {} - falling back to direct embedding", e);
+                if let Err(embed_err) = embedding_client.embed_documents(documents.clone()).await {
+                    warn!("⚠️ Embedding service also failed: {}", embed_err);
+                    (None, 0)
+                } else {
+                    (None, doc_count)
+                }
+            }
+        }
+    } else {
+        if let Err(e) = embedding_client.embed_documents(documents.clone()).await {
+            warn!("⚠️ Embedding service error: {}", e);
+            (None, 0)
+        } else {
+            (None, doc_count)
+        }
+    };
+
+    let sync_duration = start_time.elapsed().as_millis() as u64;
+    log_sync_job_completed("data-service", sync_job_id, doc_count, sync_duration);
+    update_connected_source_by_url(
+        &req.repo_url,
+        Some("completed".to_string()),
+        Some("active".to_string()),
+        Some(doc_count),
+    )
+    .await;
+
+    SyncRepositoryResponse {
+        success: true,
+        documents_processed: doc_count,
+        embeddings_created,
+        sync_duration_ms: sync_duration,
+        error_message: None,
+        graph_job_id,
+        issues_processed,
+        prs_processed,
+    }
+}
+
 /// Secure sync endpoint - uses JWT claims to identify user and fetches token from auth service
 /// POST /api/github/sync
 /// 
@@ -447,142 +638,39 @@ pub async fn secure_sync_github_repository(
     
     // Log sync job started
     log_sync_job_started("data-service", sync_job_id, "github", Some(&trace_ctx.trace_id));
-    
-    // Step 2: Fetch GitHub token from auth service
-    let github_token = match auth_client.get_oauth_token(user_id, "github").await {
-        Ok(token_response) => token_response.access_token,
-        Err(e) => {
-            error!("❌ Failed to get GitHub token: {}", e);
-            let response = SyncRepositoryResponse {
-                success: false,
-                documents_processed: 0,
-                embeddings_created: 0,
-                sync_duration_ms: start_time.elapsed().as_millis() as u64,
-                error_message: Some(format!("Failed to retrieve GitHub token: {}. Please ensure you have connected your GitHub account.", e)),
-                graph_job_id: None,
-                issues_processed: None,
-                prs_processed: None,
-            };
-            return Ok(HttpResponse::BadRequest().json(response));
-        }
-    };
-    
-    info!("✅ Retrieved GitHub token for user {}", user_id);
-    
-    // Step 3: Sync repository using GitHubConnector
-    let connector = GitHubConnector::new();
-    
-    // Normalize file extensions: strip leading dots and lowercase
-    let include_extensions = req.file_extensions.as_ref().map(|exts| {
-        exts.iter()
-            .map(|e| e.trim_start_matches('.').to_lowercase())
-            .collect::<Vec<_>>()
-    });
-    
-    let sync_config = GitHubSyncConfig {
-        repo_url: req.repo_url.clone(),
-        branch: req.branch.clone(),
-        include_languages: req.include_languages.clone(),
-        exclude_paths: req.exclude_paths.clone(),
-        max_file_size_mb: req.max_file_size_mb,
-        include_extensions,
-    };
-    
-    let documents: Vec<DocumentForEmbedding> = match connector.sync_repository_branch(&github_token, &sync_config).await {
-        Ok(docs) => docs,
-        Err(e) => {
-            error!("❌ Failed to sync repository: {}", e);
-            let response = SyncRepositoryResponse {
-                success: false,
-                documents_processed: 0,
-                embeddings_created: 0,
-                sync_duration_ms: start_time.elapsed().as_millis() as u64,
-                error_message: Some(e.to_string()),
-                graph_job_id: None,
-                issues_processed: None,
-                prs_processed: None,
-            };
-            return Ok(HttpResponse::BadRequest().json(response));
-        }
-    };
-    
-    info!("📄 Retrieved {} documents from repository", documents.len());
-    
-    let doc_count = documents.len();
-    
-    // Step 3.5: Sync issues and PRs if requested
-    let (issues_processed, prs_processed) = sync_issues_and_prs(
-        &github_token,
+
+    update_connected_source_by_url(
         &req.repo_url,
-        req.fetch_issues.unwrap_or(false),
-        req.fetch_prs.unwrap_or(false),
-    ).await;
-    
-    // Step 4: Send to chunker service (which handles embedding + graph ingestion)
-    // The chunker service will:
-    // - Apply intelligent chunking strategies (AST for code, markdown for docs)
-    // - Send chunks to embedding service for vector indexing
-    // - Send chunks to graph RAG for knowledge graph construction
-    let (graph_job_id, embeddings_created) = if let Some(ref graph_service) = graph_ingestion.get_ref() {
-        // Use a stable source_id based on repo URL
-        let source_id = Uuid::new_v5(&Uuid::NAMESPACE_URL, req.repo_url.as_bytes());
-        
-        // Pass a cloned Vec so the original `documents` can still be cloned for fallback embedding.
-        match graph_service.ingest_documents(source_id, SourceKind::CodeRepo, documents.clone()).await {
-            Ok(job_id) => {
-                info!("✅ Chunker job started: {} - documents will be chunked, embedded, and indexed", job_id);
-                (Some(job_id), doc_count) // Embeddings will be created by chunker
-            }
-            Err(e) => {
-                warn!("⚠️ Chunker service error: {} - falling back to direct embedding", e);
-                // Fallback: send directly to embedding service if chunker fails
-                if let Err(embed_err) = embedding_client.embed_documents(documents.clone()).await {
-                    warn!("⚠️ Embedding service also failed: {}", embed_err);
-                    (None, 0)
-                } else {
-                    info!("✅ Fallback: sent {} documents directly to embedding service", doc_count);
-                    (None, doc_count)
-                }
-            }
-        }
+        Some("syncing".to_string()),
+        Some("indexing".to_string()),
+        None,
+    )
+    .await;
+
+    let response = run_secure_github_sync_pipeline(
+        user_id,
+        sync_job_id,
+        req.into_inner(),
+        auth_client.get_ref(),
+        embedding_client.get_ref(),
+        graph_ingestion.get_ref().as_ref(),
+    )
+    .await;
+
+    if response.success {
+        Ok(HttpResponse::Ok().json(response))
     } else {
-        // No chunker configured - send directly to embedding service
-        info!("📊 Chunker service not configured, sending directly to embedding service");
-        if let Err(e) = embedding_client.embed_documents(documents.clone()).await {
-            warn!("⚠️ Embedding service error: {}", e);
-            (None, 0)
-        } else {
-            info!("✅ Sent {} documents to embedding service", doc_count);
-            (None, doc_count)
-        }
-    };
-    
-    let sync_duration = start_time.elapsed().as_millis() as u64;
-    
-    // Log sync job completed with domain event
-    log_sync_job_completed("data-service", sync_job_id, doc_count, sync_duration);
-    
-    info!(
-        trace_id = %trace_ctx.trace_id,
-        sync_job_id = %sync_job_id,
-        documents = doc_count,
-        embeddings = embeddings_created,
-        duration_ms = sync_duration,
-        "Repository sync completed successfully"
-    );
-    
-    let response = SyncRepositoryResponse {
-        success: true,
-        documents_processed: doc_count,
-        embeddings_created,
-        sync_duration_ms: sync_duration,
-        error_message: None,
-        graph_job_id,
-        issues_processed,
-        prs_processed,
-    };
-    
-    Ok(HttpResponse::Ok().json(response))
+        log_sync_job_failed(
+            "data-service",
+            sync_job_id,
+            response
+                .error_message
+                .as_deref()
+                .unwrap_or("sync_failed"),
+            start_time.elapsed().as_millis() as u64,
+        );
+        Ok(HttpResponse::BadRequest().json(response))
+    }
 }
 
 /// Get repository branches
@@ -629,17 +717,6 @@ pub async fn get_repository_branches(
             })))
         }
     }
-}
-
-/// Helper to generate safe token debug string (never logs full token)
-fn token_debug(token: &str) -> String {
-    use sha2::{Sha256, Digest};
-    let mut hasher = Sha256::new();
-    hasher.update(token.as_bytes());
-    let hash = format!("{:x}", hasher.finalize());
-    let len = token.len();
-    let prefix = if len >= 6 { &token[..6] } else { token };
-    format!("len={}, prefix={}..., sha256_prefix={}", len, prefix, &hash[..12])
 }
 
 /// OAuth-based repository check - uses JWT claims to get token from auth service
@@ -697,7 +774,7 @@ pub async fn oauth_repo_check(
                 correlation_id, req.provider, token_debug(&token_response.access_token)
             );
             token_response.access_token
-        },
+        }
         Err(e) => {
             use crate::services::auth_client::AuthClientError;
             let (code, error_msg) = match &e {
@@ -1218,30 +1295,59 @@ async fn status_check() -> Result<HttpResponse> {
     })))
 }
 
-/// List repositories - placeholder that returns empty list
-/// In a full implementation, this would query the database for user's repositories
-async fn list_repositories() -> Result<HttpResponse> {
-    // TODO: Query database for user's connected repositories
-    // For now, return empty list to prevent 404 errors
+/// List repositories - returns connected VCS repositories from in-memory store
+async fn list_repositories(http_req: HttpRequest) -> Result<HttpResponse> {
+    let user_id = extract_user_id_from_request(&http_req);
+    
+    let sources = CONNECTED_SOURCES.read().await;
+    let repos: Vec<serde_json::Value> = sources
+        .values()
+        .filter(|s| {
+            // Filter by user if authenticated, otherwise return all (dev mode)
+            (s.source_type == "github" || s.source_type == "bitbucket" || s.source_type == "gitlab")
+                && (user_id.is_none() || s.user_id == user_id)
+        })
+        .map(|s| serde_json::json!({
+            "id": s.id,
+            "name": s.name,
+            "url": s.url,
+            "provider": s.source_type,
+            "status": s.status,
+            "defaultBranch": s.default_branch,
+            "syncStatus": s.sync_status,
+            "documentsCount": s.documents_count,
+            "description": "",
+            "language": "Unknown",
+            "stars": 0,
+            "forks": 0,
+            "lastUpdated": s.created_at
+        }))
+        .collect();
+    
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "success": true,
-        "message": "Repositories retrieved",
+        "message": format!("Retrieved {} repositories", repos.len()),
         "data": {
-            "repositories": []
+            "repositories": repos
         }
     })))
 }
 
-/// List data sources - placeholder that returns empty list
-/// In a full implementation, this would query the database for user's data sources
-async fn list_data_sources() -> Result<HttpResponse> {
-    // TODO: Query database for user's connected data sources
-    // For now, return empty list to prevent 404 errors
+/// List data sources - returns all connected sources from in-memory store
+async fn list_data_sources(http_req: HttpRequest) -> Result<HttpResponse> {
+    let user_id = extract_user_id_from_request(&http_req);
+    
+    let sources = CONNECTED_SOURCES.read().await;
+    let data_sources: Vec<&ConnectedDataSource> = sources
+        .values()
+        .filter(|s| user_id.is_none() || s.user_id == user_id)
+        .collect();
+    
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "success": true,
-        "message": "Data sources retrieved",
+        "message": format!("Retrieved {} data sources", data_sources.len()),
         "data": {
-            "dataSources": []
+            "dataSources": data_sources
         }
     })))
 }
@@ -1257,12 +1363,27 @@ pub struct CreateDataSourceRequest {
 
 /// Create a new data source (repository, cloud storage, etc.)
 /// This is called when user clicks "Connect Repository" in the frontend
+/// Now stores the source in-memory and the frontend triggers sync separately
 async fn create_data_source(
+    http_req: HttpRequest,
     req: web::Json<CreateDataSourceRequest>,
+    auth_client: web::Data<AuthClient>,
+    embedding_client: web::Data<EmbeddingClient>,
+    graph_ingestion: web::Data<Option<GraphRagIngestionService>>,
 ) -> Result<HttpResponse> {
+    let user_id = match extract_user_id_from_request(&http_req) {
+        Some(id) => id,
+        None => {
+            return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
+                "success": false,
+                "error": "Authentication required"
+            })));
+        }
+    };
+    
     info!(
-        "[Data Source] Creating new data source: type={}, url={}",
-        req.source_type, req.url
+        "[Data Source] Creating new data source: type={}, url={}, user={:?}",
+        req.source_type, req.url, user_id
     );
     
     // Extract config values
@@ -1270,28 +1391,108 @@ async fn create_data_source(
     let name = config
         .and_then(|c| c.get("name"))
         .and_then(|v| v.as_str())
-        .unwrap_or("Unnamed Source");
+        .unwrap_or("Unnamed Source")
+        .to_string();
     let default_branch = config
         .and_then(|c| c.get("defaultBranch"))
         .and_then(|v| v.as_str())
-        .unwrap_or("main");
+        .unwrap_or("main")
+        .to_string();
     
     // Generate a unique ID for this data source
     let source_id = Uuid::new_v4().to_string();
+    let created_at = chrono::Utc::now().to_rfc3339();
     
-    // TODO: In a full implementation, this would:
-    // 1. Validate the repository URL and credentials
-    // 2. Store the data source in the database
-    // 3. Optionally trigger an initial sync
+    // Create the connected data source record
+    let connected_source = ConnectedDataSource {
+        id: source_id.clone(),
+        user_id: Some(user_id),
+        name: name.clone(),
+        source_type: req.source_type.clone(),
+        url: req.url.clone(),
+        status: "connected".to_string(),
+        default_branch: default_branch.clone(),
+        created_at: created_at.clone(),
+        sync_status: Some("syncing".to_string()),
+        documents_count: None,
+    };
+    
+    // Store in memory
+    {
+        let mut sources = CONNECTED_SOURCES.write().await;
+        sources.insert(source_id.clone(), connected_source);
+        info!("[Data Source] Stored data source in memory: id={}, total_sources={}", source_id, sources.len());
+    }
     
     info!(
         "[Data Source] Created data source: id={}, name={}, type={}, branch={}",
         source_id, name, req.source_type, default_branch
     );
     
+    if req.source_type == "github" {
+        let sync_job_id = Uuid::new_v4();
+        let trace_ctx = get_trace_context(&http_req);
+
+        let repo_url = req.url.clone();
+
+        let file_extensions = config
+            .and_then(|c| c.get("fileExtensions"))
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                    .collect::<Vec<String>>()
+            });
+        let fetch_issues = config
+            .and_then(|c| c.get("fetchIssues"))
+            .and_then(|v| v.as_bool());
+        let fetch_prs = config
+            .and_then(|c| c.get("fetchPrs"))
+            .and_then(|v| v.as_bool());
+
+        let sync_req = SecureSyncRepositoryRequest {
+            repo_url: repo_url.clone(),
+            branch: default_branch.clone(),
+            include_languages: None,
+            exclude_paths: Some(vec![
+                "node_modules".to_string(),
+                "dist".to_string(),
+                "build".to_string(),
+                ".git".to_string(),
+                "target".to_string(),
+                "__pycache__".to_string(),
+                "vendor".to_string(),
+                ".venv".to_string(),
+                "venv".to_string(),
+            ]),
+            max_file_size_mb: Some(5),
+            file_extensions,
+            fetch_issues,
+            fetch_prs,
+        };
+
+        let auth_client = auth_client.get_ref().clone();
+        let embedding_client = embedding_client.get_ref().clone();
+        let graph_ingestion = graph_ingestion.get_ref().clone();
+
+        tokio::spawn(async move {
+            log_sync_job_started("data-service", sync_job_id, "github", Some(&trace_ctx.trace_id));
+            update_connected_source_by_url(&repo_url, Some("syncing".to_string()), Some("indexing".to_string()), None).await;
+            let _ = run_secure_github_sync_pipeline(
+                user_id,
+                sync_job_id,
+                sync_req,
+                &auth_client,
+                &embedding_client,
+                graph_ingestion.as_ref(),
+            )
+            .await;
+        });
+    }
+
     Ok(HttpResponse::Created().json(serde_json::json!({
         "success": true,
-        "message": "Data source created successfully",
+        "message": "Data source created successfully. Sync will be triggered automatically.",
         "data": {
             "id": source_id,
             "name": name,
@@ -1299,7 +1500,8 @@ async fn create_data_source(
             "url": req.url,
             "status": "connected",
             "defaultBranch": default_branch,
-            "createdAt": chrono::Utc::now().to_rfc3339()
-        }
+            "createdAt": created_at
+        },
+        "syncStarted": req.source_type == "github"
     })))
 }

@@ -306,13 +306,28 @@ impl GitHubConnector {
         let mut start = 0;
         
         while start < content_len {
-            let end = (start + CHUNK_SIZE).min(content_len);
-            let chunk_content = &content[start..end];
+            let mut end = (start + CHUNK_SIZE).min(content_len);
+
+            // Ensure we only slice on UTF-8 boundaries.
+            // `content.len()` is bytes; slicing at arbitrary byte offsets can panic.
+            while end > start && !content.is_char_boundary(end) {
+                end -= 1;
+            }
+            let mut start_aligned = start;
+            while start_aligned > 0 && !content.is_char_boundary(start_aligned) {
+                start_aligned -= 1;
+            }
+
+            if end <= start_aligned {
+                break;
+            }
+
+            let chunk_content = &content[start_aligned..end];
             
             chunks.push(DocumentChunk {
                 chunk_number,
                 content: chunk_content.to_string(),
-                start_offset: start,
+                start_offset: start_aligned,
                 end_offset: end,
                 metadata: Some(serde_json::json!({
                     "file_path": file_path,
@@ -324,7 +339,11 @@ impl GitHubConnector {
             });
             
             chunk_number += 1;
+
             start = end.saturating_sub(CHUNK_OVERLAP);
+            while start > 0 && !content.is_char_boundary(start) {
+                start -= 1;
+            }
             
             if start + CHUNK_SIZE >= content_len && end == content_len {
                 break;
