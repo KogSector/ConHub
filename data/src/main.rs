@@ -85,7 +85,7 @@ use connectors::github::GitHubConnector;
 use connectors::types::{GitHubRepoAccessRequest, GitHubSyncConfig, DocumentForEmbedding};
 use services::{
     create_vector_store_service, GitHubAppClient, GitHubAppConfig,
-    AuthClient, EmbeddingClient, GraphRagIngestionService,
+    AuthClient, AuthClientError, EmbeddingClient, GraphRagIngestionService,
 };
 use handlers::github_app::{GitHubAppState, configure_github_app_routes};
 use conhub_models::chunking::SourceKind;
@@ -469,7 +469,11 @@ async fn run_secure_github_sync_pipeline(
             log_sync_job_failed(
                 "data-service",
                 sync_job_id,
-                &format!("Failed to retrieve GitHub token: {e}"),
+                &match &e {
+                    AuthClientError::NoConnection(_) => "No GitHub connection found. Please connect GitHub in Social Connections.".to_string(),
+                    AuthClientError::TokenExpired(_) => "Your GitHub connection has expired. Please reconnect GitHub in Social Connections.".to_string(),
+                    _ => format!("Failed to retrieve GitHub token: {e}"),
+                },
                 start_time.elapsed().as_millis() as u64,
             );
             return SyncRepositoryResponse {
@@ -478,8 +482,12 @@ async fn run_secure_github_sync_pipeline(
                 embeddings_created: 0,
                 sync_duration_ms: start_time.elapsed().as_millis() as u64,
                 error_message: Some(format!(
-                    "Failed to retrieve GitHub token: {}. Please ensure you have connected your GitHub account.",
-                    e
+                    "{}",
+                    match &e {
+                        AuthClientError::NoConnection(_) => "No GitHub connection found. Please connect GitHub in Social Connections.".to_string(),
+                        AuthClientError::TokenExpired(_) => "Your GitHub connection has expired. Please reconnect GitHub in Social Connections.".to_string(),
+                        _ => format!("Failed to retrieve GitHub token: {e}. Please ensure you have connected your GitHub account."),
+                    }
                 )),
                 graph_job_id: None,
                 issues_processed: None,
@@ -489,6 +497,51 @@ async fn run_secure_github_sync_pipeline(
     };
 
     let connector = GitHubConnector::new();
+
+    // Validate access up-front so we can return actionable errors and learn default_branch.
+    let access_check = connector
+        .validate_repo_access(&GitHubRepoAccessRequest {
+            repo_url: req.repo_url.clone(),
+            access_token: github_token.clone(),
+        })
+        .await;
+
+    match access_check {
+        Ok(check) => {
+            if !check.has_access {
+                let msg = check
+                    .error_message
+                    .unwrap_or_else(|| "Repository not found or access denied".to_string());
+                error!("❌ GitHub repo access check failed: {}", msg);
+                update_connected_source_by_url(
+                    &req.repo_url,
+                    Some("failed".to_string()),
+                    Some("error".to_string()),
+                    None,
+                )
+                .await;
+                log_sync_job_failed(
+                    "data-service",
+                    sync_job_id,
+                    &msg,
+                    start_time.elapsed().as_millis() as u64,
+                );
+                return SyncRepositoryResponse {
+                    success: false,
+                    documents_processed: 0,
+                    embeddings_created: 0,
+                    sync_duration_ms: start_time.elapsed().as_millis() as u64,
+                    error_message: Some(msg),
+                    graph_job_id: None,
+                    issues_processed: None,
+                    prs_processed: None,
+                };
+            }
+        }
+        Err(e) => {
+            warn!("⚠️ GitHub repo access check failed (continuing to sync): {}", e);
+        }
+    }
 
     let include_extensions = req.file_extensions.as_ref().map(|exts| {
         exts.iter()
