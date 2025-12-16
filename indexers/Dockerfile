@@ -1,46 +1,61 @@
-# Build stage
-FROM rustlang/rust:nightly-alpine as builder
-
-WORKDIR /build
+# Multi-stage build for Indexers service
+FROM rust:1.75-slim AS builder
 
 # Install build dependencies
-RUN apk add --no-cache musl-dev openssl-dev pkgconfig git
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    libpq-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy shared dependencies first (to parent directory structure)
-COPY shared/ ../shared/
+WORKDIR /app
 
-# Copy service files
-COPY indexers/Cargo.toml indexers/Cargo.lock ./
-COPY indexers/src ./src
+# Copy shared dependencies first
+COPY shared ./shared
 
-# Build the unified-indexer
+# Copy indexers service
+COPY indexers ./indexers
+
+# Build the service
+WORKDIR /app/indexers
 RUN cargo build --release --bin unified-indexer
 
 # Runtime stage
-FROM alpine:latest
+FROM debian:bookworm-slim
 
 # Install runtime dependencies
-RUN apk add --no-cache ca-certificates libgcc libssl3 curl git
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    libpq5 \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1001 conhub
 
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /build/target/release/unified-indexer /app/unified-indexer
+COPY --from=builder /app/indexers/target/release/unified-indexer /app/unified-indexer
 
 # Create data directories
-RUN mkdir -p /app/data/index /app/data/temp
+RUN mkdir -p /app/data/index /app/data/temp && \
+    chown -R conhub:conhub /app
+
+USER conhub
 
 # Set environment variables
 ENV RUST_LOG=info
 ENV INDEXER_HOST=0.0.0.0
-ENV INDEXER_PORT=8080
+ENV INDEXER_PORT=3020
 
-# Expose port
-EXPOSE 8080
+EXPOSE 3020
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+    CMD curl -f http://localhost:3020/health || exit 1
 
-# Run the application
 CMD ["/app/unified-indexer"]

@@ -1,13 +1,14 @@
 use sqlx::PgPool;
 use tracing::{info, warn};
 use uuid::Uuid;
+use std::collections::HashMap;
 
 use conhub_models::chunking::{IngestChunksRequest, Chunk};
 
-use crate::models::{Entity, EntityType, DataSource, ResolutionConfig};
+use crate::models::{Entity, EntityType, DataSource, ResolutionConfig, Relationship, RelationshipType};
 use crate::entity_resolution::EntityResolver;
 use crate::knowledge_fusion::FusionEngine;
-use crate::extractors::code_entities::CodeEntityExtractor;
+use crate::extractors::code_entities::{CodeEntityExtractor, ExtractedRelationship};
 use crate::errors::GraphResult;
 
 pub struct ChunkProcessor {
@@ -41,24 +42,40 @@ impl ChunkProcessor {
         // Initialize extractors based on source kind
         let code_extractor = CodeEntityExtractor::new();
 
+        // Track entity name -> ID mapping for relationship creation
+        let mut entity_name_to_id: HashMap<String, Uuid> = HashMap::new();
+        // Collect all relationships to process after entities
+        let mut all_relationships: Vec<ExtractedRelationship> = Vec::new();
+
         for chunk in &request.chunks {
             info!("Processing chunk {}", chunk.chunk_id);
 
-            // Extract entities based on content type
-            let entities = Self::extract_entities_from_chunk(chunk, &code_extractor)?;
+            // Extract entities and relationships based on content type
+            let (entities, relationships) = Self::extract_entities_and_relationships_from_chunk(chunk, &code_extractor)?;
 
             if !entities.is_empty() {
-                info!("Extracted {} entities from chunk", entities.len());
+                info!("Extracted {} entities and {} relationships from chunk", entities.len(), relationships.len());
+
+                // Store entity names before fusion for relationship mapping
+                let entity_names: Vec<String> = entities.iter().map(|e| e.name.clone()).collect();
 
                 // Fuse entities into the graph (includes deduplication)
                 match fusion_engine.fuse_entities(entities).await {
                     Ok(canonical_ids) => {
                         stats.entities_created += canonical_ids.len();
+                        
+                        // Map entity names to their canonical IDs
+                        for (name, id) in entity_names.iter().zip(canonical_ids.iter()) {
+                            entity_name_to_id.insert(name.clone(), *id);
+                        }
                     }
                     Err(e) => {
                         warn!("Failed to fuse entities for chunk {}: {}", chunk.chunk_id, e);
                     }
                 }
+
+                // Collect relationships for later processing
+                all_relationships.extend(relationships);
 
                 // Link chunk to entities (store chunk_id → entity_id mappings)
                 if let Err(e) = self.link_chunk_to_entities(chunk.chunk_id).await {
@@ -69,30 +86,76 @@ impl ChunkProcessor {
             stats.chunks_processed += 1;
         }
 
+        // Now process all relationships using the entity name -> ID mapping
+        if !all_relationships.is_empty() {
+            info!("Processing {} relationships", all_relationships.len());
+            
+            let relationships: Vec<Relationship> = all_relationships
+                .iter()
+                .filter_map(|rel| {
+                    let from_id = entity_name_to_id.get(&rel.from_name)?;
+                    let to_id = entity_name_to_id.get(&rel.to_name)?;
+                    
+                    Some(Relationship::new(
+                        *from_id,
+                        *to_id,
+                        rel.relationship_type.clone(),
+                        serde_json::json!({
+                            "confidence": rel.confidence,
+                            "source_id": request.source_id,
+                        }),
+                    ))
+                })
+                .collect();
+
+            if !relationships.is_empty() {
+                match fusion_engine.fuse_relationships(relationships).await {
+                    Ok(count) => {
+                        stats.relationships_created += count;
+                        info!("Created {} relationships", count);
+                    }
+                    Err(e) => {
+                        warn!("Failed to create relationships: {}", e);
+                    }
+                }
+            }
+        }
+
         Ok(stats)
     }
 
-    /// Extract entities from a chunk based on its type
+    /// Extract entities from a chunk based on its type (legacy method)
     fn extract_entities_from_chunk(
         chunk: &Chunk,
         code_extractor: &CodeEntityExtractor,
     ) -> GraphResult<Vec<Entity>> {
+        let (entities, _) = Self::extract_entities_and_relationships_from_chunk(chunk, code_extractor)?;
+        Ok(entities)
+    }
+
+    /// Extract entities AND relationships from a chunk based on its type
+    fn extract_entities_and_relationships_from_chunk(
+        chunk: &Chunk,
+        code_extractor: &CodeEntityExtractor,
+    ) -> GraphResult<(Vec<Entity>, Vec<ExtractedRelationship>)> {
         let mut entities = Vec::new();
+        let mut relationships = Vec::new();
 
         // Determine extraction strategy based on block_type and language
         if let Some(block_type) = &chunk.block_type {
             match block_type.as_str() {
                 "code" => {
-                    // Use code entity extractor
-                    let extracted = code_extractor.extract(&chunk.content, chunk.language.as_deref());
+                    // Use code entity extractor with relationship extraction
+                    let extraction_result = code_extractor.extract_with_relationships(&chunk.content, chunk.language.as_deref());
                     
                     // Convert to Entity structs
-                    for extracted_entity in extracted {
+                    for extracted_entity in extraction_result.entities {
                         let source = Self::determine_data_source(chunk);
                         
                         let mut properties = serde_json::Map::new();
                         properties.insert("name".to_string(), serde_json::json!(extracted_entity.name));
                         properties.insert("chunk_id".to_string(), serde_json::json!(chunk.chunk_id));
+                        properties.insert("confidence".to_string(), serde_json::json!(extracted_entity.confidence));
                         
                         if let Some(lang) = &chunk.language {
                             properties.insert("language".to_string(), serde_json::json!(lang));
@@ -113,6 +176,9 @@ impl ChunkProcessor {
                             properties.into_iter().collect(),
                         ));
                     }
+                    
+                    // Collect relationships
+                    relationships.extend(extraction_result.relationships);
                 }
                 "text" | "chat" => {
                     // For text/chat, we could extract named entities (people, orgs, etc.)
@@ -123,7 +189,7 @@ impl ChunkProcessor {
             }
         }
 
-        Ok(entities)
+        Ok((entities, relationships))
     }
 
     fn determine_data_source(chunk: &Chunk) -> DataSource {

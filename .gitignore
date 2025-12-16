@@ -75,7 +75,7 @@ coverage/
 
 # === Rust ===
 /target/
-/Cargo.lock
+Cargo.lock
 debug/
 release/
 deps/
@@ -151,5 +151,3 @@ typings/
 .angular/
 *.pem
 .vercel
-
-cocoindex-main/

@@ -306,13 +306,28 @@ impl GitHubConnector {
         let mut start = 0;
         
         while start < content_len {
-            let end = (start + CHUNK_SIZE).min(content_len);
-            let chunk_content = &content[start..end];
+            let mut end = (start + CHUNK_SIZE).min(content_len);
+
+            // Ensure we only slice on UTF-8 boundaries.
+            // `content.len()` is bytes; slicing at arbitrary byte offsets can panic.
+            while end > start && !content.is_char_boundary(end) {
+                end -= 1;
+            }
+            let mut start_aligned = start;
+            while start_aligned > 0 && !content.is_char_boundary(start_aligned) {
+                start_aligned -= 1;
+            }
+
+            if end <= start_aligned {
+                break;
+            }
+
+            let chunk_content = &content[start_aligned..end];
             
             chunks.push(DocumentChunk {
                 chunk_number,
                 content: chunk_content.to_string(),
-                start_offset: start,
+                start_offset: start_aligned,
                 end_offset: end,
                 metadata: Some(serde_json::json!({
                     "file_path": file_path,
@@ -324,7 +339,11 @@ impl GitHubConnector {
             });
             
             chunk_number += 1;
+
             start = end.saturating_sub(CHUNK_OVERLAP);
+            while start > 0 && !content.is_char_boundary(start) {
+                start -= 1;
+            }
             
             if start + CHUNK_SIZE >= content_len && end == content_len {
                 break;
@@ -547,6 +566,38 @@ impl GitHubConnector {
         
         Ok(languages)
     }
+
+    async fn get_repository_default_branch(
+        &self,
+        access_token: &str,
+        owner: &str,
+        repo: &str,
+    ) -> Result<String, ConnectorError> {
+        let url = format!("https://api.github.com/repos/{}/{}", owner, repo);
+
+        let response = self.client
+            .get(&url)
+            .header("Authorization", Self::auth_header(access_token))
+            .header("User-Agent", "ConHub")
+            .header("Accept", "application/vnd.github.v3+json")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(ConnectorError::HttpError(format!(
+                "Failed to fetch repository info: {} - {}",
+                status, error_text
+            )));
+        }
+
+        let repo_data: GitHubRepoResponse = response.json().await?;
+        Ok(repo_data.default_branch)
+    }
     
     /// Sync repository with specific branch and configuration
     pub async fn sync_repository_branch(
@@ -561,7 +612,7 @@ impl GitHubConnector {
         let mut documents_for_embedding = Vec::new();
         
         // Get all files from the specified branch
-        self.recursively_list_files_branch(
+        let first_attempt = self.recursively_list_files_branch(
             access_token,
             &owner,
             &repo,
@@ -569,7 +620,39 @@ impl GitHubConnector {
             "",
             &mut documents_for_embedding,
             config,
-        ).await?;
+        ).await;
+
+        match first_attempt {
+            Ok(()) => {}
+            Err(ConnectorError::HttpError(msg)) if msg.contains("404") => {
+                // Common OAuth-only failure mode: branch name mismatch (main/master) shows up as 404.
+                // Retry once using repo default_branch.
+                let default_branch = self
+                    .get_repository_default_branch(access_token, &owner, &repo)
+                    .await?;
+
+                if default_branch != config.branch {
+                    warn!(
+                        "⚠️ GitHub sync got 404 for branch '{}'; retrying with default branch '{}'",
+                        config.branch, default_branch
+                    );
+                    documents_for_embedding.clear();
+                    self.recursively_list_files_branch(
+                        access_token,
+                        &owner,
+                        &repo,
+                        &default_branch,
+                        "",
+                        &mut documents_for_embedding,
+                        config,
+                    )
+                    .await?;
+                } else {
+                    return Err(ConnectorError::HttpError(msg));
+                }
+            }
+            Err(e) => return Err(e),
+        }
         
         info!("✅ Repository sync completed. Found {} documents", documents_for_embedding.len());
         
@@ -603,8 +686,13 @@ impl GitHubConnector {
                 .await?;
             
             if !response.status().is_success() {
+                let status = response.status();
+                let error_text = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Unknown error".to_string());
                 return Err(ConnectorError::HttpError(
-                    format!("GitHub API error: {}", response.status())
+                    format!("GitHub API error: {} - {}", status, error_text)
                 ));
             }
             

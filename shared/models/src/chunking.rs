@@ -192,3 +192,137 @@ pub struct IngestChunksResponse {
     pub entities_created: usize,
     pub relationships_created: usize,
 }
+
+// ============================================================================
+// Graph Service Types (IDs-only for Option A architecture)
+// ============================================================================
+
+/// Chunk metadata for graph observation (no content - graph fetches from Postgres)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChunkRef {
+    /// Stable chunk ID (matches chunks.chunk_id in Postgres and vector DB point ID)
+    pub chunk_id: Uuid,
+    
+    /// Reference to the source item this came from
+    pub source_item_id: Uuid,
+    
+    /// Index of this chunk within the source item
+    pub chunk_index: u32,
+    
+    /// Type of content block: "code", "text", "table", "comment", etc.
+    pub block_type: Option<String>,
+    
+    /// Programming language for code chunks
+    pub language: Option<String>,
+    
+    /// Metadata (provenance, filters) - no content
+    pub metadata: serde_json::Value,
+}
+
+impl From<Chunk> for ChunkRef {
+    fn from(chunk: Chunk) -> Self {
+        Self {
+            chunk_id: chunk.chunk_id,
+            source_item_id: chunk.source_item_id,
+            chunk_index: chunk.chunk_index,
+            block_type: chunk.block_type,
+            language: chunk.language,
+            metadata: chunk.metadata,
+        }
+    }
+}
+
+/// Request to observe chunks for graph extraction (IDs only, no content)
+/// Graph service will fetch chunk text from Postgres by chunk_id.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ObserveChunksRequest {
+    pub tenant_id: Uuid,
+    pub source_id: Uuid,
+    pub source_kind: SourceKind,
+    pub chunks: Vec<ChunkRef>,
+}
+
+/// Response from chunk observation
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ObserveChunksResponse {
+    pub total_chunks: usize,
+    pub chunks_processed: usize,
+    pub entities_created: usize,
+    pub relationships_created: usize,
+    pub evidence_created: usize,
+}
+
+// ============================================================================
+// Chunk Storage Types (for Postgres chunks table)
+// ============================================================================
+
+/// Record for persisting a chunk to the Postgres chunks table
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChunkRecord {
+    pub chunk_id: Uuid,
+    pub tenant_id: Uuid,
+    pub source_item_id: Uuid,
+    pub source_id: Uuid,
+    pub chunk_index: i32,
+    pub content: String,
+    pub content_hash: String,
+    pub source_kind: String,
+    pub block_type: Option<String>,
+    pub language: Option<String>,
+    pub metadata: serde_json::Value,
+}
+
+impl ChunkRecord {
+    /// Create a ChunkRecord from a Chunk with additional context
+    pub fn from_chunk(
+        chunk: &Chunk,
+        tenant_id: Uuid,
+        source_id: Uuid,
+        source_kind: &SourceKind,
+    ) -> Self {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        
+        // Simple content hash (in production, use SHA256)
+        let mut hasher = DefaultHasher::new();
+        chunk.content.hash(&mut hasher);
+        let content_hash = format!("{:x}", hasher.finish());
+        
+        Self {
+            chunk_id: chunk.chunk_id,
+            tenant_id,
+            source_item_id: chunk.source_item_id,
+            source_id,
+            chunk_index: chunk.chunk_index as i32,
+            content: chunk.content.clone(),
+            content_hash,
+            source_kind: source_kind.as_str().to_string(),
+            block_type: chunk.block_type.clone(),
+            language: chunk.language.clone(),
+            metadata: chunk.metadata.clone(),
+        }
+    }
+}
+
+/// Response when fetching chunk text by IDs
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChunkText {
+    pub chunk_id: Uuid,
+    pub content: String,
+    pub block_type: Option<String>,
+    pub language: Option<String>,
+    pub metadata: serde_json::Value,
+}
+
+/// Request to fetch chunk texts by IDs (batch)
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FetchChunksRequest {
+    pub chunk_ids: Vec<Uuid>,
+}
+
+/// Response with fetched chunk texts
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FetchChunksResponse {
+    pub chunks: Vec<ChunkText>,
+    pub missing_ids: Vec<Uuid>,
+}

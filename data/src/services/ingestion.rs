@@ -310,25 +310,18 @@ impl IngestionService {
             }]
         });
 
+        // NOTE: Embeddings are now stored ONLY in vector DB via chunker → vector_rag pipeline.
+        // We no longer write embeddings to Postgres document_chunks.embedding_vector.
+        // This is part of the dual-truth architecture (Option A):
+        // - Postgres chunks table = text truth
+        // - Vector DB = semantic/embedding truth
+        // - Graph = relationship truth
         for chunk in chunks {
             match self.embedding_client.embed_text(&chunk.content).await {
-                Ok(embedding) => {
-                    // Store embedding in database
-                    if let Some(ref pool) = self.db_pool {
-                        sqlx::query!(
-                            r#"
-                            UPDATE document_chunks 
-                            SET embedding_vector = $1, updated_at = CURRENT_TIMESTAMP
-                            WHERE document_id = $2 AND chunk_number = $3
-                            "#,
-                            &serde_json::to_string(&embedding).unwrap_or_default(),
-                            document.id,
-                            chunk.chunk_number as i32
-                        )
-                        .execute(pool)
-                        .await
-                        .context("Failed to store embedding")?;
-                    }
+                Ok(_embedding) => {
+                    // Embedding generated successfully - it will be stored in vector DB by the pipeline.
+                    // We intentionally do NOT store embeddings in Postgres anymore.
+                    info!("✅ Embedding generated for chunk {} (stored in vector DB only)", chunk.chunk_number);
                 }
                 Err(e) => {
                     warn!("Failed to generate embedding for chunk {}: {}", chunk.chunk_number, e);
