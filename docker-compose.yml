@@ -147,7 +147,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - AUTH_SERVICE_URL=http://auth:3010
       - CHUNKER_SERVICE_URL=http://chunker:3017
-      - EMBEDDING_SERVICE_URL=http://vector_rag:3017
+      - EMBEDDING_SERVICE_URL=http://embeddings:3021
       - GRAPH_SERVICE_URL=http://graph_rag:3018
       - EMBEDDING_ENABLED=true
       - GRAPH_RAG_ENABLED=true
@@ -159,8 +159,30 @@ services:
       - redis
       - auth
       - chunker
-      - vector_rag
+      - embeddings
       - graph_rag
+    networks:
+      - conhub-network
+
+  # Embeddings Service (standalone microservice)
+  embeddings:
+    build:
+      context: ../embeddings
+      dockerfile: Dockerfile
+    container_name: conhub-embeddings
+    ports:
+      - "3021:3021"
+    environment:
+      - ENV_MODE=docker
+      - PORT=3021
+      - RUST_LOG=embeddings=info,tower_http=debug
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - COHERE_API_KEY=${COHERE_API_KEY}
+      - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+      - JINA_API_KEY=${JINA_API_KEY}
+      - HUGGINGFACE_API_TOKEN=${HUGGINGFACE_API_TOKEN}
+      - DEFAULT_PROVIDER=openai
+      - EMBEDDING_CACHE_SIZE=10000
     networks:
       - conhub-network
 
@@ -271,12 +293,12 @@ services:
       - RUST_LOG=chunker=info,tower_http=debug
       - CHUNK_SIZE=512
       - CHUNK_OVERLAP=50
-      - EMBEDDING_SERVICE_URL=http://vector_rag:3017
+      - EMBEDDING_SERVICE_URL=http://embeddings:3021
       - GRAPH_SERVICE_URL=http://graph_rag:3018
       - MAX_CONCURRENT_JOBS=10
       - ACTIVE_PROFILE=default
     depends_on:
-      - vector_rag
+      - embeddings
       - graph_rag
     networks:
       - conhub-network
