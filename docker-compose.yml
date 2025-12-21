@@ -131,36 +131,35 @@ services:
     networks:
       - conhub-network
 
-  # Data Service (now includes graph/GraphRAG functionality)
+  # Data Connector Service (standalone microservice)
   data:
     build:
-      context: .
-      dockerfile: data/Dockerfile
+      context: ../data-connector
+      dockerfile: Dockerfile
     container_name: conhub-data
     ports:
       - "3013:3013"
     environment:
       - ENV_MODE=docker
-      - RUST_LOG=info
+      - PORT=3013
+      - RUST_LOG=data_service=info,actix_web=info
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
       - REDIS_URL=redis://redis:6379
-      - NEO4J_URI=bolt://neo4j:7687
-      - NEO4J_USER=neo4j
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-graphpassword}
-      - QDRANT_URL=http://qdrant:6333
-      - VECTOR_RAG_SERVICE_URL=http://vector_rag:3017
-      - CHUNKER_SERVICE_URL=http://chunker:3016
+      - AUTH_SERVICE_URL=http://auth:3010
+      - CHUNKER_SERVICE_URL=http://chunker:3017
+      - EMBEDDING_SERVICE_URL=http://vector_rag:3017
       - GRAPH_SERVICE_URL=http://graph_rag:3018
+      - EMBEDDING_ENABLED=true
+      - GRAPH_RAG_ENABLED=true
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - GITLAB_TOKEN=${GITLAB_TOKEN}
       - NOTION_TOKEN=${NOTION_TOKEN}
     depends_on:
       - postgres
       - redis
-      - neo4j
-      - qdrant
-      - vector_rag
+      - auth
       - chunker
+      - vector_rag
       - graph_rag
     networks:
       - conhub-network
@@ -258,25 +257,25 @@ services:
     networks:
       - conhub-network
 
-  # Chunker Service
+  # Chunker Service (standalone microservice)
   chunker:
     build:
-      context: .
-      dockerfile: chunker/Dockerfile
+      context: ../chunker
+      dockerfile: Dockerfile
     container_name: conhub-chunker
     ports:
-      - "3016:3016"
+      - "3017:3017"
     environment:
       - ENV_MODE=docker
-      - RUST_LOG=info
-      - CHUNKER_PORT=3016
-      - CHUNKER_HOST=0.0.0.0
-      - REDIS_URL=redis://redis:6379
-      - VECTOR_RAG_SERVICE_URL=http://vector_rag:3017
+      - PORT=3017
+      - RUST_LOG=chunker=info,tower_http=debug
+      - CHUNK_SIZE=512
+      - CHUNK_OVERLAP=50
+      - EMBEDDING_SERVICE_URL=http://vector_rag:3017
       - GRAPH_SERVICE_URL=http://graph_rag:3018
       - MAX_CONCURRENT_JOBS=10
+      - ACTIVE_PROFILE=default
     depends_on:
-      - redis
       - vector_rag
       - graph_rag
     networks:

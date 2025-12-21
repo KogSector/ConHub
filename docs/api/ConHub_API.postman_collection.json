@@ -1,0 +1,1241 @@
+{
+	"info": {
+		"_postman_id": "conhub-api-collection-v1",
+		"name": "ConHub API v1.0.0",
+		"description": "Complete API collection for ConHub AI-powered development context platform. Includes all microservices endpoints for authentication, data management, billing, security, webhooks, and vector RAG.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health Checks",
+			"item": [
+				{
+					"name": "Backend Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Auth Service Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{authUrl}}/health",
+							"host": ["{{authUrl}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Data Service Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{dataUrl}}/health",
+							"host": ["{{dataUrl}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Billing Service Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{billingUrl}}/health",
+							"host": ["{{billingUrl}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Security Service Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{securityUrl}}/health",
+							"host": ["{{securityUrl}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Vector RAG Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{vectorRagUrl}}/health",
+							"host": ["{{vectorRagUrl}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Health check endpoints for all services"
+		},
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "User Registration",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"name\": \"New User\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "me"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User Logout",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/logout",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "logout"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/profile",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "profile"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Name\",\n  \"avatar_url\": \"https://example.com/avatar.jpg\",\n  \"organization\": \"New Organization\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/profile",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "profile"]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "User authentication and profile management endpoints"
+		},
+		{
+			"name": "Data Sources",
+			"item": [
+				{
+					"name": "List Data Sources",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/data-sources",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "data-sources"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Connect GitHub Repository",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"github\",\n  \"url\": \"https://github.com/owner/repo\",\n  \"config\": {\n    \"name\": \"My Repository\",\n    \"defaultBranch\": \"main\",\n    \"fileExtensions\": [\".rs\", \".js\", \".md\"],\n    \"fetchIssues\": true,\n    \"fetchPrs\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/data/sources",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "data", "sources"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Sync Data Source",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/data/sources/{{dataSourceId}}/sync",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "data", "sources", "{{dataSourceId}}", "sync"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Data Source",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/data-sources/{{dataSourceId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "data-sources", "{{dataSourceId}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Validate GitHub Repository Access",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"provider\": \"github\",\n  \"repo_url\": \"https://github.com/owner/repo\"\n}"
+						},
+						"url": {
+							"raw": "{{dataUrl}}/api/repositories/oauth/check",
+							"host": ["{{dataUrl}}"],
+							"path": ["api", "repositories", "oauth", "check"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Repository Branches",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{dataUrl}}/api/repositories/oauth/branches?provider=github&repo=owner/repo",
+							"host": ["{{dataUrl}}"],
+							"path": ["api", "repositories", "oauth", "branches"],
+							"query": [
+								{
+									"key": "provider",
+									"value": "github"
+								},
+								{
+									"key": "repo",
+									"value": "owner/repo"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Data source management and repository synchronization endpoints"
+		},
+		{
+			"name": "Billing",
+			"item": [
+				{
+					"name": "Get Subscription Plans",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/billing/plans",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "billing", "plans"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Billing Dashboard",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/billing/dashboard",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "billing", "dashboard"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current Subscription",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/billing/subscription",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "billing", "subscription"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Customer",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"customer@example.com\",\n  \"name\": \"Customer Name\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/billing/customers",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "billing", "customers"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Payment Intent",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 2999,\n  \"currency\": \"USD\",\n  \"customer_id\": \"cus_1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/billing/payment-intents",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "billing", "payment-intents"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Subscription",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": \"cus_1234567890\",\n  \"price_id\": \"price_1234567890\",\n  \"payment_method_id\": \"pm_1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/billing/subscription",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "billing", "subscription"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Subscription",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/billing/subscriptions/{{subscriptionId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "billing", "subscriptions", "{{subscriptionId}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Invoices",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/billing/invoices",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "billing", "invoices"]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Billing, subscription, and payment management endpoints"
+		},
+		{
+			"name": "Security",
+			"item": [
+				{
+					"name": "List Security Rulesets",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/security/rulesets",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "security", "rulesets"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Security Ruleset",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Enhanced Security Policy\",\n  \"description\": \"Advanced security rules for premium users\",\n  \"enabled\": true,\n  \"rules\": [\n    {\n      \"type\": \"rate_limiting\",\n      \"config\": {\n        \"requests_per_minute\": 200,\n        \"burst_size\": 500\n      }\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/security/rulesets",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "security", "rulesets"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Audit Logs",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/security/audit-logs?limit=50&offset=0",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "security", "audit-logs"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "50"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Social Connections",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/security/connections",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "security", "connections"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Configure Social Connection",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"provider\": \"github\",\n  \"client_id\": \"your_github_client_id\",\n  \"client_secret\": \"your_github_client_secret\",\n  \"scopes\": [\"repo\", \"user:email\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/security/connections/configure",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "security", "connections", "configure"]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Security policies, audit logs, and social connections endpoints"
+		},
+		{
+			"name": "GraphQL",
+			"item": [
+				{
+					"name": "GraphQL Query - Health Check",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"query { health, version }\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/graphql",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "graphql"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GraphQL Query - Get User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"query { me { user_id, roles } }\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/graphql",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "graphql"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GraphQL Query - Generate Embeddings",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"query GenerateEmbeddings($texts: [String!]!, $normalize: Boolean) { embed(texts: $texts, normalize: $normalize) { embeddings, dimension, model, count } }\",\n  \"variables\": {\n    \"texts\": [\"This is a sample text for embedding generation.\"],\n    \"normalize\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/graphql",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "graphql"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GraphQL Query - Rerank Documents",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"query RerankDocuments($query: String!, $documents: [RerankDocumentInput!]!, $top_k: Int) { rerank(query: $query, documents: $documents, top_k: $top_k) { id, score, index, document { id, text, metadata } } }\",\n  \"variables\": {\n    \"query\": \"machine learning algorithms\",\n    \"documents\": [{\"id\": \"doc_001\", \"text\": \"This document discusses various machine learning algorithms including neural networks and decision trees.\", \"metadata\": {\"source\": \"ml_paper.pdf\"}}, {\"id\": \"doc_002\", \"text\": \"This paper focuses on deep learning techniques for computer vision applications.\", \"metadata\": {\"source\": \"cv_paper.pdf\"}}],\n    \"top_k\": 5\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/graphql",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "graphql"]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "GraphQL API endpoints for unified data access"
+		},
+		{
+			"name": "Vector RAG",
+			"item": [
+				{
+					"name": "Generate Embeddings",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"This is a sample text for embedding generation.\",\n  \"normalize\": true,\n  \"model\": \"text-embedding-ada-002\"\n}"
+						},
+						"url": {
+							"raw": "{{vectorRagUrl}}/embed",
+							"host": ["{{vectorRagUrl}}"],
+							"path": ["embed"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Batch Embeddings",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"texts\": [\n    \"First document text\",\n    \"Second document text\",\n    \"Third document text\"\n  ],\n  \"normalize\": true,\n  \"model\": \"text-embedding-ada-002\"\n}"
+						},
+						"url": {
+							"raw": "{{vectorRagUrl}}/batch/embed",
+							"host": ["{{vectorRagUrl}}"],
+							"path": ["batch", "embed"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Rerank Documents",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"machine learning algorithms\",\n  \"documents\": [\n    {\n      \"id\": \"doc_001\",\n      \"text\": \"This document discusses various machine learning algorithms including neural networks and decision trees.\",\n      \"metadata\": {\n        \"source\": \"ml_paper.pdf\",\n        \"relevance_score\": 0.8\n      }\n    },\n    {\n      \"id\": \"doc_002\",\n      \"text\": \"This paper focuses on deep learning techniques for computer vision applications.\",\n      \"metadata\": {\n        \"source\": \"cv_paper.pdf\",\n        \"relevance_score\": 0.6\n      }\n    }\n  ],\n  \"top_k\": 5,\n  \"model\": \"rerank-model-v1\"\n}"
+						},
+						"url": {
+							"raw": "{{vectorRagUrl}}/rerank",
+							"host": ["{{vectorRagUrl}}"],
+							"path": ["rerank"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Vector Search",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query_vector\": [0.1234, -0.5678, 0.9012, -0.3456, 0.7890],\n  \"top_k\": 10,\n  \"threshold\": 0.7,\n  \"filter\": {\n    \"source\": \"github\",\n    \"language\": \"rust\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{vectorRagUrl}}/vector/search",
+							"host": ["{{vectorRagUrl}}"],
+							"path": ["vector", "search"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search by Vector IDs",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ids\": [\"vector_001\", \"vector_002\", \"vector_003\"],\n  \"include_payload\": true\n}"
+						},
+						"url": {
+							"raw": "{{vectorRagUrl}}/vector/search_by_ids",
+							"host": ["{{vectorRagUrl}}"],
+							"path": ["vector", "search_by_ids"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search by Entity",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{vectorRagUrl}}/vector/search_by_entity/{{entityId}}",
+							"host": ["{{vectorRagUrl}}"],
+							"path": ["vector", "search_by_entity", "{{entityId}}"]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Vector embedding generation, search, and document reranking endpoints"
+		},
+		{
+			"name": "Webhooks",
+			"item": [
+				{
+					"name": "GitHub Webhook",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-GitHub-Event",
+								"value": "push"
+							},
+							{
+								"key": "X-Hub-Signature-256",
+								"value": "sha256=..."
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ref\": \"refs/heads/main\",\n  \"repository\": {\n    \"id\": 123456789,\n    \"name\": \"repository\",\n    \"full_name\": \"owner/repository\"\n  },\n  \"pusher\": {\n    \"name\": \"username\",\n    \"email\": \"user@example.com\"\n  },\n  \"commits\": [\n    {\n      \"id\": \"commit_hash\",\n      \"message\": \"Commit message\",\n      \"timestamp\": \"2023-12-01T10:30:00Z\",\n      \"added\": [\"file1.txt\"],\n      \"modified\": [\"file2.txt\"],\n      \"removed\": [\"file3.txt\"]\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/webhooks/github",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "webhooks", "github"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Stripe Webhook",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "stripe-signature",
+								"value": "t=timestamp,v1=signature"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"invoice.payment_succeeded\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"in_1234567890\",\n      \"amount\": 2999,\n      \"currency\": \"usd\"\n    }\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/webhooks/stripe",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "webhooks", "stripe"]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "External webhook handling endpoints"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8000",
+			"description": "Main API gateway URL"
+		},
+		{
+			"key": "authUrl",
+			"value": "http://localhost:3010",
+			"description": "Authentication service URL"
+		},
+		{
+			"key": "dataUrl",
+			"value": "http://localhost:3013",
+			"description": "Data service URL"
+		},
+		{
+			"key": "billingUrl",
+			"value": "http://localhost:3011",
+			"description": "Billing service URL"
+		},
+		{
+			"key": "securityUrl",
+			"value": "http://localhost:3014",
+			"description": "Security service URL"
+		},
+		{
+			"key": "vectorRagUrl",
+			"value": "http://localhost:8082",
+			"description": "Vector RAG service URL"
+		},
+		{
+			"key": "jwtToken",
+			"value": "",
+			"description": "JWT authentication token (set after login)"
+		},
+		{
+			"key": "dataSourceId",
+			"value": "",
+			"description": "Data source ID (set after creating data source)"
+		},
+		{
+			"key": "subscriptionId",
+			"value": "",
+			"description": "Subscription ID (set after creating subscription)"
+		},
+		{
+			"key": "entityId",
+			"value": "",
+			"description": "Entity ID for vector search"
+		}
+	]
+}
