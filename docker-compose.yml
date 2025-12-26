@@ -3,15 +3,11 @@ networks:
     driver: bridge
 
 services:
-  # Frontend Service
+  # Frontend Service (standalone microservice)
   frontend:
     build:
-      # Use repository root as build context so the Dockerfile can access
-      # top-level files (feature-toggles.json, public, etc.). The Dockerfile
-      # already references paths like `frontend/` so keeping the Dockerfile
-      # path unchanged keeps the current multi-stage build semantics.
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: ../frontend
+      dockerfile: Dockerfile
     container_name: conhub-frontend
     ports:
       - "3000:3000"
@@ -20,6 +16,11 @@ services:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://localhost:8000
       - NEXT_PUBLIC_DATA_SERVICE_URL=http://localhost:3013
+      - NEXT_PUBLIC_AUTH_SERVICE_URL=http://auth:3010
+      - NEXT_PUBLIC_BILLING_SERVICE_URL=http://billing:3011
+      - NEXT_PUBLIC_CHUNKER_SERVICE_URL=http://chunker:3017
+      - NEXT_PUBLIC_EMBEDDING_SERVICE_URL=http://embeddings:3021
+      - NEXT_PUBLIC_GRAPH_SERVICE_URL=http://graph_rag:3018
       - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     depends_on:
       - backend
@@ -460,7 +461,7 @@ services:
     restart: unless-stopped
 
   neo4j:
-    image: neo4j:5.15-community
+    image: neo4j:5.21-community
     container_name: conhub-neo4j
     ports:
       - "7474:7474"  # HTTP
@@ -470,9 +471,12 @@ services:
       NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-graphpassword}
       NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
       NEO4J_dbms_security_procedures_unrestricted: apoc.*,gds.*
-      NEO4J_dbms_memory_heap_initial__size: 512m
-      NEO4J_dbms_memory_heap_max__size: 2G
-      NEO4J_dbms_memory_pagecache_size: 512m
+      # Increased memory for vector storage
+      NEO4J_dbms_memory_heap_initial__size: 1G
+      NEO4J_dbms_memory_heap_max__size: 4G
+      NEO4J_dbms_memory_pagecache_size: 1G
+      # Enable vector similarity operations
+      NEO4J_dbms_security_procedures_allowlist: apoc.*,gds.*
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
