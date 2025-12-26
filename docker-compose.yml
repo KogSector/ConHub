@@ -1,3 +1,5 @@
+version: '3.8'
+
 networks:
   conhub-network:
     driver: bridge
@@ -18,7 +20,7 @@ services:
       - NEXT_PUBLIC_DATA_SERVICE_URL=http://localhost:3013
       - NEXT_PUBLIC_AUTH_SERVICE_URL=http://auth:3010
       - NEXT_PUBLIC_BILLING_SERVICE_URL=http://billing:3011
-      - NEXT_PUBLIC_CHUNKER_SERVICE_URL=http://chunker:3017
+      - NEXT_PUBLIC_CHUNKER_SERVICE_URL=http://chunker:3016
       - NEXT_PUBLIC_EMBEDDING_SERVICE_URL=http://embeddings:3021
       - NEXT_PUBLIC_GRAPH_SERVICE_URL=http://graph_rag:3018
       - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
@@ -36,8 +38,6 @@ services:
   # Backend Service
   backend:
     build:
-      # Use repository root as build context because the backend Dockerfile
-      # copies files from multiple top-level folders (shared/, auth/, billing/, etc.).
       context: .
       dockerfile: backend/Dockerfile
     container_name: conhub-backend
@@ -51,7 +51,6 @@ services:
       - REDIS_URL=redis://redis:6379
       - QDRANT_URL=http://qdrant:6333
       - JWT_SECRET=${JWT_SECRET}
-      # Microservice URLs
       - AUTH_SERVICE_URL=http://auth:3010
       - BILLING_SERVICE_URL=http://billing:3011
       - DATA_SERVICE_URL=http://data:3013
@@ -132,7 +131,7 @@ services:
     networks:
       - conhub-network
 
-  # Data Connector Service (standalone microservice)
+  # Data Connector Service
   data:
     build:
       context: ../data-connector
@@ -147,7 +146,7 @@ services:
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
       - REDIS_URL=redis://redis:6379
       - AUTH_SERVICE_URL=http://auth:3010
-      - CHUNKER_SERVICE_URL=http://chunker:3017
+      - CHUNKER_SERVICE_URL=http://chunker:3016
       - EMBEDDING_SERVICE_URL=http://embeddings:3021
       - GRAPH_SERVICE_URL=http://graph_rag:3018
       - EMBEDDING_ENABLED=true
@@ -165,7 +164,7 @@ services:
     networks:
       - conhub-network
 
-  # Embeddings Service (standalone microservice)
+  # Embeddings Service
   embeddings:
     build:
       context: ../embeddings
@@ -262,7 +261,6 @@ services:
       - DATABASE_URL=postgresql://conhub:conhub_password@postgres:5432/conhub
       - MCP_SERVICE_PORT=3004
       - HOST=0.0.0.0
-      # Connector configuration
       - ENABLE_FS=true
       - ENABLE_GITHUB=true
       - ENABLE_GITLAB=true
@@ -270,7 +268,6 @@ services:
       - ENABLE_GDRIVE=false
       - ENABLE_DROPBOX=false
       - ENABLE_NOTION=true
-      # API tokens
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - GITLAB_TOKEN=${GITLAB_TOKEN}
       - BITBUCKET_TOKEN=${BITBUCKET_TOKEN}
@@ -280,14 +277,14 @@ services:
     networks:
       - conhub-network
 
-  # Chunker Service (standalone microservice)
+  # Chunker Service
   chunker:
     build:
       context: ../chunker
       dockerfile: Dockerfile
     container_name: conhub-chunker
     ports:
-      - "3017:3017"
+      - "3016:3017"
     environment:
       - ENV_MODE=docker
       - PORT=3017
@@ -397,21 +394,19 @@ services:
     networks:
       - conhub-network
 
-  # Infrastructure Services
+  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
     container_name: conhub-postgres
     ports:
       - "5432:5432"
     environment:
-      ENV_MODE: docker
-      POSTGRES_DB: conhub
-      POSTGRES_USER: conhub
-      POSTGRES_PASSWORD: conhub_password
+      - ENV_MODE=docker
+      - POSTGRES_DB=conhub
+      - POSTGRES_USER=conhub
+      - POSTGRES_PASSWORD=conhub_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/postgres/migrations:/migrations:ro
-      - ./database/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U conhub -d conhub"]
       interval: 10s
@@ -421,13 +416,14 @@ services:
       - conhub-network
     restart: unless-stopped
 
+  # Redis Cache
   redis:
     image: redis:7-alpine
     container_name: conhub-redis
     ports:
       - "6379:6379"
     environment:
-      ENV_MODE: docker
+      - ENV_MODE=docker
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
@@ -440,6 +436,7 @@ services:
       - conhub-network
     restart: unless-stopped
 
+  # Qdrant Vector Database
   qdrant:
     image: qdrant/qdrant:latest
     container_name: conhub-qdrant
@@ -447,10 +444,9 @@ services:
       - "6333:6333"
       - "6334:6334"
     environment:
-      ENV_MODE: docker
+      - ENV_MODE=docker
     volumes:
       - qdrant_data:/qdrant/storage
-      - ./database/qdrant/config:/qdrant/config:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
       interval: 10s
@@ -460,23 +456,22 @@ services:
       - conhub-network
     restart: unless-stopped
 
+  # Neo4j Graph Database
   neo4j:
     image: neo4j:5.21-community
     container_name: conhub-neo4j
     ports:
-      - "7474:7474"  # HTTP
-      - "7687:7687"  # Bolt
+      - "7474:7474"
+      - "7687:7687"
     environment:
-      ENV_MODE: docker
-      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-graphpassword}
-      NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
-      NEO4J_dbms_security_procedures_unrestricted: apoc.*,gds.*
-      # Increased memory for vector storage
-      NEO4J_dbms_memory_heap_initial__size: 1G
-      NEO4J_dbms_memory_heap_max__size: 4G
-      NEO4J_dbms_memory_pagecache_size: 1G
-      # Enable vector similarity operations
-      NEO4J_dbms_security_procedures_allowlist: apoc.*,gds.*
+      - ENV_MODE=docker
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-graphpassword}
+      - NEO4J_PLUGINS=["apoc", "graph-data-science"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*,gds.*
+      - NEO4J_dbms_memory_heap_initial__size=1G
+      - NEO4J_dbms_memory_heap_max__size=4G
+      - NEO4J_dbms_memory_pagecache_size=1G
+      - NEO4J_dbms_security_procedures_allowlist=apoc.*,gds.*
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
