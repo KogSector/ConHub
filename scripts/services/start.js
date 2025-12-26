@@ -7,15 +7,16 @@ const fs = require('fs');
 
 const SERVICES = {
   auth: { port: 3010, path: 'auth', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Authentication & JWT' },
-  data: { port: 3013, path: 'data', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Data Sources & Connectors' },
+  data: { port: 3013, path: '../data-connector', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Data Sources & Connectors' },
   billing: { port: 3011, path: 'billing', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Stripe Payments' },
   security: { port: 3014, path: 'security', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Security & Audit' },
   webhook: { port: 3015, path: 'webhook', command: 'cargo', args: ['run'], healthPath: '/health', description: 'External Webhooks' },
   client: { port: 3012, path: 'client', command: 'cargo', args: ['run'], healthPath: '/health', description: 'AI Client Service' },
   mcp: { port: 3004, path: 'mcp', command: 'cargo', args: ['run'], healthPath: '/health', description: 'MCP Protocol Service' },
   backend: { port: 8010, path: 'backend', command: 'cargo', args: ['run'], healthPath: '/health', description: 'GraphQL Gateway' },
-  embedding: { port: 8082, path: 'vector_rag', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Fusion Embeddings' },
-  // indexers: { port: 8080, path: 'indexers', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Search & Indexing' }, // Removed - will be rewritten
+  chunker: { port: 3017, path: '../chunker', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Document Chunking' },
+  embedding: { port: 8082, path: '../embeddings', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Fusion Embeddings' },
+  'relation-graph': { port: 3018, path: '../relation-graph', command: 'cargo', args: ['run'], healthPath: '/health', description: 'Knowledge Graph' },
   frontend: { port: 3000, path: 'frontend', command: 'npm.cmd', args: ['run', 'dev'], healthPath: '/', description: 'Next.js UI' }
 };
 
@@ -318,14 +319,22 @@ class ServiceManager {
       console.log('');
     }
 
+    // RAG Pipeline services (dependency chain: chunker -> embedding -> relation-graph)
     if (toggles.Heavy) {
-      const heavyServices = ['embedding']; // indexers removed - will be rewritten later
-      for (const service of heavyServices) {
-        await this.startService(service, toggles);
-        // Increase embedding wait timeout by +60s (20s -> 80s)
-        await this.waitForService(service, 80000);
-        console.log('');
-      }
+      // Chunker service
+      await this.startService('chunker', toggles);
+      await this.waitForService('chunker', 90000);
+      console.log('');
+
+      // Embedding service
+      await this.startService('embedding', toggles);
+      await this.waitForService('embedding', 90000);
+      console.log('');
+
+      // Relation Graph service
+      await this.startService('relation-graph', toggles);
+      await this.waitForService('relation-graph', 90000);
+      console.log('');
     }
 
 
@@ -352,8 +361,9 @@ class ServiceManager {
     console.log('   📊 Data API:     http://localhost:3013/health');
     console.log('   🤖 AI Service:   http://localhost:3012/health');
     if (toggles.Heavy) {
+      console.log('   📦 Chunker:      http://localhost:3017/health');
       console.log('   🧠 Embeddings:   http://localhost:8082/health');
-      console.log('   🔍 Search:       http://localhost:8080/health');
+      console.log('   🔷 Graph:        http://localhost:3018/health');
     }
     
     console.log('\n💡 Use Ctrl+C to stop all services');
